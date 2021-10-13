@@ -2,8 +2,14 @@
   "name": "money",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/index.ts",
+  "type": "module",
+  "engines": {
+    "node": ">14"
+  },
   "scripts": {
+    "start": "node --loader ts-node/esm src/index.ts",
+    "postinstall": "patch-package",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -15,5 +21,14 @@
   "bugs": {
     "url": "https://github.com/daniel-hauser/money/issues"
   },
-  "homepage": "https://github.com/daniel-hauser/money#readme"
+  "homepage": "https://github.com/daniel-hauser/money#readme",
+  "dependencies": {
+    "dotenv": "^10.0.0",
+    "israeli-bank-scrapers": "^1.4.1"
+  },
+  "devDependencies": {
+    "patch-package": "^6.4.7",
+    "ts-node": "^10.3.0",
+    "typescript": "^4.4.4"
+  }
 }
