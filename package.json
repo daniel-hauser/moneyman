@@ -1,5 +1,5 @@
 {
-  "name": "money",
+  "name": "moneyman",
   "version": "1.0.0",
   "description": "",
   "main": "src/index.ts",
@@ -14,14 +14,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/daniel-hauser/money.git"
+    "url": "git+https://github.com/daniel-hauser/moneyman.git"
   },
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/daniel-hauser/money/issues"
+    "url": "https://github.com/daniel-hauser/moneyman/issues"
   },
-  "homepage": "https://github.com/daniel-hauser/money#readme",
+  "homepage": "https://github.com/daniel-hauser/moneyman#readme",
   "dependencies": {
     "date-fns": "^2.25.0",
     "dotenv": "^10.0.0",
