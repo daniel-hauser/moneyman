@@ -28,9 +28,11 @@ export type CategoryDef = {
 
 export interface SaveStats {
   name: string;
+  total: number;
   added: number;
-  skipped: number;
+  pending: number;
   replaced: number; // rows changed from pending to other??
+  existing: number;
 }
 
 export interface TransactionStorage {

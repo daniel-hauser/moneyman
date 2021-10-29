@@ -6,7 +6,7 @@ import type {
   TransactionStorage,
   SaveStats,
 } from "../types.js";
-
+import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 
 export class GoogleSheetsStorage implements TransactionStorage {
   existingTransactionsHashes = new Set<string>();
@@ -22,21 +22,40 @@ export class GoogleSheetsStorage implements TransactionStorage {
   }
 
   async saveTransactions(txns: Array<TransactionRow>) {
+    const rows: string[][] = [];
     await this.init();
 
     const sheet = await this.getWorkSheet();
-    const rows = txns
-      .filter((t) => !this.existingTransactionsHashes.has(t.hash))
-      .map((t) => transactionRow(t));
-
-    await sheet.addRows(rows);
-
-    return {
-      name: "GoogleSheetsStorage",
+    const stats: SaveStats = {
+      name: "Google Sheets",
       replaced: 0, // TODO
-      added: rows.length,
-      skipped: txns.length - rows.length,
-    } as SaveStats;
+      total: txns.length,
+      added: 0,
+      pending: 0,
+      existing: 0,
+    };
+
+    for (let tx of txns) {
+      if (this.existingTransactionsHashes.has(tx.hash)) {
+        stats.existing++;
+        continue;
+      }
+
+      if (tx.status === TransactionStatuses.Pending) {
+        // TODO: Add pending rows and edit the saved row?
+        stats.pending++;
+        continue;
+      }
+
+      stats.added++;
+      rows.push(transactionRow(tx));
+    }
+
+    if (rows.length) {
+      await sheet.addRows(rows);
+    }
+
+    return stats;
   }
 
   private async getHashes() {

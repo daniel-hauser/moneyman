@@ -1,11 +1,6 @@
 import { scrapeAccounts } from "./data/index.js";
 import { startDate, accounts } from "./config.js";
-import {
-  send,
-  getSummaryMessage,
-  deleteMessage,
-  sendError,
-} from "./notifier.js";
+import { send, getSummaryMessage, sendError } from "./notifier.js";
 import { loadExistingHashes, saveResults } from "./storage/index.js";
 
 await run();
@@ -14,18 +9,17 @@ await run();
 process.exit(0);
 
 async function run() {
-  const message = await send("Updating...");
+  const { message_id } = await send("Starting...");
 
   try {
     const [results] = await Promise.all([
-      scrapeAccounts(accounts, startDate),
+      scrapeAccounts(accounts, startDate, message_id),
       loadExistingHashes(startDate),
     ]);
 
     const saved = await saveResults(results);
     const summary = getSummaryMessage(results, saved.stats);
 
-    await deleteMessage(message);
     await send(summary);
   } catch (e) {
     await sendError(e);

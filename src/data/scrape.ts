@@ -7,18 +7,20 @@ import {
 
 export async function getAccountTransactions(
   account: AccountConfig,
-  startDate: Date
+  startDate: Date,
+  onProgress: (companyId: string, status: string) => void
 ): Promise<ScaperScrapingResult> {
   console.log(`started`);
   try {
     const scraper = createScraper({
       startDate,
       companyId: account.companyId,
-      args: ["--disable-dev-shm-usage"],
+      args: ["--disable-dev-shm-usage", "--no-sandbox"],
     });
 
-    scraper.onProgress((progress) => {
-      console.log(progress);
+    scraper.onProgress((companyId, { type }) => {
+      console.log(`[${companyId}] ${type}`);
+      onProgress(companyId, type);
     });
 
     const result = await scraper.scrape(account);

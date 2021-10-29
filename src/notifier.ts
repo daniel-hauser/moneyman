@@ -13,6 +13,16 @@ export async function send(message: string) {
 export async function deleteMessage(message: Message.TextMessage) {
   await bot.telegram.deleteMessage(TELEGRAM_CHAT_ID, message.message_id);
 }
+
+export async function editMessage(message: number, newText: string) {
+  await bot.telegram.editMessageText(
+    TELEGRAM_CHAT_ID,
+    message,
+    undefined,
+    newText
+  );
+}
+
 export async function sendError(message: any) {
   return await send("❌ " + String(message));
 }
@@ -21,28 +31,27 @@ export function getSummaryMessage(
   results: Array<AccountScrapeResult>,
   stats: Array<SaveStats>
 ) {
-  const accountsSummary = results.map(({ result, companyId }) => {
+  const accountsSummary = results.flatMap(({ result, companyId }) => {
     if (!result.success) {
-      return `❌ [${companyId}] ${result.errorType}\n\t${result.errorMessage}`;
+      return `\t❌ [${companyId}] ${result.errorType}\n\t${result.errorMessage}`;
     }
-    return result.accounts
-      .map(
-        (account) =>
-          `✔️ [${companyId}] ${account.accountNumber}: ${account.txns.length}`
-      )
-      .join("\n\t");
+    return result.accounts.map(
+      (account) =>
+        `\t✔️ [${companyId}] ${account.accountNumber}: ${account.txns.length}`
+    );
   });
 
-  const saveSummary = stats
-    .map((s) => {
-      return `\t${s.name}\n\t${s.added} added, ${s.skipped} skipped`;
-    })
-    .join("\n");
+  const saveSummary = stats.map((s) => {
+    const skipped = s.existing + s.pending;
+    return `\t📝 ${s.name}
+\t\t${s.added} added, ${skipped} skipped
+\t\t(${s.existing} existing,  ${s.pending} pending)`;
+  });
 
   return `
 Accounts updated:
-${accountsSummary || "\t😶 None"}
+${accountsSummary.join("\n") || "\t😶 None"}
 Saved to:
-${saveSummary || "\t😶 None"}
+${saveSummary.join("\n") || "\t😶 None"}
   `.trim();
 }

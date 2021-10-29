@@ -1,10 +1,13 @@
 import { performance } from "perf_hooks";
 import { getAccountTransactions } from "./scrape.js";
 import { AccountConfig, AccountScrapeResult } from "../types";
+import { Message } from "telegraf/typings/core/types/typegram";
+import { editMessage } from "../notifier.js";
 
 export async function scrapeAccounts(
   accounts: Array<AccountConfig>,
-  startDate: Date
+  startDate: Date,
+  statusMessageId: number
 ) {
   const start = performance.now();
 
@@ -14,19 +17,23 @@ export async function scrapeAccounts(
     }, startDate=${startDate.toISOString()})`
   );
 
+  const status: Array<string> = [];
   const results: Array<AccountScrapeResult> = [];
+
   for (let i = 0; i < accounts.length; i++) {
     const account = accounts[i];
-    const start = performance.now();
 
     console.group(`account #${i} (type=${account.companyId})`);
+    const result = await scrapeAccount(account, startDate, async (message) => {
+      status[i] = message;
+      await editMessage(statusMessageId, status.join("\n"));
+    });
 
     results.push({
       companyId: account.companyId,
-      result: await getAccountTransactions(account, startDate),
+      result,
     });
 
-    console.log(`duration: ${performance.now() - start}`);
     console.groupEnd();
   }
 
@@ -35,10 +42,34 @@ export async function scrapeAccounts(
   console.log(
     `Got ${stats.transactions} transactions from ${stats.accounts} accounts`
   );
-  console.log(`total duration: ${performance.now() - start}`);
+
+  const duration = (performance.now() - start) / 1000;
+  console.log(`total duration: ${duration}s`);
+
+  await editMessage(
+    statusMessageId,
+    `${status.join("\n")}\n\ntotal time: ${duration.toFixed(1)}s`
+  );
 
   return results;
 }
+
+export async function scrapeAccount(
+  account: AccountConfig,
+  startDate: Date,
+  setStatusMessage: (message: string) => Promise<void>
+) {
+  let message = "";
+  const start = performance.now();
+  const result = await getAccountTransactions(account, startDate, (cid, step) =>
+    setStatusMessage((message = `[${cid}] ${step}`))
+  );
+
+  const duration = (performance.now() - start) / 1000;
+  await setStatusMessage(`${message}, took ${duration.toFixed(1)}s`);
+  return result;
+}
+
 function getStats(results: Array<AccountScrapeResult>) {
   let accounts = 0;
   let transactions = 0;
