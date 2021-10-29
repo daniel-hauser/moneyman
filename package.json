@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "node --loader ts-node/esm src/index.ts",
+    "start:container": "docker compose up",
     "postinstall": "patch-package",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

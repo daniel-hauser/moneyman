@@ -32,7 +32,6 @@ FROM base AS release
 WORKDIR /app
 
 COPY --from=dependencies /app/node_modules ./node_modules
-COPY .env .
 COPY tsconfig.json .
 COPY package.json .
 COPY ./src ./src

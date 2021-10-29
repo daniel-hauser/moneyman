@@ -1,0 +1,5 @@
+services:
+  monayman:
+    build: .
+    env_file:
+      - .env
