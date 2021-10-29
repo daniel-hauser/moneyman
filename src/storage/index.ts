@@ -36,7 +36,15 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
 }
 
 export function transactionRow(tx: TransactionRow): Array<string> {
-  return [tx.account, tx.hash];
+  return [
+    tx.date,
+    String(tx.chargedAmount),
+    tx.description,
+    tx.memo,
+    "",
+    tx.account,
+    tx.hash,
+  ];
 }
 
 export function transactionHash(
