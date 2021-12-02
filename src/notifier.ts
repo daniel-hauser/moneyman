@@ -1,6 +1,7 @@
 import { Telegraf } from "telegraf";
 import { Message } from "telegraf/typings/core/types/typegram";
 import { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID } from "./config.js";
+import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import type { AccountScrapeResult, SaveStats } from "./types.js";
 
 const bot = new Telegraf(TELEGRAM_API_KEY);
@@ -53,5 +54,19 @@ Accounts updated:
 ${accountsSummary.join("\n") || "\t😶 None"}
 Saved to:
 ${saveSummary.join("\n") || "\t😶 None"}
-  `.trim();
+Server info:
+\tTZ: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
+${getPendingSummary(results)}
+`.trim();
+}
+
+function getPendingSummary(results: Array<AccountScrapeResult>) {
+  const pending = results
+    .flatMap(({ result }) => result.accounts)
+    .flatMap((account) => account?.txns)
+    .filter((t) => t.status === TransactionStatuses.Pending);
+
+  return pending.length
+    ? `Pending txns:\n${pending.map((t) => t.description).join("\n")}`
+    : "";
 }
