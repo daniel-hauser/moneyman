@@ -6,7 +6,7 @@ Internally we use [israeli-bank-scrapers](https://github.com/eshaham/israeli-ban
 
 ## Why?
 
-Having all your data in one place lets you view all of your expenses in a beautiful dashboard (like [Google Data Studio](https://datastudio.google.com) and [Microsoft Power BI](https://powerbi.microsoft.com/)
+Having all your data in one place lets you view all of your expenses in a beautiful dashboard like [Google Data Studio](https://datastudio.google.com) and [Microsoft Power BI](https://powerbi.microsoft.com/)
 
 ## Run
 
@@ -35,14 +35,16 @@ The current implementation assumes that you run the code on a secures and truste
 
 **Please use a secret management solution (azure secrets, docker secrets) to save and pass the environment variables**
 
-### Add accounts
+### Add accounts and scrape
 
 Use the following env vars to setup the data fetching.
 
-| Name            | description                                                                                                                         |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `ACCOUNTS_JSON` | A json array of accounts following [this](https://github.com/eshaham/israeli-bank-scrapers#specific-definitions-per-scraper) schema |
-| `DAYS_BACK`     | The amount of days back to scrape                                                                                                   |
+| Name                 | description                                                                                                                         |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `ACCOUNTS_JSON`      | A json array of accounts following [this](https://github.com/eshaham/israeli-bank-scrapers#specific-definitions-per-scraper) schema |
+| `ACCOUNTS_TO_SCRAPE` | [Optional] A comma separated list of providers to take from `ACCOUNTS_JSON`, default value is all accounts                          |
+| `DAYS_BACK`          | The amount of days back to scrape                                                                                                   |
+| `TZ`                 | A timezone for the process - used for the formatting of the timestamp                                                               |
 
 ### Get notified in telegram
 
