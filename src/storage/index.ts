@@ -1,7 +1,7 @@
-import { parseISO, roundToNearestMinutes } from "date-fns";
+import { parseISO, roundToNearestMinutes, format } from "date-fns";
 import type { CompanyTypes } from "israeli-bank-scrapers";
 import type { Transaction } from "israeli-bank-scrapers/lib/transactions";
-import { send, sendError } from "../notifier.js";
+import { sendError } from "../notifier.js";
 import type { AccountScrapeResult, TransactionRow } from "../types.js";
 
 import { GoogleSheetsStorage } from "./sheets.js";
@@ -37,7 +37,7 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
 
 export function transactionRow(tx: TransactionRow): Array<string> {
   return [
-    tx.date,
+    format(parseISO(tx.date), "dd/MM/yyyy", {}),
     String(tx.chargedAmount),
     tx.description,
     tx.memo,
