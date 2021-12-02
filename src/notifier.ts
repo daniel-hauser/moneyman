@@ -29,6 +29,7 @@ export async function sendError(message: any) {
 }
 
 export function getSummaryMessage(
+  startDate: Date,
   results: Array<AccountScrapeResult>,
   stats: Array<SaveStats>
 ) {
@@ -55,6 +56,7 @@ ${accountsSummary.join("\n") || "\t😶 None"}
 Saved to:
 ${saveSummary.join("\n") || "\t😶 None"}
 Server info:
+\tStart Date: ${startDate.toISOString()}
 \tTZ: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
 ${getPendingSummary(results)}
 `.trim();

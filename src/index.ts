@@ -18,7 +18,7 @@ async function run() {
     ]);
 
     const saved = await saveResults(results);
-    const summary = getSummaryMessage(results, saved.stats);
+    const summary = getSummaryMessage(startDate, results, saved.stats);
 
     await send(summary);
   } catch (e) {
