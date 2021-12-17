@@ -25,6 +25,7 @@ export async function editMessage(message: number, newText: string) {
 }
 
 export async function sendError(message: any) {
+  console.error(message);
   return await send("❌ " + String(message));
 }
 
@@ -35,7 +36,9 @@ export function getSummaryMessage(
 ) {
   const accountsSummary = results.flatMap(({ result, companyId }) => {
     if (!result.success) {
-      return `\t❌ [${companyId}] ${result.errorType}\n\t${result.errorMessage}`;
+      return `\t❌ [${companyId}] ${result.errorType}${
+        result.errorMessage ? `\n\t${result.errorMessage}` : ""
+      }`;
     }
     return result.accounts.map(
       (account) =>
@@ -66,6 +69,7 @@ function getPendingSummary(results: Array<AccountScrapeResult>) {
   const pending = results
     .flatMap(({ result }) => result.accounts)
     .flatMap((account) => account?.txns)
+    .filter(Boolean)
     .filter((t) => t.status === TransactionStatuses.Pending);
 
   return pending.length
