@@ -31,7 +31,7 @@ export const FileHeaders = [
   "amount",
   "description",
   "memo",
-  "_category", // Not used, but added to be backwards compatible with caspion
+  "category",
   "account",
   "hash",
 ];

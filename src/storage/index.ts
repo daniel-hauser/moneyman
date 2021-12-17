@@ -41,7 +41,7 @@ export function transactionRow(tx: TransactionRow): Array<string> {
     String(tx.chargedAmount),
     tx.description,
     tx.memo,
-    "",
+    tx.category,
     tx.account,
     tx.hash,
   ];
