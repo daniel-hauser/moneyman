@@ -28,7 +28,6 @@
     "dotenv": "^10.0.0",
     "google-spreadsheet": "^3.1.15",
     "israeli-bank-scrapers": "^1.9.0",
-    "node-telegram-bot-api": "^0.54.0",
     "telegraf": "^4.4.2"
   },
   "devDependencies": {
