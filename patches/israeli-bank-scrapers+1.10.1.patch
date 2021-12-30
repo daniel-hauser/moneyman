@@ -1,0 +1,13 @@
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/hapoalim.js b/node_modules/israeli-bank-scrapers/lib/scrapers/hapoalim.js
+index 2924daa..256c337 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/hapoalim.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/hapoalim.js
+@@ -109,7 +109,7 @@ async function fetchPoalimXSRFWithinPage(page, url, pageUuid) {
+ async function getAccountTransactions(apiSiteUrl, page, accountNumber, startDate, endDate) {
+   var _txnsResult$transacti;
+ 
+-  const txnsUrl = `${apiSiteUrl}/current-account/transactions?accountId=${accountNumber}&numItemsPerPage=150&retrievalEndDate=${endDate}&retrievalStartDate=${startDate}&sortCode=1`;
++  const txnsUrl = `${apiSiteUrl}/current-account/transactions?accountId=${accountNumber}&numItemsPerPage=600&retrievalEndDate=${endDate}&retrievalStartDate=${startDate}&sortCode=1`;
+   const txnsResult = await fetchPoalimXSRFWithinPage(page, txnsUrl, '/current-account/transactions');
+   return convertTransactions((_txnsResult$transacti = txnsResult === null || txnsResult === void 0 ? void 0 : txnsResult.transactions) !== null && _txnsResult$transacti !== void 0 ? _txnsResult$transacti : []);
+ }
