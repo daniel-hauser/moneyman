@@ -3,11 +3,14 @@ import { Message } from "telegraf/typings/core/types/typegram";
 import { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID } from "./config.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import type { AccountScrapeResult, SaveStats } from "./types.js";
+import { createLogger } from "./utils/logger.js";
+
+const logger = createLogger("notifier");
 
 const bot = new Telegraf(TELEGRAM_API_KEY);
 
 export async function send(message: string) {
-  console.info(`[send] ${message}`);
+  logger(message);
   return await bot.telegram.sendMessage(TELEGRAM_CHAT_ID, message);
 }
 
@@ -24,9 +27,8 @@ export async function editMessage(message: number, newText: string) {
   );
 }
 
-export async function sendError(message: any) {
-  console.error(message);
-  return await send("❌ " + String(message));
+export function sendError(message: any) {
+  return send(`❌ ${String(message)}`);
 }
 
 export function getSummaryMessage(

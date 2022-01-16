@@ -1,8 +1,10 @@
 import { performance } from "perf_hooks";
 import { getAccountTransactions } from "./scrape.js";
 import { AccountConfig, AccountScrapeResult } from "../types";
-import { Message } from "telegraf/typings/core/types/typegram";
 import { editMessage } from "../notifier.js";
+import { createLogger } from "../utils/logger.js";
+
+const logger = createLogger("data");
 
 export async function scrapeAccounts(
   accounts: Array<AccountConfig>,
@@ -11,11 +13,8 @@ export async function scrapeAccounts(
 ) {
   const start = performance.now();
 
-  console.log(
-    `scraping started (accounts=${
-      accounts.length
-    }, startDate=${startDate.toISOString()})`
-  );
+  logger(`scraping %d accounts`, accounts.length);
+  logger(`start date %s`, startDate.toISOString());
 
   const status: Array<string> = [];
   const results: Array<AccountScrapeResult> = [];
@@ -23,7 +22,7 @@ export async function scrapeAccounts(
   for (let i = 0; i < accounts.length; i++) {
     const account = accounts[i];
 
-    console.group(`account #${i} (type=${account.companyId})`);
+    logger(`scraping account #${i} (type=${account.companyId})`);
     const result = await scrapeAccount(account, startDate, async (message) => {
       status[i] = message;
       await editMessage(statusMessageId, status.join("\n"));
@@ -33,18 +32,17 @@ export async function scrapeAccounts(
       companyId: account.companyId,
       result,
     });
-
-    console.groupEnd();
+    logger(`scraping account #${i} ended`);
   }
 
-  console.log(`scraping ended`);
+  logger(`scraping ended`);
   const stats = getStats(results);
-  console.log(
+  logger(
     `Got ${stats.transactions} transactions from ${stats.accounts} accounts`
   );
 
   const duration = (performance.now() - start) / 1000;
-  console.log(`total duration: ${duration}s`);
+  logger(`total duration: ${duration}s`);
 
   await editMessage(
     statusMessageId,
@@ -66,6 +64,7 @@ export async function scrapeAccount(
   );
 
   const duration = (performance.now() - start) / 1000;
+  logger(`scraping took ${duration.toFixed(1)}s`);
   await setStatusMessage(`${message}, took ${duration.toFixed(1)}s`);
   return result;
 }
