@@ -25,12 +25,14 @@
   "homepage": "https://github.com/daniel-hauser/moneyman#readme",
   "dependencies": {
     "date-fns": "^2.25.0",
+    "debug": "^4.3.3",
     "dotenv": "^10.0.0",
     "google-spreadsheet": "^3.1.15",
     "israeli-bank-scrapers": "^1.10.1",
     "telegraf": "^4.4.2"
   },
   "devDependencies": {
+    "@types/debug": "^4.1.7",
     "@types/google-spreadsheet": "^3.1.5",
     "@types/puppeteer": "^5.4.4",
     "patch-package": "^6.4.7",
