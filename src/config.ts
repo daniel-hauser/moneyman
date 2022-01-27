@@ -2,6 +2,7 @@ import "dotenv/config";
 import { subDays, format } from "date-fns";
 import { AccountConfig } from "./types";
 
+console.log("Parsing config");
 const {
   DAYS_BACK,
   ACCOUNTS_JSON,

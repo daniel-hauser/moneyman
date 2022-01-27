@@ -6,12 +6,20 @@ import { createLogger } from "./utils/logger.js";
 
 const logger = createLogger("main");
 
+process.on("uncaughtException", (err, origin) => {
+  console.error("uncaughtException, sending error");
+  sendError(`
+Caught exception: ${err}
+Exception origin: ${origin}`).catch((e) => {});
+});
+
 await run();
 
 // kill internal browsers if stuck
 process.exit(0);
 
 async function run() {
+  console.log("scraping started");
   logger("scraping started");
 
   const { message_id } = await send("Starting...");
@@ -31,4 +39,5 @@ async function run() {
   }
 
   logger("scraping ended");
+  console.log("scraping ended");
 }
