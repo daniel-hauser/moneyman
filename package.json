@@ -8,6 +8,7 @@
     "node": ">15"
   },
   "scripts": {
+    "act": "go run github.com/nektos/act@latest",
     "start": "node --loader ts-node/esm src/index.ts",
     "start:container": "docker compose up",
     "postinstall": "patch-package",

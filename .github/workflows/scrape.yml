@@ -1,0 +1,53 @@
+name: Scrape
+
+on:
+  workflow_dispatch:
+    inputs:
+      accountsToScrape:
+        default: ""
+        required: false
+        description: "Accounts to scrape (comma separated)"
+      daysBack:
+        default: "10"
+        required: false
+        description: "Days back to scrape"
+      worksheetName:
+        default: "auto_moneyman"
+        required: false
+        description: "The name of the worksheet to write to"
+  # schedule:
+  #   - cron: "0 13 * * 1,4"
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Docker Build
+        # TODO: Build the container in a different workflow and push to a registry
+        run: docker build . --file Dockerfile --tag moneyman:latest
+      - name: Run scraper
+        run: docker run
+          -e DEBUG
+          -e DAYS_BACK
+          -e TZ
+          -e WORKSHEET_NAME
+          -e ACCOUNTS_JSON
+          -e TELEGRAM_API_KEY
+          -e TELEGRAM_CHAT_ID
+          -e GOOGLE_SHEET_ID
+          -e GOOGLE_SERVICE_ACCOUNT_EMAIL
+          -e GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
+          -e ACCOUNTS_TO_SCRAPE
+          moneyman:latest
+        env:
+          DEBUG: ""
+          TZ: "Asia/Jerusalem"
+          DAYS_BACK: ${{ inputs.daysBack }}
+          WORKSHEET_NAME: ${{ inputs.worksheetName }}
+          ACCOUNTS_JSON: ${{ secrets.ACCOUNTS_JSON }}
+          TELEGRAM_API_KEY: ${{ secrets.TELEGRAM_API_KEY }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+          GOOGLE_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
+          GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY }}
+          ACCOUNTS_TO_SCRAPE: ${{ inputs.accountsToScrape }}
