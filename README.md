@@ -66,12 +66,12 @@ TODO: Add a way to send a message to the bot to connect
 1. Follow the instructions [here](https://theoephraim.github.io/node-google-spreadsheet/#/getting-started/authentication?id=service-account) to create a google service account.
 2. Create a [new sheet](https://sheets.new/) and share it with your service account using the `GOOGLE_SERVICE_ACCOUNT_EMAIL`.
 
-| Name                           | description                                                   |
-| ------------------------------ | ------------------------------------------------------------- |
-| `GOOGLE_PRIVATE_KEY`           | The super secret api key of your service account              |
-| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | The service account's email address                           |
-| `GOOGLE_SHEET_ID`              | The id of the sheet you shared with the service account       |
-| `WORKSHEET_NAME`               | The name of the worksheet you want to add the transactions to |
+| Name                                 | description                                                   |
+| ------------------------------------ | ------------------------------------------------------------- |
+| `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | The super secret api key of your service account              |
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL`       | The service account's email address                           |
+| `GOOGLE_SHEET_ID`                    | The id of the sheet you shared with the service account       |
+| `WORKSHEET_NAME`                     | The name of the worksheet you want to add the transactions to |
 
 ### Export to excel on one drive
 
