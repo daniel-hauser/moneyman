@@ -4,13 +4,16 @@ import {
   ScaperScrapingResult,
   ScraperErrorTypes,
 } from "israeli-bank-scrapers/lib/scrapers/base-scraper.js";
+import { createLogger } from "../utils/logger.js";
+
+const logger = createLogger("scrape");
 
 export async function getAccountTransactions(
   account: AccountConfig,
   startDate: Date,
   onProgress: (companyId: string, status: string) => void
 ): Promise<ScaperScrapingResult> {
-  console.log(`started`);
+  logger(`started`);
   try {
     const scraper = createScraper({
       startDate,
@@ -19,20 +22,20 @@ export async function getAccountTransactions(
     });
 
     scraper.onProgress((companyId, { type }) => {
-      console.log(`[${companyId}] ${type}`);
+      logger(`[${companyId}] ${type}`);
       onProgress(companyId, type);
     });
 
     const result = await scraper.scrape(account);
 
     if (!result.success) {
-      console.error(`error: ${result.errorType} ${result.errorMessage}`);
+      logger(`error: ${result.errorType} ${result.errorMessage}`);
     }
-    console.log(`ended`);
+    logger(`ended`);
 
     return result;
   } catch (e) {
-    console.error(e);
+    logger(e);
     return {
       success: false,
       errorType: ScraperErrorTypes.Generic,

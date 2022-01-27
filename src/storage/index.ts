@@ -1,6 +1,7 @@
 import { parseISO, roundToNearestMinutes, format } from "date-fns";
 import type { CompanyTypes } from "israeli-bank-scrapers";
 import type { Transaction } from "israeli-bank-scrapers/lib/transactions";
+import { currentDate, systemName } from "../config.js";
 import { sendError } from "../notifier.js";
 import type { AccountScrapeResult, TransactionRow } from "../types.js";
 
@@ -37,13 +38,16 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
 
 export function transactionRow(tx: TransactionRow): Array<string> {
   return [
-    format(parseISO(tx.date), "dd/MM/yyyy", {}),
-    String(tx.chargedAmount),
-    tx.description,
-    tx.memo,
-    tx.category,
-    tx.account,
-    tx.hash,
+    /* date */ format(parseISO(tx.date), "dd/MM/yyyy", {}),
+    /* amount */ String(tx.chargedAmount),
+    /* description */ tx.description,
+    /* memo */ tx.memo,
+    /* category */ tx.category,
+    /* account */ tx.account,
+    /* hash */ tx.hash,
+    /* comment */ "",
+    /* scraped at */ currentDate,
+    /* scraped by */ systemName,
   ];
 }
 
