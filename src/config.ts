@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { subDays } from "date-fns";
+import { subDays, format } from "date-fns";
 import { AccountConfig } from "./types";
 
 const {
@@ -17,7 +17,9 @@ const accountsToScrape = ACCOUNTS_TO_SCRAPE.split(",")
   .filter(Boolean);
 
 export { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID, GOOGLE_SHEET_ID, WORKSHEET_NAME };
-export const startDate = subDays(Date.now(), Number(DAYS_BACK));
+export const systemName = "moneyman";
+export const currentDate = format(Date.now(), "yyyy-MM-dd");
+export const scrapeStartDate = subDays(Date.now(), Number(DAYS_BACK));
 
 export const accounts = (
   JSON.parse(ACCOUNTS_JSON) as Array<AccountConfig>
@@ -34,4 +36,7 @@ export const FileHeaders = [
   "category",
   "account",
   "hash",
+  "comment",
+  "scraped at",
+  "scraped by",
 ];
