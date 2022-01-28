@@ -1,3 +1,6 @@
 {
-  "cSpell.words": ["moneyman", "txns"]
+  "cSpell.words": ["moneyman", "txns"],
+  "yaml.schemas": {
+    "https://json.schemastore.org/github-workflow.json": "file:///workspaces/money/.github/workflows/build.yml"
+  }
 }
