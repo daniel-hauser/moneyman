@@ -50,7 +50,7 @@ export function getSummaryMessage(
 
   const saveSummary = stats.map((s) => {
     const skipped = s.existing + s.pending;
-    return `\t📝 ${s.name}
+    return `\t📝 ${s.name} (${s.sheetName})
 \t\t${s.added} added, ${skipped} skipped
 \t\t(${s.existing} existing,  ${s.pending} pending)`;
   });

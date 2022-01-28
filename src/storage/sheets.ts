@@ -28,6 +28,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
     const sheet = await this.getWorkSheet();
     const stats: SaveStats = {
       name: "Google Sheets",
+      sheetName: WORKSHEET_NAME,
       replaced: 0, // TODO
       total: txns.length,
       added: 0,

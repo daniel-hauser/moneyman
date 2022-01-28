@@ -28,6 +28,7 @@ export type CategoryDef = {
 
 export interface SaveStats {
   name: string;
+  sheetName: string;
   total: number;
   added: number;
   pending: number;
