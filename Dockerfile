@@ -25,7 +25,7 @@ WORKDIR /app
 
 COPY tsconfig.json .
 COPY package.json .
-COPY package-lock.json .
+# COPY package-lock.json .
 COPY ./patches ./patches
 RUN npm install
 
