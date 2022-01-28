@@ -17,16 +17,14 @@ on:
         description: "The name of the worksheet to write to"
   # schedule:
   #   - cron: "0 13 * * 1,4"
+env:
+  IMAGE_NAME: ghcr.io/daniel-hauser/moneyman:latest
 jobs:
   scrape:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Docker Build
-        # TODO: Build the container in a different workflow and push to a registry
-        run: docker build . --file Dockerfile --tag moneyman:latest
       - name: Run scraper
-        run: docker run
+        run: docker run --rm
           -e DEBUG
           -e DAYS_BACK
           -e TZ
@@ -38,7 +36,7 @@ jobs:
           -e GOOGLE_SERVICE_ACCOUNT_EMAIL
           -e GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
           -e ACCOUNTS_TO_SCRAPE
-          moneyman:latest
+          $IMAGE_NAME
         env:
           DEBUG: ""
           TZ: "Asia/Jerusalem"
