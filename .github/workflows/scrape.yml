@@ -40,12 +40,12 @@ jobs:
         env:
           DEBUG: ""
           TZ: "Asia/Jerusalem"
-          DAYS_BACK: ${{ inputs.daysBack }}
-          WORKSHEET_NAME: ${{ inputs.worksheetName }}
+          DAYS_BACK: ${{ github.event.inputs.daysBack }}
+          WORKSHEET_NAME: ${{ github.event.inputs.worksheetName }}
+          ACCOUNTS_TO_SCRAPE: ${{ github.event.inputs.accountsToScrape }}
           ACCOUNTS_JSON: ${{ secrets.ACCOUNTS_JSON }}
           TELEGRAM_API_KEY: ${{ secrets.TELEGRAM_API_KEY }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
           GOOGLE_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
           GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY }}
-          ACCOUNTS_TO_SCRAPE: ${{ inputs.accountsToScrape }}
