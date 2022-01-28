@@ -23,6 +23,8 @@ jobs:
   scrape:
     runs-on: ubuntu-latest
     steps:
+      - name: Pull image
+        run: docker pull $IMAGE_NAME
       - name: Run scraper
         run: docker run --rm
           -e DEBUG
