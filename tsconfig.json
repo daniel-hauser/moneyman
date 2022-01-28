@@ -3,6 +3,8 @@
     "esModuleInterop": true,
     "moduleResolution": "Node",
     "target": "es2017",
+    "outDir": "dst",
     "module": "ESNext"
-  }
+  },
+  "include": ["src/**/*"]
 }

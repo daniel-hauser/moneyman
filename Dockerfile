@@ -19,21 +19,26 @@ RUN addgroup -S pptruser && adduser -S -g pptruser pptruser \
  
 USER pptruser
 
-# ---- Dependencies ----
-FROM base AS dependencies
+# ---- Builder ----
+FROM base AS builder
 WORKDIR /app
 
+COPY tsconfig.json .
 COPY package.json .
-# RUN npm install --only=production 
+COPY package-lock.json .
+COPY ./patches ./patches
 RUN npm install
+
+COPY ./src ./src
+RUN npm run build
+RUN npm prune --production
 
 # ---- Release ----
 FROM base AS release
 WORKDIR /app
 
-COPY --from=dependencies /app/node_modules ./node_modules
-COPY tsconfig.json .
 COPY package.json .
-COPY ./src ./src
+COPY --from=builder /app/dst ./dst
+COPY --from=builder /app/node_modules ./node_modules
 
 CMD ["npm", "run", "start"]
