@@ -16,19 +16,14 @@ const {
 /**
  * Add default values in case the value is falsy (0 is not valid here) or an empty string
  */
-const daysBackToScrape = DAYS_BACK || 10;
-const worksheetName = WORKSHEET_NAME || "_no_name";
+export const daysBackToScrape = DAYS_BACK || 10;
+export const worksheetName = WORKSHEET_NAME || "_no_name";
 
 const accountsToScrape = ACCOUNTS_TO_SCRAPE.split(",")
   .map((a) => a.trim())
   .filter(Boolean);
 
-export {
-  TELEGRAM_API_KEY,
-  TELEGRAM_CHAT_ID,
-  GOOGLE_SHEET_ID,
-  worksheetName as WORKSHEET_NAME,
-};
+export { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID, GOOGLE_SHEET_ID };
 export const systemName = "moneyman";
 export const currentDate = format(Date.now(), "yyyy-MM-dd");
 export const scrapeStartDate = subDays(Date.now(), Number(daysBackToScrape));

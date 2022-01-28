@@ -1,6 +1,6 @@
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { transactionRow } from "./index.js";
-import { FileHeaders, GOOGLE_SHEET_ID, WORKSHEET_NAME } from "./../config.js";
+import { FileHeaders, GOOGLE_SHEET_ID, worksheetName } from "./../config.js";
 import type {
   TransactionRow,
   TransactionStorage,
@@ -28,7 +28,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
     const sheet = await this.getWorkSheet();
     const stats: SaveStats = {
       name: "Google Sheets",
-      sheetName: WORKSHEET_NAME,
+      sheetName: worksheetName,
       replaced: 0, // TODO
       total: txns.length,
       added: 0,
@@ -81,9 +81,9 @@ export class GoogleSheetsStorage implements TransactionStorage {
   private async getWorkSheet() {
     const doc = await this.getDoc();
     await doc.loadInfo();
-    let sheet = doc.sheetsByTitle[WORKSHEET_NAME];
+    let sheet = doc.sheetsByTitle[worksheetName];
     if (!sheet) {
-      sheet = await doc.addSheet({ title: WORKSHEET_NAME });
+      sheet = await doc.addSheet({ title: worksheetName });
       await sheet.setHeaderRow(FileHeaders);
     }
 

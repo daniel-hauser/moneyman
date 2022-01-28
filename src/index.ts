@@ -1,6 +1,11 @@
 import { scrapeAccounts } from "./data/index.js";
-import { scrapeStartDate, accounts } from "./config.js";
-import { send, getSummaryMessage, sendError } from "./notifier.js";
+import { accounts, scrapeStartDate } from "./config.js";
+import {
+  send,
+  getSummaryMessage,
+  sendError,
+  getConfigSummary,
+} from "./notifier.js";
 import { loadExistingHashes, saveResults } from "./storage/index.js";
 import { createLogger } from "./utils/logger.js";
 
@@ -22,6 +27,8 @@ async function run() {
   console.log("scraping started");
   logger("scraping started");
 
+  await send(getConfigSummary());
+
   const { message_id } = await send("Starting...");
   try {
     const [results] = await Promise.all([
@@ -30,7 +37,7 @@ async function run() {
     ]);
 
     const saved = await saveResults(results);
-    const summary = getSummaryMessage(scrapeStartDate, results, saved.stats);
+    const summary = getSummaryMessage(results, saved.stats);
 
     await send(summary);
   } catch (e) {

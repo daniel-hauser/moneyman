@@ -1,6 +1,12 @@
 import { Telegraf } from "telegraf";
 import { Message } from "telegraf/typings/core/types/typegram";
-import { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID } from "./config.js";
+import {
+  daysBackToScrape,
+  scrapeStartDate,
+  TELEGRAM_API_KEY,
+  TELEGRAM_CHAT_ID,
+  worksheetName,
+} from "./config.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import type { AccountScrapeResult, SaveStats } from "./types.js";
 import { createLogger } from "./utils/logger.js";
@@ -32,7 +38,6 @@ export function sendError(message: any) {
 }
 
 export function getSummaryMessage(
-  startDate: Date,
   results: Array<AccountScrapeResult>,
   stats: Array<SaveStats>
 ) {
@@ -60,11 +65,17 @@ Accounts updated:
 ${accountsSummary.join("\n") || "\t😶 None"}
 Saved to:
 ${saveSummary.join("\n") || "\t😶 None"}
-Server info:
-\tStart Date: ${startDate.toISOString()}
-\tTZ: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
 ${getPendingSummary(results)}
 `.trim();
+}
+
+export function getConfigSummary() {
+  return `
+Config:
+\tWorksheet name: ${worksheetName}
+\tStart Date: ${scrapeStartDate.toISOString()} (${daysBackToScrape} days back)
+\tTZ: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
+  `;
 }
 
 function getPendingSummary(results: Array<AccountScrapeResult>) {
