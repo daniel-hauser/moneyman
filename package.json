@@ -28,7 +28,7 @@
   "dependencies": {
     "date-fns": "^2.25.0",
     "debug": "^4.3.3",
-    "dotenv": "^10.0.0",
+    "dotenv": "^14.3.2",
     "google-spreadsheet": "^3.1.15",
     "israeli-bank-scrapers": "^1.10.1",
     "telegraf": "^4.4.2"
