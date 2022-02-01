@@ -15,8 +15,8 @@ on:
         default: "auto_moneyman"
         required: false
         description: "The name of the worksheet to write to"
-  # schedule:
-  #   - cron: "0 13 * * 1,4"
+  schedule:
+    - cron: "0 13 * * 1,4"
 env:
   IMAGE_NAME: ghcr.io/daniel-hauser/moneyman:latest
 jobs:

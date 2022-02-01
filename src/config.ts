@@ -17,7 +17,7 @@ const {
  * Add default values in case the value is falsy (0 is not valid here) or an empty string
  */
 export const daysBackToScrape = DAYS_BACK || 10;
-export const worksheetName = WORKSHEET_NAME || "_no_name";
+export const worksheetName = WORKSHEET_NAME || "_moneyman";
 
 const accountsToScrape = ACCOUNTS_TO_SCRAPE.split(",")
   .map((a) => a.trim())
