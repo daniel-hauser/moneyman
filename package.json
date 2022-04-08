@@ -27,7 +27,7 @@
   "homepage": "https://github.com/daniel-hauser/moneyman#readme",
   "dependencies": {
     "date-fns": "^2.25.0",
-    "debug": "^4.3.3",
+    "debug": "^4.3.4",
     "dotenv": "^16.0.0",
     "google-spreadsheet": "^3.1.15",
     "israeli-bank-scrapers": "^1.13.0",
