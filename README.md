@@ -8,32 +8,55 @@ Internally we use [israeli-bank-scrapers](https://github.com/eshaham/israeli-ban
 
 Having all your data in one place lets you view all of your expenses in a beautiful dashboard like [Google Data Studio](https://datastudio.google.com) and [Microsoft Power BI](https://powerbi.microsoft.com/)
 
-## Run
+## Important notes
+
+This app requires some technical skills, if you prefer a GUI app you can use [Caspion](https://github.com/brafdlog/caspion) instead.
+
+**Important:**
+The current implementation assumes that you run the code on secure and trusted computers.
+
+**It’s a bad idea**
+to put all your financial data and passwords in one place, especially with more than read-only access.
+
+By using moneyman, you acknowledge that you are taking full responsibility for the code quality and will use it only after you review the code and validate that it’s secure.
+
+**Please use a proper secret management solution to save and pass the environment variables**
+
+## How to run
 
 ### Cloud
 
-TODO: Add instructions?
+Moneyman can be configured to periodically run automatically, using the [`scrape`](./.github/workflows/scrape.yml) github workflow.
+
+By default, this workflow will run every other day.
+
+Since logs are public for public repos, most logs are off by default and the progress and error messages will be sent in telegram.
+
+#### Setup
+
+1. Fork the [moneyman](https://github.com/daniel-hauser/moneyman) repo to your account
+2. Add the following secrets to the [actions secrets](https://github.com/daniel-hauser/moneyman/settings/secrets/actions) of the forked repo
+   1. `ACCOUNTS_JSON` So moneyman
+   2. `GOOGLE_SHEET_ID`
+   3. `GOOGLE_SERVICE_ACCOUNT_[EMAIL, PRIVATE_KEY]`
+   4. `TELEGRAM_API_[KEY, CHAT_ID]`
+3. Wait for the workflow to be triggered by github
 
 ### locally
+
+#### From code
 
 1. Clone this repo
 2. Run `npm install`
 3. Add your env variables (you can add them in a `.env` file in the project's root directory)
 4. Run `npm run start`
 
-TODO: Add docker build & run script
+#### From docker
 
-## Setup
+1. Define the environment variables in a `.env` file
+2. `docker run --rm --env-file ".env" ghcr.io/daniel-hauser/moneyman:latest`
 
-This app requires technical skills and a place to deploy your docker container.
-
-If you prefer a GUI app, you can use [Caspion](https://github.com/brafdlog/caspion) instead.
-
-**Important:**
-The current implementation assumes that you run the code on a secures and trusted computers.
-**Its a bad idea** to put all of your financial data in one place, especially with more then read only access.
-
-**Please use a secret management solution (azure secrets, docker secrets) to save and pass the environment variables**
+## Settings
 
 ### Add accounts and scrape
 
@@ -50,7 +73,7 @@ Use the following env vars to setup the data fetching.
 
 We use telegram to send you the update status.
 
-1. Create you bot following [this](https://core.telegram.org/bots#creating-a-new-bot)
+1. Create your bot following [this](https://core.telegram.org/bots#creating-a-new-bot)
 2. Open this url `https://api.telegram.org/bot<TELEGRAM_API_KEY>/getUpdates`
 3. Send a message to your bot and fnd the chat id
 
@@ -59,7 +82,7 @@ We use telegram to send you the update status.
 | `TELEGRAM_API_KEY` | The super secret api key you got from BotFather |
 | `TELEGRAM_CHAT_ID` | The chat id                                     |
 
-TODO: Add a way to send a message to the bot to connect
+TODO: Add a way to send a message to the bot to connect?
 
 ### Export to google sheets
 
@@ -73,6 +96,12 @@ TODO: Add a way to send a message to the bot to connect
 | `GOOGLE_SHEET_ID`                    | The id of the sheet you shared with the service account       |
 | `WORKSHEET_NAME`                     | The name of the worksheet you want to add the transactions to |
 
+### Debug
+
+We use the [debug](https://www.npmjs.com/package/debug) package for debug messages under the `moneyman:` namespace.
+
+If you want to see them, use the `DEBUG` environment variable with the value `moneyman:*`
+
 ### Export to excel on one drive
 
-TBD
+WIP
