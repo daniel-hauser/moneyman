@@ -64,7 +64,7 @@ Use the following env vars to setup the data fetching.
 
 | Name                 | description                                                                                                                         |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `ACCOUNTS_JSON`      | A json array of accounts following [this](https://github.com/eshaham/israeli-bank-scrapers#specific-definitions-per-scraper) schema |
+| `ACCOUNTS_JSON`      | A json array of accounts following [this](https://github.com/eshaham/israeli-bank-scrapers#specific-definitions-per-scraper) schema with additional `companyId` field with values from [companyType](https://github.com/eshaham/israeli-bank-scrapers/blob/347d9b58974a71c256313552389914afc1bf5d8e/src/definitions.ts) |
 | `ACCOUNTS_TO_SCRAPE` | [Optional] A comma separated list of providers to take from `ACCOUNTS_JSON`, default value is all accounts                          |
 | `DAYS_BACK`          | The amount of days back to scrape                                                                                                   |
 | `TZ`                 | A timezone for the process - used for the formatting of the timestamp                                                               |
