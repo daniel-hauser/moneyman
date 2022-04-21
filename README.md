@@ -94,7 +94,7 @@ TODO: Add a way to send a message to the bot to connect?
 | `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | The super secret api key of your service account              |
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL`       | The service account's email address                           |
 | `GOOGLE_SHEET_ID`                    | The id of the spreadsheet you shared with the service account       |
-| `WORKSHEET_NAME`                     | The name of the spreadsheet you want to add the transactions to |
+| `WORKSHEET_NAME`                     | The name of the sheet you want to add the transactions to |
 
 ### Debug
 
