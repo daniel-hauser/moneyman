@@ -13,15 +13,22 @@ import { createLogger } from "./utils/logger.js";
 
 const logger = createLogger("notifier");
 
-const bot = new Telegraf(TELEGRAM_API_KEY);
+const bot =
+  TELEGRAM_API_KEY && TELEGRAM_CHAT_ID ? new Telegraf(TELEGRAM_API_KEY) : null;
+
+console.log(
+  bot
+    ? "Telegram logger initialized, status and errors will be sent"
+    : "No Telegram bot info, status and errors will not be sent"
+);
 
 export async function send(message: string) {
   logger(message);
-  return await bot.telegram.sendMessage(TELEGRAM_CHAT_ID, message);
+  return await bot?.telegram.sendMessage(TELEGRAM_CHAT_ID, message);
 }
 
 export async function deleteMessage(message: Message.TextMessage) {
-  await bot.telegram.deleteMessage(TELEGRAM_CHAT_ID, message.message_id);
+  await bot?.telegram.deleteMessage(TELEGRAM_CHAT_ID, message.message_id);
 }
 
 export async function editMessage(
@@ -29,7 +36,7 @@ export async function editMessage(
   newText: string
 ) {
   if (message !== undefined) {
-    await bot.telegram.editMessageText(
+    await bot?.telegram.editMessageText(
       TELEGRAM_CHAT_ID,
       message,
       undefined,
