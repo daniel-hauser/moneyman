@@ -80,6 +80,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
     } = process.env;
 
     if (client_email && private_key) {
+      logger("Using ServiceAccountAuth");
       await doc.useServiceAccountAuth({
         client_email,
         private_key,
