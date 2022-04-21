@@ -31,7 +31,7 @@ COPY ./src ./src
 
 RUN npm ci
 RUN npm run build
-RUN npm prune --production
+# RUN npm prune --production
 
 # ---- Release ----
 FROM base AS release
