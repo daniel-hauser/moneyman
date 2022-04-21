@@ -27,9 +27,9 @@ COPY tsconfig.json .
 COPY package.json .
 COPY package-lock.json .
 COPY ./patches ./patches
-RUN npm install
-
 COPY ./src ./src
+
+RUN npm ci
 RUN npm run build
 RUN npm prune --production
 
@@ -37,7 +37,7 @@ RUN npm prune --production
 FROM base AS release
 WORKDIR /app
 
-COPY package.json .
+COPY --from=builder /app/package.json .
 COPY --from=builder /app/dst ./dst
 COPY --from=builder /app/node_modules ./node_modules
 
