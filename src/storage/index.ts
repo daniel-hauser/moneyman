@@ -41,8 +41,8 @@ export function transactionRow(tx: TransactionRow): Array<string> {
     /* date */ format(parseISO(tx.date), "dd/MM/yyyy", {}),
     /* amount */ String(tx.chargedAmount),
     /* description */ tx.description,
-    /* memo */ tx.memo,
-    /* category */ tx.category,
+    /* memo */ tx.memo ?? "",
+    /* category */ tx.category ?? "",
     /* account */ tx.account,
     /* hash */ tx.hash,
     /* comment */ "",
@@ -63,11 +63,11 @@ export function transactionHash(
 function resultsToTransactions(
   results: Array<AccountScrapeResult>
 ): Array<TransactionRow> {
-  const txns = [];
+  const txns: Array<TransactionRow> = [];
 
   for (let { result, companyId } of results) {
     if (result.success) {
-      for (let account of result.accounts) {
+      for (let account of result.accounts ?? []) {
         for (let tx of account.txns) {
           txns.push({
             ...tx,

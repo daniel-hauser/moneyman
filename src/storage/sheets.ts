@@ -1,4 +1,8 @@
-import { GoogleSpreadsheet } from "google-spreadsheet";
+import { createLogger } from "./../utils/logger.js";
+import {
+  GoogleSpreadsheet,
+  GoogleSpreadsheetWorksheet,
+} from "google-spreadsheet";
 import { transactionRow } from "./index.js";
 import { FileHeaders, GOOGLE_SHEET_ID, worksheetName } from "./../config.js";
 import type {
@@ -8,24 +12,31 @@ import type {
 } from "../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 
+const logger = createLogger("GoogleSheetsStorage");
+
 export class GoogleSheetsStorage implements TransactionStorage {
   existingTransactionsHashes = new Set<string>();
 
-  private loadHashesPromise: null | Promise<void> = null;
+  private initPromise: null | Promise<void> = null;
+
+  private sheet: null | GoogleSpreadsheetWorksheet = null;
 
   async init() {
-    if (this.loadHashesPromise) {
-      await this.loadHashesPromise;
+    // Init only once
+    if (!this.initPromise) {
+      this.initPromise = (async () => {
+        await this.initDocAndSheet();
+        await this.loadHashes();
+      })();
     }
 
-    this.loadHashesPromise = this.getHashes();
+    await this.initPromise;
   }
 
   async saveTransactions(txns: Array<TransactionRow>) {
     const rows: string[][] = [];
     await this.init();
 
-    const sheet = await this.getWorkSheet();
     const stats: SaveStats = {
       name: "Google Sheets",
       sheetName: worksheetName,
@@ -53,40 +64,44 @@ export class GoogleSheetsStorage implements TransactionStorage {
     }
 
     if (rows.length) {
-      await sheet.addRows(rows);
+      await this.sheet?.addRows(rows);
     }
 
     return stats;
   }
 
-  private async getHashes() {
-    if (GOOGLE_SHEET_ID) {
-      const sheet = await this.getWorkSheet();
-      const rows = await sheet.getRows();
-      for (let row of rows) {
-        this.existingTransactionsHashes.add(row.hash);
-      }
+  private async loadHashes() {
+    const rows = await this.sheet?.getRows();
+    for (let row of rows!) {
+      this.existingTransactionsHashes.add(row.hash);
     }
+    logger(`${this.existingTransactionsHashes.size} hashes loaded`);
   }
 
-  private async getDoc() {
+  private async initDocAndSheet() {
     const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID);
-    await doc.useServiceAccountAuth({
-      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
-    });
-    return doc;
-  }
 
-  private async getWorkSheet() {
-    const doc = await this.getDoc();
+    const {
+      GOOGLE_SERVICE_ACCOUNT_EMAIL: client_email,
+      GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: private_key,
+    } = process.env;
+
+    if (client_email && private_key) {
+      logger("Using ServiceAccountAuth");
+      await doc.useServiceAccountAuth({
+        client_email,
+        private_key,
+      });
+    }
+
     await doc.loadInfo();
-    let sheet = doc.sheetsByTitle[worksheetName];
-    if (!sheet) {
-      sheet = await doc.addSheet({ title: worksheetName });
+
+    if (!(worksheetName in doc.sheetsByTitle)) {
+      logger("Creating new sheet");
+      const sheet = await doc.addSheet({ title: worksheetName });
       await sheet.setHeaderRow(FileHeaders);
     }
 
-    return sheet;
+    this.sheet = doc.sheetsByTitle[worksheetName];
   }
 }
