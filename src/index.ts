@@ -7,7 +7,7 @@ import {
   getConfigSummary,
 } from "./notifier.js";
 import { loadExistingHashes, saveResults } from "./storage/index.js";
-import { createLogger } from "./utils/logger.js";
+import { createLogger, logToPublicLog } from "./utils/logger.js";
 
 const logger = createLogger("main");
 
@@ -24,8 +24,8 @@ await run();
 process.exit(0);
 
 async function run() {
-  console.log("scraping started");
-  logger("scraping started");
+  logToPublicLog("Scraping started");
+  logger("Scraping started");
 
   await send(getConfigSummary());
 
@@ -45,6 +45,6 @@ async function run() {
     await sendError(e);
   }
 
-  logger("scraping ended");
-  console.log("scraping ended");
+  logger("Scraping ended");
+  logToPublicLog("Scraping ended");
 }

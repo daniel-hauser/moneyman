@@ -9,14 +9,14 @@ import {
 } from "./config.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import type { AccountScrapeResult, SaveStats } from "./types.js";
-import { createLogger } from "./utils/logger.js";
+import { createLogger, logToPublicLog } from "./utils/logger.js";
 
 const logger = createLogger("notifier");
 
 const bot =
   TELEGRAM_API_KEY && TELEGRAM_CHAT_ID ? new Telegraf(TELEGRAM_API_KEY) : null;
 
-console.log(
+logToPublicLog(
   bot
     ? "Telegram logger initialized, status and errors will be sent"
     : "No Telegram bot info, status and errors will not be sent"
