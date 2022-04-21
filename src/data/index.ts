@@ -9,7 +9,7 @@ const logger = createLogger("data");
 export async function scrapeAccounts(
   accounts: Array<AccountConfig>,
   startDate: Date,
-  statusMessageId: number
+  statusMessageId?: number
 ) {
   const start = performance.now();
 
@@ -75,8 +75,8 @@ function getStats(results: Array<AccountScrapeResult>) {
 
   for (let { result } of results) {
     if (result.success) {
-      accounts += result.accounts?.length;
-      for (let account of result.accounts) {
+      accounts += result.accounts?.length ?? 0;
+      for (let account of result.accounts ?? []) {
         transactions += account.txns?.length;
       }
     }

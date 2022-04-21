@@ -24,13 +24,18 @@ export async function deleteMessage(message: Message.TextMessage) {
   await bot.telegram.deleteMessage(TELEGRAM_CHAT_ID, message.message_id);
 }
 
-export async function editMessage(message: number, newText: string) {
-  await bot.telegram.editMessageText(
-    TELEGRAM_CHAT_ID,
-    message,
-    undefined,
-    newText
-  );
+export async function editMessage(
+  message: number | undefined,
+  newText: string
+) {
+  if (message !== undefined) {
+    await bot.telegram.editMessageText(
+      TELEGRAM_CHAT_ID,
+      message,
+      undefined,
+      newText
+    );
+  }
 }
 
 export function sendError(message: any) {
@@ -47,7 +52,7 @@ export function getSummaryMessage(
         result.errorMessage ? `\n\t${result.errorMessage}` : ""
       }`;
     }
-    return result.accounts.map(
+    return result.accounts?.map(
       (account) =>
         `\t✔️ [${companyId}] ${account.accountNumber}: ${account.txns.length}`
     );
@@ -83,9 +88,9 @@ function getPendingSummary(results: Array<AccountScrapeResult>) {
     .flatMap(({ result }) => result.accounts)
     .flatMap((account) => account?.txns)
     .filter(Boolean)
-    .filter((t) => t.status === TransactionStatuses.Pending);
+    .filter((t) => t?.status === TransactionStatuses.Pending);
 
   return pending.length
-    ? `Pending txns:\n${pending.map((t) => t.description).join("\n")}`
+    ? `Pending txns:\n${pending.map((t) => t?.description).join("\n")}`
     : "";
 }

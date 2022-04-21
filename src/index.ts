@@ -29,10 +29,10 @@ async function run() {
 
   await send(getConfigSummary());
 
-  const { message_id } = await send("Starting...");
+  const message = await send("Starting...");
   try {
     const [results] = await Promise.all([
-      scrapeAccounts(accounts, scrapeStartDate, message_id),
+      scrapeAccounts(accounts, scrapeStartDate, message?.message_id),
       loadExistingHashes(scrapeStartDate),
     ]);
 

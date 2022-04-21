@@ -6,8 +6,8 @@ console.log("Parsing config");
 const {
   DAYS_BACK,
   ACCOUNTS_JSON,
-  TELEGRAM_API_KEY,
-  TELEGRAM_CHAT_ID,
+  TELEGRAM_API_KEY = "",
+  TELEGRAM_CHAT_ID = "",
   GOOGLE_SHEET_ID,
   WORKSHEET_NAME,
   ACCOUNTS_TO_SCRAPE = "",
@@ -46,9 +46,9 @@ export const FileHeaders = [
   "scraped by",
 ];
 
-function parseAccounts(accountsJson: string): Array<AccountConfig> {
+function parseAccounts(accountsJson?: string): Array<AccountConfig> {
   try {
-    const parsed = JSON.parse(accountsJson);
+    const parsed = JSON.parse(accountsJson!);
     if (Array.isArray(parsed)) {
       // TODO: Add schema validations?
       return parsed as Array<AccountConfig>;

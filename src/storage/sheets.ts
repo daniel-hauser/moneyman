@@ -1,3 +1,4 @@
+import { createLogger } from "./../utils/logger.js";
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { transactionRow } from "./index.js";
 import { FileHeaders, GOOGLE_SHEET_ID, worksheetName } from "./../config.js";
@@ -7,6 +8,8 @@ import type {
   SaveStats,
 } from "../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
+
+const logger = createLogger("GoogleSheetsStorage");
 
 export class GoogleSheetsStorage implements TransactionStorage {
   existingTransactionsHashes = new Set<string>();
@@ -71,10 +74,19 @@ export class GoogleSheetsStorage implements TransactionStorage {
 
   private async getDoc() {
     const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID);
-    await doc.useServiceAccountAuth({
-      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
-    });
+    const {
+      GOOGLE_SERVICE_ACCOUNT_EMAIL: client_email,
+      GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: private_key,
+    } = process.env;
+
+    if (client_email && private_key) {
+      await doc.useServiceAccountAuth({
+        client_email,
+        private_key,
+      });
+    } else {
+      logger("No service login account details");
+    }
     return doc;
   }
 
