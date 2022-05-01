@@ -8,8 +8,11 @@
       "type": "node",
       "request": "launch",
       "name": "Launch",
-      "runtimeArgs": ["--loader", "ts-node/esm"],
-      "args": ["${workspaceFolder}/src/index.ts"]
+      "runtimeArgs": [],
+      "args": ["${workspaceFolder}/dst/index.js"],
+      "env": {
+        "DEBUG": "*"
+      }
     }
   ]
 }
