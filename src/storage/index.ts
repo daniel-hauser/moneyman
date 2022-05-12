@@ -48,6 +48,7 @@ export function transactionRow(tx: TransactionRow): Array<string> {
     /* comment */ "",
     /* scraped at */ currentDate,
     /* scraped by */ systemName,
+    /* identifier */ `${tx.identifier ?? ""}`,
   ];
 }
 
