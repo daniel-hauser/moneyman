@@ -45,6 +45,7 @@ export const FileHeaders = [
   "comment",
   "scraped at",
   "scraped by",
+  "identifier",
 ];
 
 function parseAccounts(accountsJson?: string): Array<AccountConfig> {
