@@ -5,8 +5,9 @@ import { sendError } from "../notifier.js";
 import type { AccountScrapeResult, TransactionRow } from "../types.js";
 
 import { GoogleSheetsStorage } from "./sheets.js";
+import { AzureDataExplorerStorage } from "./azure-data-explorer.js";
 
-const storages = [new GoogleSheetsStorage()];
+const storages = [new GoogleSheetsStorage(), new AzureDataExplorerStorage()];
 
 export async function initializeStorage() {
   try {
