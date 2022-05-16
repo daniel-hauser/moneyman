@@ -22,7 +22,7 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
 
   if (txns.length) {
     const res = await Promise.all(
-      storages.map((s) => s.saveTransactions(txns))
+      storages.filter((s) => s.canSave()).map((s) => s.saveTransactions(txns))
     );
 
     return {

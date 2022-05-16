@@ -52,6 +52,14 @@ export class GoogleSheetsStorage implements TransactionStorage {
     await this.initPromise;
   }
 
+  canSave() {
+    const { GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY } =
+      process.env;
+    return Boolean(
+      GOOGLE_SERVICE_ACCOUNT_EMAIL && GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
+    );
+  }
+
   async saveTransactions(txns: Array<TransactionRow>) {
     const rows: string[][] = [];
     await this.init();
