@@ -37,7 +37,6 @@ export interface SaveStats {
 }
 
 export interface TransactionStorage {
-  existingTransactionsHashes: Set<string>;
   init(): Promise<void>;
   saveTransactions(txns: Array<TransactionRow>): Promise<SaveStats>;
 }

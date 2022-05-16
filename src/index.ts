@@ -6,7 +6,7 @@ import {
   sendError,
   getConfigSummary,
 } from "./notifier.js";
-import { loadExistingHashes, saveResults } from "./storage/index.js";
+import { initializeStorage, saveResults } from "./storage/index.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 
 const logger = createLogger("main");
@@ -33,7 +33,7 @@ async function run() {
   try {
     const [results] = await Promise.all([
       scrapeAccounts(accounts, scrapeStartDate, message?.message_id),
-      loadExistingHashes(scrapeStartDate),
+      initializeStorage(),
     ]);
 
     const saved = await saveResults(results);

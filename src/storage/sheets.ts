@@ -3,8 +3,13 @@ import {
   GoogleSpreadsheet,
   GoogleSpreadsheetWorksheet,
 } from "google-spreadsheet";
-import { transactionRow } from "./index.js";
-import { FileHeaders, GOOGLE_SHEET_ID, worksheetName } from "./../config.js";
+import { parseISO, format } from "date-fns";
+import {
+  GOOGLE_SHEET_ID,
+  worksheetName,
+  currentDate,
+  systemName,
+} from "./../config.js";
 import type {
   TransactionRow,
   TransactionStorage,
@@ -15,6 +20,20 @@ import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 const logger = createLogger("GoogleSheetsStorage");
 
 export class GoogleSheetsStorage implements TransactionStorage {
+  static FileHeaders = [
+    "date",
+    "amount",
+    "description",
+    "memo",
+    "category",
+    "account",
+    "hash",
+    "comment",
+    "scraped at",
+    "scraped by",
+    "identifier",
+  ];
+
   existingTransactionsHashes = new Set<string>();
 
   private initPromise: null | Promise<void> = null;
@@ -60,7 +79,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
       }
 
       stats.added++;
-      rows.push(transactionRow(tx));
+      rows.push(this.transactionRow(tx));
     }
 
     if (rows.length) {
@@ -99,9 +118,25 @@ export class GoogleSheetsStorage implements TransactionStorage {
     if (!(worksheetName in doc.sheetsByTitle)) {
       logger("Creating new sheet");
       const sheet = await doc.addSheet({ title: worksheetName });
-      await sheet.setHeaderRow(FileHeaders);
+      await sheet.setHeaderRow(GoogleSheetsStorage.FileHeaders);
     }
 
     this.sheet = doc.sheetsByTitle[worksheetName];
+  }
+
+  private transactionRow(tx: TransactionRow): Array<string> {
+    return [
+      /* date */ format(parseISO(tx.date), "dd/MM/yyyy", {}),
+      /* amount */ String(tx.chargedAmount),
+      /* description */ tx.description,
+      /* memo */ tx.memo ?? "",
+      /* category */ tx.category ?? "",
+      /* account */ tx.account,
+      /* hash */ tx.hash,
+      /* comment */ "",
+      /* scraped at */ currentDate,
+      /* scraped by */ systemName,
+      /* identifier */ `${tx.identifier ?? ""}`,
+    ];
   }
 }
