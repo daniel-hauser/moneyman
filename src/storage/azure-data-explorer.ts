@@ -23,9 +23,9 @@ const {
   ADE_TABLE_NAME,
   ADE_INGESTION_MAPPING,
   ADE_INGEST_URI,
-  ADE_TENANT_ID,
-  ADE_APP_ID,
-  ADE_APP_KEY,
+  AZURE_TENANT_ID,
+  AZURE_APP_ID,
+  AZURE_APP_KEY,
 } = process.env;
 
 export class AzureDataExplorerStorage implements TransactionStorage {
@@ -38,9 +38,9 @@ export class AzureDataExplorerStorage implements TransactionStorage {
       const connection =
         KustoConnectionStringBuilder.withAadApplicationKeyAuthentication(
           ADE_INGEST_URI!,
-          ADE_APP_ID!,
-          ADE_APP_KEY!,
-          ADE_TENANT_ID
+          AZURE_APP_ID!,
+          AZURE_APP_KEY!,
+          AZURE_TENANT_ID
         );
 
       const ingestionProps = new IngestionProperties({
@@ -59,13 +59,13 @@ export class AzureDataExplorerStorage implements TransactionStorage {
 
   canSave() {
     return Boolean(
-      ADE_APP_ID &&
-        ADE_APP_KEY &&
+      AZURE_APP_ID &&
+        AZURE_APP_KEY &&
+        AZURE_TENANT_ID &&
         ADE_DATABASE_NAME &&
         ADE_TABLE_NAME &&
         ADE_INGESTION_MAPPING &&
-        ADE_INGEST_URI &&
-        ADE_TENANT_ID
+        ADE_INGEST_URI
     );
   }
 
