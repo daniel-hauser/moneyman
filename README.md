@@ -99,21 +99,16 @@ TODO: Add a way to send a message to the bot to connect?
    .execute database script <|
    .drop table <ADE_TABLE_NAME> ifexists
    .create table <ADE_TABLE_NAME> (
-      ['date']: datetime,
-      amount: real,
-      account: string,
       metadata: dynamic,
       transaction: dynamic
    )
    .create table <ADE_TABLE_NAME> ingestion json mapping '<ADE_INGESTION_MAPPING>' ```
    [
-      { "column": "date", "path": "$.transaction.date" },
-      { "column": "amount", "path": "$.transaction.chargedAmount" },
-      { "column": "account", "path": "$.transaction.account" },
       { "column": "transaction", "path": "$.transaction" },
       { "column": "metadata", "path": "$.metadata" }
    ]
    ````
+   Feel free to add more columns to the table and ingestion json mapping
 
 | Name                    | description                             |
 | ----------------------- | --------------------------------------- |
