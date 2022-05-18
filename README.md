@@ -62,12 +62,12 @@ Since logs are public for public repos, most logs are off by default and the pro
 
 Use the following env vars to setup the data fetching.
 
-| Name                 | description                                                                                                                         |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Name                 | description                                                                                                                                                                                                                                                                                        |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ACCOUNTS_JSON`      | A json array of accounts following [this](https://github.com/eshaham/israeli-bank-scrapers#specific-definitions-per-scraper) schema with an additional `companyId` field with a [companyType](https://github.com/eshaham/israeli-bank-scrapers/blob/master/src/definitions.ts#L5:L23) as the value |
-| `ACCOUNTS_TO_SCRAPE` | [Optional] A comma separated list of providers to take from `ACCOUNTS_JSON`, default value is all accounts                          |
-| `DAYS_BACK`          | The amount of days back to scrape                                                                                                   |
-| `TZ`                 | A timezone for the process - used for the formatting of the timestamp                                                               |
+| `ACCOUNTS_TO_SCRAPE` | [Optional] A comma separated list of providers to take from `ACCOUNTS_JSON`, default value is all accounts                                                                                                                                                                                         |
+| `DAYS_BACK`          | The amount of days back to scrape                                                                                                                                                                                                                                                                  |
+| `TZ`                 | A timezone for the process - used for the formatting of the timestamp                                                                                                                                                                                                                              |
 
 ### Get notified in telegram
 
@@ -84,6 +84,42 @@ We use telegram to send you the update status.
 
 TODO: Add a way to send a message to the bot to connect?
 
+### Export to Azure Data Explorer
+
+1. Create a new data explorer cluster (can be done for free [here](https://docs.microsoft.com/en-us/azure/data-explorer/start-for-free))
+2. Create a database within your cluster
+3. Create a azure Service Principal following steps 1-7 [here](https://docs.microsoft.com/en-us/azure/data-explorer/provision-azure-ad-app#create-azure-ad-application-registration)
+4. Allow the service to ingest data to the database by running this:
+   ```kql
+   .execute database script <|
+   .add database ['<ADE_DATABASE_NAME>'] ingestors ('aadapp=<AZURE_APP_ID>;<AZURE_TENANT_ID>')
+   ```
+5. Create a table and ingestion mapping by running this:
+   ````kql
+   .execute database script <|
+   .drop table <ADE_TABLE_NAME> ifexists
+   .create table <ADE_TABLE_NAME> (
+      metadata: dynamic,
+      transaction: dynamic
+   )
+   .create table <ADE_TABLE_NAME> ingestion json mapping '<ADE_INGESTION_MAPPING>' ```
+   [
+      { "column": "transaction", "path": "$.transaction" },
+      { "column": "metadata", "path": "$.metadata" }
+   ]
+   ````
+   Feel free to add more columns to the table and ingestion json mapping
+
+| Name                    | description                             |
+| ----------------------- | --------------------------------------- |
+| `AZURE_APP_ID`          | The azure application ID                |
+| `AZURE_APP_KEY`         | The azure application secret key        |
+| `AZURE_TENANT_ID`       | The tenant ID of your azure application |
+| `ADE_DATABASE_NAME`     | The name of the database                |
+| `ADE_TABLE_NAME`        | The name of the table                   |
+| `ADE_INGESTION_MAPPING` | The name of the JSON ingestion mapping  |
+| `ADE_INGEST_URI`        | The ingest URI of the cluster           |
+
 ### Export to google sheets
 
 1. Follow the instructions [here](https://theoephraim.github.io/node-google-spreadsheet/#/getting-started/authentication?id=service-account) to create a google service account.
@@ -93,8 +129,8 @@ TODO: Add a way to send a message to the bot to connect?
 | ------------------------------------ | ------------------------------------------------------------- |
 | `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | The super secret api key of your service account              |
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL`       | The service account's email address                           |
-| `GOOGLE_SHEET_ID`                    | The id of the spreadsheet you shared with the service account       |
-| `WORKSHEET_NAME`                     | The name of the sheet you want to add the transactions to |
+| `GOOGLE_SHEET_ID`                    | The id of the spreadsheet you shared with the service account |
+| `WORKSHEET_NAME`                     | The name of the sheet you want to add the transactions to     |
 
 ### Debug
 
