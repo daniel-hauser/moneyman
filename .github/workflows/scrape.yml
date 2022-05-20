@@ -38,6 +38,13 @@ jobs:
           -e GOOGLE_SERVICE_ACCOUNT_EMAIL
           -e GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
           -e ACCOUNTS_TO_SCRAPE
+          -e ADE_DATABASE_NAME
+          -e ADE_TABLE_NAME
+          -e ADE_INGESTION_MAPPING
+          -e ADE_INGEST_URI
+          -e AZURE_TENANT_ID
+          -e AZURE_APP_ID
+          -e AZURE_APP_KEY
           $IMAGE_NAME
         env:
           DEBUG: ""
@@ -51,3 +58,10 @@ jobs:
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
           GOOGLE_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
           GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY }}
+          ADE_DATABASE_NAME: ${{ secrets.ADE_DATABASE_NAME }}
+          ADE_TABLE_NAME: ${{ secrets.ADE_TABLE_NAME }}
+          ADE_INGESTION_MAPPING: ${{ secrets.ADE_INGESTION_MAPPING }}
+          ADE_INGEST_URI: ${{ secrets.ADE_INGEST_URI }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_APP_ID: ${{ secrets.AZURE_APP_ID }}
+          AZURE_APP_KEY: ${{ secrets.AZURE_APP_KEY }}
