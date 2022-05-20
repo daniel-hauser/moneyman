@@ -13,7 +13,7 @@ export async function initializeStorage() {
   try {
     return Promise.all(storages.map((s) => s.init()));
   } catch (e) {
-    sendError(e);
+    sendError(e, 'initializeStorage');
   }
 }
 

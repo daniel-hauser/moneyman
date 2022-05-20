@@ -21,8 +21,8 @@ export const daysBackToScrape = DAYS_BACK || 10;
 export const worksheetName = WORKSHEET_NAME || "_moneyman";
 
 const accountsToScrape = ACCOUNTS_TO_SCRAPE.split(",")
-  .map((a) => a.trim())
-  .filter(Boolean);
+  .filter(Boolean)
+  .map((a) => a.trim());
 
 export { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID, GOOGLE_SHEET_ID };
 export const systemName = "moneyman";
