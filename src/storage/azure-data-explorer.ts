@@ -53,7 +53,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
       logger("Creating ingestClient");
       this.ingestClient = new IngestClient(connection, ingestionProps);
     } catch (e) {
-      sendError(e);
+      sendError(e, "AzureDataExplorerStorage");
     }
   }
 
@@ -72,8 +72,6 @@ export class AzureDataExplorerStorage implements TransactionStorage {
   async saveTransactions(txns: Array<TransactionRow>) {
     logger(`Saving ${txns.length} transactions`);
 
-    await this.init();
-
     const pending = txns.filter(
       (tx) => tx.status === TransactionStatuses.Pending
     ).length;
@@ -88,15 +86,21 @@ export class AzureDataExplorerStorage implements TransactionStorage {
       existing: 0,
     };
 
-    if (txns.length) {
+    if (!this.ingestClient) {
+      await sendError(
+        "Called without initializing",
+        "AzureDataExplorerStorage.saveTransactions"
+      );
+    } else if (txns.length) {
       const stream = Readable.from(
         JSON.stringify(txns.map(this.transactionRow))
       );
       const res = await this.ingestClient.ingestFromStream(stream);
 
       if (res.errorCode) {
-        sendError(
-          `AzureDataExplorer.ingestFromStream returned ${res.errorCode}`
+        await sendError(
+          `returned ${res.errorCode}`,
+          "AzureDataExplorer.ingestFromStream "
         );
       }
     }

@@ -45,8 +45,14 @@ export async function editMessage(
   }
 }
 
-export function sendError(message: any) {
-  return send(`❌ ${String(message)}`);
+export function sendError(message: any, caller: string = "") {
+  return send(
+    `${caller}\n❌ ${String(
+      message instanceof Error
+        ? `${message.message}\n${message.stack}`
+        : message
+    )}`.trim()
+  );
 }
 
 export function getSummaryMessage(
