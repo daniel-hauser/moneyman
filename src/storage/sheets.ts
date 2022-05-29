@@ -41,6 +41,10 @@ export class GoogleSheetsStorage implements TransactionStorage {
   private sheet: null | GoogleSpreadsheetWorksheet = null;
 
   async init() {
+    if (!canSave){
+      return;
+    }
+    
     // Init only once
     if (!this.initPromise) {
       this.initPromise = (async () => {
