@@ -41,7 +41,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
   private sheet: null | GoogleSpreadsheetWorksheet = null;
 
   async init() {
-    if (!canSave){
+    if (!this.canSave){
       return;
     }
     
