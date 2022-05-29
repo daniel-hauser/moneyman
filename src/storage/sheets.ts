@@ -42,6 +42,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
 
   async init() {
     if (!this.canSave){
+      logger("not initializing GoogleSheetsStorage since service account or private keys were not defined");
       return;
     }
     
