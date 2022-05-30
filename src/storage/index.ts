@@ -7,7 +7,7 @@ import type { AccountScrapeResult, TransactionRow } from "../types.js";
 import { GoogleSheetsStorage } from "./sheets.js";
 import { AzureDataExplorerStorage } from "./azure-data-explorer.js";
 
-const storages = [
+export const storages = [
   new GoogleSheetsStorage(),
   new AzureDataExplorerStorage(),
 ].filter((s) => s.canSave());
