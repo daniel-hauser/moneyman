@@ -28,11 +28,11 @@ export type CategoryDef = {
 
 export interface SaveStats {
   name: string;
-  sheetName: string;
+  table: string;
   total: number;
   added: number;
   pending: number;
-  replaced: number; // rows changed from pending to other??
+  skipped: number;
   existing: number;
 }
 

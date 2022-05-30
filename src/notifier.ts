@@ -71,12 +71,7 @@ export function getSummaryMessage(
     );
   });
 
-  const saveSummary = stats.map((s) => {
-    const skipped = s.existing + s.pending;
-    return `\t📝 ${s.name} (${s.sheetName})
-\t\t${s.added} added, ${skipped} skipped
-\t\t(${s.existing} existing,  ${s.pending} pending)`;
-  });
+  const saveSummary = stats.map((s) => statsString(s));
 
   return `
 Accounts updated:
@@ -90,9 +85,9 @@ ${getPendingSummary(results)}
 export function getConfigSummary() {
   return `
 Config:
-\tWorksheet name: ${worksheetName}
-\tStart Date: ${scrapeStartDate.toISOString()} (${daysBackToScrape} days back)
-\tTZ: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
+  Worksheet name: ${worksheetName}
+  Start Date: ${scrapeStartDate.toISOString()} (${daysBackToScrape} days back)
+  TZ: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
   `;
 }
 
@@ -106,4 +101,12 @@ function getPendingSummary(results: Array<AccountScrapeResult>) {
   return pending.length
     ? `Pending txns:\n${pending.map((t) => t?.description).join("\n")}`
     : "";
+}
+
+function statsString(starts: SaveStats): string {
+  return `
+  📝 ${starts.name} (${starts.table})
+    ${starts.added} added, ${starts.skipped} skipped
+    (${starts.existing} existing,  ${starts.pending} pending)
+`.trim();
 }

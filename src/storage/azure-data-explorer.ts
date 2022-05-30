@@ -77,12 +77,12 @@ export class AzureDataExplorerStorage implements TransactionStorage {
 
     const stats: SaveStats = {
       name: "AzureDataExplorer",
-      sheetName: ADE_TABLE_NAME!,
-      replaced: 0,
+      table: ADE_TABLE_NAME!,
       total: txns.length,
       added: txns.length,
       pending,
-      existing: 0,
+      skipped: 0,
+      existing: NaN,
     };
 
     if (!this.ingestClient) {
