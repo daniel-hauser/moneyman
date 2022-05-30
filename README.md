@@ -94,7 +94,8 @@ TODO: Add a way to send a message to the bot to connect?
    .execute database script <|
    .add database ['<ADE_DATABASE_NAME>'] ingestors ('aadapp=<AZURE_APP_ID>;<AZURE_TENANT_ID>')
    ```
-5. Create a table and ingestion mapping by running this:
+5. Create a table and ingestion mapping by running this: (Replace `<ADE_TABLE_NAME>` and `<ADE_INGESTION_MAPPING>`)
+
    ````kql
    .execute database script <|
    .drop table <ADE_TABLE_NAME> ifexists
@@ -107,7 +108,9 @@ TODO: Add a way to send a message to the bot to connect?
       { "column": "transaction", "path": "$.transaction" },
       { "column": "metadata", "path": "$.metadata" }
    ]
+   ```
    ````
+
    Feel free to add more columns to the table and ingestion json mapping
 
 | Name                    | description                             |
