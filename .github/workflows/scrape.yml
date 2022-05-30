@@ -18,7 +18,7 @@ on:
   schedule:
     - cron: "33 10 * * */2"
 env:
-  IMAGE_NAME: ghcr.io/daniel-hauser/moneyman:latest
+  IMAGE_NAME: ghcr.io/${{ github.repository }}:latest
 jobs:
   scrape:
     runs-on: ubuntu-latest
