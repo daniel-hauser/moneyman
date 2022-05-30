@@ -34,28 +34,26 @@ export class AzureDataExplorerStorage implements TransactionStorage {
   async init() {
     logger("init");
 
-    if (this.canSave()) {
-      try {
-        const connection =
-          KustoConnectionStringBuilder.withAadApplicationKeyAuthentication(
-            ADE_INGEST_URI!,
-            AZURE_APP_ID!,
-            AZURE_APP_KEY!,
-            AZURE_TENANT_ID
-          );
+    try {
+      const connection =
+        KustoConnectionStringBuilder.withAadApplicationKeyAuthentication(
+          ADE_INGEST_URI!,
+          AZURE_APP_ID!,
+          AZURE_APP_KEY!,
+          AZURE_TENANT_ID
+        );
 
-        const ingestionProps = new IngestionProperties({
-          database: ADE_DATABASE_NAME,
-          table: ADE_TABLE_NAME,
-          format: DataFormat.MULTIJSON,
-          ingestionMappingReference: ADE_INGESTION_MAPPING,
-        });
+      const ingestionProps = new IngestionProperties({
+        database: ADE_DATABASE_NAME,
+        table: ADE_TABLE_NAME,
+        format: DataFormat.MULTIJSON,
+        ingestionMappingReference: ADE_INGESTION_MAPPING,
+      });
 
-        logger("Creating ingestClient");
-        this.ingestClient = new IngestClient(connection, ingestionProps);
-      } catch (e) {
-        sendError(e, "AzureDataExplorerStorage");
-      }
+      logger("Creating ingestClient");
+      this.ingestClient = new IngestClient(connection, ingestionProps);
+    } catch (e) {
+      sendError(e, "AzureDataExplorerStorage");
     }
   }
   canSave() {

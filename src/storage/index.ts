@@ -7,13 +7,16 @@ import type { AccountScrapeResult, TransactionRow } from "../types.js";
 import { GoogleSheetsStorage } from "./sheets.js";
 import { AzureDataExplorerStorage } from "./azure-data-explorer.js";
 
-const storages = [new GoogleSheetsStorage(), new AzureDataExplorerStorage()];
+const storages = [
+  new GoogleSheetsStorage(),
+  new AzureDataExplorerStorage(),
+].filter((s) => s.canSave());
 
 export async function initializeStorage() {
   try {
     return Promise.all(storages.map((s) => s.init()));
   } catch (e) {
-    sendError(e, 'initializeStorage');
+    sendError(e, "initializeStorage");
   }
 }
 
@@ -22,7 +25,7 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
 
   if (txns.length) {
     const res = await Promise.all(
-      storages.filter((s) => s.canSave()).map((s) => s.saveTransactions(txns))
+      storages.map((s) => s.saveTransactions(txns))
     );
 
     return {
