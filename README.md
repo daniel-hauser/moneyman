@@ -6,7 +6,7 @@ Internally we use [israeli-bank-scrapers](https://github.com/eshaham/israeli-ban
 
 ## Why?
 
-Having all your data in one place lets you view all of your expenses in a beautiful dashboard like [Google Data Studio](https://datastudio.google.com) and [Microsoft Power BI](https://powerbi.microsoft.com/)
+Having all your data in one place lets you view all of your expenses in a beautiful dashboard like [Google Data Studio](https://datastudio.google.com), [Azure Data Explorer dashboards](https://docs.microsoft.com/en-us/azure/data-explorer/azure-data-explorer-dashboards) and [Microsoft Power BI](https://powerbi.microsoft.com/)
 
 ## Important notes
 
@@ -35,11 +35,10 @@ Since logs are public for public repos, most logs are off by default and the pro
 #### Setup
 
 1. Fork the [moneyman](https://github.com/daniel-hauser/moneyman) repo to your account
-2. Add the following secrets to the [actions secrets](https://github.com/daniel-hauser/moneyman/settings/secrets/actions) of the forked repo
-   1. `ACCOUNTS_JSON` So moneyman
-   2. `GOOGLE_SHEET_ID`
-   3. `GOOGLE_SERVICE_ACCOUNT_[EMAIL, PRIVATE_KEY]`
-   4. `TELEGRAM_API_[KEY, CHAT_ID]`
+2. Add the following secrets to the [actions secrets](../../settings/secrets/actions) of the forked repo
+   1. [`ACCOUNTS_JSON`](#add-accounts-and-scrape) - So moneyman can login to your accounts
+   2. [`TELEGRAM_API_[KEY, CHAT_ID]`](#get-notified-in-telegram) - So moneyman can send private logs and errors
+   3. The environment variables of the storage you want to use
 3. Wait for the workflow to be triggered by github
 
 ### locally
@@ -48,21 +47,32 @@ Since logs are public for public repos, most logs are off by default and the pro
 
 1. Clone this repo
 2. Run `npm install`
-3. Add your env variables (you can add them in a `.env` file in the project's root directory)
-4. Run `npm run start`
+3. Run `npm run build`
+4. Add your env variables (you can add them in a `.env` file in the project's root directory)
+5. Run `npm run start`
 
 #### From docker
 
 1. Define the environment variables in a `.env` file
-2. `docker run --rm --env-file ".env" ghcr.io/daniel-hauser/moneyman:latest`
+2. `docker run --rm --env-file ".env" ghcr.io/daniel-hauser/moneyman:latest`.
+
+##### Note
+
+docker doesn't support multiline environment variables (i.e. `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`), in that case you can run `docker-compose up` instead
+
+### Debug
+
+We use the [debug](https://www.npmjs.com/package/debug) package for debug messages under the `moneyman:` namespace.
+
+If you want to see them, use the `DEBUG` environment variable with the value `moneyman:*`
 
 ## Settings
 
 ### Add accounts and scrape
 
-Use the following env vars to setup the data fetching.
+Use the following env vars to setup the data fetching:
 
-| Name                 | description                                                                                                                                                                                                                                                                                        |
+| env variable name    | description                                                                                                                                                                                                                                                                                        |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ACCOUNTS_JSON`      | A json array of accounts following [this](https://github.com/eshaham/israeli-bank-scrapers#specific-definitions-per-scraper) schema with an additional `companyId` field with a [companyType](https://github.com/eshaham/israeli-bank-scrapers/blob/master/src/definitions.ts#L5:L23) as the value |
 | `ACCOUNTS_TO_SCRAPE` | [Optional] A comma separated list of providers to take from `ACCOUNTS_JSON`, default value is all accounts                                                                                                                                                                                         |
@@ -77,7 +87,9 @@ We use telegram to send you the update status.
 2. Open this url `https://api.telegram.org/bot<TELEGRAM_API_KEY>/getUpdates`
 3. Send a message to your bot and fnd the chat id
 
-| Name               | description                                     |
+Use the following env vars to setup:
+
+| env variable name  | description                                     |
 | ------------------ | ----------------------------------------------- |
 | `TELEGRAM_API_KEY` | The super secret api key you got from BotFather |
 | `TELEGRAM_CHAT_ID` | The chat id                                     |
@@ -90,10 +102,12 @@ TODO: Add a way to send a message to the bot to connect?
 2. Create a database within your cluster
 3. Create a azure Service Principal following steps 1-7 [here](https://docs.microsoft.com/en-us/azure/data-explorer/provision-azure-ad-app#create-azure-ad-application-registration)
 4. Allow the service to ingest data to the database by running this:
+
    ```kql
    .execute database script <|
    .add database ['<ADE_DATABASE_NAME>'] ingestors ('aadapp=<AZURE_APP_ID>;<AZURE_TENANT_ID>')
    ```
+
 5. Create a table and ingestion mapping by running this: (Replace `<ADE_TABLE_NAME>` and `<ADE_INGESTION_MAPPING>`)
 
    ````kql
@@ -113,7 +127,9 @@ TODO: Add a way to send a message to the bot to connect?
 
    Feel free to add more columns to the table and ingestion json mapping
 
-| Name                    | description                             |
+Use the following env vars to setup:
+
+| env variable name       | description                             |
 | ----------------------- | --------------------------------------- |
 | `AZURE_APP_ID`          | The azure application ID                |
 | `AZURE_APP_KEY`         | The azure application secret key        |
@@ -126,30 +142,27 @@ TODO: Add a way to send a message to the bot to connect?
 ### Export JSON files
 
 Export transactions to json file.
-The file will be saved as `<process cwd>/output/<ISO timestamp>.json`
 
-| Name                 | description                                      |
-| -------------------- | ------------------------------------------------ |
-| `LOCAL_JSON_STORAGE` | If truthy, all transaction will be saved to json |
+Use the following env vars to setup:
+
+| env variable name    | description                                                                                    |
+| -------------------- | ---------------------------------------------------------------------------------------------- |
+| `LOCAL_JSON_STORAGE` | If truthy, all transaction will be saved to a `<process cwd>/output/<ISO timestamp>.json` file |
+
+### Export to excel on OneDrive
+
+WIP
 
 ### Export to google sheets
 
 1. Follow the instructions [here](https://theoephraim.github.io/node-google-spreadsheet/#/getting-started/authentication?id=service-account) to create a google service account.
 2. Create a [new sheet](https://sheets.new/) and share it with your service account using the `GOOGLE_SERVICE_ACCOUNT_EMAIL`.
 
-| Name                                 | description                                                   |
+Use the following env vars to setup:
+
+| env variable name                    | description                                                   |
 | ------------------------------------ | ------------------------------------------------------------- |
 | `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | The super secret api key of your service account              |
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL`       | The service account's email address                           |
 | `GOOGLE_SHEET_ID`                    | The id of the spreadsheet you shared with the service account |
 | `WORKSHEET_NAME`                     | The name of the sheet you want to add the transactions to     |
-
-### Debug
-
-We use the [debug](https://www.npmjs.com/package/debug) package for debug messages under the `moneyman:` namespace.
-
-If you want to see them, use the `DEBUG` environment variable with the value `moneyman:*`
-
-### Export to excel on one drive
-
-WIP
