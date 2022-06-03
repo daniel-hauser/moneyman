@@ -4,10 +4,12 @@ import type { Transaction } from "israeli-bank-scrapers/lib/transactions";
 import { sendError } from "../notifier.js";
 import type { AccountScrapeResult, TransactionRow } from "../types.js";
 
+import { LocalJsonStorage } from "./json.js";
 import { GoogleSheetsStorage } from "./sheets.js";
 import { AzureDataExplorerStorage } from "./azure-data-explorer.js";
 
 export const storages = [
+  new LocalJsonStorage(),
   new GoogleSheetsStorage(),
   new AzureDataExplorerStorage(),
 ].filter((s) => s.canSave());

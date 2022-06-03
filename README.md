@@ -123,6 +123,15 @@ TODO: Add a way to send a message to the bot to connect?
 | `ADE_INGESTION_MAPPING` | The name of the JSON ingestion mapping  |
 | `ADE_INGEST_URI`        | The ingest URI of the cluster           |
 
+### Export JSON files
+
+Export transactions to json file.
+The file will be saved as `<process cwd>/output/<ISO timestamp>.json`
+
+| Name                 | description                                      |
+| -------------------- | ------------------------------------------------ |
+| `LOCAL_JSON_STORAGE` | If truthy, all transaction will be saved to json |
+
 ### Export to google sheets
 
 1. Follow the instructions [here](https://theoephraim.github.io/node-google-spreadsheet/#/getting-started/authentication?id=service-account) to create a google service account.
