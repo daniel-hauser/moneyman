@@ -142,13 +142,12 @@ Use the following env vars to setup:
 ### Export JSON files
 
 Export transactions to json file.
-The file will be saved as `<process cwd>/output/<ISO timestamp>.json`
 
 Use the following env vars to setup:
 
-| env variable name    | description                                      |
-| -------------------- | ------------------------------------------------ |
-| `LOCAL_JSON_STORAGE` | If truthy, all transaction will be saved to json |
+| env variable name    | description                                                                                    |
+| -------------------- | ---------------------------------------------------------------------------------------------- |
+| `LOCAL_JSON_STORAGE` | If truthy, all transaction will be saved to a `<process cwd>/output/<ISO timestamp>.json` file |
 
 ### Export to excel on OneDrive
 
