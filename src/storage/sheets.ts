@@ -71,31 +71,32 @@ export class GoogleSheetsStorage implements TransactionStorage {
 
     const stats: SaveStats = {
       name: "Google Sheets",
-      sheetName: worksheetName,
-      replaced: 0, // TODO
+      table: worksheetName,
       total: txns.length,
       added: 0,
       pending: 0,
       existing: 0,
+      skipped: 0,
     };
 
     for (let tx of txns) {
       if (this.existingTransactionsHashes.has(tx.hash)) {
         stats.existing++;
+        stats.skipped++;
         continue;
       }
 
       if (tx.status === TransactionStatuses.Pending) {
-        // TODO: Add pending rows and edit the saved row?
         stats.pending++;
+        stats.skipped++;
         continue;
       }
 
-      stats.added++;
       rows.push(this.transactionRow(tx));
     }
 
     if (rows.length) {
+      stats.added = rows.length;
       await this.sheet?.addRows(rows);
     }
 
