@@ -72,12 +72,23 @@ If you want to see them, use the `DEBUG` environment variable with the value `mo
 
 Use the following env vars to setup the data fetching:
 
-| env variable name    | description                                                                                                                                                                                                                                                                                        |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ACCOUNTS_JSON`      | A json array of accounts following [this](https://github.com/eshaham/israeli-bank-scrapers#specific-definitions-per-scraper) schema with an additional `companyId` field with a [companyType](https://github.com/eshaham/israeli-bank-scrapers/blob/master/src/definitions.ts#L5:L23) as the value |
-| `ACCOUNTS_TO_SCRAPE` | [Optional] A comma separated list of providers to take from `ACCOUNTS_JSON`, default value is all accounts                                                                                                                                                                                         |
-| `DAYS_BACK`          | The amount of days back to scrape                                                                                                                                                                                                                                                                  |
-| `TZ`                 | A timezone for the process - used for the formatting of the timestamp                                                                                                                                                                                                                              |
+#### ACCOUNTS_JSON
+A json array of accounts following [this](https://github.com/eshaham/israeli-bank-scrapers#specific-definitions-per-scraper) schema with an additional `companyId` field with a [companyType](https://github.com/eshaham/israeli-bank-scrapers/blob/master/src/definitions.ts#L5:L23) as the value.
+
+Example:
+```json
+[
+  { "companyId": "hapoalim", "userCode": "AB1234", "password": "p@ssword" },
+  { "companyId": "visaCal", "username": "Ploni Almoni", "password": "p@ssword" }
+]
+```
+#### Other configurations
+
+| env variable name    | default            | description                                                                                           |
+| -------------------- | -------------------| ----------------------------------------------------------------------------------------------------- |
+| `ACCOUNTS_TO_SCRAPE` | `[]`               | A comma separated list of providers to take from `ACCOUNTS_JSON`. if empty, all accounts will be used |
+| `DAYS_BACK`          | `10`               | The amount of days back to scrape                                                                     |
+| `TZ`                 | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                 |
 
 ### Get notified in telegram
 
