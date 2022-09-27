@@ -28,7 +28,7 @@
   "dependencies": {
     "azure-kusto-data": "^3.4.2",
     "azure-kusto-ingest": "^3.4.2",
-    "date-fns": "^2.29.2",
+    "date-fns": "^2.29.3",
     "debug": "^4.3.4",
     "dotenv": "^16.0.2",
     "google-spreadsheet": "^3.3.0",
