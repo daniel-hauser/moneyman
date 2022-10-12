@@ -32,7 +32,7 @@
     "debug": "^4.3.4",
     "dotenv": "^16.0.2",
     "google-spreadsheet": "^3.3.0",
-    "israeli-bank-scrapers": "^2.1.1",
+    "israeli-bank-scrapers": "^2.2.1",
     "telegraf": "^4.9.2"
   },
   "devDependencies": {
