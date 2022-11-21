@@ -33,7 +33,7 @@
     "dotenv": "^16.0.2",
     "google-spreadsheet": "^3.3.0",
     "israeli-bank-scrapers": "^3.1.2",
-    "telegraf": "^4.9.2"
+    "telegraf": "^4.11.2"
   },
   "devDependencies": {
     "@types/debug": "^4.1.7",
