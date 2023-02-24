@@ -27,7 +27,7 @@
   "homepage": "https://github.com/daniel-hauser/moneyman#readme",
   "dependencies": {
     "azure-kusto-data": "^4.0.2",
-    "azure-kusto-ingest": "^4.0.2",
+    "azure-kusto-ingest": "^5.0.1",
     "date-fns": "^2.29.3",
     "debug": "^4.3.4",
     "dotenv": "^16.0.2",
