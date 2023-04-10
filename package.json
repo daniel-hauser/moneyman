@@ -40,6 +40,6 @@
     "@types/google-spreadsheet": "^3.3.1",
     "@types/puppeteer": "^5.4.7",
     "patch-package": "^6.5.1",
-    "typescript": "^5.0.3"
+    "typescript": "^5.0.4"
   }
 }
