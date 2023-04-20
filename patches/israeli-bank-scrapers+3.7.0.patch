@@ -1,0 +1,22 @@
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/interface.d.ts b/node_modules/israeli-bank-scrapers/lib/scrapers/interface.d.ts
+index 4846f96..2b9c99c 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/interface.d.ts
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/interface.d.ts
+@@ -2,6 +2,7 @@ import { Browser, Page } from 'puppeteer';
+ import { CompanyTypes } from '../definitions';
+ import { TransactionsAccount } from '../transactions';
+ import { ErrorResult, ScraperErrorTypes } from './errors';
++export { BaseScraper as Scraper } from './base-scraper';
+ export declare type ScraperCredentials = {
+     userCode: string;
+     password: string;
+@@ -128,9 +129,6 @@ export interface ScraperScrapingResult {
+     errorType?: ScraperErrorTypes;
+     errorMessage?: string;
+ }
+-export interface Scraper<TCredentials extends ScraperCredentials> {
+-    scrape(credentials: TCredentials): Promise<ScraperScrapingResult>;
+-}
+ export declare type ScraperTwoFactorAuthTriggerResult = ErrorResult | {
+     success: true;
+ };
