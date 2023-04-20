@@ -1,13 +1,13 @@
 import type { CompanyTypes } from "israeli-bank-scrapers";
 import type { Transaction } from "israeli-bank-scrapers/lib/transactions";
 import type {
-  ScaperScrapingResult,
+  ScraperScrapingResult,
   ScraperCredentials,
-} from "israeli-bank-scrapers/lib/scrapers/base-scraper";
+} from "israeli-bank-scrapers";
 
-export interface AccountConfig extends ScraperCredentials {
+export type AccountConfig = ScraperCredentials & {
   companyId: CompanyTypes;
-}
+};
 
 export interface TransactionRow extends Transaction {
   hash: string;
@@ -16,7 +16,7 @@ export interface TransactionRow extends Transaction {
 
 export interface AccountScrapeResult {
   companyId: CompanyTypes;
-  result: ScaperScrapingResult;
+  result: ScraperScrapingResult;
 }
 
 export type CategoryString = string;
