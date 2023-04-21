@@ -8,8 +8,11 @@
       "type": "node",
       "request": "launch",
       "name": "Launch",
-      "runtimeArgs": [],
-      "args": ["${workspaceFolder}/dst/index.js"],
+      "program": "${workspaceFolder}/src/index.ts",
+      "outFiles": ["${workspaceFolder}/dst/**/*.js"],
+      "preLaunchTask": "tsc: build - tsconfig.json",
+      "skipFiles": ["<node_internals>/**"],
+      "outputCapture": "std",
       "env": {
         "DEBUG": "*"
       }

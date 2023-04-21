@@ -1,4 +1,4 @@
-import { Telegraf } from "telegraf";
+import { Telegraf, TelegramError } from "telegraf";
 import { Message } from "telegraf/typings/core/types/typegram";
 import {
   daysBackToScrape,
@@ -36,13 +36,28 @@ export async function editMessage(
   newText: string
 ) {
   if (message !== undefined) {
-    await bot?.telegram.editMessageText(
-      TELEGRAM_CHAT_ID,
-      message,
-      undefined,
-      newText
-    );
+    try {
+      await bot?.telegram.editMessageText(
+        TELEGRAM_CHAT_ID,
+        message,
+        undefined,
+        newText
+      );
+    } catch (e) {
+      if (canIgnoreTelegramError(e)) {
+        logger(`Ignoring error`, e);
+      } else {
+        throw e;
+      }
+    }
   }
+}
+
+function canIgnoreTelegramError(e: Error) {
+  return (
+    e instanceof TelegramError &&
+    e.response.description.startsWith("Bad Request: message is not modified")
+  );
 }
 
 export function sendError(message: any, caller: string = "") {
