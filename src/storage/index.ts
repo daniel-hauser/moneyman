@@ -1,12 +1,9 @@
-import { parseISO, roundToNearestMinutes } from "date-fns";
-import type { CompanyTypes } from "israeli-bank-scrapers";
-import type { Transaction } from "israeli-bank-scrapers/lib/transactions";
 import { sendError } from "../notifier.js";
 import type { AccountScrapeResult, TransactionRow } from "../types.js";
-
 import { LocalJsonStorage } from "./json.js";
 import { GoogleSheetsStorage } from "./sheets.js";
 import { AzureDataExplorerStorage } from "./azure-data-explorer.js";
+import { transactionHash } from "./utils.js";
 
 export const storages = [
   new LocalJsonStorage(),
@@ -39,15 +36,6 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
     saved: false,
     stats: [],
   };
-}
-
-export function transactionHash(
-  tx: Transaction,
-  companyId: CompanyTypes,
-  accountNumber: string
-) {
-  const date = roundToNearestMinutes(parseISO(tx.date)).toISOString();
-  return `${date}_${tx.chargedAmount}_${tx.description}_${tx.memo}_${companyId}_${accountNumber}`;
 }
 
 function resultsToTransactions(
