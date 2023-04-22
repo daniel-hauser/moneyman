@@ -47,7 +47,16 @@ export function transactionHash(
   accountNumber: string
 ) {
   const date = roundToNearestMinutes(parseISO(tx.date)).toISOString();
-  return `${date}_${tx.chargedAmount}_${tx.description}_${tx.memo}_${companyId}_${accountNumber}`;
+  const parts = [
+    date,
+    tx.chargedAmount,
+    tx.description,
+    tx.memo,
+    companyId,
+    accountNumber,
+  ];
+
+  return parts.map((p) => String(p ?? "")).join("_");
 }
 
 function resultsToTransactions(
