@@ -75,15 +75,29 @@ describe("transactionHash", () => {
   });
 
   it("Issue #132: hash has no nullish string", () => {
-    const transaction = {
+    const transactionWithUndefined = {
       ...transaction1,
       chargedAmount: undefined,
       description: undefined,
       memo: undefined,
     };
-    const hash = transactionHash(transaction as any, CompanyTypes.leumi, "123");
 
-    expect(hash).not.toContain("null");
-    expect(hash).not.toContain("undefined");
+    const transactionWithNull = {
+      ...transaction1,
+      chargedAmount: null,
+      description: null,
+      memo: null,
+    };
+
+    for (const transaction of [transactionWithNull, transactionWithUndefined]) {
+      const hash = transactionHash(
+        transaction as any,
+        CompanyTypes.leumi,
+        "123"
+      );
+
+      expect(hash).not.toContain("null");
+      expect(hash).not.toContain("undefined");
+    }
   });
 });
