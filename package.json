@@ -5,7 +5,7 @@
   "main": "dst/index.ts",
   "type": "module",
   "engines": {
-    "node": ">15"
+    "node": ">16"
   },
   "scripts": {
     "act": "go run github.com/nektos/act@latest",
@@ -31,7 +31,7 @@
     "date-fns": "^2.29.3",
     "debug": "^4.3.4",
     "dotenv": "^16.0.3",
-    "google-spreadsheet": "^3.3.0",
+    "google-spreadsheet": "^4.0.2",
     "israeli-bank-scrapers": "^4.0.0",
     "telegraf": "^4.12.2"
   },
