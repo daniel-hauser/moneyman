@@ -20,9 +20,19 @@ import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 
 const logger = createLogger("GoogleSheetsStorage");
 
-type SheetRow = { date: string, amount: number, description: string, memo: string,
-  category: string, account: string, hash: string, comment: string, "scraped at": string,
-  "scraped by": string, identifier: string }
+type SheetRow = {
+  date: string;
+  amount: number;
+  description: string;
+  memo: string;
+  category: string;
+  account: string;
+  hash: string;
+  comment: string;
+  "scraped at": string;
+  "scraped by": string;
+  identifier: string;
+}
 
 export class GoogleSheetsStorage implements TransactionStorage {
   static FileHeaders = [
