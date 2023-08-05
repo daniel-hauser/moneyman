@@ -32,10 +32,10 @@ type SheetRow = {
   "scraped at": string;
   "scraped by": string;
   identifier: string;
-}
+};
 
 export class GoogleSheetsStorage implements TransactionStorage {
-  static FileHeaders = [
+  static FileHeaders: Array<keyof SheetRow> = [
     "date",
     "amount",
     "description",
@@ -116,14 +116,12 @@ export class GoogleSheetsStorage implements TransactionStorage {
   private async loadHashes() {
     const rows = await this.sheet?.getRows<SheetRow>();
     for (let row of rows!) {
-      this.existingTransactionsHashes.add(row.get('hash'));
+      this.existingTransactionsHashes.add(row.get("hash"));
     }
     logger(`${this.existingTransactionsHashes.size} hashes loaded`);
   }
 
   private async initDocAndSheet() {
-
-
     const {
       GOOGLE_SERVICE_ACCOUNT_EMAIL: client_email,
       GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: private_key,
@@ -132,14 +130,17 @@ export class GoogleSheetsStorage implements TransactionStorage {
     // By default, try to automatically get credentials
     // (maybe we're running in Google Cloud, who knows)
     let authToken: JWT | GoogleAuth<any> = new GoogleAuth({
-      scopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive.file'],
+      scopes: [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive.file",
+      ],
     });
     if (client_email && private_key) {
       logger("Using ServiceAccountAuth");
       authToken = new JWT({
         email: client_email,
         key: private_key,
-        scopes: ['https://www.googleapis.com/auth/spreadsheets',],
+        scopes: ["https://www.googleapis.com/auth/spreadsheets"],
       });
     }
     const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, authToken);
@@ -168,6 +169,6 @@ export class GoogleSheetsStorage implements TransactionStorage {
       "scraped at": currentDate,
       "scraped by": systemName,
       identifier: `${tx.identifier ?? ""}`,
-      };
+    };
   }
 }
