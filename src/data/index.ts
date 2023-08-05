@@ -9,7 +9,7 @@ const logger = createLogger("data");
 export async function scrapeAccounts(
   accounts: Array<AccountConfig>,
   startDate: Date,
-  statusMessageId?: number
+  statusMessageId?: number,
 ) {
   const start = performance.now();
 
@@ -38,7 +38,7 @@ export async function scrapeAccounts(
   logger(`scraping ended`);
   const stats = getStats(results);
   logger(
-    `Got ${stats.transactions} transactions from ${stats.accounts} accounts`
+    `Got ${stats.transactions} transactions from ${stats.accounts} accounts`,
   );
 
   const duration = (performance.now() - start) / 1000;
@@ -46,7 +46,7 @@ export async function scrapeAccounts(
 
   await editMessage(
     statusMessageId,
-    `${status.join("\n")}\n\ntotal time: ${duration.toFixed(1)}s`
+    `${status.join("\n")}\n\ntotal time: ${duration.toFixed(1)}s`,
   );
 
   return results;
@@ -55,12 +55,12 @@ export async function scrapeAccounts(
 export async function scrapeAccount(
   account: AccountConfig,
   startDate: Date,
-  setStatusMessage: (message: string) => Promise<void>
+  setStatusMessage: (message: string) => Promise<void>,
 ) {
   let message = "";
   const start = performance.now();
   const result = await getAccountTransactions(account, startDate, (cid, step) =>
-    setStatusMessage((message = `[${cid}] ${step}`))
+    setStatusMessage((message = `[${cid}] ${step}`)),
   );
 
   const duration = (performance.now() - start) / 1000;

@@ -54,13 +54,13 @@ describe("transactionHash", () => {
     const hash1 = transactionHash(
       transaction1,
       CompanyTypes.leumi,
-      accountNumber
+      accountNumber,
     );
 
     const hash2 = transactionHash(
       transaction1,
       CompanyTypes.isracard,
-      accountNumber
+      accountNumber,
     );
 
     expect(hash1).not.toBe(hash2);
@@ -93,7 +93,7 @@ describe("transactionHash", () => {
       const hash = transactionHash(
         transaction as any,
         CompanyTypes.leumi,
-        "123"
+        "123",
       );
 
       expect(hash).not.toContain("null");

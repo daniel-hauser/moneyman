@@ -27,7 +27,7 @@ export class LocalJsonStorage implements TransactionStorage {
 
     const fileName = path.join(
       LocalJsonStorage.folder,
-      `${new Date().toISOString()}.json`
+      `${new Date().toISOString()}.json`,
     );
 
     await fs.appendFile(fileName, JSON.stringify(txns), { encoding: "utf8" });

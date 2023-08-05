@@ -5,7 +5,7 @@ import type { Transaction } from "israeli-bank-scrapers/lib/transactions";
 export function transactionHash(
   tx: Transaction,
   companyId: CompanyTypes,
-  accountNumber: string
+  accountNumber: string,
 ) {
   const date = roundToNearestMinutes(parseISO(tx.date)).toISOString();
   const parts = [

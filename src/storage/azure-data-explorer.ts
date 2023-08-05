@@ -40,7 +40,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
           ADE_INGEST_URI!,
           AZURE_APP_ID!,
           AZURE_APP_KEY!,
-          AZURE_TENANT_ID
+          AZURE_TENANT_ID,
         );
 
       const ingestionProps = new IngestionProperties({
@@ -64,7 +64,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
         ADE_DATABASE_NAME &&
         ADE_TABLE_NAME &&
         ADE_INGESTION_MAPPING &&
-        ADE_INGEST_URI
+        ADE_INGEST_URI,
     );
   }
 
@@ -72,7 +72,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
     logger(`Saving ${txns.length} transactions`);
 
     const pending = txns.filter(
-      (tx) => tx.status === TransactionStatuses.Pending
+      (tx) => tx.status === TransactionStatuses.Pending,
     ).length;
 
     const stats: SaveStats = {
@@ -88,18 +88,18 @@ export class AzureDataExplorerStorage implements TransactionStorage {
     if (!this.ingestClient) {
       await sendError(
         "Called without initializing",
-        "AzureDataExplorerStorage.saveTransactions"
+        "AzureDataExplorerStorage.saveTransactions",
       );
     } else if (txns.length) {
       const stream = Readable.from(
-        JSON.stringify(txns.map(this.transactionRow))
+        JSON.stringify(txns.map(this.transactionRow)),
       );
       const res = await this.ingestClient.ingestFromStream(stream);
 
       if (res.errorCode) {
         await sendError(
           `returned ${res.errorCode}`,
-          "AzureDataExplorer.ingestFromStream "
+          "AzureDataExplorer.ingestFromStream ",
         );
       }
     }

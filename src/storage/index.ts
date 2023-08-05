@@ -24,7 +24,7 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
 
   if (txns.length) {
     const res = await Promise.all(
-      storages.map((s) => s.saveTransactions(txns))
+      storages.map((s) => s.saveTransactions(txns)),
     );
 
     return {
@@ -39,7 +39,7 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
 }
 
 function resultsToTransactions(
-  results: Array<AccountScrapeResult>
+  results: Array<AccountScrapeResult>,
 ): Array<TransactionRow> {
   const txns: Array<TransactionRow> = [];
 
