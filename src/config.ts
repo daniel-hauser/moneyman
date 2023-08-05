@@ -9,7 +9,7 @@ const {
   ACCOUNTS_JSON,
   TELEGRAM_API_KEY = "",
   TELEGRAM_CHAT_ID = "",
-  GOOGLE_SHEET_ID,
+  GOOGLE_SHEET_ID = "",
   WORKSHEET_NAME,
   ACCOUNTS_TO_SCRAPE = "",
 } = process.env;
