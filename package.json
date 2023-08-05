@@ -13,7 +13,8 @@
     "start:container": "docker compose up",
     "postinstall": "patch-package",
     "build": "tsc",
-    "test": "jest"
+    "lint": "prettier --check .",
+    "test": "npm run lint && jest --bail"
   },
   "repository": {
     "type": "git",
