@@ -31,7 +31,8 @@ export const scrapeStartDate = subDays(Date.now(), Number(daysBackToScrape));
 
 export const accounts = parseAccounts(ACCOUNTS_JSON).filter(
   (account) =>
-    accountsToScrape.length == 0 || accountsToScrape.includes(account.companyId)
+    accountsToScrape.length == 0 ||
+    accountsToScrape.includes(account.companyId),
 );
 
 export const FileHeaders = [

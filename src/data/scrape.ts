@@ -8,7 +8,7 @@ const logger = createLogger("scrape");
 export async function getAccountTransactions(
   account: AccountConfig,
   startDate: Date,
-  onProgress: (companyId: string, status: string) => void
+  onProgress: (companyId: string, status: string) => void,
 ): Promise<ScraperScrapingResult> {
   logger(`started`);
   try {

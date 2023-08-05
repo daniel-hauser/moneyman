@@ -19,7 +19,7 @@ const bot =
 logToPublicLog(
   bot
     ? "Telegram logger initialized, status and errors will be sent"
-    : "No Telegram bot info, status and errors will not be sent"
+    : "No Telegram bot info, status and errors will not be sent",
 );
 
 export async function send(message: string) {
@@ -33,7 +33,7 @@ export async function deleteMessage(message: Message.TextMessage) {
 
 export async function editMessage(
   message: number | undefined,
-  newText: string
+  newText: string,
 ) {
   if (message !== undefined) {
     try {
@@ -41,7 +41,7 @@ export async function editMessage(
         TELEGRAM_CHAT_ID,
         message,
         undefined,
-        newText
+        newText,
       );
     } catch (e) {
       if (canIgnoreTelegramError(e)) {
@@ -65,14 +65,14 @@ export function sendError(message: any, caller: string = "") {
     `${caller}\n❌ ${String(
       message instanceof Error
         ? `${message.message}\n${message.stack}`
-        : message
-    )}`.trim()
+        : message,
+    )}`.trim(),
   );
 }
 
 export function getSummaryMessage(
   results: Array<AccountScrapeResult>,
-  stats: Array<SaveStats>
+  stats: Array<SaveStats>,
 ) {
   const accountsSummary = results.flatMap(({ result, companyId }) => {
     if (!result.success) {
@@ -82,7 +82,7 @@ export function getSummaryMessage(
     }
     return result.accounts?.map(
       (account) =>
-        `\t✔️ [${companyId}] ${account.accountNumber}: ${account.txns.length}`
+        `\t✔️ [${companyId}] ${account.accountNumber}: ${account.txns.length}`,
     );
   });
 
