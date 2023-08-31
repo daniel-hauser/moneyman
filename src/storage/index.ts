@@ -49,8 +49,9 @@ function resultsToTransactions(
         for (let tx of account.txns) {
           txns.push({
             ...tx,
-            hash: transactionHash(tx, companyId, account.accountNumber),
             account: account.accountNumber,
+            companyId: companyId,
+            hash: transactionHash(tx, companyId, account.accountNumber),
           });
         }
       }

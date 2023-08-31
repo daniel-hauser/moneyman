@@ -10,8 +10,9 @@ export type AccountConfig = ScraperCredentials & {
 };
 
 export interface TransactionRow extends Transaction {
-  hash: string;
   account: string;
+  companyId: CompanyTypes;
+  hash: string;
 }
 
 export interface AccountScrapeResult {
