@@ -50,7 +50,7 @@ function resultsToTransactions(
           txns.push({
             ...tx,
             account: account.accountNumber,
-            companyId: companyId,
+            companyId,
             hash: transactionHash(tx, companyId, account.accountNumber),
           });
         }
