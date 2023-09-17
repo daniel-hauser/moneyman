@@ -9,12 +9,14 @@ const logger = createLogger("data");
 export async function scrapeAccounts(
   accounts: Array<AccountConfig>,
   startDate: Date,
+  futureMonthsToScrape: number,
   statusMessageId?: number,
 ) {
   const start = performance.now();
 
   logger(`scraping %d accounts`, accounts.length);
   logger(`start date %s`, startDate.toISOString());
+  logger(`months to scrap: %d`, futureMonthsToScrape);
 
   const status: Array<string> = [];
   const results: Array<AccountScrapeResult> = [];
@@ -23,10 +25,15 @@ export async function scrapeAccounts(
     const account = accounts[i];
 
     logger(`scraping account #${i} (type=${account.companyId})`);
-    const result = await scrapeAccount(account, startDate, async (message) => {
-      status[i] = message;
-      await editMessage(statusMessageId, status.join("\n"));
-    });
+    const result = await scrapeAccount(
+      account,
+      startDate,
+      futureMonthsToScrape,
+      async (message) => {
+        status[i] = message;
+        await editMessage(statusMessageId, status.join("\n"));
+      },
+    );
 
     results.push({
       companyId: account.companyId,
@@ -55,12 +62,16 @@ export async function scrapeAccounts(
 export async function scrapeAccount(
   account: AccountConfig,
   startDate: Date,
+  futureMonthsToScrape: number,
   setStatusMessage: (message: string) => Promise<void>,
 ) {
   let message = "";
   const start = performance.now();
-  const result = await getAccountTransactions(account, startDate, (cid, step) =>
-    setStatusMessage((message = `[${cid}] ${step}`)),
+  const result = await getAccountTransactions(
+    account,
+    startDate,
+    futureMonthsToScrape,
+    (cid, step) => setStatusMessage((message = `[${cid}] ${step}`)),
   );
 
   const duration = (performance.now() - start) / 1000;

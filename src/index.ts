@@ -1,5 +1,5 @@
 import { scrapeAccounts } from "./data/index.js";
-import { accounts, scrapeStartDate } from "./config.js";
+import { accounts, futureMonthsToScrape, scrapeStartDate } from "./config.js";
 import {
   send,
   editMessage,
@@ -38,7 +38,12 @@ async function run() {
   } else {
     try {
       const [results] = await Promise.all([
-        scrapeAccounts(accounts, scrapeStartDate, message?.message_id),
+        scrapeAccounts(
+          accounts,
+          scrapeStartDate,
+          futureMonthsToScrape,
+          message?.message_id,
+        ),
         initializeStorage(),
       ]);
 

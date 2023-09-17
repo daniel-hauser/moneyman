@@ -8,6 +8,7 @@ const logger = createLogger("scrape");
 export async function getAccountTransactions(
   account: AccountConfig,
   startDate: Date,
+  futureMonthsToScrape: number,
   onProgress: (companyId: string, status: string) => void,
 ): Promise<ScraperScrapingResult> {
   logger(`started`);
@@ -16,6 +17,7 @@ export async function getAccountTransactions(
       startDate,
       companyId: account.companyId,
       args: ["--disable-dev-shm-usage", "--no-sandbox"],
+      futureMonthsToScrape,
     });
 
     scraper.onProgress((companyId, { type }) => {

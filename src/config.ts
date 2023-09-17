@@ -12,6 +12,7 @@ const {
   GOOGLE_SHEET_ID = "",
   WORKSHEET_NAME,
   ACCOUNTS_TO_SCRAPE = "",
+  FUTURE_MONTHS = "",
 } = process.env;
 
 /**
@@ -28,6 +29,7 @@ export { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID, GOOGLE_SHEET_ID };
 export const systemName = "moneyman";
 export const currentDate = format(Date.now(), "yyyy-MM-dd");
 export const scrapeStartDate = subDays(Date.now(), Number(daysBackToScrape));
+export const futureMonthsToScrape: number = parseInt(FUTURE_MONTHS, 10) || 1;
 
 export const accounts = parseAccounts(ACCOUNTS_JSON).filter(
   (account) =>
