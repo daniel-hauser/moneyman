@@ -20,6 +20,7 @@ const {
  */
 export const daysBackToScrape = DAYS_BACK || 10;
 export const worksheetName = WORKSHEET_NAME || "_moneyman";
+export const futureMonths = parseInt(FUTURE_MONTHS, 10);
 
 const accountsToScrape = ACCOUNTS_TO_SCRAPE.split(",")
   .filter(Boolean)
