@@ -20,7 +20,7 @@ const {
  */
 export const daysBackToScrape = DAYS_BACK || 10;
 export const worksheetName = WORKSHEET_NAME || "_moneyman";
-export const futureMonths = parseInt(FUTURE_MONTHS, 10);
+export const futureMonthsToScrape = parseInt(FUTURE_MONTHS, 10);
 
 const accountsToScrape = ACCOUNTS_TO_SCRAPE.split(",")
   .filter(Boolean)
@@ -30,7 +30,6 @@ export { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID, GOOGLE_SHEET_ID };
 export const systemName = "moneyman";
 export const currentDate = format(Date.now(), "yyyy-MM-dd");
 export const scrapeStartDate = subDays(Date.now(), Number(daysBackToScrape));
-export const futureMonthsToScrape: number = parseInt(FUTURE_MONTHS, 10) || 1;
 
 export const accounts = parseAccounts(ACCOUNTS_JSON).filter(
   (account) =>

@@ -16,7 +16,9 @@ export async function scrapeAccounts(
 
   logger(`scraping %d accounts`, accounts.length);
   logger(`start date %s`, startDate.toISOString());
-  logger(`months to scrap: %d`, futureMonthsToScrape);
+  if (!Number.isNaN(futureMonthsToScrape)) {
+    logger(`months to scrap: %d`, futureMonthsToScrape);
+  }
 
   const status: Array<string> = [];
   const results: Array<AccountScrapeResult> = [];

@@ -17,7 +17,9 @@ export async function getAccountTransactions(
       startDate,
       companyId: account.companyId,
       args: ["--disable-dev-shm-usage", "--no-sandbox"],
-      futureMonthsToScrape,
+      futureMonthsToScrape: Number.isNaN(futureMonthsToScrape)
+        ? undefined
+        : futureMonthsToScrape,
     });
 
     scraper.onProgress((companyId, { type }) => {
