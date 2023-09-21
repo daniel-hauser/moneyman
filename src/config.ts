@@ -12,6 +12,7 @@ const {
   GOOGLE_SHEET_ID = "",
   WORKSHEET_NAME,
   ACCOUNTS_TO_SCRAPE = "",
+  FUTURE_MONTHS = "",
 } = process.env;
 
 /**
@@ -19,6 +20,7 @@ const {
  */
 export const daysBackToScrape = DAYS_BACK || 10;
 export const worksheetName = WORKSHEET_NAME || "_moneyman";
+export const futureMonthsToScrape = parseInt(FUTURE_MONTHS, 10);
 
 const accountsToScrape = ACCOUNTS_TO_SCRAPE.split(",")
   .filter(Boolean)
