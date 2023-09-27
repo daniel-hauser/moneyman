@@ -160,8 +160,9 @@ export class GoogleSheetsStorage implements TransactionStorage {
       GOOGLE_SERVICE_ACCOUNT_EMAIL: client_email,
       GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: private_key,
     } = process.env;
-    const formattedPrivateKey = private_key ? private_key.replace(/\\n/g, '\n') : private_key;
-
+    const formattedPrivateKey = private_key
+      ? private_key.replace(/\\n/g, "\n")
+      : private_key;
 
     // By default, try to automatically get credentials
     // (maybe we're running in Google Cloud, who knows)
