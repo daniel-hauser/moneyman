@@ -121,40 +121,6 @@ export class GoogleSheetsStorage implements TransactionStorage {
     logger(`${this.existingTransactionsHashes.size} hashes loaded`);
   }
 
-  // private async initDocAndSheet() {
-  //   const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID);
-
-  //   const {
-  //     GOOGLE_SERVICE_ACCOUNT_EMAIL: client_email,
-  //     GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: private_key_base_64_encoded,
-  //   } = process.env;
-
-  //   const private_key_decoded = Buffer.from(
-  //     private_key_base_64_encoded || "",
-  //     "base64"
-  //   )
-  //     .toString("utf8")
-  //     .replace(`"`, "");
-
-  //   if (client_email && private_key_decoded) {
-  //     logger("Using ServiceAccountAuth");
-  //     await doc.useServiceAccountAuth({
-  //       client_email,
-  //       private_key: private_key_decoded,
-  //     });
-  //   }
-
-  //   await doc.loadInfo();
-
-  //   if (!(worksheetName in doc.sheetsByTitle)) {
-  //     logger("Creating new sheet");
-  //     const sheet = await doc.addSheet({ title: worksheetName });
-  //     await sheet.setHeaderRow(GoogleSheetsStorage.FileHeaders);
-  //   }
-
-  //   this.sheet = doc.sheetsByTitle[worksheetName];
-  // }
-
   private async initDocAndSheet() {
     const {
       GOOGLE_SERVICE_ACCOUNT_EMAIL: client_email,

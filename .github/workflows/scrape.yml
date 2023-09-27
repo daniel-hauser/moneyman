@@ -69,7 +69,7 @@ jobs:
           -e AZURE_APP_KEY
           $IMAGE_NAME
         env:
-          DEBUG: ""
+          DEBUG: "moneyman:*"
           TZ: "Asia/Jerusalem"
           DAYS_BACK: ${{ github.event.inputs.daysBack }}
           WORKSHEET_NAME: ${{ github.event.inputs.worksheetName }}
