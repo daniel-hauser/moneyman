@@ -122,28 +122,27 @@ export class GoogleSheetsStorage implements TransactionStorage {
   }
 
   private async initDocAndSheet() {
+    const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID);
+
     const {
       GOOGLE_SERVICE_ACCOUNT_EMAIL: client_email,
-      GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: private_key,
+      GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: private_key_base_64_encoded,
     } = process.env;
 
-    // By default, try to automatically get credentials
-    // (maybe we're running in Google Cloud, who knows)
-    let authToken: JWT | GoogleAuth<any> = new GoogleAuth({
-      scopes: [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive.file",
-      ],
-    });
-    if (client_email && private_key) {
+    const private_key_decoded = Buffer.from(
+      private_key_base_64_encoded || "",
+      "base64"
+    )
+      .toString("utf8")
+      .replace(`"`, "");
+
+    if (client_email && private_key_decoded) {
       logger("Using ServiceAccountAuth");
-      authToken = new JWT({
-        email: client_email,
-        key: private_key,
-        scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+      await doc.useServiceAccountAuth({
+        client_email,
+        private_key: private_key_decoded,
       });
     }
-    const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, authToken);
 
     await doc.loadInfo();
 
@@ -155,6 +154,41 @@ export class GoogleSheetsStorage implements TransactionStorage {
 
     this.sheet = doc.sheetsByTitle[worksheetName];
   }
+
+  // private async initDocAndSheet() {
+  //   const {
+  //     GOOGLE_SERVICE_ACCOUNT_EMAIL: client_email,
+  //     GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: private_key,
+  //   } = process.env;
+
+  //   // By default, try to automatically get credentials
+  //   // (maybe we're running in Google Cloud, who knows)
+  //   let authToken: JWT | GoogleAuth<any> = new GoogleAuth({
+  //     scopes: [
+  //       "https://www.googleapis.com/auth/spreadsheets",
+  //       "https://www.googleapis.com/auth/drive.file",
+  //     ],
+  //   });
+  //   if (client_email && private_key) {
+  //     logger("Using ServiceAccountAuth");
+  //     authToken = new JWT({
+  //       email: client_email,
+  //       key: private_key,
+  //       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  //     });
+  //   }
+  //   const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, authToken);
+
+  //   await doc.loadInfo();
+
+  //   if (!(worksheetName in doc.sheetsByTitle)) {
+  //     logger("Creating new sheet");
+  //     const sheet = await doc.addSheet({ title: worksheetName });
+  //     await sheet.setHeaderRow(GoogleSheetsStorage.FileHeaders);
+  //   }
+
+  //   this.sheet = doc.sheetsByTitle[worksheetName];
+  // }
 
   private transactionRow(tx: TransactionRow): SheetRow {
     return {
