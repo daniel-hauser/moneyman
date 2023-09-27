@@ -26,7 +26,7 @@ jobs:
       - name: Pull image
         run: docker pull $IMAGE_NAME
       - name: Run compose
-        run: docker compose up docker-compose-actions.yml
+        run: docker compose up docker-compose-actions.yml logs
         env:
           DEBUG: ""
           TZ: "Asia/Jerusalem"
