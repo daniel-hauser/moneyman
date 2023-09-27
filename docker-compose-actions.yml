@@ -1,7 +1,7 @@
 version: '3'
 services:
   monayman:
-    image: $IMAGE_NAME
+    image: ${IMAGE_NAME}
     environment:
       - DEBUG
       - DAYS_BACK
