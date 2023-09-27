@@ -158,9 +158,10 @@ export class GoogleSheetsStorage implements TransactionStorage {
   private async initDocAndSheet() {
     const {
       GOOGLE_SERVICE_ACCOUNT_EMAIL: client_email,
-      // GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: private_key,
+      GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: private_key,
     } = process.env;
-    const private_key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY.split(String.raw`\n`).join('\n');
+    const formattedPrivateKey = private_key ? private_key.replace(/\\n/g, '\n') : private_key;
+
 
     // By default, try to automatically get credentials
     // (maybe we're running in Google Cloud, who knows)
@@ -170,11 +171,11 @@ export class GoogleSheetsStorage implements TransactionStorage {
         "https://www.googleapis.com/auth/drive.file",
       ],
     });
-    if (client_email && private_key) {
+    if (client_email && formattedPrivateKey) {
       logger("Using ServiceAccountAuth");
       authToken = new JWT({
         email: client_email,
-        key: private_key,
+        key: formattedPrivateKey,
         scopes: ["https://www.googleapis.com/auth/spreadsheets"],
       });
     }
