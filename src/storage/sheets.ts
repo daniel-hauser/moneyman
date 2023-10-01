@@ -160,7 +160,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
   }
 
   private transactionRow(tx: TransactionRow): SheetRow {
-      let abs = tx.chargedAmount = Math.abs(tx.chargedAmount);
+    let abs = (tx.chargedAmount = Math.abs(tx.chargedAmount));
     return {
       date: format(parseISO(tx.date), "dd/MM/yyyy", {}),
       amount: abs,
