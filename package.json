@@ -35,6 +35,7 @@
     "google-auth-library": "^8.8.0",
     "google-spreadsheet": "^4.0.2",
     "israeli-bank-scrapers": "^4.0.0",
+    "puppeteer": "^21.3.5",
     "telegraf": "^4.12.2"
   },
   "devDependencies": {
