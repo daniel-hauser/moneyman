@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { subDays, format, startOfMonth } from "date-fns";
+import { subDays, format, startOfMonth, differenceInDays } from "date-fns";
 import { AccountConfig } from "./types";
 import { logToPublicLog } from "./utils/logger.js";
 
@@ -32,7 +32,10 @@ export const systemName = "moneyman";
 export const currentDate = format(Date.now(), "yyyy-MM-dd");
 export const scrapeStartDate =
   SCRAPE_FROM_BEGINNING_OF_MONTH === "true"
-    ? subDays(startOfMonth(Date.now()), Number(daysBackToScrape))
+    ? subDays(
+        Date.now(),
+        Number(differenceInDays(Date.now(), startOfMonth(Date.now()))),
+      )
     : subDays(Date.now(), Number(daysBackToScrape));
 
 export const accounts = parseAccounts(ACCOUNTS_JSON).filter(
