@@ -1,5 +1,11 @@
 import "dotenv/config";
-import { subDays, format, startOfMonth, differenceInDays } from "date-fns";
+import {
+  subDays,
+  format,
+  startOfMonth,
+  differenceInDays,
+  startOfDay,
+} from "date-fns";
 import { AccountConfig } from "./types";
 import { logToPublicLog } from "./utils/logger.js";
 
@@ -19,7 +25,10 @@ const {
 /**
  * Add default values in case the value is falsy (0 is not valid here) or an empty string
  */
-export const daysBackToScrape = DAYS_BACK || 10;
+export const daysBackToScrape =
+  SCRAPE_FROM_BEGINNING_OF_MONTH === "true"
+    ? differenceInDays(Date.now(), startOfMonth(Date.now()))
+    : DAYS_BACK || 10;
 export const worksheetName = WORKSHEET_NAME || "_moneyman";
 export const futureMonthsToScrape = parseInt(FUTURE_MONTHS, 10);
 
@@ -32,11 +41,13 @@ export const systemName = "moneyman";
 export const currentDate = format(Date.now(), "yyyy-MM-dd");
 export const scrapeStartDate =
   SCRAPE_FROM_BEGINNING_OF_MONTH === "true"
-    ? subDays(
-        Date.now(),
-        Number(differenceInDays(Date.now(), startOfMonth(Date.now()))),
+    ? startOfDay(
+        subDays(
+          Date.now(),
+          Number(differenceInDays(Date.now(), startOfMonth(Date.now()))),
+        ),
       )
-    : subDays(Date.now(), Number(daysBackToScrape));
+    : startOfDay(subDays(Date.now(), Number(daysBackToScrape)));
 
 export const accounts = parseAccounts(ACCOUNTS_JSON).filter(
   (account) =>
