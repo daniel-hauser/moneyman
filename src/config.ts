@@ -3,7 +3,6 @@ import { subDays, format, startOfMonth } from "date-fns";
 import { AccountConfig } from "./types";
 import { logToPublicLog } from "./utils/logger.js";
 
-
 logToPublicLog("Parsing config");
 const {
   DAYS_BACK,
@@ -14,7 +13,7 @@ const {
   WORKSHEET_NAME,
   ACCOUNTS_TO_SCRAPE = "",
   FUTURE_MONTHS = "",
-  SCRAPE_FROM_BEGINNING_OF_MONTH = ""
+  SCRAPE_FROM_BEGINNING_OF_MONTH = "",
 } = process.env;
 
 /**
@@ -31,9 +30,10 @@ const accountsToScrape = ACCOUNTS_TO_SCRAPE.split(",")
 export { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID, GOOGLE_SHEET_ID };
 export const systemName = "moneyman";
 export const currentDate = format(Date.now(), "yyyy-MM-dd");
-export const scrapeStartDate = SCRAPE_FROM_BEGINNING_OF_MONTH === "true"
-  ? subDays(startOfMonth(Date.now()), Number(daysBackToScrape))
-  : subDays(Date.now(), Number(daysBackToScrape));
+export const scrapeStartDate =
+  SCRAPE_FROM_BEGINNING_OF_MONTH === "true"
+    ? subDays(startOfMonth(Date.now()), Number(daysBackToScrape))
+    : subDays(Date.now(), Number(daysBackToScrape));
 
 export const accounts = parseAccounts(ACCOUNTS_JSON).filter(
   (account) =>
