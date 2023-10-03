@@ -11,6 +11,10 @@ on:
         default: "1"
         required: false
         description: "Days back to scrape"
+      scrapeFromBeginningOfMonth:
+        default: true
+        required: false
+        description: "If true, the days back will be caluclated automacitlly from the beginning of the month"
       worksheetName:
         default: "current"
         required: false
@@ -45,12 +49,14 @@ jobs:
           -e AZURE_TENANT_ID
           -e AZURE_APP_ID
           -e AZURE_APP_KEY
+          -e SCRAPE_FROM_BEGINNING_OF_MONTH
           $IMAGE_NAME
         env:
           DEBUG: ""
           TZ: "Asia/Jerusalem"
           DAYS_BACK: ${{ github.event.inputs.daysBack }}
-          WORKSHEET_NAME: ${{ github.event.inputs.worksheetName }}
+          WORKSHEET_NAME: ${{ github.event.inputs.worksheetName }} || current
+          SCRAPE_FROM_BEGINNING_OF_MONTH: ${{ github.event.inputs.worksheetName }} || true
           ACCOUNTS_TO_SCRAPE: ${{ github.event.inputs.accountsToScrape }}
           ACCOUNTS_JSON: ${{ secrets.ACCOUNTS_JSON }}
           TELEGRAM_API_KEY: ${{ secrets.TELEGRAM_API_KEY }}
