@@ -74,5 +74,5 @@ jobs:
       - name: Send Uodate
         uses: fjogeleit/http-request-action@v1
         with:
-          url: '${{ secrets.UPDATE_WEB_HOOK }}'
-          method: 'GET'
+          url: "${{ secrets.UPDATE_WEB_HOOK }}"
+          method: "GET"
