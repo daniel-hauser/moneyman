@@ -53,7 +53,7 @@ jobs:
           $IMAGE_NAME
         env:
           DEBUG: ""
-          TZ: "Asia/Jerusalem"
+          TZ: "UTC"
           DAYS_BACK: ${{ github.event.inputs.daysBack }}
           WORKSHEET_NAME: ${{ github.event.inputs.worksheetName || 'current' }}
           SCRAPE_FROM_BEGINNING_OF_MONTH: ${{ github.event.inputs.scrapeFromBeginningOfMonth || true }}
