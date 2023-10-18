@@ -20,8 +20,8 @@ on:
         required: false
         description: "The name of the worksheet to write to"
   schedule:
-    - cron: "55 05 * * *"
-    - cron: "55 17 * * *"
+    - cron: "58 05 * * *"
+    - cron: "58 17 * * *"
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}:latest
 jobs:
