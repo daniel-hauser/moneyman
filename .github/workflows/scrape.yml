@@ -39,13 +39,13 @@ jobs:
           day=$(date -d "$current_date" +"%d")
           echo $current_date
           if [ "$day" = "01" ]; then
-            sudo apt-get install libxml2-dev libxslt-dev python-dev
+            sudo apt install libxslt-dev libxml2-dev
             printf "%s\n" "$GOOGLE_JSON" > google.json    
             python -m pip install --upgrade pip
             pip install -r requirements.txt
             python gpt.py
           else
-            sudo apt-get install libxml2-dev libxslt-dev python-dev
+            sudo apt install libxslt-dev libxml2-dev
             printf "%s\n" "$GOOGLE_JSON" > google.json    
             python -m pip install --upgrade pip
             pip install -r requirements.txt
