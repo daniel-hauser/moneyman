@@ -31,12 +31,26 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: "3.x"
-      - name: Install dependencies & run
+      - name: Run python script
         run: |
-          cat "$GOOGLE_JSON" > google.json
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          python gpt.py
+          current_date=$(date +"%Y-%m-%d")
+          day=$(date -d "$current_date" +"%d")
+          
+          if [ "$day" = "01" ]; then
+            cat "$GOOGLE_JSON" > google.json
+            printf "%s\n" "$c" > test.json    
+            python -m pip install --upgrade pip
+            pip install -r requirements.txt
+            python gpt.py
+          else
+            cat "$GOOGLE_JSON" > google.json
+            printf "%s\n" "$c" > test.json    
+            python -m pip install --upgrade pip
+            pip install -r requirements.txt
+            python gpt.py
+            echo "It is not the first day of the month."
+          fi
+
         env:
           GOOGLE_JSON: ${{ secrets.GOOGLE_JSON }}
       - name: Pull image
