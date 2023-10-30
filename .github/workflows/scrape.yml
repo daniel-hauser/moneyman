@@ -27,6 +27,18 @@ jobs:
   scrape:
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Install dependencies & run
+        run: |
+          cat GOOGLE_JSON > google.json
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python gpt.py
+        env:
+          GOOGLE_JSON: ${{ secrets.GOOGLE_JSON }}
       - name: Pull image
         run: docker pull $IMAGE_NAME
       - name: Run scraper
