@@ -3,7 +3,7 @@ node_modules/
 
 # dotenv environment variables file
 .env
-
+google.json
 local_config/
 dst/
 output
