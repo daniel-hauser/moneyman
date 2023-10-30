@@ -37,14 +37,12 @@ jobs:
           day=$(date -d "$current_date" +"%d")
           
           if [ "$day" = "01" ]; then
-            cat "$GOOGLE_JSON" > google.json
-            printf "%s\n" "$c" > test.json    
+            printf "%s\n" "$GOOGLE_JSON" > google.json    
             python -m pip install --upgrade pip
             pip install -r requirements.txt
             python gpt.py
           else
-            cat "$GOOGLE_JSON" > google.json
-            printf "%s\n" "$c" > test.json    
+            printf "%s\n" "$GOOGLE_JSON" > google.json    
             python -m pip install --upgrade pip
             pip install -r requirements.txt
             python gpt.py
