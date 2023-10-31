@@ -16,6 +16,7 @@ export async function getAccountTransactions(
     const scraper = createScraper({
       startDate,
       companyId: account.companyId,
+      defaultTimeout: 120000,
       args: ["--disable-dev-shm-usage", "--no-sandbox"],
       futureMonthsToScrape: Number.isNaN(futureMonthsToScrape)
         ? undefined
