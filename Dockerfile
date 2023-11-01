@@ -1,5 +1,5 @@
 # ---- Base Node ----
-FROM node:alpine AS base
+FROM node:18-alpine AS base
 
 RUN apk add --no-cache \
       chromium \
@@ -28,6 +28,7 @@ COPY package.json .
 COPY package-lock.json .
 COPY ./patches ./patches
 COPY ./src ./src
+
 
 RUN npm ci
 RUN npm run build
