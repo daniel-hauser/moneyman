@@ -14,7 +14,7 @@
     "postinstall": "patch-package",
     "build": "tsc",
     "lint": "prettier --check .",
-    "test": "npm run lint && jest --bail"
+    "test": "jest"
   },
   "repository": {
     "type": "git",
