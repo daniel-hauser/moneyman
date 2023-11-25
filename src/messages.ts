@@ -40,11 +40,11 @@ function transactionsString(
 ) {
   const total = pending.length + completed.length;
 
-  return `${total} transactions scraped ${
-    total > 0
-      ? `(${pending.length} pending, ${completed.length} completed)`
-      : ""
-  }`.trim();
+  return `
+${total} transactions scraped.
+${
+  total > 0 ? `(${pending.length} pending, ${completed.length} completed)` : ""
+}`.trim();
 }
 
 function getPendingSummary(pending: Array<Transaction>) {

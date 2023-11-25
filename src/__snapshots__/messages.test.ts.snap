@@ -1,7 +1,8 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`messages getSummaryMessage should return a summary message 1`] = `
-"6 transactions scraped (3 pending, 3 completed)
+"6 transactions scraped.
+(3 pending, 3 completed)
 
 Accounts updated:
 	✔️ [max] account1: 0
@@ -23,7 +24,8 @@ Pending txns:
 `;
 
 exports[`messages getSummaryMessage should return a summary message with failed results 1`] = `
-"1 transactions scraped (0 pending, 1 completed)
+"1 transactions scraped.
+(0 pending, 1 completed)
 
 Accounts updated:
 	❌ [max] GENERIC
@@ -40,7 +42,7 @@ Pending txns:
 `;
 
 exports[`messages getSummaryMessage should return a summary message with no results 1`] = `
-"0 transactions scraped
+"0 transactions scraped.
 
 Accounts updated:
 	😶 None
