@@ -1,6 +1,6 @@
 import { scrapeAccounts } from "./data/index.js";
 import { accounts, futureMonthsToScrape, scrapeStartDate } from "./config.js";
-import { send, editMessage, sendError, getConfigSummary } from "./notifier.js";
+import { send, editMessage, sendError } from "./notifier.js";
 import { initializeStorage, saveResults, storages } from "./storage/index.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 import { getSummaryMessage } from "./messages.js";
@@ -22,8 +22,6 @@ process.exit(0);
 async function run() {
   logToPublicLog("Scraping started");
   logger("Scraping started");
-
-  await send(getConfigSummary());
 
   const message = await send("Starting...");
 

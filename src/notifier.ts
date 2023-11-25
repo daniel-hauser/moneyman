@@ -1,12 +1,6 @@
 import { Telegraf, TelegramError } from "telegraf";
 import { Message } from "telegraf/typings/core/types/typegram";
-import {
-  daysBackToScrape,
-  scrapeStartDate,
-  TELEGRAM_API_KEY,
-  TELEGRAM_CHAT_ID,
-  worksheetName,
-} from "./config.js";
+import { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID } from "./config.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 
 const logger = createLogger("notifier");
@@ -66,13 +60,4 @@ export function sendError(message: any, caller: string = "") {
         : message,
     )}`.trim(),
   );
-}
-
-export function getConfigSummary() {
-  return `
-Config:
-  Worksheet name: ${worksheetName}
-  Start Date: ${scrapeStartDate.toISOString()} (${daysBackToScrape} days back)
-  TZ: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
-  `;
 }

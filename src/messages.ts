@@ -1,4 +1,4 @@
-import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions";
+import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { AccountScrapeResult, SaveStats, Transaction } from "./types";
 
 export function getSummaryMessage(
