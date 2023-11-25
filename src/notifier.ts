@@ -7,7 +7,10 @@ import {
   TELEGRAM_CHAT_ID,
   worksheetName,
 } from "./config.js";
-import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
+import {
+  Transaction,
+  TransactionStatuses,
+} from "israeli-bank-scrapers/lib/transactions.js";
 import type { AccountScrapeResult, SaveStats } from "./types.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 
@@ -70,6 +73,27 @@ export function sendError(message: any, caller: string = "") {
   );
 }
 
+function transactionsString(results: Array<AccountScrapeResult>) {
+  const allTxns = results
+    .flatMap(
+      ({ result }) => result.accounts?.flatMap((account) => account?.txns),
+    )
+    .filter((t): t is Transaction => t !== undefined);
+
+  if (!allTxns.length) {
+    return "";
+  }
+
+  const pendingTxns = allTxns.filter(
+    (t) => t.status === TransactionStatuses.Pending,
+  );
+  const scrapedTxns = allTxns.filter(
+    (t) => t.status === TransactionStatuses.Completed,
+  );
+
+  return `\tTotal: ${allTxns?.length} (${pendingTxns?.length} pending, ${scrapedTxns?.length} completed)`;
+}
+
 export function getSummaryMessage(
   results: Array<AccountScrapeResult>,
   stats: Array<SaveStats>,
@@ -91,6 +115,8 @@ export function getSummaryMessage(
   return `
 Accounts updated:
 ${accountsSummary.join("\n") || "\t😶 None"}
+Transactions:
+${transactionsString(results) || "\t😶 None"}
 Saved to:
 ${saveSummary.join("\n") || "\t😶 None"}
 ${getPendingSummary(results)}
@@ -121,7 +147,7 @@ function getPendingSummary(results: Array<AccountScrapeResult>) {
 function statsString(starts: SaveStats): string {
   return `
   📝 ${starts.name} (${starts.table})
-    ${starts.added} added, ${starts.skipped} skipped
-    (${starts.existing} existing,  ${starts.pending} pending)
+    ${starts.added} added
+    ${starts.skipped} skipped (${starts.existing} existing,  ${starts.pending} pending)
 `.trim();
 }

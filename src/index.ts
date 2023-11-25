@@ -42,7 +42,15 @@ async function run() {
           accounts,
           scrapeStartDate,
           futureMonthsToScrape,
-          message?.message_id,
+          async (stats, totalTime) => {
+            const text = stats.join("\n");
+            await editMessage(
+              message?.message_id,
+              totalTime
+                ? text + `\n\nTotal time: ${totalTime.toFixed(1)} seconds`
+                : text,
+            );
+          },
         ),
         initializeStorage(),
       ]);
