@@ -73,25 +73,17 @@ export function sendError(message: any, caller: string = "") {
   );
 }
 
-function transactionsString(results: Array<AccountScrapeResult>) {
-  const allTxns = results
-    .flatMap(
-      ({ result }) => result.accounts?.flatMap((account) => account?.txns),
-    )
-    .filter((t): t is Transaction => t !== undefined);
+function transactionsString(
+  pending: Array<Transaction>,
+  completed: Array<Transaction>,
+) {
+  const total = pending.length + completed.length;
 
-  if (!allTxns.length) {
-    return "";
-  }
-
-  const pendingTxns = allTxns.filter(
-    (t) => t.status === TransactionStatuses.Pending,
-  );
-  const scrapedTxns = allTxns.filter(
-    (t) => t.status === TransactionStatuses.Completed,
-  );
-
-  return `\tTotal: ${allTxns?.length} (${pendingTxns?.length} pending, ${scrapedTxns?.length} completed)`;
+  return `${total} transactions scraped ${
+    total > 0
+      ? `(${pending.length} pending, ${completed.length} completed)`
+      : ""
+  }`.trim();
 }
 
 export function getSummaryMessage(
@@ -111,15 +103,20 @@ export function getSummaryMessage(
   });
 
   const saveSummary = stats.map((s) => statsString(s));
+  const { pending, completed } = transactionsByStatus(results);
 
   return `
+${transactionsString(pending, completed)}
+
 Accounts updated:
 ${accountsSummary.join("\n") || "\t😶 None"}
-Transactions:
-${transactionsString(results) || "\t😶 None"}
+
 Saved to:
 ${saveSummary.join("\n") || "\t😶 None"}
-${getPendingSummary(results)}
+
+-------
+Pending txns:
+${getPendingSummary(pending) || "\t😶 None"}
 `.trim();
 }
 
@@ -132,16 +129,19 @@ Config:
   `;
 }
 
-function getPendingSummary(results: Array<AccountScrapeResult>) {
-  const pending = results
-    .flatMap(({ result }) => result.accounts)
-    .flatMap((account) => account?.txns)
-    .filter(Boolean)
-    .filter((t) => t?.status === TransactionStatuses.Pending);
+function getPendingSummary(pending: Array<Transaction>) {
+  return pending
+    .map((t) => {
+      const sign = t.originalAmount < 0 ? "-" : "+";
+      const originalAmount = Math.abs(t.originalAmount).toFixed(2);
+      const amount =
+        t.originalCurrency === "ILS"
+          ? originalAmount
+          : `${originalAmount} ${t.originalCurrency}`;
 
-  return pending.length
-    ? `Pending txns:\n${pending.map((t) => t?.description).join("\n")}`
-    : "";
+      return `\t${t?.description}:\t${sign}${amount}`;
+    })
+    .join("\n");
 }
 
 function statsString(starts: SaveStats): string {
@@ -150,4 +150,24 @@ function statsString(starts: SaveStats): string {
     ${starts.added} added
     ${starts.skipped} skipped (${starts.existing} existing,  ${starts.pending} pending)
 `.trim();
+}
+
+function transactionsByStatus(results: Array<AccountScrapeResult>) {
+  const allTxns = results
+    .flatMap(
+      ({ result }) => result.accounts?.flatMap((account) => account?.txns),
+    )
+    .filter((t): t is Transaction => t !== undefined);
+
+  const pendingTxns = allTxns.filter(
+    (t) => t.status === TransactionStatuses.Pending,
+  );
+  const scrapedTxns = allTxns.filter(
+    (t) => t.status === TransactionStatuses.Completed,
+  );
+
+  return {
+    pending: pendingTxns,
+    completed: scrapedTxns,
+  };
 }
