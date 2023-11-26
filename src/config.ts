@@ -1,9 +1,13 @@
 import "dotenv/config";
 import { subDays, format } from "date-fns";
 import { AccountConfig } from "./types";
-import { logToPublicLog } from "./utils/logger.js";
+import { createLogger, logToPublicLog } from "./utils/logger.js";
 
+const logger = createLogger("config");
+
+logger("Parsing config");
 logToPublicLog("Parsing config");
+
 const {
   DAYS_BACK,
   ACCOUNTS_JSON,
@@ -21,6 +25,7 @@ const {
 export const daysBackToScrape = DAYS_BACK || 10;
 export const worksheetName = WORKSHEET_NAME || "_moneyman";
 export const futureMonthsToScrape = parseInt(FUTURE_MONTHS, 10);
+export const systemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 const accountsToScrape = ACCOUNTS_TO_SCRAPE.split(",")
   .filter(Boolean)
@@ -62,3 +67,13 @@ function parseAccounts(accountsJson?: string): Array<AccountConfig> {
 
   throw new TypeError("ACCOUNTS_JSON must be a valid array");
 }
+
+logger("Config parsed", {
+  systemName,
+  systemTimezone,
+  scrapeStartDate,
+  daysBackToScrape,
+  futureMonthsToScrape,
+  worksheetName,
+  TELEGRAM_CHAT_ID,
+});
