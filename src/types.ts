@@ -36,6 +36,7 @@ export interface SaveStats {
   pending: number;
   skipped: number;
   existing: number;
+  highlightedTransactions?: Record<string, Array<TransactionRow>>;
 }
 
 export interface TransactionStorage {

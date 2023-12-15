@@ -79,7 +79,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
     const rows: SheetRow[] = [];
     await this.init();
 
-    const stats: SaveStats = {
+    const stats = {
       name: "Google Sheets",
       table: worksheetName,
       total: txns.length,
@@ -87,7 +87,10 @@ export class GoogleSheetsStorage implements TransactionStorage {
       pending: 0,
       existing: 0,
       skipped: 0,
-    };
+      highlightedTransactions: {
+        Added: [] as Array<TransactionRow>,
+      },
+    } satisfies SaveStats;
 
     for (let tx of txns) {
       if (this.existingTransactionsHashes.has(tx.hash)) {
@@ -103,6 +106,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
       }
 
       rows.push(this.transactionRow(tx));
+      stats.highlightedTransactions.Added.push(tx);
     }
 
     if (rows.length) {
