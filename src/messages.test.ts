@@ -73,6 +73,23 @@ describe("messages", () => {
           pending: 8,
           skipped: 9,
           existing: 10,
+          highlightedTransactions: {
+            Group1: [
+              {
+                account: "account1",
+                companyId: CompanyTypes.max,
+                hash: "hash1",
+                type: TransactionTypes.Normal,
+                date: new Date().toISOString(),
+                processedDate: new Date().toISOString(),
+                description: "description1",
+                originalAmount: 10,
+                originalCurrency: "ILS",
+                chargedAmount: 10,
+                status: TransactionStatuses.Completed,
+              },
+            ],
+          },
         },
       ];
 

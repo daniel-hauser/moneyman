@@ -1,5 +1,10 @@
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
-import { AccountScrapeResult, SaveStats, Transaction } from "./types";
+import {
+  AccountScrapeResult,
+  SaveStats,
+  Transaction,
+  TransactionRow,
+} from "./types";
 
 export function getSummaryMessage(
   results: Array<AccountScrapeResult>,
@@ -30,8 +35,8 @@ ${stats.map((s) => statsString(s)).join("\n") || "\t😶 None"}
 
 -------
 Pending txns:
-${getPendingSummary(pending) || "\t😶 None"}
-    `.trim();
+${transactionList(pending) || "\t😶 None"}
+`.trim();
 }
 
 function transactionsString(
@@ -47,27 +52,29 @@ ${
 }`.trim();
 }
 
-function getPendingSummary(pending: Array<Transaction>) {
-  return pending
-    .map((t) => {
-      const sign = t.originalAmount < 0 ? "-" : "+";
-      const originalAmount = Math.abs(t.originalAmount).toFixed(2);
-      const amount =
-        t.originalCurrency === "ILS"
-          ? originalAmount
-          : `${originalAmount} ${t.originalCurrency}`;
+function transactionString(t: Transaction) {
+  const sign = t.originalAmount < 0 ? "-" : "+";
+  const originalAmount = Math.abs(t.originalAmount).toFixed(2);
+  const amount =
+    t.originalCurrency === "ILS"
+      ? originalAmount
+      : `${originalAmount} ${t.originalCurrency}`;
 
-      return `\t${t?.description}:\t${sign}${amount}`;
-    })
-    .join("\n");
+  return `${t?.description}:\t${sign}${amount}`;
 }
 
-function statsString(starts: SaveStats): string {
+function transactionList(transactions: Array<Transaction>, indent = "\t") {
+  return transactions.map((t) => `${indent}${transactionString(t)}`).join("\n");
+}
+
+function statsString(stats: SaveStats): string {
   return `
-📝 ${starts.name} (${starts.table})
-\t${starts.added} added
-\t${starts.skipped} skipped (${starts.existing} existing, ${starts.pending} pending)
-  `.trim();
+📝 ${stats.name} (${stats.table})
+\t${stats.added} added
+\t${stats.skipped} skipped (${stats.existing} existing, ${
+    stats.pending
+  } pending)
+${highlightedTransactionsString(stats.highlightedTransactions, 1)}`.trim();
 }
 
 function transactionsByStatus(results: Array<AccountScrapeResult>) {
@@ -88,4 +95,23 @@ function transactionsByStatus(results: Array<AccountScrapeResult>) {
     pending: pendingTxns,
     completed: scrapedTxns,
   };
+}
+
+function highlightedTransactionsString(
+  groups: Record<string, TransactionRow[]> | undefined,
+  indent = 0,
+) {
+  if (!groups || Object.keys(groups).length === 0) {
+    return "";
+  }
+
+  const indentString = "\t".repeat(indent);
+
+  return (
+    `${indentString}${"-".repeat(5)}\n` +
+    `${Object.entries(groups).map(([name, txns]) => {
+      const transactionsString = transactionList(txns, `${indentString}\t`);
+      return `${indentString}${name}:\n${transactionsString}`;
+    })}`
+  );
 }
