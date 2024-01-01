@@ -165,13 +165,13 @@ describe("messages", () => {
           type: TransactionTypes.Installments,
           chargedAmount: 20,
           originalAmount: 100,
-          description: "should be +20"
+          description: "should be +20",
         }),
         transaction({
           type: TransactionTypes.Installments,
           chargedAmount: -20,
           originalAmount: -100,
-          description: "should be -20"
+          description: "should be -20",
         }),
       ];
 
@@ -205,7 +205,6 @@ describe("messages", () => {
               companyId: CompanyTypes.max,
               hash: "hash1",
               ...t,
-            
             })),
           },
         },
