@@ -1,4 +1,7 @@
-import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
+import {
+  TransactionStatuses,
+  TransactionTypes,
+} from "israeli-bank-scrapers/lib/transactions.js";
 import {
   AccountScrapeResult,
   SaveStats,
@@ -52,15 +55,29 @@ ${
 }`.trim();
 }
 
-function transactionString(t: Transaction) {
-  const sign = t.originalAmount < 0 ? "-" : "+";
-  const originalAmount = Math.abs(t.originalAmount).toFixed(2);
-  const amount =
-    t.originalCurrency === "ILS"
-      ? originalAmount
-      : `${originalAmount} ${t.originalCurrency}`;
+function transactionAmount(t: Transaction): number {
+  switch (t.type) {
+    case TransactionTypes.Normal:
+      switch (t.status) {
+        case TransactionStatuses.Pending:
+          return t.originalAmount;
+        case TransactionStatuses.Completed:
+          return t.chargedAmount;
+      }
+    case TransactionTypes.Installments:
+      return t.chargedAmount;
+  }
+}
 
-  return `${t?.description}:\t${sign}${amount}`;
+function transactionString(t: Transaction) {
+  const amount = transactionAmount(t);
+
+  const sign = amount < 0 ? "-" : "+";
+  const absAmount = Math.abs(amount).toFixed(2);
+
+  return `${t?.description}:\t${sign}${absAmount}${
+    t.originalCurrency === "ILS" ? "" : ` ${t.originalCurrency}`
+  }`;
 }
 
 function transactionList(transactions: Array<Transaction>, indent = "\t") {

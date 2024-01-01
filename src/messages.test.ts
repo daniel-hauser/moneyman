@@ -1,6 +1,11 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { getSummaryMessage } from "./messages";
-import { AccountScrapeResult, SaveStats, Transaction } from "./types";
+import {
+  AccountScrapeResult,
+  SaveStats,
+  Transaction,
+  TransactionRow,
+} from "./types";
 import {
   TransactionStatuses,
   TransactionTypes,
@@ -18,7 +23,15 @@ describe("messages", () => {
             accounts: [
               {
                 accountNumber: "account1",
-                txns: [],
+                txns: [
+                  transaction({
+                    chargedAmount: -20,
+                    originalAmount: -100,
+                    description: "ILS",
+                    chargedCurrency: "ILS",
+                    originalCurrency: "USD",
+                  }),
+                ],
               },
               {
                 accountNumber: "account2",
@@ -140,6 +153,62 @@ describe("messages", () => {
       ];
 
       const stats: Array<SaveStats> = [];
+
+      const summary = getSummaryMessage(results, stats);
+
+      expect(summary).toMatchSnapshot();
+    });
+
+    it("should return a summary message with installments", () => {
+      const transactions = [
+        transaction({
+          type: TransactionTypes.Installments,
+          chargedAmount: 20,
+          originalAmount: 100,
+          description: "should be +20",
+        }),
+        transaction({
+          type: TransactionTypes.Installments,
+          chargedAmount: -20,
+          originalAmount: -100,
+          description: "should be -20",
+        }),
+      ];
+
+      const results: Array<AccountScrapeResult> = [
+        {
+          companyId: CompanyTypes.max,
+          result: {
+            success: true,
+            accounts: [
+              {
+                accountNumber: "account1",
+                txns: transactions,
+              },
+            ],
+          },
+        },
+      ];
+
+      const stats: Array<SaveStats> = [
+        {
+          name: "Storage 1",
+          table: "TheTable",
+          total: 1,
+          added: 2,
+          pending: 3,
+          skipped: 4,
+          existing: 5,
+          highlightedTransactions: {
+            SomeGroup: transactions.map<TransactionRow>((t) => ({
+              account: "account1",
+              companyId: CompanyTypes.max,
+              hash: "hash1",
+              ...t,
+            })),
+          },
+        },
+      ];
 
       const summary = getSummaryMessage(results, stats);
 
