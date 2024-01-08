@@ -24,7 +24,7 @@ By using moneyman, you acknowledge that you are taking full responsibility for t
 
 ## How to run
 
-### Cloud (GitHub Ations)
+### Cloud (GitHub Actions)
 
 Moneyman can be configured to periodically run automatically, using the [`scrape`](./.github/workflows/scrape.yml) github workflow.
 
