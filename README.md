@@ -24,7 +24,7 @@ By using moneyman, you acknowledge that you are taking full responsibility for t
 
 ## How to run
 
-### Cloud
+### Cloud (GitHub Ations)
 
 Moneyman can be configured to periodically run automatically, using the [`scrape`](./.github/workflows/scrape.yml) github workflow.
 
@@ -39,7 +39,8 @@ Since logs are public for public repos, most logs are off by default and the pro
    1. [`ACCOUNTS_JSON`](#add-accounts-and-scrape) - So moneyman can login to your accounts
    2. [`TELEGRAM_API_[KEY, CHAT_ID]`](#get-notified-in-telegram) - So moneyman can send private logs and errors
    3. The environment variables of the storage you want to use
-3. Wait for the workflow to be triggered by github
+3. Build and upload the docker image using the "Run workflow" button in [workflows/build.yml](../../actions/workflows/build.yml)
+4. Wait for the [scrape workflow](../../actions/workflows/scrape.yml) to be triggered by github
 
 ### locally
 
