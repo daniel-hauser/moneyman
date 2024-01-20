@@ -4,6 +4,7 @@ import { createLogger } from "./../utils/logger.js";
 import { parseISO, format } from "date-fns";
 import * as ynab from "ynab";
 import hash from "hash-it";
+import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 
 const YNAB_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("YNABStorage");
@@ -12,6 +13,7 @@ export class YNABStorage implements TransactionStorage {
   private ynabAPI: ynab.API;
   private budgetName: string;
   private accountToYnabAccount: Map<string, string>;
+  private alreadyIssuedWarnings: Set<string> = new Set();
 
   async init() {
     logger("init");
@@ -27,40 +29,60 @@ export class YNABStorage implements TransactionStorage {
   async saveTransactions(txns: Array<TransactionRow>) {
     await this.init();
 
-    // Converting to YNAB format.
-    const transactionsFromFinancialAccount = txns.map((tx) =>
-      this.convertTransactionToYnabFormat(tx),
-    );
+    const stats = {
+      name: "YNABStorage",
+      table: `budget: "${this.budgetName}"`,
+      total: txns.length,
+      added: 0,
+      pending: 0,
+      existing: 0,
+      skipped: 0,
+      highlightedTransactions: {
+        Added: [] as Array<TransactionRow>,
+      },
+    } satisfies SaveStats;
 
-    // Filter out transactions with no account number
-    const transactionsWithAccount = transactionsFromFinancialAccount.filter(
-      (tx) => tx.account_id !== "",
-    );
+    // Initialize an array to store non-pending and non-empty account ID transactions on YNAB format.
+    const txToSend: ynab.SaveTransaction[] = [];
+
+    for (let tx of txns) {
+      if (tx.status === TransactionStatuses.Pending) {
+        stats.pending++;
+        stats.skipped++;
+        continue;
+      }
+
+      // Converting to YNAB format.
+      const yTx = this.convertTransactionToYnabFormat(tx);
+
+      if (yTx.account_id === "") {
+        //stats.pending++;
+        stats.skipped++;
+        continue;
+      }
+
+      // Add non-pending and non-empty account ID transactions to the array.
+      txToSend.push(yTx);
+      //stats.highlightedTransactions.Added.push(tx);
+    }
 
     // Send transactions to YNAB
     logger(`sending to YNAB budget: "${this.budgetName}"`);
     const resp = await this.ynabAPI.transactions.createTransactions(
       YNAB_BUDGET_ID,
       {
-        transactions: transactionsWithAccount,
+        transactions: txToSend,
       },
     );
     logger("transactions sent to YNAB successfully!");
 
-    const dups = resp.data.duplicate_import_ids
+    const existingTxs = resp.data.duplicate_import_ids
       ? resp.data.duplicate_import_ids.length
       : 0;
-    const noID = txns.length - transactionsWithAccount.length;
 
-    const stats: SaveStats = {
-      name: "YNABStorage",
-      table: `budget: "${this.budgetName}"`,
-      total: transactionsFromFinancialAccount.length,
-      added: resp.data.transactions ? resp.data.transactions.length : 0,
-      pending: NaN,
-      skipped: noID + dups,
-      existing: dups,
-    };
+    stats.added = resp.data.transactions ? resp.data.transactions.length : 0;
+    stats.existing = existingTxs;
+    stats.skipped = stats.skipped + existingTxs;
 
     return stats;
   }
@@ -96,13 +118,24 @@ export class YNABStorage implements TransactionStorage {
       tx.account,
     );
 
+    if (accountId === null) {
+      const warningMessage = `Some Txs will be skipped. Account ID not found for account number: ${tx.account}`;
+      if (!this.alreadyIssuedWarnings.has(warningMessage)) {
+        logger(`Warning: ${warningMessage}`);
+        this.alreadyIssuedWarnings.add(warningMessage);
+      }
+    }
+
     return {
       account_id: accountId === null ? "" : accountId,
       date: format(parseISO(tx.date), YNAB_DATE_FORMAT, {}),
       amount,
       payee_id: null,
       payee_name: tx.description,
-      cleared: ynab.TransactionClearedStatus.Cleared,
+      cleared:
+        tx.status === TransactionStatuses.Completed
+          ? ynab.TransactionClearedStatus.Cleared
+          : undefined,
       approved: false,
       import_id: hash(tx.hash).toString(),
       memo: tx.memo,
