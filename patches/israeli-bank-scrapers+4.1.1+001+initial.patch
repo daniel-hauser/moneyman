@@ -1,0 +1,63 @@
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/behatsdaa.js b/node_modules/israeli-bank-scrapers/lib/scrapers/behatsdaa.js
+index a425681..479d207 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/behatsdaa.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/behatsdaa.js
+@@ -29,14 +29,15 @@ const PURCHASE_HISTORY_URL = 'https://back.behatsdaa.org.il/api/purchases/purcha
+ const debug = (0, _debug.getDebug)('behatsdaa');
+ 
+ function variantToTransaction(variant) {
++  const amount = -variant.customerPrice;
+   return {
+     type: _transactions.TransactionTypes.Normal,
+     identifier: variant.tTransactionID,
+     date: (0, _moment.default)(variant.orderDate).format('YYYY-MM-DD'),
+     processedDate: (0, _moment.default)(variant.orderDate).format('YYYY-MM-DD'),
+-    originalAmount: variant.customerPrice,
++    originalAmount: amount,
+     originalCurrency: 'ILS',
+-    chargedAmount: variant.customerPrice,
++    chargedAmount: amount,
+     chargedCurrency: 'ILS',
+     description: variant.name,
+     status: _transactions.TransactionStatuses.Completed,
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/max.js b/node_modules/israeli-bank-scrapers/lib/scrapers/max.js
+index 867267c..49f7adc 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/max.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/max.js
+@@ -159,6 +159,19 @@ function getInstallmentsInfo(comments) {
+   };
+ }
+ 
++function getMemo(rawTransaction) {
++  let memo = rawTransaction.comments;
++
++  if (rawTransaction.fundsTransferReceiverOrTransfer) {
++    memo += ` ${rawTransaction.fundsTransferReceiverOrTransfer}`;
++    if(rawTransaction.fundsTransferComment) {
++      memo += `: ${rawTransaction.fundsTransferComment}`;
++    }
++  }
++
++  return memo.trim();
++}
++
+ function mapTransaction(rawTransaction) {
+   var _rawTransaction$dealD, _rawTransaction$dealD2;
+ 
+@@ -167,6 +180,7 @@ function mapTransaction(rawTransaction) {
+   const status = isPending ? _transactions2.TransactionStatuses.Pending : _transactions2.TransactionStatuses.Completed;
+   const installments = getInstallmentsInfo(rawTransaction.comments);
+   const identifier = installments ? `${(_rawTransaction$dealD = rawTransaction.dealData) === null || _rawTransaction$dealD === void 0 ? void 0 : _rawTransaction$dealD.arn}_${installments.number}` : (_rawTransaction$dealD2 = rawTransaction.dealData) === null || _rawTransaction$dealD2 === void 0 ? void 0 : _rawTransaction$dealD2.arn;
++
+   return {
+     type: getTransactionType(rawTransaction.planName),
+     date: (0, _moment.default)(rawTransaction.purchaseDate).toISOString(),
+@@ -175,7 +189,7 @@ function mapTransaction(rawTransaction) {
+     originalCurrency: rawTransaction.originalCurrency,
+     chargedAmount: -rawTransaction.actualPaymentAmount,
+     description: rawTransaction.merchantName.trim(),
+-    memo: rawTransaction.comments,
++    memo: getMemo(rawTransaction),
+     category: categories.get(rawTransaction === null || rawTransaction === void 0 ? void 0 : rawTransaction.categoryId),
+     installments,
+     identifier,
