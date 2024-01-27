@@ -38,7 +38,7 @@ index 867267c..49f7adc 100644
 +    }
 +  }
 +
-+  return memo.trim();
++  return memo;
 +}
 +
  function mapTransaction(rawTransaction) {
