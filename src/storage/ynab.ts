@@ -13,7 +13,7 @@ export class YNABStorage implements TransactionStorage {
   private ynabAPI: ynab.API;
   private budgetName: string;
   private accountToYnabAccount: Map<string, string>;
-  private alreadyIssuedWarnings: Set<string> = new Set();
+  private missingAccounts: Set<string> = new Set();
 
   async init() {
     logger("init");
@@ -37,9 +37,6 @@ export class YNABStorage implements TransactionStorage {
       pending: 0,
       existing: 0,
       skipped: 0,
-      highlightedTransactions: {
-        Added: [] as Array<TransactionRow>,
-      },
     } satisfies SaveStats;
 
     // Initialize an array to store non-pending and non-empty account ID transactions on YNAB format.
@@ -53,17 +50,14 @@ export class YNABStorage implements TransactionStorage {
       }
 
       // Converting to YNAB format.
-      const yTx = this.convertTransactionToYnabFormat(tx);
-
-      if (yTx.account_id === "") {
-        //stats.pending++;
+      const ynabTx = this.convertTransactionToYnabFormat(tx);
+      if (!ynabTx.account_id) {
         stats.skipped++;
         continue;
       }
 
       // Add non-pending and non-empty account ID transactions to the array.
-      txToSend.push(yTx);
-      //stats.highlightedTransactions.Added.push(tx);
+      txToSend.push(ynabTx);
     }
 
     // Send transactions to YNAB
@@ -76,13 +70,17 @@ export class YNABStorage implements TransactionStorage {
     );
     logger("transactions sent to YNAB successfully!");
 
-    const existingTxs = resp.data.duplicate_import_ids
-      ? resp.data.duplicate_import_ids.length
-      : 0;
+    if (this.missingAccounts.size > 0) {
+      logger(
+        `Accounts missing in YNAB_ACCOUNTS:`,
+        this.missingAccounts,
+      );
+      this.missingAccounts.clear();
+    }
 
-    stats.added = resp.data.transactions ? resp.data.transactions.length : 0;
-    stats.existing = existingTxs;
-    stats.skipped = stats.skipped + existingTxs;
+    stats.added = resp.data.transactions?.length ?? 0;
+    stats.existing = resp.data.duplicate_import_ids?.length ?? 0;
+    stats.skipped += stats.existing;
 
     return stats;
   }
@@ -97,37 +95,27 @@ export class YNABStorage implements TransactionStorage {
   }
 
   private parseYnabAccounts(accountsJSON: string): Map<string, string> {
-    let jsonData: any;
     try {
-      jsonData = JSON.parse(accountsJSON);
+      const accounts = JSON.parse(accountsJSON);
+      return new Map(Object.entries(accounts));
     } catch (parseError) {
-      const customError = new Error(
+      throw new Error(
         `Error parsing JSON in YNAB_ACCOUNTS: ${parseError.message}`,
       );
-      throw customError;
     }
-
-    return new Map(Object.entries(jsonData));
   }
 
   private convertTransactionToYnabFormat(
     tx: TransactionRow,
   ): ynab.SaveTransaction {
     const amount = Math.round(tx.chargedAmount * 1000);
-    const accountId = this.getYnabAccountIdByAccountNumberFromTransaction(
-      tx.account,
-    );
-
-    if (accountId === null) {
-      const warningMessage = `Some Txs will be skipped. Account ID not found for account number: ${tx.account}`;
-      if (!this.alreadyIssuedWarnings.has(warningMessage)) {
-        logger(`Warning: ${warningMessage}`);
-        this.alreadyIssuedWarnings.add(warningMessage);
-      }
+    const accountId = this.accountToYnabAccount.get(tx.account);
+    if (!accountId) {
+      this.missingAccounts.add(tx.account);
     }
 
     return {
-      account_id: accountId === null ? "" : accountId,
+      account_id: accountId ?? "",
       date: format(parseISO(tx.date), YNAB_DATE_FORMAT, {}),
       amount,
       payee_id: null,
@@ -140,14 +128,5 @@ export class YNABStorage implements TransactionStorage {
       import_id: hash(tx.hash).toString(),
       memo: tx.memo,
     };
-  }
-
-  private getYnabAccountIdByAccountNumberFromTransaction(
-    transactionAccountNumber: string,
-  ): string | null {
-    const ynabAccountId = this.accountToYnabAccount.get(
-      transactionAccountNumber,
-    );
-    return ynabAccountId || null;
   }
 }
