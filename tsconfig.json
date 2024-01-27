@@ -7,7 +7,7 @@
     "moduleResolution": "Node",
     "target": "es2017",
     "outDir": "dst",
-    "module": "ESNext"
+    "module": "ESNext",
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
 }
