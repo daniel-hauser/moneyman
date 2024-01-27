@@ -13,7 +13,6 @@ export class YNABStorage implements TransactionStorage {
   private ynabAPI: ynab.API;
   private budgetName: string;
   private accountToYnabAccount: Map<string, string>;
-  private missingAccounts: Set<string> = new Set();
 
   async init() {
     logger("init");
@@ -41,6 +40,7 @@ export class YNABStorage implements TransactionStorage {
 
     // Initialize an array to store non-pending and non-empty account ID transactions on YNAB format.
     const txToSend: ynab.SaveTransaction[] = [];
+    const missingAccounts = new Set<string>();
 
     for (let tx of txns) {
       if (tx.status === TransactionStatuses.Pending) {
@@ -49,12 +49,15 @@ export class YNABStorage implements TransactionStorage {
         continue;
       }
 
-      // Converting to YNAB format.
-      const ynabTx = this.convertTransactionToYnabFormat(tx);
-      if (!ynabTx.account_id) {
+      const accountId = this.accountToYnabAccount.get(tx.account);
+      if (!accountId) {
+        missingAccounts.add(tx.account);
         stats.skipped++;
         continue;
       }
+
+      // Converting to YNAB format.
+      const ynabTx = this.convertTransactionToYnabFormat(tx, accountId);
 
       // Add non-pending and non-empty account ID transactions to the array.
       txToSend.push(ynabTx);
@@ -70,12 +73,8 @@ export class YNABStorage implements TransactionStorage {
     );
     logger("transactions sent to YNAB successfully!");
 
-    if (this.missingAccounts.size > 0) {
-      logger(
-        `Accounts missing in YNAB_ACCOUNTS:`,
-        this.missingAccounts,
-      );
-      this.missingAccounts.clear();
+    if (missingAccounts.size > 0) {
+      logger(`Accounts missing in YNAB_ACCOUNTS:`, missingAccounts);
     }
 
     stats.added = resp.data.transactions?.length ?? 0;
@@ -107,15 +106,12 @@ export class YNABStorage implements TransactionStorage {
 
   private convertTransactionToYnabFormat(
     tx: TransactionRow,
+    accountId: string,
   ): ynab.SaveTransaction {
     const amount = Math.round(tx.chargedAmount * 1000);
-    const accountId = this.accountToYnabAccount.get(tx.account);
-    if (!accountId) {
-      this.missingAccounts.add(tx.account);
-    }
 
     return {
-      account_id: accountId ?? "",
+      account_id: accountId,
       date: format(parseISO(tx.date), YNAB_DATE_FORMAT, {}),
       amount,
       payee_id: null,
