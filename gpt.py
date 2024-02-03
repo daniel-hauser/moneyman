@@ -32,7 +32,7 @@ def create_new_sheet():
     new_sheet.update('A1:O1', [column_titles])
     print("New sheet created successfully!")
     
-    spreadsheet = client.open('ניהול הוצאות הבית 2023')
+    spreadsheet = client.open('ניהול הוצאות הבית 2024')
     source_sheet = spreadsheet.worksheet('נוכחי')
     new_sheet = spreadsheet.duplicate_sheet(source_sheet.id, new_sheet_name=formatted_date)
     cell_formula = new_sheet.cell(3, 3, value_render_option='FORMULA').value
