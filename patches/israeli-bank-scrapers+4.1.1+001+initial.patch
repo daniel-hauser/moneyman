@@ -21,10 +21,18 @@ index a425681..479d207 100644
      description: variant.name,
      status: _transactions.TransactionStatuses.Completed,
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/max.js b/node_modules/israeli-bank-scrapers/lib/scrapers/max.js
-index 867267c..49f7adc 100644
+index 867267c..fe5d2c0 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/max.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/max.js
-@@ -159,6 +159,19 @@ function getInstallmentsInfo(comments) {
+@@ -130,6 +130,7 @@ function getTransactionType(txnTypeStr) {
+     case REPLACEMENT_CARD:
+     case EARLY_REPAYMENT:
+     case MONTHLY_CARD_FEE:
++    case 'חיוב ארנק מטח':
+       return _transactions2.TransactionTypes.Normal;
+ 
+     case INSTALLMENTS_TYPE_NAME:
+@@ -159,6 +160,19 @@ function getInstallmentsInfo(comments) {
    };
  }
  
@@ -44,7 +52,7 @@ index 867267c..49f7adc 100644
  function mapTransaction(rawTransaction) {
    var _rawTransaction$dealD, _rawTransaction$dealD2;
  
-@@ -167,6 +180,7 @@ function mapTransaction(rawTransaction) {
+@@ -167,6 +181,7 @@ function mapTransaction(rawTransaction) {
    const status = isPending ? _transactions2.TransactionStatuses.Pending : _transactions2.TransactionStatuses.Completed;
    const installments = getInstallmentsInfo(rawTransaction.comments);
    const identifier = installments ? `${(_rawTransaction$dealD = rawTransaction.dealData) === null || _rawTransaction$dealD === void 0 ? void 0 : _rawTransaction$dealD.arn}_${installments.number}` : (_rawTransaction$dealD2 = rawTransaction.dealData) === null || _rawTransaction$dealD2 === void 0 ? void 0 : _rawTransaction$dealD2.arn;
@@ -52,7 +60,7 @@ index 867267c..49f7adc 100644
    return {
      type: getTransactionType(rawTransaction.planName),
      date: (0, _moment.default)(rawTransaction.purchaseDate).toISOString(),
-@@ -175,7 +189,7 @@ function mapTransaction(rawTransaction) {
+@@ -175,7 +190,7 @@ function mapTransaction(rawTransaction) {
      originalCurrency: rawTransaction.originalCurrency,
      chargedAmount: -rawTransaction.actualPaymentAmount,
      description: rawTransaction.merchantName.trim(),
