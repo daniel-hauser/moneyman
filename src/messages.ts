@@ -96,8 +96,8 @@ ${highlightedTransactionsString(stats.highlightedTransactions, 1)}`.trim();
 
 function transactionsByStatus(results: Array<AccountScrapeResult>) {
   const allTxns = results
-    .flatMap(
-      ({ result }) => result.accounts?.flatMap((account) => account?.txns),
+    .flatMap(({ result }) =>
+      result.accounts?.flatMap((account) => account?.txns),
     )
     .filter((t): t is Transaction => t !== undefined);
 

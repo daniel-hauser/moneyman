@@ -1,12 +1,12 @@
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/behatsdaa.js b/node_modules/israeli-bank-scrapers/lib/scrapers/behatsdaa.js
-index a425681..479d207 100644
+index a425681..cd25516 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/behatsdaa.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/behatsdaa.js
 @@ -29,14 +29,15 @@ const PURCHASE_HISTORY_URL = 'https://back.behatsdaa.org.il/api/purchases/purcha
  const debug = (0, _debug.getDebug)('behatsdaa');
  
  function variantToTransaction(variant) {
-+  const amount = -variant.customerPrice;
++  const amount = -variant.customerPrice
    return {
      type: _transactions.TransactionTypes.Normal,
      identifier: variant.tTransactionID,
@@ -21,10 +21,10 @@ index a425681..479d207 100644
      description: variant.name,
      status: _transactions.TransactionStatuses.Completed,
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/max.js b/node_modules/israeli-bank-scrapers/lib/scrapers/max.js
-index 867267c..fe5d2c0 100644
+index 1a4653b..64e562c 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/max.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/max.js
-@@ -130,6 +130,7 @@ function getTransactionType(txnTypeStr) {
+@@ -132,6 +132,7 @@ function getTransactionType(txnTypeStr) {
      case REPLACEMENT_CARD:
      case EARLY_REPAYMENT:
      case MONTHLY_CARD_FEE:
@@ -32,37 +32,27 @@ index 867267c..fe5d2c0 100644
        return _transactions2.TransactionTypes.Normal;
  
      case INSTALLMENTS_TYPE_NAME:
-@@ -159,6 +160,19 @@ function getInstallmentsInfo(comments) {
-   };
+@@ -177,6 +178,17 @@ function getChargedCurrency(currencyId) {
+   }
  }
  
 +function getMemo(rawTransaction) {
 +  let memo = rawTransaction.comments;
-+
 +  if (rawTransaction.fundsTransferReceiverOrTransfer) {
 +    memo += ` ${rawTransaction.fundsTransferReceiverOrTransfer}`;
 +    if(rawTransaction.fundsTransferComment) {
 +      memo += `: ${rawTransaction.fundsTransferComment}`;
 +    }
 +  }
-+
 +  return memo;
 +}
 +
  function mapTransaction(rawTransaction) {
    var _rawTransaction$dealD, _rawTransaction$dealD2;
  
-@@ -167,6 +181,7 @@ function mapTransaction(rawTransaction) {
-   const status = isPending ? _transactions2.TransactionStatuses.Pending : _transactions2.TransactionStatuses.Completed;
-   const installments = getInstallmentsInfo(rawTransaction.comments);
-   const identifier = installments ? `${(_rawTransaction$dealD = rawTransaction.dealData) === null || _rawTransaction$dealD === void 0 ? void 0 : _rawTransaction$dealD.arn}_${installments.number}` : (_rawTransaction$dealD2 = rawTransaction.dealData) === null || _rawTransaction$dealD2 === void 0 ? void 0 : _rawTransaction$dealD2.arn;
-+
-   return {
-     type: getTransactionType(rawTransaction.planName),
-     date: (0, _moment.default)(rawTransaction.purchaseDate).toISOString(),
-@@ -175,7 +190,7 @@ function mapTransaction(rawTransaction) {
-     originalCurrency: rawTransaction.originalCurrency,
+@@ -194,7 +206,7 @@ function mapTransaction(rawTransaction) {
      chargedAmount: -rawTransaction.actualPaymentAmount,
+     chargedCurrency: getChargedCurrency(rawTransaction.paymentCurrency),
      description: rawTransaction.merchantName.trim(),
 -    memo: rawTransaction.comments,
 +    memo: getMemo(rawTransaction),
