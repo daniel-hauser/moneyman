@@ -6,7 +6,7 @@ Internally we use [israeli-bank-scrapers](https://github.com/eshaham/israeli-ban
 
 ## Why?
 
-Having all your data in one place lets you view all of your expenses in a beautiful dashboard like [Google Data Studio](https://datastudio.google.com), [Azure Data Explorer dashboards](https://docs.microsoft.com/en-us/azure/data-explorer/azure-data-explorer-dashboards) and [Microsoft Power BI](https://powerbi.microsoft.com/)
+Having all your data in one place lets you view all of your expenses in a beautiful dashboard like [Google Data Studio](https://datastudio.google.com), [Azure Data Explorer dashboards](https://docs.microsoft.com/en-us/azure/data-explorer/azure-data-explorer-dashboards), [Microsoft Power BI](https://powerbi.microsoft.com/) and [YNAB](https://www.ynab.com/).
 
 ## Important notes
 
@@ -182,3 +182,27 @@ Use the following env vars to setup:
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL`       | The service account's email address                           |
 | `GOOGLE_SHEET_ID`                    | The id of the spreadsheet you shared with the service account |
 | `WORKSHEET_NAME`                     | The name of the sheet you want to add the transactions to     |
+
+### Export to YNAB (YouNeedABudget)
+
+To export your transactions directly to `YNAB` you need to use the following environment variables to setup:
+| env variable name | description |
+| ------------------------------------ | ------------------------------------------------------------- |
+| `YNAB_TOKEN` | The `YNAB` access token. Check [YNAB documentation](https://api.ynab.com/#authentication) about how to obtain it |
+| `YNAB_BUDGET_ID` | The `YNAB` budget ID where you want to import the data. You can obtain it opening [YNAB application](https://app.ynab.com/) on a browser and taking the budget `UUID` in the `URL` |
+| `YNAB_ACCOUNTS` | A key-value list to correlate each account with the `YNAB` account `UUID` |
+
+#### YNAB_ACCOUNTS
+
+A `JSON` key-value pair structure representing a mapping between two identifiers. The `key` represent the account ID as is understood by moneyman and the `value` it's the `UUID` visible in the YNAB URL when an account is selected.
+
+For example, in the URL:
+`https://app.ynab.com/22aa9fcd-93a9-47e9-8ff6-33036b7c6242/accounts/ba2dd3a9-b7d4-46d6-8413-8327203e2b82` the account UUID is the second `UUID`.
+
+Example:
+
+```json
+{
+  "5897": "ba2dd3a9-b7d4-46d6-8413-8327203e2b82"
+}
+```

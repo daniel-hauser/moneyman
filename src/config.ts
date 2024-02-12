@@ -17,6 +17,9 @@ const {
   WORKSHEET_NAME,
   ACCOUNTS_TO_SCRAPE = "",
   FUTURE_MONTHS = "",
+  YNAB_TOKEN = "",
+  YNAB_BUDGET_ID = "",
+  YNAB_ACCOUNTS = "",
 } = process.env;
 
 /**
@@ -31,7 +34,14 @@ const accountsToScrape = ACCOUNTS_TO_SCRAPE.split(",")
   .filter(Boolean)
   .map((a) => a.trim());
 
-export { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID, GOOGLE_SHEET_ID };
+export {
+  TELEGRAM_API_KEY,
+  TELEGRAM_CHAT_ID,
+  GOOGLE_SHEET_ID,
+  YNAB_TOKEN,
+  YNAB_BUDGET_ID,
+  YNAB_ACCOUNTS,
+};
 export const systemName = "moneyman";
 export const currentDate = format(Date.now(), "yyyy-MM-dd");
 export const scrapeStartDate = subDays(Date.now(), Number(daysBackToScrape));
