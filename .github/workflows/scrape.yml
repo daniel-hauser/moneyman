@@ -49,6 +49,9 @@ jobs:
           -e AZURE_TENANT_ID
           -e AZURE_APP_ID
           -e AZURE_APP_KEY
+          -e YNAB_TOKEN
+          -e YNAB_BUDGET_ID
+          -e YNAB_ACCOUNTS
           ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:latest
         env:
           DEBUG: ""
@@ -69,3 +72,6 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_APP_ID: ${{ secrets.AZURE_APP_ID }}
           AZURE_APP_KEY: ${{ secrets.AZURE_APP_KEY }}
+          YNAB_TOKEN: ${{ secrets.YNAB_TOKEN }}
+          YNAB_BUDGET_ID: ${{ secrets.YNAB_BUDGET_ID }}
+          YNAB_ACCOUNTS: ${{ secrets.YNAB_ACCOUNTS }}
