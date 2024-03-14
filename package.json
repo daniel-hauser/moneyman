@@ -32,7 +32,7 @@
     "date-fns": "^3.3.1",
     "debug": "^4.3.4",
     "dotenv": "^16.4.4",
-    "google-auth-library": "^9.6.3",
+    "google-auth-library": "^9.7.0",
     "google-spreadsheet": "^4.1.1",
     "hash-it": "^6.0.0",
     "israeli-bank-scrapers": "^4.2.2",
