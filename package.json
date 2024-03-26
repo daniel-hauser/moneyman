@@ -29,14 +29,14 @@
   "dependencies": {
     "azure-kusto-data": "^5.2.3",
     "azure-kusto-ingest": "^5.2.3",
-    "date-fns": "^3.3.1",
+    "date-fns": "^3.6.0",
     "debug": "^4.3.4",
-    "dotenv": "^16.4.4",
-    "google-auth-library": "^9.6.3",
+    "dotenv": "^16.4.5",
+    "google-auth-library": "^9.7.0",
     "google-spreadsheet": "^4.1.1",
     "hash-it": "^6.0.0",
-    "israeli-bank-scrapers": "^4.2.2",
-    "telegraf": "^4.15.3",
+    "israeli-bank-scrapers": "^4.3.0",
+    "telegraf": "^4.16.3",
     "ynab": "^2.2.0"
   },
   "devDependencies": {
@@ -48,7 +48,7 @@
     "prettier": "^3.2.5",
     "pretty-quick": "^4.0.0",
     "ts-jest": "^29.1.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.4.3"
   },
   "husky": {
     "hooks": {
