@@ -41,16 +41,16 @@ def create_new_sheet():
     cell_formula = new_sheet.cell(3, 4, value_render_option='FORMULA').value
     new_formula = cell_formula.replace('current', formatted_date)
     new_sheet.update_cell(3, 4, new_formula)
-    cell_formula = new_sheet.cell(3, 5, value_render_option='FORMULA').value
+    cell_formula = new_sheet.cell(3, 6, value_render_option='FORMULA').value
     new_formula = cell_formula.replace('current', formatted_date)
-    new_sheet.update_cell(3, 5, new_formula)
+    new_sheet.update_cell(3, 6, new_formula)
     
     # clear מזומן
-    range_to_clear = 'G3:G30'
+    range_to_clear = 'H3:H30'
     source_sheet.batch_clear([range_to_clear])
 
     values = [["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"], ["~"]] 
-    source_sheet.update("F3:F30", values)
+    source_sheet.update("G3:G30", values)
 
 
 def sum_category(sheet_name, sheet_title):
@@ -122,7 +122,7 @@ def check_transactions(sheet_name, sheet1_title, sheet2_title):
 
 #sum_category("ניסיון", "current")
 
-sheet_name = "ניהול הוצאות הבית 2023"
+sheet_name = "ניהול הוצאות הבית 2024"
 sheet1_title = "נוכחי"
 current_date = datetime.now()
 first_day_of_current_month = current_date.replace(day=1)
