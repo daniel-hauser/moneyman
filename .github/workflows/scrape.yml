@@ -33,7 +33,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: "3.11.4"
-      - name: Run python script
+      - name: Check if first day of the month
         run: |
           current_date=$(date +"%Y-%m-%d")
           day=$(date -d "$current_date" +"%d")
@@ -93,8 +93,21 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_APP_ID: ${{ secrets.AZURE_APP_ID }}
           AZURE_APP_KEY: ${{ secrets.AZURE_APP_KEY }}
+
       - name: Send Update
         uses: fjogeleit/http-request-action@v1
         with:
           url: "${{ secrets.UPDATE_WEB_HOOK }}"
           method: "GET"
+
+      - name: Update categories
+        run: |
+          sudo apt install libxslt-dev libxml2-dev python3-dev 
+          printf "%s\n" "$GOOGLE_JSON" > google.json    
+          python -m pip install --upgrade pip
+          pip install pyTelegramBotAPI gspread oauth2client
+          python bot.py
+        env:
+          GOOGLE_JSON: ${{ secrets.GOOGLE_JSON }}
+          TOKEN: ${{ secrets.TELEGRAM_API_KEY }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
