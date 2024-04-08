@@ -36,6 +36,9 @@ def get_data_from_sheets_on_start():
             states['not_found_values'].append(value)
     if states['not_found_values']:
         ask_user_for_input()
+    else:
+        print("no not-found cells!")
+        bot.stop_polling()
 
 # Define function to ask user for input for each "not found" value
 def ask_user_for_input():
@@ -59,19 +62,7 @@ def process_input_for_value(message):
     else:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="All values processed.")
         states = {}
-
-# Define bot command for updating Google Sheets with user input
-@bot.message_handler(commands=['update'])
-def update_sheets_with_input(message):
-    bot.reply_to(message, "Please enter your input:")
-    bot.register_next_step_handler(message, process_input)
-
-# Define function to update Google Sheets with user input
-def process_input(message):
-    # Update Google Sheets with user input
-    input_text = message.text
-    sheet.append_row([input_text])
-    bot.reply_to(message, "Input successfully added to Google Sheets!")
+        bot.stop_polling()
 
 # Call the function to get data from Google Sheets when the bot starts
 get_data_from_sheets_on_start()
