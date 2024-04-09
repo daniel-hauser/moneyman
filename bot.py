@@ -2,10 +2,12 @@ import telebot
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import os
+import requests
 
 # Telegram bot token
 TOKEN = os.getenv('TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+WHATSAPP_URL = os.getenv('WHATSAPP_URL')
 
 # Google Sheets credentials
 GOOGLE_SHEETS_CREDS_FILE = 'google.json'
@@ -35,6 +37,7 @@ def get_data_from_sheets_on_start():
         if corresponding_value_e == "not found":
             states['not_found_values'].append(value)
     if states['not_found_values']:
+        requests.get(WHATSAPP_URL)
         ask_user_for_input()
     else:
         print("no not-found cells!")
