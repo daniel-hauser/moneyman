@@ -3,6 +3,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import os
 import requests
+import sys
 
 # Telegram bot token
 TOKEN = os.getenv('TOKEN')
@@ -27,6 +28,7 @@ states = {}
 
 # Define function to get data from Google Sheets when the bot starts
 def get_data_from_sheets_on_start():
+    print("start to check for empty categories...")
     global states
     # Reset states
     states = {'not_found_values': [], 'current_index': 0}
@@ -40,8 +42,9 @@ def get_data_from_sheets_on_start():
         requests.get(WHATSAPP_URL)
         ask_user_for_input()
     else:
-        print("no not-found cells!")
+        print("no empty categories found.")
         bot.stop_polling()
+        sys.exit()
 
 # Define function to ask user for input for each "not found" value
 def ask_user_for_input():
@@ -66,6 +69,7 @@ def process_input_for_value(message):
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="All values processed.")
         states = {}
         bot.stop_polling()
+        sys.exit()
 
 # Call the function to get data from Google Sheets when the bot starts
 get_data_from_sheets_on_start()
