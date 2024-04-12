@@ -90,7 +90,7 @@ Example:
 
 | env variable name    | default            | description                                                                                                  |
 | -------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `ACCOUNTS_TO_SCRAPE` | `[]`               | A comma separated list of providers to take from `ACCOUNTS_JSON`. if empty, all accounts will be used        |
+| `ACCOUNTS_TO_SCRAPE` | `""`               | A comma separated list of providers to take from `ACCOUNTS_JSON`. if empty, all accounts will be used        |
 | `DAYS_BACK`          | `10`               | The amount of days back to scrape                                                                            |
 | `TZ`                 | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                        |
 | `FUTURE_MONTHS`      | `1`                | The amount of months that will be scrapped in the future, starting from the day calculated using `DAYS_BACK` |
