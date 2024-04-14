@@ -49,7 +49,7 @@ export class YNABStorage implements TransactionStorage {
     for (let tx of txns) {
       const isPending = tx.status === TransactionStatuses.Pending;
       // YNAB doesn't support future transcation. Will result in 400 Bad Request
-      const isDateInFuture = this.isDateInFuture(tx.processedDate);
+      const isDateInFuture = this.isDateInFuture(tx.date);
       if (isPending || isDateInFuture) {
         if (isPending) {
           stats.pending++;
