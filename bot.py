@@ -4,6 +4,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 import os
 import requests
 import sys
+import time
 
 # Telegram bot token
 TOKEN = os.getenv('TOKEN')
@@ -34,8 +35,10 @@ def get_data_from_sheets_on_start():
     states = {'not_found_values': [], 'current_index': 0}
     # Get all values from column D
     column_d_values = sheet.col_values(4)  # Get values from column D (index 4)
+    print(column_d_values)
+    time.sleep(100) 
     for index, value in enumerate(column_d_values, start=1):
-        corresponding_value_e = sheet.cell(index, 5).value  # Get corresponding value from column E (index 5)
+        corresponding_value_e = sheet.cell(index, 5).value
         if corresponding_value_e == "not found":
             states['not_found_values'].append(value)
     if states['not_found_values']:
