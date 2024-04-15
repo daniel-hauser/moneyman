@@ -25,6 +25,10 @@ export class YNABStorage implements TransactionStorage {
     return Boolean(YNAB_TOKEN && YNAB_BUDGET_ID);
   }
 
+  isDateInFuture(date: string) {
+    return new Date(date) > new Date();
+  }
+
   async saveTransactions(txns: Array<TransactionRow>) {
     await this.init();
 
@@ -43,8 +47,13 @@ export class YNABStorage implements TransactionStorage {
     const missingAccounts = new Set<string>();
 
     for (let tx of txns) {
-      if (tx.status === TransactionStatuses.Pending) {
-        stats.pending++;
+      const isPending = tx.status === TransactionStatuses.Pending;
+      // YNAB doesn't support future transcation. Will result in 400 Bad Request
+      const isDateInFuture = this.isDateInFuture(tx.date);
+      if (isPending || isDateInFuture) {
+        if (isPending) {
+          stats.pending++;
+        }
         stats.skipped++;
         continue;
       }
@@ -63,23 +72,24 @@ export class YNABStorage implements TransactionStorage {
       txToSend.push(ynabTx);
     }
 
-    // Send transactions to YNAB
-    logger(`sending to YNAB budget: "${this.budgetName}"`);
-    const resp = await this.ynabAPI.transactions.createTransactions(
-      YNAB_BUDGET_ID,
-      {
-        transactions: txToSend,
-      },
-    );
-    logger("transactions sent to YNAB successfully!");
+    if (txToSend.length > 0) {
+      // Send transactions to YNAB
+      logger(`sending to YNAB budget: "${this.budgetName}"`);
+      const resp = await this.ynabAPI.transactions.createTransactions(
+        YNAB_BUDGET_ID,
+        {
+          transactions: txToSend,
+        },
+      );
+      logger("transactions sent to YNAB successfully!");
+      stats.added = resp.data.transactions?.length ?? 0;
+      stats.existing = resp.data.duplicate_import_ids?.length ?? 0;
+      stats.skipped += stats.existing;
+    }
 
     if (missingAccounts.size > 0) {
       logger(`Accounts missing in YNAB_ACCOUNTS:`, missingAccounts);
     }
-
-    stats.added = resp.data.transactions?.length ?? 0;
-    stats.existing = resp.data.duplicate_import_ids?.length ?? 0;
-    stats.skipped += stats.existing;
 
     return stats;
   }
