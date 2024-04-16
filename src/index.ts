@@ -1,14 +1,9 @@
 import { scrapeAccounts } from "./data/index.js";
 import { accounts, futureMonthsToScrape, scrapeStartDate } from "./config.js";
-import {
-  send,
-  editMessage,
-  getSummaryMessage,
-  sendError,
-  getConfigSummary,
-} from "./notifier.js";
+import { send, editMessage, sendError } from "./notifier.js";
 import { initializeStorage, saveResults, storages } from "./storage/index.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
+import { getSummaryMessage } from "./messages.js";
 
 const logger = createLogger("main");
 
@@ -28,8 +23,6 @@ async function run() {
   logToPublicLog("Scraping started");
   logger("Scraping started");
 
-  await send(getConfigSummary());
-
   const message = await send("Starting...");
 
   if (!storages.length) {
@@ -42,7 +35,15 @@ async function run() {
           accounts,
           scrapeStartDate,
           futureMonthsToScrape,
-          message?.message_id,
+          async (stats, totalTime) => {
+            const text = stats.join("\n");
+            await editMessage(
+              message?.message_id,
+              totalTime
+                ? text + `\n\nTotal time: ${totalTime.toFixed(1)} seconds`
+                : text,
+            );
+          },
         ),
         initializeStorage(),
       ]);

@@ -4,11 +4,13 @@ import { LocalJsonStorage } from "./json.js";
 import { GoogleSheetsStorage } from "./sheets.js";
 import { AzureDataExplorerStorage } from "./azure-data-explorer.js";
 import { transactionHash } from "./utils.js";
+import { YNABStorage } from "./ynab.js";
 
 export const storages = [
   new LocalJsonStorage(),
   new GoogleSheetsStorage(),
   new AzureDataExplorerStorage(),
+  new YNABStorage(),
 ].filter((s) => s.canSave());
 
 export async function initializeStorage() {

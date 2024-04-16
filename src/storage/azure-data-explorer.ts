@@ -94,13 +94,10 @@ export class AzureDataExplorerStorage implements TransactionStorage {
       const stream = Readable.from(
         JSON.stringify(txns.map(this.transactionRow)),
       );
-      const res = await this.ingestClient.ingestFromStream(stream);
-
-      if (res.errorCode) {
-        await sendError(
-          `returned ${res.errorCode}`,
-          "AzureDataExplorer.ingestFromStream ",
-        );
+      try {
+        await this.ingestClient.ingestFromStream(stream);
+      } catch (e) {
+        await sendError(e, "AzureDataExplorer.ingestFromStream");
       }
     }
 

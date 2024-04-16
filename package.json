@@ -14,7 +14,7 @@
     "postinstall": "patch-package",
     "build": "tsc",
     "lint": "prettier --check .",
-    "test": "npm run lint && jest --bail"
+    "test": "jest"
   },
   "repository": {
     "type": "git",
@@ -27,24 +27,32 @@
   },
   "homepage": "https://github.com/daniel-hauser/moneyman#readme",
   "dependencies": {
-    "azure-kusto-data": "^5.2.0",
-    "azure-kusto-ingest": "^5.2.0",
-    "date-fns": "^2.30.0",
+    "azure-kusto-data": "^6.0.2",
+    "azure-kusto-ingest": "^6.0.2",
+    "date-fns": "^3.6.0",
     "debug": "^4.3.4",
-    "dotenv": "^16.3.1",
-    "google-auth-library": "^8.8.0",
-    "google-spreadsheet": "^4.0.2",
-    "israeli-bank-scrapers": "^4.0.2",
-    "puppeteer": "^21.3.5",
-    "telegraf": "^4.12.2"
+    "dotenv": "^16.4.5",
+    "google-auth-library": "^9.7.0",
+    "google-spreadsheet": "^4.1.1",
+    "hash-it": "^6.0.0",
+    "israeli-bank-scrapers": "^4.4.2",
+    "telegraf": "^4.16.3",
+    "ynab": "^2.2.0"
   },
   "devDependencies": {
-    "@types/debug": "^4.1.8",
-    "@types/jest": "^29.5.3",
-    "jest": "^29.6.2",
+    "@types/debug": "^4.1.12",
+    "@types/jest": "^29.5.12",
+    "husky": "^9.0.11",
+    "jest": "^29.7.0",
     "patch-package": "^8.0.0",
-    "prettier": "^3.0.1",
-    "ts-jest": "^29.1.1",
-    "typescript": "^5.1.6"
+    "prettier": "^3.2.5",
+    "pretty-quick": "^4.0.0",
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.4.5"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "pretty-quick --staged"
+    }
   }
 }

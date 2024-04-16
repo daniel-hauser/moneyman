@@ -1,7 +1,6 @@
 import { performance } from "perf_hooks";
 import { getAccountTransactions } from "./scrape.js";
 import { AccountConfig, AccountScrapeResult } from "../types";
-import { editMessage } from "../notifier.js";
 import { createLogger } from "../utils/logger.js";
 
 const logger = createLogger("data");
@@ -10,7 +9,10 @@ export async function scrapeAccounts(
   accounts: Array<AccountConfig>,
   startDate: Date,
   futureMonthsToScrape: number,
-  statusMessageId?: number,
+  scrapeStatusChanged?: (
+    status: Array<string>,
+    totalTime?: number,
+  ) => Promise<void>,
 ) {
   const start = performance.now();
 
@@ -33,7 +35,7 @@ export async function scrapeAccounts(
       futureMonthsToScrape,
       async (message) => {
         status[i] = message;
-        await editMessage(statusMessageId, status.join("\n"));
+        await scrapeStatusChanged?.(status);
       },
     );
 
@@ -53,10 +55,7 @@ export async function scrapeAccounts(
   const duration = (performance.now() - start) / 1000;
   logger(`total duration: ${duration}s`);
 
-  await editMessage(
-    statusMessageId,
-    `${status.join("\n")}\n\ntotal time: ${duration.toFixed(1)}s`,
-  );
+  await scrapeStatusChanged?.(status, duration);
 
   return results;
 }

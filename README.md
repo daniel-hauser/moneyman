@@ -6,7 +6,7 @@ Internally we use [israeli-bank-scrapers](https://github.com/eshaham/israeli-ban
 
 ## Why?
 
-Having all your data in one place lets you view all of your expenses in a beautiful dashboard like [Google Data Studio](https://datastudio.google.com), [Azure Data Explorer dashboards](https://docs.microsoft.com/en-us/azure/data-explorer/azure-data-explorer-dashboards) and [Microsoft Power BI](https://powerbi.microsoft.com/)
+Having all your data in one place lets you view all of your expenses in a beautiful dashboard like [Google Data Studio](https://datastudio.google.com), [Azure Data Explorer dashboards](https://docs.microsoft.com/en-us/azure/data-explorer/azure-data-explorer-dashboards), [Microsoft Power BI](https://powerbi.microsoft.com/) and [YNAB](https://www.ynab.com/).
 
 ## Important notes
 
@@ -24,7 +24,7 @@ By using moneyman, you acknowledge that you are taking full responsibility for t
 
 ## How to run
 
-### Cloud
+### Cloud (GitHub Actions)
 
 Moneyman can be configured to periodically run automatically, using the [`scrape`](./.github/workflows/scrape.yml) github workflow.
 
@@ -39,7 +39,8 @@ Since logs are public for public repos, most logs are off by default and the pro
    1. [`ACCOUNTS_JSON`](#add-accounts-and-scrape) - So moneyman can login to your accounts
    2. [`TELEGRAM_API_[KEY, CHAT_ID]`](#get-notified-in-telegram) - So moneyman can send private logs and errors
    3. The environment variables of the storage you want to use
-3. Wait for the workflow to be triggered by github
+3. Build and upload the docker image using the "Run workflow" button in [workflows/build.yml](../../actions/workflows/build.yml)
+4. Wait for the [scrape workflow](../../actions/workflows/scrape.yml) to be triggered by github
 
 ### locally
 
@@ -89,7 +90,7 @@ Example:
 
 | env variable name    | default            | description                                                                                                  |
 | -------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `ACCOUNTS_TO_SCRAPE` | `[]`               | A comma separated list of providers to take from `ACCOUNTS_JSON`. if empty, all accounts will be used        |
+| `ACCOUNTS_TO_SCRAPE` | `""`               | A comma separated list of providers to take from `ACCOUNTS_JSON`. if empty, all accounts will be used        |
 | `DAYS_BACK`          | `10`               | The amount of days back to scrape                                                                            |
 | `TZ`                 | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                        |
 | `FUTURE_MONTHS`      | `1`                | The amount of months that will be scrapped in the future, starting from the day calculated using `DAYS_BACK` |
@@ -181,3 +182,27 @@ Use the following env vars to setup:
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL`       | The service account's email address                           |
 | `GOOGLE_SHEET_ID`                    | The id of the spreadsheet you shared with the service account |
 | `WORKSHEET_NAME`                     | The name of the sheet you want to add the transactions to     |
+
+### Export to YNAB (YouNeedABudget)
+
+To export your transactions directly to `YNAB` you need to use the following environment variables to setup:
+| env variable name | description |
+| ------------------------------------ | ------------------------------------------------------------- |
+| `YNAB_TOKEN` | The `YNAB` access token. Check [YNAB documentation](https://api.ynab.com/#authentication) about how to obtain it |
+| `YNAB_BUDGET_ID` | The `YNAB` budget ID where you want to import the data. You can obtain it opening [YNAB application](https://app.ynab.com/) on a browser and taking the budget `UUID` in the `URL` |
+| `YNAB_ACCOUNTS` | A key-value list to correlate each account with the `YNAB` account `UUID` |
+
+#### YNAB_ACCOUNTS
+
+A `JSON` key-value pair structure representing a mapping between two identifiers. The `key` represent the account ID as is understood by moneyman and the `value` it's the `UUID` visible in the YNAB URL when an account is selected.
+
+For example, in the URL:
+`https://app.ynab.com/22aa9fcd-93a9-47e9-8ff6-33036b7c6242/accounts/ba2dd3a9-b7d4-46d6-8413-8327203e2b82` the account UUID is the second `UUID`.
+
+Example:
+
+```json
+{
+  "5897": "ba2dd3a9-b7d4-46d6-8413-8327203e2b82"
+}
+```
