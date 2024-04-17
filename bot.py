@@ -34,15 +34,22 @@ def get_data_from_sheets_on_start():
     # Reset states
     states = {'not_found_values': [], 'current_index': 0}
     # Get all values from column D
-    column_d_values = sheet.col_values(4)  # Get values from column D (index 4)
+    column_d_values = sheet.col_values(4)[-20:] 
     print(column_d_values)
-    time.sleep(80) 
-    for index, value in enumerate(column_d_values, start=1):
-        try:
-            corresponding_value_e = sheet.cell(index, 5).value
-            print(corresponding_value_e)
-        except gspread.exceptions.APIError as e:
-            print(f"Encountered APIError: {e}")
+
+    column_d_values_full = sheet.col_values(4)
+    # Reverse the list of column D values
+    reversed_column_d_values = column_d_values_full[::-1]
+    # Get the indices of each cell in the last 20 values from column D
+    indices = [len(column_d_values_full) - 1 - reversed_column_d_values.index(value) for value in column_d_values]
+    # Get the index of the first cell among the last 20 values
+    first_cell_index = min(indices)
+    # Print the index
+    print("Index of the first cell in the last 20 values in column D:", first_cell_index)
+
+    for index, value in enumerate(column_d_values, start=first_cell_index):
+        corresponding_value_e = sheet.cell(index, 5).value
+        print(corresponding_value_e)
         if corresponding_value_e == "not found":
             states['not_found_values'].append(value)
     if states['not_found_values']:
@@ -57,6 +64,7 @@ def get_data_from_sheets_on_start():
 def ask_user_for_input():
     global states
     value = states['not_found_values'][states['current_index']]
+    print(f"Need to add category for the value '{value}'")
     bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"For the value '{value}' in column D, please provide your input:")
     states['current_value'] = value
     states['state'] = 'waiting_for_input'
