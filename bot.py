@@ -36,10 +36,16 @@ def get_data_from_sheets_on_start():
     # Get all values from column D
     column_d_values = sheet.col_values(4)  # Get values from column D (index 4)
     print(column_d_values)
-    time.sleep(120) 
+    time.sleep(80) 
     for index, value in enumerate(column_d_values, start=1):
-        corresponding_value_e = sheet.cell(index, 5).value
-        print(corresponding_value_e)
+        try:
+            corresponding_value_e = sheet.cell(index, 5).value
+            print(corresponding_value_e)
+         except gspread.exceptions.APIError as e:
+            print(f"Encountered APIError: {e}")
+            print("Retrying after a delay...")
+            time.sleep(30)  # Wait for 30 seconds before retrying
+            corresponding_value_e = sheet.cell(index, 5).value
         if corresponding_value_e == "not found":
             states['not_found_values'].append(value)
     if states['not_found_values']:
