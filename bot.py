@@ -36,9 +36,10 @@ def get_data_from_sheets_on_start():
     # Get all values from column D
     column_d_values = sheet.col_values(4)  # Get values from column D (index 4)
     print(column_d_values)
-    time.sleep(100) 
+    time.sleep(120) 
     for index, value in enumerate(column_d_values, start=1):
         corresponding_value_e = sheet.cell(index, 5).value
+        print(corresponding_value_e)
         if corresponding_value_e == "not found":
             states['not_found_values'].append(value)
     if states['not_found_values']:
