@@ -43,9 +43,6 @@ def get_data_from_sheets_on_start():
             print(corresponding_value_e)
         except gspread.exceptions.APIError as e:
             print(f"Encountered APIError: {e}")
-            print("Retrying after a delay...")
-            time.sleep(30)  # Wait for 30 seconds before retrying
-            corresponding_value_e = sheet.cell(index, 5).value
         if corresponding_value_e == "not found":
             states['not_found_values'].append(value)
     if states['not_found_values']:
