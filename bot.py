@@ -47,13 +47,13 @@ def get_data_from_sheets_on_start():
     # Print the index
     print("Index of the first cell in the last 20 values in column D:", first_cell_index)
 
-    for index, value in enumerate(column_d_values, start=first_cell_index):
+    for index, value in enumerate(column_d_values, start=first_cell_index+1):
         corresponding_value_e = sheet.cell(index, 5).value
-        print(corresponding_value_e)
+        print(f"name: {value}, category: {corresponding_value_e}")
         if corresponding_value_e == "not found":
             states['not_found_values'].append(value)
     if states['not_found_values']:
-        requests.get(WHATSAPP_URL)
+        #requests.get(WHATSAPP_URL)
         ask_user_for_input()
     else:
         print("no empty categories found.")
