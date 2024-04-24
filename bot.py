@@ -53,7 +53,7 @@ def get_data_from_sheets_on_start():
         if corresponding_value_e == "not found":
             states['not_found_values'].append(value)
     if states['not_found_values']:
-        #requests.get(WHATSAPP_URL)
+        requests.get(WHATSAPP_URL)
         ask_user_for_input()
     else:
         print("no empty categories found.")
