@@ -63,6 +63,9 @@ export class BuxferStorage implements TransactionStorage {
     }
 
     if (txToSend.length > 0) {
+      // TODO - Build JSON based personal rule engine for tagging transactions
+      this.tagTransactionsByRules(txToSend);
+
       // Send transactions to Buxfer
       logger(
         `sending to Buxfer accounts: "${this.accountToBuxferAccount.keys()}"`,
@@ -82,6 +85,14 @@ export class BuxferStorage implements TransactionStorage {
     return stats;
   }
 
+  tagTransactionsByRules(txToSend: BuxferTransaction[]) {
+    // TODO - Implement declarative rule engine
+    let tags: string[] = new Array("added-by-moneyman-etl");
+    txToSend.forEach((trx) => {
+      trx.tags = `${tags}`;
+    });
+  }
+
   private parseBuxferAccounts(accountsJSON: string): Map<string, string> {
     try {
       const accounts = JSON.parse(accountsJSON);
@@ -98,21 +109,13 @@ export class BuxferStorage implements TransactionStorage {
     accountId: string,
   ): BuxferTransaction {
     return {
-      accountId: accountId,
+      accountId: Number(accountId),
       date: format(parseISO(tx.date), BUXFER_DATE_FORMAT, {}),
       amount: tx.chargedAmount,
-      description: this.getTransactionDescription(tx),
+      description: tx.description,
       status:
         tx.status === TransactionStatuses.Completed ? "cleared" : "pending",
       type: tx.chargedAmount > 0 ? "income" : "expense",
-      tags: tx.category,
     };
-  }
-
-  private getTransactionDescription(tx: TransactionRow): string {
-    const installments = tx.installments
-      ? ` ${tx.installments.number}}/${tx.installments.total}}`
-      : "";
-    return `${tx.description}${installments}`;
   }
 }
