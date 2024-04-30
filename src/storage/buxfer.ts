@@ -87,7 +87,7 @@ export class BuxferStorage implements TransactionStorage {
 
   tagTransactionsByRules(txToSend: BuxferTransaction[]) {
     // TODO - Implement declarative rule engine
-    let tags: string[] = new Array("added-by-moneyman-etl");
+    const tags: string[] = ["added-by-moneyman-etl"];
     txToSend.forEach((trx) => {
       trx.tags = `${tags}`;
     });
