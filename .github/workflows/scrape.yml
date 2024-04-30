@@ -52,6 +52,9 @@ jobs:
           -e YNAB_TOKEN
           -e YNAB_BUDGET_ID
           -e YNAB_ACCOUNTS
+          -e BUXFER_USER_NAME
+          -e BUXFER_PASSWORD
+          -e BUXFER_ACCOUNTS
           ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:latest
         env:
           DEBUG: ""
@@ -75,3 +78,6 @@ jobs:
           YNAB_TOKEN: ${{ secrets.YNAB_TOKEN }}
           YNAB_BUDGET_ID: ${{ secrets.YNAB_BUDGET_ID }}
           YNAB_ACCOUNTS: ${{ secrets.YNAB_ACCOUNTS }}
+          BUXFER_USER_NAME: ${{ secrets.BUXFER_USER_NAME }}
+          BUXFER_PASSWORD: ${{ secrets.BUXFER_PASSWORD }}
+          BUXFER_ACCOUNTS: ${{ secrets.BUXFER_ACCOUNTS }}

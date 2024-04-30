@@ -20,6 +20,9 @@ const {
   YNAB_TOKEN = "",
   YNAB_BUDGET_ID = "",
   YNAB_ACCOUNTS = "",
+  BUXFER_USER_NAME = "",
+  BUXFER_PASSWORD = "",
+  BUXFER_ACCOUNTS = "",
 } = process.env;
 
 /**
@@ -41,6 +44,9 @@ export {
   YNAB_TOKEN,
   YNAB_BUDGET_ID,
   YNAB_ACCOUNTS,
+  BUXFER_USER_NAME,
+  BUXFER_PASSWORD,
+  BUXFER_ACCOUNTS,
 };
 export const systemName = "moneyman";
 export const currentDate = format(Date.now(), "yyyy-MM-dd");
