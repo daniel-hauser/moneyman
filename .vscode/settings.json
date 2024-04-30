@@ -1,5 +1,13 @@
 {
-  "cSpell.words": ["Kusto", "moneyman", "MULTIJSON", "nektos", "txns", "ynab"],
+  "cSpell.words": [
+    "Buxfer",
+    "Kusto",
+    "moneyman",
+    "MULTIJSON",
+    "nektos",
+    "txns",
+    "ynab"
+  ],
   "yaml.schemas": {
     "https://json.schemastore.org/github-workflow.json": "file:///workspaces/money/.github/workflows/build.yml"
   }

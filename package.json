@@ -29,13 +29,14 @@
   "dependencies": {
     "azure-kusto-data": "^6.0.2",
     "azure-kusto-ingest": "^6.0.2",
+    "buxfer-ts-client": "^1.0.4",
     "date-fns": "^3.6.0",
     "debug": "^4.3.4",
     "dotenv": "^16.4.5",
-    "google-auth-library": "^9.7.0",
+    "google-auth-library": "^9.9.0",
     "google-spreadsheet": "^4.1.1",
     "hash-it": "^6.0.0",
-    "israeli-bank-scrapers": "^4.4.2",
+    "israeli-bank-scrapers": "^4.5.0",
     "telegraf": "^4.16.3",
     "ynab": "^2.2.0"
   },
