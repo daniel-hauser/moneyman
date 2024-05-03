@@ -1,4 +1,9 @@
-import { YNAB_TOKEN, YNAB_BUDGET_ID, YNAB_ACCOUNTS } from "../config.js";
+import {
+  YNAB_TOKEN,
+  YNAB_BUDGET_ID,
+  YNAB_ACCOUNTS,
+  TRANSACTION_HASH_TYPE,
+} from "../config.js";
 import { SaveStats, TransactionRow, TransactionStorage } from "../types.js";
 import { createLogger } from "./../utils/logger.js";
 import { parseISO, format } from "date-fns";
@@ -131,7 +136,9 @@ export class YNABStorage implements TransactionStorage {
           ? ynab.TransactionClearedStatus.Cleared
           : undefined,
       approved: false,
-      import_id: hash(tx.hash).toString(),
+      import_id: hash(
+        TRANSACTION_HASH_TYPE === "moneyman" ? tx.uniqueId : tx.hash,
+      ).toString(),
       memo: tx.memo,
     };
   }

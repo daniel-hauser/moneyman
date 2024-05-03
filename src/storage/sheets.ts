@@ -10,6 +10,7 @@ import {
   worksheetName,
   currentDate,
   systemName,
+  TRANSACTION_HASH_TYPE,
 } from "./../config.js";
 import type {
   TransactionRow,
@@ -93,7 +94,20 @@ export class GoogleSheetsStorage implements TransactionStorage {
     } satisfies SaveStats;
 
     for (let tx of txns) {
+      if (TRANSACTION_HASH_TYPE === "moneyman") {
+        // Use the new uniqueId as the unique identifier for the transactions if the hash type is moneyman
+        if (this.existingTransactionsHashes.has(tx.uniqueId)) {
+          stats.existing++;
+          stats.skipped++;
+          continue;
+        }
+      }
+
       if (this.existingTransactionsHashes.has(tx.hash)) {
+        if (TRANSACTION_HASH_TYPE === "moneyman") {
+          logger(`Skipping, old hash ${tx.hash} is already in the sheet`);
+        }
+
         stats.existing++;
         stats.skipped++;
         continue;
@@ -168,7 +182,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
       memo: tx.memo ?? "",
       category: tx.category ?? "",
       account: tx.account,
-      hash: tx.hash,
+      hash: TRANSACTION_HASH_TYPE === "moneyman" ? tx.uniqueId : tx.hash,
       comment: "",
       "scraped at": currentDate,
       "scraped by": systemName,
