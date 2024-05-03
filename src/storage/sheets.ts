@@ -109,8 +109,12 @@ export class GoogleSheetsStorage implements TransactionStorage {
           logger(`Skipping, old hash ${tx.hash} is already in the sheet`);
         }
 
-        stats.existing++;
-        stats.skipped++;
+        // To avoid double counting, skip if the new hash is already in the sheet
+        if (!this.existingTransactionsHashes.has(tx.uniqueId)) {
+          stats.existing++;
+          stats.skipped++;
+        }
+
         continue;
       }
 
