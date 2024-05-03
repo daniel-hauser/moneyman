@@ -58,20 +58,6 @@ export const accounts = parseAccounts(ACCOUNTS_JSON).filter(
     accountsToScrape.includes(account.companyId),
 );
 
-export const FileHeaders = [
-  "date",
-  "amount",
-  "description",
-  "memo",
-  "category",
-  "account",
-  "hash",
-  "comment",
-  "scraped at",
-  "scraped by",
-  "identifier",
-];
-
 function parseAccounts(accountsJson?: string): Array<AccountConfig> {
   try {
     const parsed = JSON.parse(accountsJson!);
