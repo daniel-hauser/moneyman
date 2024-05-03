@@ -41,9 +41,9 @@ export function transactionUniqueId(
   });
 
   const parts = [
+    date,
     companyId,
     accountNumber,
-    date,
     tx.chargedAmount,
     tx.identifier || `${tx.description}_${tx.memo}`,
   ];
