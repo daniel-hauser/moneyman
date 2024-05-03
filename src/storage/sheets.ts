@@ -18,6 +18,7 @@ import type {
   SaveStats,
 } from "../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
+import { sendDeprecationMessage } from "../notifier.js";
 
 const logger = createLogger("GoogleSheetsStorage");
 
@@ -126,6 +127,10 @@ export class GoogleSheetsStorage implements TransactionStorage {
     if (rows.length) {
       stats.added = rows.length;
       await this.sheet?.addRows(rows);
+
+      if (TRANSACTION_HASH_TYPE !== "moneyman") {
+        sendDeprecationMessage("hashFiledChange");
+      }
     }
 
     return stats;
