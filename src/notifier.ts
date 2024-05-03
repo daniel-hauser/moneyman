@@ -61,3 +61,19 @@ export function sendError(message: any, caller: string = "") {
     )}`.trim(),
   );
 }
+
+const deprecationMessages = {
+  ["hashFiledChange"]: `This run is using the old transaction hash field, please update to the new one (it might require manual de-duping of some transactions). See https://github.com/daniel-hauser/moneyman/issues/268 for more details.`,
+} as const;
+const sentDeprecationMessages = new Set<string>();
+export function sendDeprecationMessage(
+  messageId: keyof typeof deprecationMessages,
+) {
+  if (sentDeprecationMessages.has(messageId)) {
+    return;
+  }
+  // Avoid sending the same message multiple times
+  sentDeprecationMessages.add(messageId);
+  return send(`⚠️ Deprecation warning:
+${deprecationMessages[messageId]}`);
+}

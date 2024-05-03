@@ -10,6 +10,7 @@ import {
   worksheetName,
   currentDate,
   systemName,
+  TRANSACTION_HASH_TYPE,
 } from "./../config.js";
 import type {
   TransactionRow,
@@ -17,6 +18,7 @@ import type {
   SaveStats,
 } from "../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
+import { sendDeprecationMessage } from "../notifier.js";
 
 const logger = createLogger("GoogleSheetsStorage");
 
@@ -93,9 +95,26 @@ export class GoogleSheetsStorage implements TransactionStorage {
     } satisfies SaveStats;
 
     for (let tx of txns) {
+      if (TRANSACTION_HASH_TYPE === "moneyman") {
+        // Use the new uniqueId as the unique identifier for the transactions if the hash type is moneyman
+        if (this.existingTransactionsHashes.has(tx.uniqueId)) {
+          stats.existing++;
+          stats.skipped++;
+          continue;
+        }
+      }
+
       if (this.existingTransactionsHashes.has(tx.hash)) {
-        stats.existing++;
-        stats.skipped++;
+        if (TRANSACTION_HASH_TYPE === "moneyman") {
+          logger(`Skipping, old hash ${tx.hash} is already in the sheet`);
+        }
+
+        // To avoid double counting, skip if the new hash is already in the sheet
+        if (!this.existingTransactionsHashes.has(tx.uniqueId)) {
+          stats.existing++;
+          stats.skipped++;
+        }
+
         continue;
       }
 
@@ -112,6 +131,10 @@ export class GoogleSheetsStorage implements TransactionStorage {
     if (rows.length) {
       stats.added = rows.length;
       await this.sheet?.addRows(rows);
+
+      if (TRANSACTION_HASH_TYPE !== "moneyman") {
+        sendDeprecationMessage("hashFiledChange");
+      }
     }
 
     return stats;
@@ -168,7 +191,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
       memo: tx.memo ?? "",
       category: tx.category ?? "",
       account: tx.account,
-      hash: tx.hash,
+      hash: TRANSACTION_HASH_TYPE === "moneyman" ? tx.uniqueId : tx.hash,
       comment: "",
       "scraped at": currentDate,
       "scraped by": systemName,
