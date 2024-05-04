@@ -55,6 +55,7 @@ jobs:
           -e BUXFER_USER_NAME
           -e BUXFER_PASSWORD
           -e BUXFER_ACCOUNTS
+          -e TRANSACTION_HASH_TYPE
           ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:latest
         env:
           DEBUG: ""
@@ -81,3 +82,4 @@ jobs:
           BUXFER_USER_NAME: ${{ secrets.BUXFER_USER_NAME }}
           BUXFER_PASSWORD: ${{ secrets.BUXFER_PASSWORD }}
           BUXFER_ACCOUNTS: ${{ secrets.BUXFER_ACCOUNTS }}
+          TRANSACTION_HASH_TYPE: ${{ secrets.TRANSACTION_HASH_TYPE }}
