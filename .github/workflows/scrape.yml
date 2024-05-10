@@ -21,7 +21,6 @@ env:
   REGISTRY: ghcr.io
 jobs:
   scrape:
-    environment: prod,
     runs-on: ubuntu-latest
     steps:
       - id: normalize-repository-name
