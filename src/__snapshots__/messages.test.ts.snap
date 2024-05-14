@@ -1,14 +1,14 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`messages getSummaryMessage should return a summary message 1`] = `
-"7 transactions scraped.
+exports[`messages getSummaryMessages should return a summary message 1`] = `
+[
+  "7 transactions scraped.
 (3 pending, 4 completed)
 
 Accounts updated:
 	✔️ [max] account1: 1
-	✔️ [max] account2: 6
-
-Saved to:
+	✔️ [max] account2: 6",
+  "Saved to:
 📝 Storage 1 (TheTable)
 	2 added
 	4 skipped (5 existing, 3 pending)
@@ -23,35 +23,37 @@ Saved to:
 Pending txns:
 	description1:	+20.00
 	description1:	+20.00 USD
-	description1:	-20.00"
+	description1:	-20.00",
+]
 `;
 
-exports[`messages getSummaryMessage should return a summary message with failed results 1`] = `
-"1 transactions scraped.
+exports[`messages getSummaryMessages should return a summary message with failed results 1`] = `
+[
+  "1 transactions scraped.
 (0 pending, 1 completed)
 
 Accounts updated:
 	❌ [max] GENERIC
 		Some error message
 	❌ [hapoalim] CHANGE_PASSWORD
-	✔️ [hapoalim] account1: 1
-
-Saved to:
+	✔️ [hapoalim] account1: 1",
+  "Saved to:
 	😶 None
 
 -------
 Pending txns:
-	😶 None"
+	😶 None",
+]
 `;
 
-exports[`messages getSummaryMessage should return a summary message with installments 1`] = `
-"2 transactions scraped.
+exports[`messages getSummaryMessages should return a summary message with installments 1`] = `
+[
+  "2 transactions scraped.
 (0 pending, 2 completed)
 
 Accounts updated:
-	✔️ [max] account1: 2
-
-Saved to:
+	✔️ [max] account1: 2",
+  "Saved to:
 📝 Storage 1 (TheTable)
 	2 added
 	4 skipped (5 existing, 3 pending)
@@ -62,19 +64,21 @@ Saved to:
 
 -------
 Pending txns:
-	😶 None"
+	😶 None",
+]
 `;
 
-exports[`messages getSummaryMessage should return a summary message with no results 1`] = `
-"0 transactions scraped.
+exports[`messages getSummaryMessages should return a summary message with no results 1`] = `
+[
+  "0 transactions scraped.
 
 Accounts updated:
-	😶 None
-
-Saved to:
+	😶 None",
+  "Saved to:
 	😶 None
 
 -------
 Pending txns:
-	😶 None"
+	😶 None",
+]
 `;
