@@ -3,7 +3,7 @@ import { accounts, futureMonthsToScrape, scrapeStartDate } from "./config.js";
 import { send, editMessage, sendError } from "./notifier.js";
 import { initializeStorage, saveResults, storages } from "./storage/index.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
-import { getSummaryMessage, getSummaryMessages } from "./messages.js";
+import { getSummaryMessages } from "./messages.js";
 
 const logger = createLogger("main");
 
