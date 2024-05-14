@@ -1,5 +1,5 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
-import { getSummaryMessage } from "./messages";
+import { getSummaryMessages } from "./messages";
 import {
   AccountScrapeResult,
   SaveStats,
@@ -13,7 +13,7 @@ import {
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors";
 
 describe("messages", () => {
-  describe("getSummaryMessage", () => {
+  describe("getSummaryMessages", () => {
     it("should return a summary message", () => {
       const results: Array<AccountScrapeResult> = [
         {
@@ -107,7 +107,7 @@ describe("messages", () => {
         },
       ];
 
-      const summary = getSummaryMessage(results, stats);
+      const summary = getSummaryMessages(results, stats);
 
       expect(summary).toMatchSnapshot();
     });
@@ -117,7 +117,7 @@ describe("messages", () => {
 
       const stats: Array<SaveStats> = [];
 
-      const summary = getSummaryMessage(results, stats);
+      const summary = getSummaryMessages(results, stats);
 
       expect(summary).toMatchSnapshot();
     });
@@ -155,7 +155,7 @@ describe("messages", () => {
 
       const stats: Array<SaveStats> = [];
 
-      const summary = getSummaryMessage(results, stats);
+      const summary = getSummaryMessages(results, stats);
 
       expect(summary).toMatchSnapshot();
     });
@@ -212,7 +212,7 @@ describe("messages", () => {
         },
       ];
 
-      const summary = getSummaryMessage(results, stats);
+      const summary = getSummaryMessages(results, stats);
 
       expect(summary).toMatchSnapshot();
     });
