@@ -95,6 +95,7 @@ Example:
 | `TZ`                    | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                                                         |
 | `FUTURE_MONTHS`         | `1`                | The amount of months that will be scrapped in the future, starting from the day calculated using `DAYS_BACK`                                  |
 | `TRANSACTION_HASH_TYPE` | ``                 | The hash type to use for the transaction hash. Can be `moneyman` or empty. The default will be changed to `moneyman` in the upcoming versions |
+| `HIDDEN_DEPRECATIONS`   | ''                 | A comma separated list of deprecations to hide                                                                                                |
 
 ### Get notified in telegram
 
