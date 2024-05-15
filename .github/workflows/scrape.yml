@@ -133,7 +133,3 @@ jobs:
         with:
           url: "${{ secrets.UPDATE_WEB_HOOK }}"
           method: "GET"
-          BUXFER_USER_NAME: ${{ secrets.BUXFER_USER_NAME }}
-          BUXFER_PASSWORD: ${{ secrets.BUXFER_PASSWORD }}
-          BUXFER_ACCOUNTS: ${{ secrets.BUXFER_ACCOUNTS }}
-          TRANSACTION_HASH_TYPE: ${{ secrets.TRANSACTION_HASH_TYPE }}
