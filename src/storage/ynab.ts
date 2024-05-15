@@ -1,10 +1,16 @@
-import { YNAB_TOKEN, YNAB_BUDGET_ID, YNAB_ACCOUNTS } from "../config.js";
+import {
+  YNAB_TOKEN,
+  YNAB_BUDGET_ID,
+  YNAB_ACCOUNTS,
+  TRANSACTION_HASH_TYPE,
+} from "../config.js";
 import { SaveStats, TransactionRow, TransactionStorage } from "../types.js";
 import { createLogger } from "./../utils/logger.js";
 import { parseISO, format } from "date-fns";
 import * as ynab from "ynab";
 import hash from "hash-it";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
+import { sendDeprecationMessage } from "../notifier.js";
 
 const YNAB_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("YNABStorage");
@@ -85,6 +91,10 @@ export class YNABStorage implements TransactionStorage {
       stats.added = resp.data.transactions?.length ?? 0;
       stats.existing = resp.data.duplicate_import_ids?.length ?? 0;
       stats.skipped += stats.existing;
+
+      if (TRANSACTION_HASH_TYPE !== "moneyman") {
+        sendDeprecationMessage("hashFiledChange");
+      }
     }
 
     if (missingAccounts.size > 0) {
@@ -131,7 +141,9 @@ export class YNABStorage implements TransactionStorage {
           ? ynab.TransactionClearedStatus.Cleared
           : undefined,
       approved: false,
-      import_id: hash(tx.hash).toString(),
+      import_id: hash(
+        TRANSACTION_HASH_TYPE === "moneyman" ? tx.uniqueId : tx.hash,
+      ).toString(),
       memo: tx.memo,
     };
   }

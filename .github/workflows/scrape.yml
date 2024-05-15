@@ -82,6 +82,10 @@ jobs:
           -e YNAB_TOKEN
           -e YNAB_BUDGET_ID
           -e YNAB_ACCOUNTS
+          -e BUXFER_USER_NAME
+          -e BUXFER_PASSWORD
+          -e BUXFER_ACCOUNTS
+          -e TRANSACTION_HASH_TYPE
           ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:latest
         env:
           DEBUG: ""
@@ -106,6 +110,10 @@ jobs:
           YNAB_TOKEN: ${{ secrets.YNAB_TOKEN }}
           YNAB_BUDGET_ID: ${{ secrets.YNAB_BUDGET_ID }}
           YNAB_ACCOUNTS: ${{ secrets.YNAB_ACCOUNTS }}
+          BUXFER_USER_NAME: ${{ secrets.BUXFER_USER_NAME }}
+          BUXFER_PASSWORD: ${{ secrets.BUXFER_PASSWORD }}
+          BUXFER_ACCOUNTS: ${{ secrets.BUXFER_ACCOUNTS }}
+          TRANSACTION_HASH_TYPE: ${{ secrets.TRANSACTION_HASH_TYPE }}
 
       - name: Update categories
         run: |
@@ -125,3 +133,7 @@ jobs:
         with:
           url: "${{ secrets.UPDATE_WEB_HOOK }}"
           method: "GET"
+          BUXFER_USER_NAME: ${{ secrets.BUXFER_USER_NAME }}
+          BUXFER_PASSWORD: ${{ secrets.BUXFER_PASSWORD }}
+          BUXFER_ACCOUNTS: ${{ secrets.BUXFER_ACCOUNTS }}
+          TRANSACTION_HASH_TYPE: ${{ secrets.TRANSACTION_HASH_TYPE }}
