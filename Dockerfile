@@ -1,7 +1,6 @@
 # ---- Base Node ----
 FROM node:18-alpine AS base
-
-RUN apk add --no-cache \
+RUN apk add --no-cache --no-check-certificate \
       chromium \
       nodejs yarn \
       nss ca-certificates \

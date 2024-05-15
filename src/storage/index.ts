@@ -3,14 +3,16 @@ import type { AccountScrapeResult, TransactionRow } from "../types.js";
 import { LocalJsonStorage } from "./json.js";
 import { GoogleSheetsStorage } from "./sheets.js";
 import { AzureDataExplorerStorage } from "./azure-data-explorer.js";
-import { transactionHash } from "./utils.js";
+import { transactionHash, transactionUniqueId } from "./utils.js";
 import { YNABStorage } from "./ynab.js";
+import { BuxferStorage } from "./buxfer.js";
 
 export const storages = [
   new LocalJsonStorage(),
   new GoogleSheetsStorage(),
   new AzureDataExplorerStorage(),
   new YNABStorage(),
+  new BuxferStorage(),
 ].filter((s) => s.canSave());
 
 export async function initializeStorage() {
@@ -54,6 +56,7 @@ function resultsToTransactions(
             account: account.accountNumber,
             companyId,
             hash: transactionHash(tx, companyId, account.accountNumber),
+            uniqueId: transactionUniqueId(tx, companyId, account.accountNumber),
           });
         }
       }

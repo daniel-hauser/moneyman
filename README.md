@@ -88,12 +88,14 @@ Example:
 
 #### Other configurations
 
-| env variable name    | default            | description                                                                                                  |
-| -------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `ACCOUNTS_TO_SCRAPE` | `""`               | A comma separated list of providers to take from `ACCOUNTS_JSON`. if empty, all accounts will be used        |
-| `DAYS_BACK`          | `10`               | The amount of days back to scrape                                                                            |
-| `TZ`                 | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                        |
-| `FUTURE_MONTHS`      | `1`                | The amount of months that will be scrapped in the future, starting from the day calculated using `DAYS_BACK` |
+| env variable name       | default            | description                                                                                                                                   |
+| ----------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ACCOUNTS_TO_SCRAPE`    | `""`               | A comma separated list of providers to take from `ACCOUNTS_JSON`. if empty, all accounts will be used                                         |
+| `DAYS_BACK`             | `10`               | The amount of days back to scrape                                                                                                             |
+| `TZ`                    | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                                                         |
+| `FUTURE_MONTHS`         | `1`                | The amount of months that will be scrapped in the future, starting from the day calculated using `DAYS_BACK`                                  |
+| `TRANSACTION_HASH_TYPE` | ``                 | The hash type to use for the transaction hash. Can be `moneyman` or empty. The default will be changed to `moneyman` in the upcoming versions |
+| `HIDDEN_DEPRECATIONS`   | ''                 | A comma separated list of deprecations to hide                                                                                                |
 
 ### Get notified in telegram
 
@@ -204,5 +206,29 @@ Example:
 ```json
 {
   "5897": "ba2dd3a9-b7d4-46d6-8413-8327203e2b82"
+}
+```
+
+### Export to [Buxfer](https://www.buxfer.com/features)
+
+To export your transactions directly to `Buxfer` you need to use the following environment variables to setup:
+| env variable name | description |
+| ------------------------------------ | ------------------------------------------------------------- |
+| `BUXFER_USER_NAME` | The `Buxfer` user name. Check [Buxfer settings](https://www.buxfer.com/settings?type=login) about how to obtain it |
+| `BUXFER_PASSWORD` | The `Buxfer` user password. Check [Buxfer settings](https://www.buxfer.com/settings?type=login) about how to obtain it |
+| `BUXFER_ACCOUNTS` | A key-value list to correlate each account with the `Buxfer` account `UUID` |
+
+#### BUXFER_ACCOUNTS
+
+A `JSON` key-value pair structure representing a mapping between two identifiers. The `key` represent the account ID as is understood by moneyman (as obtained from web scrapping the financial institutions) and the `value` it's the `UUID` visible in the Buxfer URL when an account is selected.
+
+For example, in the URL:
+`https://www.buxfer.com/account?id=123456` the account UUID is the account id query parameter.
+
+Example:
+
+```json
+{
+  "5897": "123456"
 }
 ```

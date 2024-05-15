@@ -1,5 +1,5 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
-import { getSummaryMessage } from "./messages";
+import { getSummaryMessages } from "./messages";
 import {
   AccountScrapeResult,
   SaveStats,
@@ -13,7 +13,7 @@ import {
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors";
 
 describe("messages", () => {
-  describe("getSummaryMessage", () => {
+  describe("getSummaryMessages", () => {
     it("should return a summary message", () => {
       const results: Array<AccountScrapeResult> = [
         {
@@ -97,6 +97,7 @@ describe("messages", () => {
                 processedDate: new Date().toISOString(),
                 description: "description1",
                 originalAmount: 10,
+                uniqueId: "uniqueId1",
                 originalCurrency: "ILS",
                 chargedAmount: 10,
                 status: TransactionStatuses.Completed,
@@ -106,7 +107,7 @@ describe("messages", () => {
         },
       ];
 
-      const summary = getSummaryMessage(results, stats);
+      const summary = getSummaryMessages(results, stats);
 
       expect(summary).toMatchSnapshot();
     });
@@ -116,7 +117,7 @@ describe("messages", () => {
 
       const stats: Array<SaveStats> = [];
 
-      const summary = getSummaryMessage(results, stats);
+      const summary = getSummaryMessages(results, stats);
 
       expect(summary).toMatchSnapshot();
     });
@@ -154,7 +155,7 @@ describe("messages", () => {
 
       const stats: Array<SaveStats> = [];
 
-      const summary = getSummaryMessage(results, stats);
+      const summary = getSummaryMessages(results, stats);
 
       expect(summary).toMatchSnapshot();
     });
@@ -204,13 +205,14 @@ describe("messages", () => {
               account: "account1",
               companyId: CompanyTypes.max,
               hash: "hash1",
+              uniqueId: "uniqueId1",
               ...t,
             })),
           },
         },
       ];
 
-      const summary = getSummaryMessage(results, stats);
+      const summary = getSummaryMessages(results, stats);
 
       expect(summary).toMatchSnapshot();
     });
