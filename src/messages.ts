@@ -9,7 +9,7 @@ import {
   TransactionRow,
 } from "./types";
 
-export function getSummaryMessage(
+export function getSummaryMessages(
   results: Array<AccountScrapeResult>,
   stats: Array<SaveStats>,
 ) {
@@ -27,19 +27,21 @@ export function getSummaryMessage(
 
   const { pending, completed } = transactionsByStatus(results);
 
-  return `
+  return [
+    `
 ${transactionsString(pending, completed)}
 
 Accounts updated:
-${accountsSummary.join("\n") || "\t😶 None"}
-
+${accountsSummary.join("\n") || "\t😶 None"}`.trim(),
+    `
 Saved to:
 ${stats.map((s) => statsString(s)).join("\n") || "\t😶 None"}
 
 -------
 Pending txns:
 ${transactionList(pending) || "\t😶 None"}
-`.trim();
+`.trim(),
+  ];
 }
 
 function transactionsString(

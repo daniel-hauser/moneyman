@@ -3,7 +3,7 @@ import { accounts, futureMonthsToScrape, scrapeStartDate } from "./config.js";
 import { send, editMessage, sendError } from "./notifier.js";
 import { initializeStorage, saveResults, storages } from "./storage/index.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
-import { getSummaryMessage } from "./messages.js";
+import { getSummaryMessages } from "./messages.js";
 
 const logger = createLogger("main");
 
@@ -49,9 +49,9 @@ async function run() {
       ]);
 
       const saved = await saveResults(results);
-      const summary = getSummaryMessage(results, saved.stats);
-
-      await send(summary);
+      for (const message of getSummaryMessages(results, saved.stats)) {
+        await send(message);
+      }
     } catch (e) {
       logger(e);
       await sendError(e);
