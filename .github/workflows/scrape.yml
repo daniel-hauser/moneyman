@@ -118,11 +118,16 @@ jobs:
 
       - name: Update categories
         run: |
-          sudo apt install libxslt-dev libxml2-dev python3-dev 
-          printf "%s\n" "$GOOGLE_JSON" > google.json    
-          python -m pip install --upgrade pip
-          pip install pyTelegramBotAPI gspread oauth2client
-          python bot.py
+          current_day=$(date +%a)
+          if [ "$current_day" == "Sat" ]; then
+            echo "It's Shabbat, not update categories."
+          else
+            sudo apt install libxslt-dev libxml2-dev python3-dev 
+            printf "%s\n" "$GOOGLE_JSON" > google.json    
+            python -m pip install --upgrade pip
+            pip install pyTelegramBotAPI gspread oauth2client
+            python categories.py
+          fi
         env:
           GOOGLE_JSON: ${{ secrets.GOOGLE_JSON }}
           TOKEN: ${{ secrets.TELEGRAM_API_KEY }}
