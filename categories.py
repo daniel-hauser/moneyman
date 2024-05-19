@@ -45,9 +45,9 @@ def get_data_from_sheets_on_start():
     # Get the index of the first cell among the last 20 values
     first_cell_index = min(indices)
     # Print the index
-    print("Index of the first cell in the last 20 values in column D:", first_cell_index)
+    print("Index of the first cell in the last 20 values in column D:", first_cell_index+1)
 
-    for index, value in enumerate(column_d_values, start=first_cell_index):
+    for index, value in enumerate(column_d_values, start=first_cell_index+1):
         corresponding_value_e = sheet.cell(index, 5).value
         print(f"name: {value}, category: {corresponding_value_e}")
         if corresponding_value_e == "not found":
