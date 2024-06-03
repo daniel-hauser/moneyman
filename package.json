@@ -31,7 +31,7 @@
     "azure-kusto-ingest": "^6.0.2",
     "buxfer-ts-client": "^1.0.4",
     "date-fns": "^3.6.0",
-    "debug": "^4.3.4",
+    "debug": "^4.3.5",
     "dotenv": "^16.4.5",
     "google-auth-library": "^9.9.0",
     "google-spreadsheet": "^4.1.1",
