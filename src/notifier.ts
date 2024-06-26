@@ -23,7 +23,19 @@ export async function send(message: string) {
       message.slice(0, 4096),
     );
   }
-  return await bot?.telegram.sendMessage(TELEGRAM_CHAT_ID, message);
+  while (true) {
+    try {
+      const result = await bot?.telegram.sendMessage(TELEGRAM_CHAT_ID, message);
+      return result;
+    } catch (e) {
+      if (e.response.error_code === 429) {
+        logger(`Rate limited, waiting 10 seconds`);
+        await new Promise((resolve) => setTimeout(resolve, 10000));
+      } else {
+        throw e; // re-throw the error if it's not a 429
+      }
+    }
+  }
 }
 
 export async function deleteMessage(message: Message.TextMessage) {
@@ -35,18 +47,25 @@ export async function editMessage(
   newText: string,
 ) {
   if (message !== undefined) {
-    try {
-      await bot?.telegram.editMessageText(
-        TELEGRAM_CHAT_ID,
-        message,
-        undefined,
-        newText,
-      );
-    } catch (e) {
-      if (canIgnoreTelegramError(e)) {
-        logger(`Ignoring error`, e);
-      } else {
-        throw e;
+    while (true) {
+      try {
+        return await bot?.telegram.editMessageText(
+          TELEGRAM_CHAT_ID,
+          message,
+          undefined,
+          newText,
+        );
+      } catch (e) {
+        if (canIgnoreTelegramError(e)) {
+          logger(`Ignoring error`, e);
+          break; // If the error can be ignored, break the loop
+        } else if (e.response.error_code === 429) {
+          logger(`Rate limited, starting 10 second delay`);
+          await new Promise((resolve) => setTimeout(resolve, 10000));
+          logger(`10 second delay ended, retrying`);
+        } else {
+          throw e; // If it's another error, throw it
+        }
       }
     }
   }
