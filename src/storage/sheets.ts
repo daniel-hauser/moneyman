@@ -19,6 +19,7 @@ import type {
 } from "../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { sendDeprecationMessage } from "../notifier.js";
+import { normalizeCurrency } from "../utils/currency.js";
 
 const logger = createLogger("GoogleSheetsStorage");
 
@@ -34,6 +35,7 @@ type SheetRow = {
   "scraped at": string;
   "scraped by": string;
   identifier: string;
+  chargedCurrency: string;
 };
 
 export class GoogleSheetsStorage implements TransactionStorage {
@@ -49,6 +51,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
     "scraped at",
     "scraped by",
     "identifier",
+    "chargedCurrency",
   ];
 
   existingTransactionsHashes = new Set<string>();
@@ -196,6 +199,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
       "scraped at": currentDate,
       "scraped by": systemName,
       identifier: `${tx.identifier ?? ""}`,
+      chargedCurrency: normalizeCurrency(tx.chargedCurrency),
     };
   }
 }
