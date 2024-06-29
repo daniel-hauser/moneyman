@@ -36,6 +36,12 @@ export async function editMessage(
 ) {
   if (message !== undefined) {
     try {
+      /**
+       * Telegram has limit on the number of messages per second.
+       * To avoid getting 429 errors, we wait a bit before sending the edit request.
+       * According to the docs, the limit is 30 messages per second so we should be safe with 250ms.
+       */
+      await new Promise((resolve) => setTimeout(resolve, 250));
       await bot?.telegram.editMessageText(
         TELEGRAM_CHAT_ID,
         message,
