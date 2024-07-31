@@ -24,6 +24,8 @@ const {
   BUXFER_PASSWORD = "",
   BUXFER_ACCOUNTS = "",
   TRANSACTION_HASH_TYPE = "",
+  MONDAY_BOARD_ID = "",
+  MONDAY_TOKEN = "",
 } = process.env;
 
 /**
@@ -49,6 +51,8 @@ export {
   BUXFER_PASSWORD,
   BUXFER_ACCOUNTS,
   TRANSACTION_HASH_TYPE,
+  MONDAY_BOARD_ID,
+  MONDAY_TOKEN
 };
 export const systemName = "moneyman";
 export const currentDate = format(Date.now(), "yyyy-MM-dd");
@@ -67,7 +71,7 @@ function parseAccounts(accountsJson?: string): Array<AccountConfig> {
       // TODO: Add schema validations?
       return parsed as Array<AccountConfig>;
     }
-  } catch {}
+  } catch { }
 
   throw new TypeError("ACCOUNTS_JSON must be a valid array");
 }

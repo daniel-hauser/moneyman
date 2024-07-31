@@ -27,6 +27,7 @@
   },
   "homepage": "https://github.com/daniel-hauser/moneyman#readme",
   "dependencies": {
+    "axios": "^1.7.2",
     "azure-kusto-data": "^6.0.2",
     "azure-kusto-ingest": "^6.0.2",
     "buxfer-ts-client": "^1.0.4",
