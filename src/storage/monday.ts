@@ -34,7 +34,7 @@ export class MondayStorage implements TransactionStorage {
 
   existingTransactionsHashes = new Set<string>();
   private initPromise: null | Promise<void> = null;
-  private const uniqueIdColumnID = "text__1"
+  private uniqueIdColumnID = "text__1"
 
   async init() {
     // Init only once
