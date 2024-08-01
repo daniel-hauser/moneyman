@@ -10,12 +10,12 @@ import { SaveStats, TransactionRow, TransactionStorage } from "../types.js";
 import { createLogger } from "../utils/logger.js";
 import { parseISO, format } from "date-fns";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
+import { normalizeCurrency } from "../utils/currency.js";
 
 const logger = createLogger("MondayStorage");
-
+const URL = 'https://api.monday.com/v2';
 interface MondayTransaction {
   uniqueId: string;
-  accountId: number;
   account: string;
   date: string;
   amount: number;
@@ -27,20 +27,78 @@ interface MondayTransaction {
   scraped_by: string;
   scraped_at: string;
   identifier: string;
+  chargedCurrency: string
 
 }
-
-const URL = 'https://api.monday.com/v2';
-
 export class MondayStorage implements TransactionStorage {
 
+  existingTransactionsHashes = new Set<string>();
+  private initPromise: null | Promise<void> = null;
+  private const uniqueIdColumnID = "text__1"
+
   async init() {
-    logger("init");
+    // Init only once
+    if (!this.initPromise) {
+      this.initPromise = (async () => {
+        await this.loadHashes();
+      })();
+    }
+
+    await this.initPromise;
   }
 
   canSave() {
     return Boolean(MONDAY_BOARD_ID && MONDAY_TOKEN);
   }
+
+  private async loadHashes() {
+    const items = await this.getAllItemsFromBoard(+MONDAY_BOARD_ID);
+    for (const item of items) {
+      const columnValue = item.column_values.find((col: any) => col.id === this.uniqueIdColumnID);
+      if (columnValue && columnValue.text) {
+        this.existingTransactionsHashes.add(columnValue.text);
+      }
+    }
+    console.info(`${this.existingTransactionsHashes.size} hashes loaded`);
+  }
+
+  async getAllItemsFromBoard(boardId: number): Promise<Item[]> {
+    const headers = {
+      'Authorization': MONDAY_TOKEN,
+      'Content-Type': 'application/json'
+    };
+
+    const query = `
+      query {
+        boards(ids: ${boardId}) {
+          items_page {
+            items {
+              id
+              column_values {
+                id
+                text
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await axios.post<ResponseData>(URL, { query: query }, { headers: headers });
+
+      if (response.data.errors) {
+        console.error('Error fetching items:', response.data.errors);
+        return [];
+      } else {
+        return response.data.data.boards[0].items_page.items;
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      return [];
+    }
+  }
+
 
   async saveTransactions(txns: Array<TransactionRow>) {
     await this.init();
@@ -58,8 +116,37 @@ export class MondayStorage implements TransactionStorage {
     } satisfies SaveStats;
 
     for (const tx of txns) {
+      //Handeling existing transactions
+      if (TRANSACTION_HASH_TYPE === "moneyman") {
+        // Use the new uniqueId as the unique identifier for the transactions if the hash type is moneyman
+        if (this.existingTransactionsHashes.has(tx.uniqueId)) {
+          stats.existing++;
+          stats.skipped++;
+          continue;
+        }
+      }
+
+      if (this.existingTransactionsHashes.has(tx.hash)) {
+        if (TRANSACTION_HASH_TYPE === "moneyman") {
+          logger(`Skipping, old hash ${tx.hash} is already in the sheet`);
+        }
+
+        // To avoid double counting, skip if the new hash is already in the sheet
+        if (!this.existingTransactionsHashes.has(tx.uniqueId)) {
+          stats.existing++;
+          stats.skipped++;
+        }
+
+        continue;
+      }
+
+      if (tx.status === TransactionStatuses.Pending) {
+        stats.pending++;
+        stats.skipped++;
+        continue;
+      }
       // Converting to Monday format.
-      const mondayTx = this.convertTransactionToMondayItem(tx, "1");
+      const mondayTx = this.convertTransactionToMondayItem(tx);
       // Add non-pending and non-empty account ID transactions to the array.
       txToSend.push(mondayTx);
     }
@@ -126,11 +213,9 @@ export class MondayStorage implements TransactionStorage {
   }
 
   private convertTransactionToMondayItem(
-    tx: TransactionRow,
-    accountId: string,
+    tx: TransactionRow
   ): MondayTransaction {
     return {
-      accountId: Number(accountId),
       date: format(parseISO(tx.date), "yyyy-MM-dd", {}),
       amount: tx.chargedAmount,
       description: tx.description,
@@ -144,6 +229,7 @@ export class MondayStorage implements TransactionStorage {
       scraped_at: currentDate,
       scraped_by: systemName,
       identifier: `${tx.identifier ?? ""}`,
+      chargedCurrency: normalizeCurrency(tx.chargedCurrency),
     };
   }
 
@@ -158,9 +244,38 @@ export class MondayStorage implements TransactionStorage {
       },
       date8: transaction.scraped_at,
       text0: transaction.identifier,
-      status3: transaction.category
+      status3: transaction.category,
+      status__1: transaction.chargedCurrency,
+      text__1: transaction.uniqueId
     };
 
     return JSON.stringify(columnValues).replace(/"/g, '\\"');
   }
+}
+
+// TODO: extratct to monday api helper with the function above of graphQL 
+
+interface ColumnValue {
+  id: string;
+  text: string;
+}
+
+interface Item {
+  id: string;
+  column_values: ColumnValue[];
+}
+
+interface ItemsPage {
+  items: Item[];
+}
+
+interface Board {
+  items_page: ItemsPage;
+}
+
+interface ResponseData {
+  data: {
+    boards: Board[];
+  };
+  errors?: any[];
 }
