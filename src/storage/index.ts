@@ -6,6 +6,7 @@ import { AzureDataExplorerStorage } from "./azure-data-explorer.js";
 import { transactionHash, transactionUniqueId } from "./utils.js";
 import { YNABStorage } from "./ynab.js";
 import { BuxferStorage } from "./buxfer.js";
+import { WebPostStorage } from "./web-post.js";
 
 export const storages = [
   new LocalJsonStorage(),
@@ -13,6 +14,7 @@ export const storages = [
   new AzureDataExplorerStorage(),
   new YNABStorage(),
   new BuxferStorage(),
+  new WebPostStorage(),
 ].filter((s) => s.canSave());
 
 export async function initializeStorage() {
