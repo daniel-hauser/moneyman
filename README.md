@@ -173,9 +173,9 @@ Export transactions as a POST request to a web address.
 
 The transactions will be sent as a JSON array in the body of the request with the following structure:
 
-```json
+```
 {
-    date: "dd/mm/yyyy" string,
+    date: string, // "dd/mm/yyyy"
     amount: number,
     description: string,
     memo: string,
@@ -183,16 +183,21 @@ The transactions will be sent as a JSON array in the body of the request with th
     account: string,
     hash: string,
     comment: string | undefined,
-    "scraped at": "YYYY-MM-DD" string,
+    "scraped at": string, // "YYYY-MM-DD"
     "scraped by": string,
     identifier: string,
     chargedCurrency: string | undefined,
 }
 ```
 
+Use the following env vars to setup:
+
+| env variable name | description        |
+| ----------------- | ------------------ |
+| `WEB_POST_URL `   | The URL to post to |
+
 > [!IMPORTANT]
 > Be sure to post only to a trusted server.
-
 
 ### Export to excel on OneDrive
 
