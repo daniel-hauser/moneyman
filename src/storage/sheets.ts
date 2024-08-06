@@ -202,6 +202,4 @@ export class GoogleSheetsStorage implements TransactionStorage {
 
     this.sheet = doc.sheetsByTitle[worksheetName];
   }
-
-  
 }
