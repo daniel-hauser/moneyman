@@ -167,6 +167,33 @@ Use the following env vars to setup:
 | -------------------- | ---------------------------------------------------------------------------------------------- |
 | `LOCAL_JSON_STORAGE` | If truthy, all transaction will be saved to a `<process cwd>/output/<ISO timestamp>.json` file |
 
+### Export to web address
+
+Export transactions as a POST request to a web address.
+
+The transactions will be sent as a JSON array in the body of the request with the following structure:
+
+```json
+{
+    date: "dd/mm/yyyy" string,
+    amount: number,
+    description: string,
+    memo: string,
+    category: string,
+    account: string,
+    hash: string,
+    comment: string | undefined,
+    "scraped at": "YYYY-MM-DD" string,
+    "scraped by": string,
+    identifier: string,
+    chargedCurrency: string | undefined,
+}
+```
+
+> [!IMPORTANT]
+> Be sure to post only to a trusted server.
+
+
 ### Export to excel on OneDrive
 
 WIP
