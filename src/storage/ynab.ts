@@ -49,7 +49,7 @@ export class YNABStorage implements TransactionStorage {
     } satisfies SaveStats;
 
     // Initialize an array to store non-pending and non-empty account ID transactions on YNAB format.
-    const txToSend: ynab.SaveTransaction[] = [];
+    const txToSend: ynab.SaveTransactionWithOptionalFields[] = [];
     const missingAccounts = new Set<string>();
 
     for (let tx of txns) {
@@ -127,14 +127,14 @@ export class YNABStorage implements TransactionStorage {
   private convertTransactionToYnabFormat(
     tx: TransactionRow,
     accountId: string,
-  ): ynab.SaveTransaction {
+  ): ynab.SaveTransactionWithIdOrImportId {
     const amount = Math.round(tx.chargedAmount * 1000);
 
     return {
       account_id: accountId,
       date: format(parseISO(tx.date), YNAB_DATE_FORMAT, {}),
       amount,
-      payee_id: null,
+      payee_id: undefined,
       payee_name: tx.description,
       cleared:
         tx.status === TransactionStatuses.Completed
