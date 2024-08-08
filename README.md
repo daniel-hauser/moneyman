@@ -96,7 +96,7 @@ Example:
 | `FUTURE_MONTHS`         | `1`                | The amount of months that will be scrapped in the future, starting from the day calculated using `DAYS_BACK`                                  |
 | `TRANSACTION_HASH_TYPE` | ``                 | The hash type to use for the transaction hash. Can be `moneyman` or empty. The default will be changed to `moneyman` in the upcoming versions |
 | `HIDDEN_DEPRECATIONS`   | ''                 | A comma separated list of deprecations to hide                                                                                                |
-| `PUPPETEER_EXECUTABLE_PATH`   | undefined          | An ExecutablePath for the scraper. if undefined defaults to system.                                                                           |
+| `PUPPETEER_EXECUTABLE_PATH`   | `undefined`          | An ExecutablePath for the scraper. if undefined defaults to system.                                                                           |
 
 ### Get notified in telegram
 
