@@ -6,8 +6,7 @@ import { createLogger, logToPublicLog } from "./utils/logger.js";
 const logger = createLogger("config");
 
 logger("Parsing config");
-logToPublicLog("Parsing config"
-              );
+logToPublicLog("Parsing config");
 
 const {
   DAYS_BACK,
