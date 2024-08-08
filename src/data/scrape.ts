@@ -14,6 +14,7 @@ export async function getAccountTransactions(
   logger(`started`);
   try {
     const scraper = createScraper({
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
       startDate,
       companyId: account.companyId,
       args: ["--disable-dev-shm-usage", "--no-sandbox"],
