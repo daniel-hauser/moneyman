@@ -9,9 +9,7 @@ import {
   TransactionRow,
 } from "./types";
 
-export function getSummaryMessages(
-  results: Array<AccountScrapeResult>,
-) {
+export function getSummaryMessages(results: Array<AccountScrapeResult>) {
   const accountsSummary = results.flatMap(({ result, companyId }) => {
     if (!result.success) {
       return `\t❌ [${companyId}] ${result.errorType}${
@@ -36,7 +34,7 @@ ${accountsSummary.join("\n") || "\t😶 None"}`.trim(),
 -------
 Pending txns:
 ${transactionList(pending) || "\t😶 None"}
-`.trim()
+`.trim(),
   ].join();
 }
 
