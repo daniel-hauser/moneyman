@@ -11,7 +11,6 @@ import {
 
 export function getSummaryMessages(
   results: Array<AccountScrapeResult>,
-  stats: Array<SaveStats>,
 ) {
   const accountsSummary = results.flatMap(({ result, companyId }) => {
     if (!result.success) {
@@ -34,14 +33,11 @@ ${transactionsString(pending, completed)}
 Accounts updated:
 ${accountsSummary.join("\n") || "\t😶 None"}`.trim(),
     `
-Saved to:
-${stats.map((s) => statsString(s)).join("\n") || "\t😶 None"}
-
 -------
 Pending txns:
 ${transactionList(pending) || "\t😶 None"}
-`.trim(),
-  ];
+`.trim()
+  ].join();
 }
 
 function transactionsString(
@@ -86,7 +82,7 @@ function transactionList(transactions: Array<Transaction>, indent = "\t") {
   return transactions.map((t) => `${indent}${transactionString(t)}`).join("\n");
 }
 
-function statsString(stats: SaveStats): string {
+export function statsString(stats: SaveStats): string {
   return `
 📝 ${stats.name} (${stats.table})
 \t${stats.added} added
