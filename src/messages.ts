@@ -9,10 +9,7 @@ import {
   TransactionRow,
 } from "./types";
 
-export function getSummaryMessages(
-  results: Array<AccountScrapeResult>,
-  stats: Array<SaveStats>,
-) {
+export function getSummaryMessages(results: Array<AccountScrapeResult>) {
   const accountsSummary = results.flatMap(({ result, companyId }) => {
     if (!result.success) {
       return `\t❌ [${companyId}] ${result.errorType}${
@@ -34,14 +31,11 @@ ${transactionsString(pending, completed)}
 Accounts updated:
 ${accountsSummary.join("\n") || "\t😶 None"}`.trim(),
     `
-Saved to:
-${stats.map((s) => statsString(s)).join("\n") || "\t😶 None"}
-
 -------
 Pending txns:
 ${transactionList(pending) || "\t😶 None"}
 `.trim(),
-  ];
+  ].join();
 }
 
 function transactionsString(
@@ -86,7 +80,7 @@ function transactionList(transactions: Array<Transaction>, indent = "\t") {
   return transactions.map((t) => `${indent}${transactionString(t)}`).join("\n");
 }
 
-function statsString(stats: SaveStats): string {
+export function statsString(stats: SaveStats): string {
   return `
 📝 ${stats.name} (${stats.table})
 \t${stats.added} added

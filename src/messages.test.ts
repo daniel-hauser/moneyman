@@ -1,5 +1,5 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
-import { getSummaryMessages } from "./messages";
+import { getSummaryMessages, statsString } from "./messages";
 import {
   AccountScrapeResult,
   SaveStats,
@@ -107,9 +107,11 @@ describe("messages", () => {
         },
       ];
 
-      const summary = getSummaryMessages(results, stats);
-
+      const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
+
+      const saveSummaries = stats.map(statsString);
+      expect(saveSummaries).toMatchSnapshot();
     });
 
     it("should return a summary message with no results", () => {
@@ -117,9 +119,11 @@ describe("messages", () => {
 
       const stats: Array<SaveStats> = [];
 
-      const summary = getSummaryMessages(results, stats);
-
+      const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
+
+      const saveSummaries = stats.map(statsString);
+      expect(saveSummaries).toMatchSnapshot();
     });
 
     it("should return a summary message with failed results", () => {
@@ -155,9 +159,11 @@ describe("messages", () => {
 
       const stats: Array<SaveStats> = [];
 
-      const summary = getSummaryMessages(results, stats);
-
+      const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
+
+      const saveSummaries = stats.map(statsString);
+      expect(saveSummaries).toMatchSnapshot();
     });
 
     it("should return a summary message with installments", () => {
@@ -212,9 +218,11 @@ describe("messages", () => {
         },
       ];
 
-      const summary = getSummaryMessages(results, stats);
-
+      const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
+
+      const saveSummaries = stats.map(statsString);
+      expect(saveSummaries).toMatchSnapshot();
     });
   });
 });
