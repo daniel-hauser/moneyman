@@ -88,14 +88,15 @@ Example:
 
 #### Other configurations
 
-| env variable name       | default            | description                                                                                                                                   |
-| ----------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ACCOUNTS_TO_SCRAPE`    | `""`               | A comma separated list of providers to take from `ACCOUNTS_JSON`. if empty, all accounts will be used                                         |
-| `DAYS_BACK`             | `10`               | The amount of days back to scrape                                                                                                             |
-| `TZ`                    | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                                                         |
-| `FUTURE_MONTHS`         | `1`                | The amount of months that will be scrapped in the future, starting from the day calculated using `DAYS_BACK`                                  |
-| `TRANSACTION_HASH_TYPE` | ``                 | The hash type to use for the transaction hash. Can be `moneyman` or empty. The default will be changed to `moneyman` in the upcoming versions |
-| `HIDDEN_DEPRECATIONS`   | ''                 | A comma separated list of deprecations to hide                                                                                                |
+| env variable name           | default            | description                                                                                                                                   |
+| --------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ACCOUNTS_TO_SCRAPE`        | `""`               | A comma separated list of providers to take from `ACCOUNTS_JSON`. if empty, all accounts will be used                                         |
+| `DAYS_BACK`                 | `10`               | The amount of days back to scrape                                                                                                             |
+| `TZ`                        | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                                                         |
+| `FUTURE_MONTHS`             | `1`                | The amount of months that will be scrapped in the future, starting from the day calculated using `DAYS_BACK`                                  |
+| `TRANSACTION_HASH_TYPE`     | ``                 | The hash type to use for the transaction hash. Can be `moneyman` or empty. The default will be changed to `moneyman` in the upcoming versions |
+| `HIDDEN_DEPRECATIONS`       | ''                 | A comma separated list of deprecations to hide                                                                                                |
+| `PUPPETEER_EXECUTABLE_PATH` | `undefined`        | An ExecutablePath for the scraper. if undefined defaults to system.                                                                           |
 
 ### Get notified in telegram
 
@@ -166,6 +167,38 @@ Use the following env vars to setup:
 | env variable name    | description                                                                                    |
 | -------------------- | ---------------------------------------------------------------------------------------------- |
 | `LOCAL_JSON_STORAGE` | If truthy, all transaction will be saved to a `<process cwd>/output/<ISO timestamp>.json` file |
+
+### Export to web address
+
+Export transactions as a POST request to a web address.
+
+The transactions will be sent as a JSON array in the body of the request with the following structure:
+
+```
+{
+    date: string, // "dd/mm/yyyy"
+    amount: number,
+    description: string,
+    memo: string,
+    category: string,
+    account: string,
+    hash: string,
+    comment: string | undefined,
+    "scraped at": string, // "YYYY-MM-DD"
+    "scraped by": string,
+    identifier: string,
+    chargedCurrency: string | undefined,
+}
+```
+
+Use the following env vars to setup:
+
+| env variable name | description        |
+| ----------------- | ------------------ |
+| `WEB_POST_URL `   | The URL to post to |
+
+> [!IMPORTANT]
+> Be sure to post only to a trusted server.
 
 ### Export to excel on OneDrive
 
