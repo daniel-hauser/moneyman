@@ -1,5 +1,5 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
-import { getSummaryMessages, statsString } from "./messages";
+import { getSummaryMessages, saved } from "./messages";
 import {
   AccountScrapeResult,
   SaveStats,
@@ -110,7 +110,7 @@ describe("messages", () => {
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map(saved);
       expect(saveSummaries).toMatchSnapshot();
     });
 
@@ -122,7 +122,7 @@ describe("messages", () => {
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map(saved);
       expect(saveSummaries).toMatchSnapshot();
     });
 
@@ -162,7 +162,7 @@ describe("messages", () => {
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map(saved);
       expect(saveSummaries).toMatchSnapshot();
     });
 
@@ -221,7 +221,7 @@ describe("messages", () => {
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map(saved);
       expect(saveSummaries).toMatchSnapshot();
     });
   });
