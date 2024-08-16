@@ -15,14 +15,11 @@ logToPublicLog(
 );
 
 export async function send(message: string) {
-  logger(message);
   if (message.length > 4096) {
     send(`Next message is too long (${message.length} characters), truncating`);
-    return await bot?.telegram.sendMessage(
-      TELEGRAM_CHAT_ID,
-      message.slice(0, 4096),
-    );
+    return send(message.slice(0, 4096));
   }
+  logger(message);
   return await bot?.telegram.sendMessage(TELEGRAM_CHAT_ID, message);
 }
 
