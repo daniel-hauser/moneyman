@@ -24,18 +24,15 @@ export function getSummaryMessages(results: Array<AccountScrapeResult>) {
 
   const { pending, completed } = transactionsByStatus(results);
 
-  return [
-    `
+  return `
 ${transactionsString(pending, completed)}
 
 Accounts updated:
-${accountsSummary.join("\n") || "\t😶 None"}`.trim(),
-    `
--------
+${accountsSummary.join("\n") || "\t😶 None"}
+
 Pending txns:
 ${transactionList(pending) || "\t😶 None"}
-`.trim(),
-  ].join();
+`.trim();
 }
 
 function transactionsString(
