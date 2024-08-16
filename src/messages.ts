@@ -24,18 +24,15 @@ export function getSummaryMessages(results: Array<AccountScrapeResult>) {
 
   const { pending, completed } = transactionsByStatus(results);
 
-  return [
-    `
+  return `
 ${transactionsString(pending, completed)}
 
 Accounts updated:
-${accountsSummary.join("\n") || "\t😶 None"}`.trim(),
-    `
--------
+${accountsSummary.join("\n") || "\t😶 None"}
+
 Pending txns:
 ${transactionList(pending) || "\t😶 None"}
-`.trim(),
-  ].join();
+`.trim();
 }
 
 function transactionsString(
@@ -79,8 +76,11 @@ function transactionString(t: Transaction) {
 function transactionList(transactions: Array<Transaction>, indent = "\t") {
   return transactions.map((t) => `${indent}${transactionString(t)}`).join("\n");
 }
+export function saving(storage: string) {
+  return `📝 ${storage} Saving...`;
+}
 
-export function statsString(stats: SaveStats): string {
+export function saved(stats: SaveStats): string {
   return `
 📝 ${stats.name} (${stats.table})
 \t${stats.added} added

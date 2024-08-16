@@ -15,15 +15,21 @@ logToPublicLog(
 );
 
 export async function send(message: string) {
-  logger(message);
   if (message.length > 4096) {
     send(`Next message is too long (${message.length} characters), truncating`);
-    return await bot?.telegram.sendMessage(
-      TELEGRAM_CHAT_ID,
-      message.slice(0, 4096),
-    );
+    return send(message.slice(0, 4096));
   }
+  logger(message);
   return await bot?.telegram.sendMessage(TELEGRAM_CHAT_ID, message);
+}
+
+export async function sendPhoto(photoPath: string, caption: string) {
+  logger(`Sending photo`, { photoPath, caption });
+  return await bot?.telegram.sendPhoto(
+    TELEGRAM_CHAT_ID,
+    { source: photoPath },
+    { caption, has_spoiler: true },
+  );
 }
 
 export async function deleteMessage(message: Message.TextMessage) {
