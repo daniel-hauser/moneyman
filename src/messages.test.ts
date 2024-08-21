@@ -224,6 +224,55 @@ describe("messages", () => {
       const saveSummaries = stats.map(saved);
       expect(saveSummaries).toMatchSnapshot();
     });
+
+    it("should not add empty groups", () => {
+      const stats: Array<SaveStats> = [
+        {
+          name: "Storage",
+          table: "TheTable",
+          total: 1,
+          added: 0,
+          pending: 0,
+          skipped: 0,
+          existing: 0,
+          highlightedTransactions: {
+            Group1: [],
+            Group2: [
+              {
+                ...transaction({}),
+                hash: "hash1",
+                uniqueId: "uniqueId1",
+                account: "account1",
+                companyId: CompanyTypes.max,
+              },
+            ],
+          },
+        },
+      ];
+
+      const saveSummaries = stats.map(saved);
+      expect(saveSummaries).toMatchSnapshot();
+    });
+
+    it("should not add empty groups", () => {
+      const stats: Array<SaveStats> = [
+        {
+          name: "Storage",
+          table: "TheTable",
+          total: 1,
+          added: 0,
+          pending: 0,
+          skipped: 0,
+          existing: 0,
+          highlightedTransactions: {
+            Group1: [],
+          },
+        },
+      ];
+
+      const saveSummaries = stats.map(saved);
+      expect(saveSummaries).toMatchSnapshot();
+    });
   });
 });
 
