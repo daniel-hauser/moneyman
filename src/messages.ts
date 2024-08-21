@@ -120,18 +120,15 @@ function highlightedTransactionsString(
 
   const indentString = "\t".repeat(indent);
   const groupsString = Object.entries(groups)
-  .filter(([_, txns]) => txns.length > 0)
-  .map(([name, txns]) => {
-    const transactionsString = transactionList(txns, `${indentString}\t`);
-    return `${indentString}${name}:\n${transactionsString}`;
-  });
+    .filter(([_, txns]) => txns.length > 0)
+    .map(([name, txns]) => {
+      const transactionsString = transactionList(txns, `${indentString}\t`);
+      return `${indentString}${name}:\n${transactionsString}`;
+    });
 
   if (groupsString.length === 0) {
     return "";
   }
 
-  return (
-    `${indentString}${"-".repeat(5)}\n` +
-    `${groupsString}`
-  );
+  return `${indentString}${"-".repeat(5)}\n` + `${groupsString}`;
 }
