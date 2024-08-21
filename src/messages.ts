@@ -130,5 +130,5 @@ function highlightedTransactionsString(
     return "";
   }
 
-  return `${indentString}${"-".repeat(5)}\n` + `${groupsString}`;
+  return `${indentString}${"-".repeat(5)}\n${groupsString}`;
 }
