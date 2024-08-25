@@ -60,15 +60,6 @@ async function main() {
     logToPublicLog("Initializing SpreadsheetManager...");
     await spreadsheetManager.initialize();
 
-    // Log the contents of the 'map' sheet
-    const mapRows = await spreadsheetManager.getRows("map");
-    logToPublicLog(`'map' sheet contents (first 5 rows):`);
-    mapRows.slice(0, 5).forEach((row, index) => {
-      logToPublicLog(
-        `Row ${index + 1}: merchant_name="${row.get("merchant_name")}", category="${row.get("category")}"`,
-      );
-    });
-
     logToPublicLog("Creating TransactionClassifier...");
     const transactionClassifier = new TransactionClassifier(
       spreadsheetManager,

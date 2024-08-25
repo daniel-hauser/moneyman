@@ -145,10 +145,9 @@ export class TransactionClassifier {
   private async autoClassifyTransactions(context: any) {
     try {
       const rows = await this.spreadsheetManager.getRows("Sheet5");
-      logToPublicLog(`Loaded ${rows.length} rows from Sheet5`);
 
       const merchantCategoryMap = await this.buildMerchantCategoryMap();
-      logToPublicLog(
+      logger(
         `Merchant Category Map size: ${Object.keys(merchantCategoryMap).length}`,
       );
 
@@ -156,25 +155,19 @@ export class TransactionClassifier {
       for (let index = 0; index < rows.length; index++) {
         const row = rows[index];
         const description = row.get("description")?.trim().toLowerCase() || "";
-        logToPublicLog(
-          `Processing row ${index + 1}. Description: "${row.get("description")}", Trimmed: "${description}"`,
-        );
 
         if (description && merchantCategoryMap[description]) {
           // Auto-classification based on the map
           const category = merchantCategoryMap[description];
           row.set("classification", category);
           await row.save();
-          logToPublicLog(
-            `Row ${index + 1}: Automatically classified as '${merchantCategoryMap[description]}' based on the 'map' sheet.`,
-          );
         }
       }
 
       // Second pass: Manual classification for remaining unclassified rows
       await this.promptUserForClassification(context, rows, 0);
     } catch (error) {
-      logToPublicLog(`Error in classifyTransactions: ${error.message}`);
+      logger(`Error in classifyTransactions: ${error.message}`);
     }
   }
 
@@ -188,9 +181,6 @@ export class TransactionClassifier {
 
       if (!row.get("classification")) {
         const description = row.get("description") || "No Description";
-        logToPublicLog(
-          `Row ${index + 1} has no 'Classification'. Description: ${description}`,
-        );
 
         const splitButton = Markup.button.callback(
           "Split Transaction",
@@ -218,7 +208,7 @@ export class TransactionClassifier {
       }
     }
 
-    logToPublicLog(
+    logger(
       "Finished classifyTransactions. No rows need classification.",
     );
     await context.reply("All transactions have been classified.");
@@ -227,8 +217,6 @@ export class TransactionClassifier {
   private async buildMerchantCategoryMap(): Promise<{ [key: string]: string }> {
     const mapRows = await this.spreadsheetManager.getRows("map");
     const merchantCategoryMap: { [key: string]: string } = {};
-
-    logToPublicLog(`Loaded ${mapRows.length} rows from 'map' sheet`);
 
     mapRows.forEach((mapRow) => {
       const merchantName =
@@ -251,7 +239,6 @@ export class TransactionClassifier {
     if (!headers.includes("override_amount")) {
       headers.push("override_amount");
       await this.spreadsheetManager.setHeaders("Sheet5", headers);
-      logToPublicLog(`Added 'override_amount' column to the sheet.`);
     }
 
     // Prompt the user to enter the override amount
@@ -281,9 +268,6 @@ export class TransactionClassifier {
 
         await ctx.reply(
           `Override amount of ${overrideAmount} saved for this transaction.`,
-        );
-        logToPublicLog(
-          `Row ${rowIndex + 1}: Override amount of ${overrideAmount} saved.`,
         );
 
         // After saving, prompt the user to classify the same row

@@ -22,10 +22,6 @@ export class SpreadsheetManager {
 
   async initialize() {
     await this.document.loadInfo();
-    logToPublicLog(`Loaded document: ${this.document.title}`);
-    logToPublicLog(
-      `Available sheets: ${Object.keys(this.document.sheetsByTitle).join(", ")}`,
-    );
 
     // Pre-load all sheets defined in SHEET_NAMES
     for (const sheetName of Object.values(SHEET_NAMES)) {
@@ -39,7 +35,7 @@ export class SpreadsheetManager {
       if (!this.sheets[sheetName]) {
         throw new Error(`Worksheet '${sheetName}' does not exist.`);
       }
-      logToPublicLog(`Worksheet '${sheetName}' accessed successfully.`);
+      logger(`Worksheet '${sheetName}' accessed successfully.`);
     }
     return this.sheets[sheetName];
   }
@@ -60,7 +56,6 @@ export class SpreadsheetManager {
   async getRows(sheetName: string) {
     const sheet = await this.loadSheet(sheetName);
     const rows = await sheet.getRows();
-    logToPublicLog(`Fetched ${rows.length} rows from '${sheetName}'.`);
     return rows;
   }
 
@@ -73,8 +68,5 @@ export class SpreadsheetManager {
       category: category,
       is_dynamic: "FALSE",
     });
-    logToPublicLog(
-      `Added new mapping: ${merchantName} -> ${category} with is_dynamic = FALSE`,
-    );
   }
 }
