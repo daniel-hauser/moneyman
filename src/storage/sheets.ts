@@ -3,7 +3,7 @@ import {
   GoogleSpreadsheet,
   GoogleSpreadsheetWorksheet,
 } from "google-spreadsheet";
-import { JWT, GoogleAuth } from "google-auth-library";
+import { JWT } from "google-auth-library";
 import { parseISO, format } from "date-fns";
 import {
   GOOGLE_SHEET_ID,
@@ -78,11 +78,15 @@ export class GoogleSheetsStorage implements TransactionStorage {
   private sheet: null | GoogleSpreadsheetWorksheet = null;
 
   async init() {
-    // Init only once
     if (!this.initPromise) {
       this.initPromise = (async () => {
-        await this.initDocAndSheet();
-        await this.loadHashes();
+        try {
+          await this.initDocAndSheet();
+          await this.loadHashes();
+        } catch (error) {
+          logger(`Error initializing GoogleSheetsStorage: ${error.message}`);
+          throw error;
+        }
       })();
     }
 
@@ -116,7 +120,6 @@ export class GoogleSheetsStorage implements TransactionStorage {
 
     for (let tx of txns) {
       if (TRANSACTION_HASH_TYPE === "moneyman") {
-        // Use the new uniqueId as the unique identifier for the transactions if the hash type is moneyman
         if (this.existingTransactionsHashes.has(tx.uniqueId)) {
           stats.existing++;
           stats.skipped++;
@@ -129,7 +132,6 @@ export class GoogleSheetsStorage implements TransactionStorage {
           logger(`Skipping, old hash ${tx.hash} is already in the sheet`);
         }
 
-        // To avoid double counting, skip if the new hash is already in the sheet
         if (!this.existingTransactionsHashes.has(tx.uniqueId)) {
           stats.existing++;
           stats.skipped++;
@@ -161,11 +163,16 @@ export class GoogleSheetsStorage implements TransactionStorage {
   }
 
   private async loadHashes() {
-    const rows = await this.sheet?.getRows<SheetRow>();
-    for (let row of rows!) {
-      this.existingTransactionsHashes.add(row.get("hash"));
+    try {
+      const rows = await this.sheet?.getRows<SheetRow>();
+      for (let row of rows!) {
+        this.existingTransactionsHashes.add(row.get("hash"));
+      }
+      logger(`${this.existingTransactionsHashes.size} hashes loaded`);
+    } catch (error) {
+      logger(`Error loading hashes: ${error.message}`);
+      throw error;
     }
-    logger(`${this.existingTransactionsHashes.size} hashes loaded`);
   }
 
   private async initDocAndSheet() {
@@ -174,30 +181,36 @@ export class GoogleSheetsStorage implements TransactionStorage {
       GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: private_key,
     } = process.env;
 
-    // By default, try to automatically get credentials
-    // (maybe we're running in Google Cloud, who knows)
-    let authToken: JWT | GoogleAuth<any> = new GoogleAuth({
-      scopes: [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive.file",
-      ],
-    });
-    if (client_email && private_key) {
-      logger("Using ServiceAccountAuth");
+    let authToken: JWT;
+    try {
       authToken = new JWT({
         email: client_email,
         key: private_key,
         scopes: ["https://www.googleapis.com/auth/spreadsheets"],
       });
+    } catch (error) {
+      logger(`Error initializing JWT: ${error.message}`);
+      throw error;
     }
+
     const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, authToken);
 
-    await doc.loadInfo();
+    try {
+      await doc.loadInfo();
+    } catch (error) {
+      logger(`Error loading Google Spreadsheet: ${error.message}`);
+      throw error;
+    }
 
     if (!(worksheetName in doc.sheetsByTitle)) {
       logger("Creating new sheet");
-      const sheet = await doc.addSheet({ title: worksheetName });
-      await sheet.setHeaderRow(GoogleSheetsStorage.FileHeaders);
+      try {
+        const sheet = await doc.addSheet({ title: worksheetName });
+        await sheet.setHeaderRow(GoogleSheetsStorage.FileHeaders);
+      } catch (error) {
+        logger(`Error creating new sheet: ${error.message}`);
+        throw error;
+      }
     }
 
     this.sheet = doc.sheetsByTitle[worksheetName];
