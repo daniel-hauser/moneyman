@@ -35,3 +35,10 @@ jobs:
           context: .
           push: true
           tags: ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:latest
+
+      - name: Verify Docker image
+        run: |
+          echo "Verifying Docker image..."
+          docker run --rm ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:latest node --version
+          docker run --rm ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:latest npm --version
+          echo "Docker image verification complete."

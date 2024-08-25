@@ -10,9 +10,11 @@
   "scripts": {
     "act": "go run github.com/nektos/act@latest",
     "start": "node dst/index.js",
+    "classify": "npx tsc && node ./dst/main.js",
     "start:container": "docker compose up",
     "postinstall": "patch-package",
     "build": "tsc",
+    "clean": "tsc --build --clean",
     "lint": "prettier --check .",
     "lint:fix": "prettier --write .",
     "test": "jest"
