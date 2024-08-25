@@ -85,7 +85,6 @@ export const classificationOptions = [
     { name: "אלברט", emoji: "🐶" },
     { name: "מעבר דירה", emoji: "🚚" },
     { name: "מים", emoji: "💧" },
-    { name: "פסיכולוגית שיר", emoji: "🧠" },
     { name: "תקשורת", emoji: "📡" },
     { name: "כושר", emoji: "💪" },
     { name: "אמזון", emoji: "📦" },
