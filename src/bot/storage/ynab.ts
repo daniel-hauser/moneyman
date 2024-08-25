@@ -3,7 +3,7 @@ import {
   YNAB_BUDGET_ID,
   YNAB_ACCOUNTS,
   TRANSACTION_HASH_TYPE,
-} from "../AppConfig.js";
+} from "../config/AppConfig.js";
 import { SaveStats, TransactionRow, TransactionStorage } from "../types.js";
 import { createLogger } from "./../utils/logger.js";
 import { parseISO, format } from "date-fns";

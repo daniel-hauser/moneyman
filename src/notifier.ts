@@ -1,6 +1,6 @@
 import { Telegraf, TelegramError } from "telegraf";
 import { Message } from "telegraf/typings/core/types/typegram";
-import { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID } from "./AppConfig.js";
+import { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID } from "./config/AppConfig.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 
 const logger = createLogger("notifier");

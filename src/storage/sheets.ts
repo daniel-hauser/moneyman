@@ -11,7 +11,7 @@ import {
   currentDate,
   systemName,
   TRANSACTION_HASH_TYPE,
-} from "../AppConfig.js";
+} from "../config/AppConfig.js";
 import type {
   TransactionRow,
   TransactionStorage,

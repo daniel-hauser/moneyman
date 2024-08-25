@@ -7,7 +7,7 @@ import {
   IngestionProperties,
 } from "azure-kusto-ingest";
 import { sendError } from "../notifier.js";
-import { systemName } from "../AppConfig.js";
+import { systemName } from "../config/AppConfig.js";
 import { createLogger } from "./../utils/logger.js";
 import type KustoIngestClient from "azure-kusto-ingest/types/src/ingestClient.js";
 import type {
