@@ -208,9 +208,7 @@ export class TransactionClassifier {
       }
     }
 
-    logger(
-      "Finished classifyTransactions. No rows need classification.",
-    );
+    logger("Finished classifyTransactions. No rows need classification.");
     await context.reply("All transactions have been classified.");
   }
 
