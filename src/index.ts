@@ -1,5 +1,9 @@
 import { scrapeAccounts } from "./data/index.js";
-import { accounts, futureMonthsToScrape, scrapeStartDate } from "./config/AppConfig.js";
+import {
+  accounts,
+  futureMonthsToScrape,
+  scrapeStartDate,
+} from "./config/AppConfig.js";
 import { send, editMessage, sendError } from "./notifier.js";
 import { saveResults, storages } from "./storage/index.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";

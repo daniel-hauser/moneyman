@@ -8,7 +8,7 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "run",
-        "classify"  // Replace "start" with your npm script name
+        "classify" // Replace "start" with your npm script name
       ],
       "port": 9229,
       "console": "integratedTerminal",
