@@ -4,7 +4,7 @@ import type {
   TransactionStorage,
   SaveStats,
 } from "../types.js";
-import { WEB_POST_URL } from "../config/AppConfig.js";
+import { WEB_POST_URL } from "../config/ScrapeConfig.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { transactionRow } from "./sheets.js";
 

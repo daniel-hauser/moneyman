@@ -1,19 +1,23 @@
-import "dotenv/config";
-import { subDays, format } from "date-fns";
+import { subDays } from "date-fns";
 import { AccountConfig } from "../types.js";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
+import {
+  TELEGRAM_API_KEY,
+  TELEGRAM_CHAT_ID,
+  GOOGLE_SHEET_ID,
+  systemTimezone,
+  systemName,
+  currentDate,
+} from "./SharedConfig.js";
 
 const logger = createLogger("config");
 
-logger("Parsing config");
-logToPublicLog("Parsing config");
+logger("Parsing scrape config");
+logToPublicLog("Parsing scrape config");
 
 const {
   DAYS_BACK,
   ACCOUNTS_JSON,
-  TELEGRAM_API_KEY = "",
-  TELEGRAM_CHAT_ID = "",
-  GOOGLE_SHEET_ID = "",
   WORKSHEET_NAME,
   ACCOUNTS_TO_SCRAPE = "",
   FUTURE_MONTHS = "",
@@ -27,17 +31,20 @@ const {
   WEB_POST_URL = "",
 } = process.env;
 
-/**
- * Add default values in case the value is falsy (0 is not valid here) or an empty string
- */
 export const daysBackToScrape = DAYS_BACK || 10;
 export const worksheetName = WORKSHEET_NAME || "_moneyman";
 export const futureMonthsToScrape = parseInt(FUTURE_MONTHS, 10);
-export const systemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+export const scrapeStartDate = subDays(Date.now(), Number(daysBackToScrape));
 
 const accountsToScrape = ACCOUNTS_TO_SCRAPE.split(",")
   .filter(Boolean)
   .map((a) => a.trim());
+
+export const accounts = parseAccounts(ACCOUNTS_JSON).filter(
+  (account) =>
+    accountsToScrape.length === 0 ||
+    accountsToScrape.includes(account.companyId),
+);
 
 export {
   TELEGRAM_API_KEY,
@@ -51,16 +58,10 @@ export {
   BUXFER_ACCOUNTS,
   TRANSACTION_HASH_TYPE,
   WEB_POST_URL,
+  systemName,
+  systemTimezone,
+  currentDate,
 };
-export const systemName = "moneyman";
-export const currentDate = format(Date.now(), "yyyy-MM-dd");
-export const scrapeStartDate = subDays(Date.now(), Number(daysBackToScrape));
-
-export const accounts = parseAccounts(ACCOUNTS_JSON).filter(
-  (account) =>
-    accountsToScrape.length == 0 ||
-    accountsToScrape.includes(account.companyId),
-);
 
 function parseAccounts(accountsJson?: string): Array<AccountConfig> {
   try {
@@ -74,7 +75,7 @@ function parseAccounts(accountsJson?: string): Array<AccountConfig> {
   throw new TypeError("ACCOUNTS_JSON must be a valid array");
 }
 
-logger("Config parsed", {
+logger("Scrape Config parsed", {
   systemName,
   systemTimezone,
   scrapeStartDate,

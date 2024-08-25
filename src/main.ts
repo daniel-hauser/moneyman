@@ -1,10 +1,10 @@
 import { SpreadsheetManager } from "./spreadsheet/SpreadsheetManager.js";
 import { TransactionClassifier } from "./bot/TransactionClassifier.js";
 import {
-  GOOGLE_SHEET_ID,
   TELEGRAM_API_KEY,
   TELEGRAM_CHAT_ID,
-} from "./config/AppConfig.js";
+  GOOGLE_SHEET_ID,
+} from "./config/ClassifyConfig.js";
 import { classificationOptions } from "./config/config.js";
 import { JWT } from "google-auth-library";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
