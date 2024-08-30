@@ -8,6 +8,7 @@ import {
 import { classificationOptions } from "./config/config.js";
 import { JWT } from "google-auth-library";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
+import { send } from "./notifier.js";
 
 const logger = createLogger("main");
 
@@ -33,6 +34,9 @@ async function main() {
     validateEnvVariables();
 
     logToPublicLog("Starting application...");
+    await send(
+      "Application is starting... Preparing to classify transactions if available.",
+    );
 
     const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
     const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(
@@ -69,6 +73,7 @@ async function main() {
     );
 
     logToPublicLog("Starting bot...");
+    await send("Bot is starting... You can now classify transactions.");
     transactionClassifier.startBot();
 
     logToPublicLog("Application started successfully.");

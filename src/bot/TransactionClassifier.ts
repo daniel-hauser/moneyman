@@ -40,32 +40,27 @@ export class TransactionClassifier {
       return;
     }
 
-    this.bot.start((context) => {
-      this.resetInactivityTimeout(); // Reset timeout on start
-      context.reply(
-        "Welcome! Use /classify to start classifying transactions.",
-      );
-    });
-
-    // Listen for /classify command
-    this.bot.command("classify", (context) => {
-      this.resetInactivityTimeout(); // Reset timeout on /classify
-      this.autoClassifyTransactions(context);
-    });
-
-    // Register action handlers only once
-    this.registerActionHandlers();
-
+    // Start auto-classification immediately after bot launch
     this.bot
       .launch()
-      .then(() => {
+      .then(async () => {
         logToPublicLog("Bot launched successfully.");
-        logToPublicLog("Bot is running...");
+        logToPublicLog("Starting auto-classification...");
+        await this.autoClassifyTransactions(); // Auto-classify on launch
         this.resetInactivityTimeout(); // Start inactivity timer on launch
       })
       .catch((error) => {
         logToPublicLog(`Failed to launch the bot: ${error.message}`);
       });
+
+    // Listen for /classify command to start manual classification
+    this.bot.command("classify", (context) => {
+      this.resetInactivityTimeout(); // Reset timeout on /classify
+      this.promptUserForClassification(context, [], 0); // Start manual classification
+    });
+
+    // Register action handlers only once
+    this.registerActionHandlers();
 
     process.on("SIGINT", () => {
       this.bot?.stop("SIGINT");
@@ -142,7 +137,7 @@ export class TransactionClassifier {
     await this.promptUserForClassification(ctxAction, rows, rowIndex + 1);
   }
 
-  private async autoClassifyTransactions(context: any) {
+  private async autoClassifyTransactions(context?: any) {
     try {
       const rows = await this.spreadsheetManager.getRows("Sheet5");
 
@@ -150,6 +145,8 @@ export class TransactionClassifier {
       logger(
         `Merchant Category Map size: ${Object.keys(merchantCategoryMap).length}`,
       );
+
+      let classifiedCount = 0;
 
       // First pass: Auto-classification
       for (let index = 0; index < rows.length; index++) {
@@ -161,13 +158,34 @@ export class TransactionClassifier {
           const category = merchantCategoryMap[description];
           row.set("classification", category);
           await row.save();
+          classifiedCount++; // Increment the classified count
         }
       }
 
+      // Send a summary message to the user
+      const totalRows = rows.length;
+      const summaryMessage = `Auto-classification completed. Classified ${classifiedCount} out of ${totalRows} rows.`;
+
+      logger(summaryMessage);
+      if (context) {
+        await context.reply(summaryMessage);
+      }
+
       // Second pass: Manual classification for remaining unclassified rows
-      await this.promptUserForClassification(context, rows, 0);
+      if (context) {
+        await this.promptUserForClassification(context, rows, 0); // Provide the startIndex argument
+      }
+
+      logger(
+        "Auto-classification complete. Waiting for manual classification...",
+      );
     } catch (error) {
-      logger(`Error in classifyTransactions: ${error.message}`);
+      logger(`Error in autoClassifyTransactions: ${error.message}`);
+      if (context) {
+        await context.reply(
+          `Error during auto-classification: ${error.message}`,
+        );
+      }
     }
   }
 
