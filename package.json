@@ -40,7 +40,7 @@
     "hash-it": "^6.0.0",
     "israeli-bank-scrapers": "^5.1.1",
     "telegraf": "^4.16.3",
-    "ynab": "^2.4.0"
+    "ynab": "^2.5.0"
   },
   "devDependencies": {
     "@types/debug": "^4.1.12",
