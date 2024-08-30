@@ -180,10 +180,10 @@ export class GoogleSheetsStorage implements TransactionStorage {
       GOOGLE_SERVICE_ACCOUNT_EMAIL: client_email,
       GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: raw_private_key,
     } = process.env;
-  
+
     // Replace escaped newlines with actual newlines
     const private_key = raw_private_key?.replace(/\\n/g, "\n");
-  
+
     let authToken: JWT;
     try {
       authToken = new JWT({
@@ -195,16 +195,16 @@ export class GoogleSheetsStorage implements TransactionStorage {
       logger(`Error initializing JWT: ${error.message}`);
       throw error;
     }
-  
+
     const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, authToken);
-  
+
     try {
       await doc.loadInfo();
     } catch (error) {
       logger(`Error loading Google Spreadsheet: ${error.message}`);
       throw error;
     }
-  
+
     if (!(worksheetName in doc.sheetsByTitle)) {
       logger("Creating new sheet");
       try {
@@ -215,8 +215,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
         throw error;
       }
     }
-  
+
     this.sheet = doc.sheetsByTitle[worksheetName];
   }
-  
 }
