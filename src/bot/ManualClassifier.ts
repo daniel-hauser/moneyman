@@ -1,10 +1,7 @@
-// ManualClassifier.ts
-
 import { Telegraf, Markup } from "telegraf";
 import { SpreadsheetManager } from "../spreadsheet/SpreadsheetManager.js";
 import { createLogger } from "../utils/logger.js";
 import { MonthlySummary } from "./MonthlySummary.js";
-import { parseISO, isSameMonth } from "date-fns";
 
 const logger = createLogger("ManualClassifier");
 
@@ -43,6 +40,8 @@ export class ManualClassifier {
       try {
         logger("Summary requested by user command.");
         await this.monthlySummary.summarizeCurrentMonth(context, "Sheet5");
+        this.bot.stop(); // Stop the bot gracefully after summary
+        process.exit(0); // Exit the process after summary
       } catch (error) {
         logger(`Error during summary generation: ${error.message}`);
         context.reply(`Error during summary generation: ${error.message}`);
@@ -86,6 +85,18 @@ export class ManualClassifier {
       }
     });
 
+    this.bot.action("finish_classification", async (context) => {
+      logger("User finished classification. Generating summary...");
+
+      // Automatically trigger the summary after classification is done
+      await context.reply("Summarizing...");
+      await this.monthlySummary.summarizeCurrentMonth(context, "Sheet5");
+
+      // Stop the bot gracefully after summary
+      this.bot.stop();
+      process.exit(0); // Exit the process after summary
+    });
+
     this.bot
       .launch()
       .then(() => {
@@ -93,6 +104,7 @@ export class ManualClassifier {
       })
       .catch((error) => {
         logger(`Bot launch failed: ${error.message}`);
+        process.exit(1); // Exit with error
       });
   }
 
@@ -154,6 +166,10 @@ export class ManualClassifier {
       // Automatically trigger the summary after classification is done
       await context.reply("Summarizing...");
       await this.monthlySummary.summarizeCurrentMonth(context, sheetName);
+
+      // Stop the bot gracefully after summary
+      this.bot.stop();
+      process.exit(0); // Exit the process after summary
     }
   }
 
