@@ -1,14 +1,16 @@
+import { AutoClassifier } from "./bot/AutoClassifier.js";
+import { ManualClassifier } from "./bot/ManualClassifier.js";
 import { SpreadsheetManager } from "./spreadsheet/SpreadsheetManager.js";
-import { TransactionClassifier } from "./bot/TransactionClassifier.js";
+import { JWT } from "google-auth-library";
+import { createLogger, logToPublicLog } from "./utils/logger.js";
+import { send } from "./notifier.js";
+import { Telegraf } from "telegraf";
 import {
   TELEGRAM_API_KEY,
   TELEGRAM_CHAT_ID,
   GOOGLE_SHEET_ID,
 } from "./config/ClassifyConfig.js";
 import { classificationOptions } from "./config/config.js";
-import { JWT } from "google-auth-library";
-import { createLogger, logToPublicLog } from "./utils/logger.js";
-import { send } from "./notifier.js";
 
 const logger = createLogger("main");
 
@@ -64,17 +66,40 @@ async function main() {
     logToPublicLog("Initializing SpreadsheetManager...");
     await spreadsheetManager.initialize();
 
-    logToPublicLog("Creating TransactionClassifier...");
-    const transactionClassifier = new TransactionClassifier(
-      spreadsheetManager,
-      TELEGRAM_API_KEY,
-      TELEGRAM_CHAT_ID,
+    logToPublicLog("Initializing Telegram Bot...");
+    const bot = new Telegraf(TELEGRAM_API_KEY);
+
+    logToPublicLog("Creating AutoClassifier...");
+    const autoClassifier = new AutoClassifier(spreadsheetManager);
+
+    logToPublicLog("Creating ManualClassifier...");
+    const manualClassifier = new ManualClassifier(
+      bot,
       classificationOptions,
+      spreadsheetManager,
     );
+
+    logToPublicLog("Starting auto-classification...");
+    const classifiedCount = await autoClassifier.classifyTransactions("Sheet5");
+
+    // Check if there are still unclassified rows
+    const rows = await spreadsheetManager.getRows("Sheet5");
+    const unclassifiedRows = rows.filter((row) => !row.get("classification"));
+
+    if (unclassifiedRows.length > 0) {
+      logToPublicLog(
+        `Found ${unclassifiedRows.length} unclassified rows. Waiting for user to start manual classification...`,
+      );
+    } else {
+      logToPublicLog(
+        "All rows classified during auto-classification. No manual classification needed.",
+      );
+    }
 
     logToPublicLog("Starting bot...");
     await send("Bot is starting... You can now classify transactions.");
-    transactionClassifier.startBot();
+
+    manualClassifier.startBot(); // Start the bot and listen for commands
 
     logToPublicLog("Application started successfully.");
   } catch (error) {

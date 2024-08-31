@@ -40,7 +40,7 @@ export class TransactionClassifier {
       return;
     }
 
-    // Start auto-classification immediately after bot launch
+    logToPublicLog("Launching bot...");
     this.bot
       .launch()
       .then(async () => {
@@ -54,9 +54,10 @@ export class TransactionClassifier {
       });
 
     // Listen for /classify command to start manual classification
-    this.bot.command("classify", (context) => {
+    this.bot.command("classify", async (context) => {
       this.resetInactivityTimeout(); // Reset timeout on /classify
-      this.promptUserForClassification(context, [], 0); // Start manual classification
+      const rows = await this.spreadsheetManager.getRows("Sheet5"); // Ensure rows are fetched again
+      await this.promptUserForClassification(context, rows, 0); // Start manual classification
     });
 
     // Register action handlers only once
@@ -139,10 +140,16 @@ export class TransactionClassifier {
 
   private async autoClassifyTransactions(context?: any) {
     try {
+      logToPublicLog("Fetching rows for auto-classification...");
       const rows = await this.spreadsheetManager.getRows("Sheet5");
+      logToPublicLog(`Fetched ${rows.length} rows for classification.`);
+      logToPublicLog(`Fetched ${rows.length} rows for classification.`);
 
       const merchantCategoryMap = await this.buildMerchantCategoryMap();
-      logger(
+      logToPublicLog(
+        `Merchant Category Map size: ${Object.keys(merchantCategoryMap).length}`,
+      );
+      logToPublicLog(
         `Merchant Category Map size: ${Object.keys(merchantCategoryMap).length}`,
       );
 
@@ -153,12 +160,20 @@ export class TransactionClassifier {
         const row = rows[index];
         const description = row.get("description")?.trim().toLowerCase() || "";
 
+        logToPublicLog(`Processing row ${index + 1}: ${description}`);
+        logToPublicLog(`Processing row ${index + 1}: ${description}`);
+
         if (description && merchantCategoryMap[description]) {
           // Auto-classification based on the map
           const category = merchantCategoryMap[description];
           row.set("classification", category);
           await row.save();
           classifiedCount++; // Increment the classified count
+          logToPublicLog(`Row ${index + 1} classified as ${category}.`);
+          logToPublicLog(`Row ${index + 1} classified as ${category}.`);
+        } else {
+          logToPublicLog(`Row ${index + 1} could not be auto-classified.`);
+          logToPublicLog(`Row ${index + 1} could not be auto-classified.`);
         }
       }
 
@@ -166,25 +181,36 @@ export class TransactionClassifier {
       const totalRows = rows.length;
       const summaryMessage = `Auto-classification completed. Classified ${classifiedCount} out of ${totalRows} rows.`;
 
-      logger(summaryMessage);
+      logToPublicLog(summaryMessage);
+      logToPublicLog(summaryMessage);
       if (context) {
         await context.reply(summaryMessage);
+        logToPublicLog("Summary message sent to user.");
       }
 
       // Second pass: Manual classification for remaining unclassified rows
-      if (context) {
-        await this.promptUserForClassification(context, rows, 0); // Provide the startIndex argument
+      if (classifiedCount < totalRows) {
+        logToPublicLog(
+          "Some rows remain unclassified, starting manual classification...",
+        );
+        logToPublicLog(
+          "Some rows remain unclassified, starting manual classification...",
+        );
+        if (context) {
+          await this.promptUserForClassification(context, rows, 0);
+        }
+      } else {
+        logToPublicLog("All rows classified during auto-classification.");
+        logToPublicLog("All rows classified during auto-classification.");
       }
-
-      logger(
-        "Auto-classification complete. Waiting for manual classification...",
-      );
     } catch (error) {
-      logger(`Error in autoClassifyTransactions: ${error.message}`);
+      logToPublicLog(`Error in autoClassifyTransactions: ${error.message}`);
+      logToPublicLog(`Error in autoClassifyTransactions: ${error.message}`);
       if (context) {
         await context.reply(
           `Error during auto-classification: ${error.message}`,
         );
+        logToPublicLog("Error message sent to user.");
       }
     }
   }
@@ -194,11 +220,18 @@ export class TransactionClassifier {
     rows: any[],
     startIndex: number,
   ) {
+    logToPublicLog(`Starting manual classification from index ${startIndex}`);
+    logToPublicLog(`Starting manual classification from index ${startIndex}`);
     for (let index = startIndex; index < rows.length; index++) {
       const row = rows[index];
 
+      // Check if the row is unclassified
       if (!row.get("classification")) {
+        logToPublicLog(`Unclassified row found at index ${index}`);
+        logToPublicLog(`Unclassified row found at index ${index}`);
         const description = row.get("description") || "No Description";
+        const memo = row.get("memo");
+        const price = row.get("amount") || "Unknown Amount";
 
         const splitButton = Markup.button.callback(
           "Split Transaction",
@@ -211,7 +244,7 @@ export class TransactionClassifier {
 
         for (const chunk of this.chunkedClassificationOptions) {
           await context.reply(
-            `Classify the transaction: ${description || "No Description"}`,
+            `Classify the transaction: ${description} | ${memo} | ${price}`,
             Markup.inlineKeyboard([
               ...chunk.map((emoji) =>
                 Markup.button.callback(emoji, `classify_${index}_${emoji}`),
@@ -226,7 +259,9 @@ export class TransactionClassifier {
       }
     }
 
-    logger("Finished classifyTransactions. No rows need classification.");
+    logToPublicLog(
+      "Finished manual classification. No rows need classification.",
+    );
     await context.reply("All transactions have been classified.");
   }
 
@@ -243,6 +278,9 @@ export class TransactionClassifier {
       }
     });
 
+    logToPublicLog(
+      `Built merchant category map with ${Object.keys(merchantCategoryMap).length} entries.`,
+    );
     return merchantCategoryMap;
   }
 
