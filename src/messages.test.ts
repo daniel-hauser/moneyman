@@ -1,5 +1,5 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
-import { getSummaryMessages, statsString } from "./messages";
+import { getSummaryMessages, saved } from "./messages";
 import {
   AccountScrapeResult,
   SaveStats,
@@ -110,7 +110,7 @@ describe("messages", () => {
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map(saved);
       expect(saveSummaries).toMatchSnapshot();
     });
 
@@ -122,7 +122,7 @@ describe("messages", () => {
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map(saved);
       expect(saveSummaries).toMatchSnapshot();
     });
 
@@ -162,7 +162,7 @@ describe("messages", () => {
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map(saved);
       expect(saveSummaries).toMatchSnapshot();
     });
 
@@ -221,7 +221,56 @@ describe("messages", () => {
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map(saved);
+      expect(saveSummaries).toMatchSnapshot();
+    });
+
+    it("should not add empty groups", () => {
+      const stats: Array<SaveStats> = [
+        {
+          name: "Storage",
+          table: "TheTable",
+          total: 1,
+          added: 0,
+          pending: 0,
+          skipped: 0,
+          existing: 0,
+          highlightedTransactions: {
+            Group1: [],
+            Group2: [
+              {
+                ...transaction({}),
+                hash: "hash1",
+                uniqueId: "uniqueId1",
+                account: "account1",
+                companyId: CompanyTypes.max,
+              },
+            ],
+          },
+        },
+      ];
+
+      const saveSummaries = stats.map(saved);
+      expect(saveSummaries).toMatchSnapshot();
+    });
+
+    it("should not add empty groups", () => {
+      const stats: Array<SaveStats> = [
+        {
+          name: "Storage",
+          table: "TheTable",
+          total: 1,
+          added: 0,
+          pending: 0,
+          skipped: 0,
+          existing: 0,
+          highlightedTransactions: {
+            Group1: [],
+          },
+        },
+      ];
+
+      const saveSummaries = stats.map(saved);
       expect(saveSummaries).toMatchSnapshot();
     });
   });

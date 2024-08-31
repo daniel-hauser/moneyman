@@ -1,12 +1,32 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`messages getSummaryMessages should not add empty groups 1`] = `
+[
+  "📝 Storage (TheTable)
+	0 added
+	0 skipped (0 existing, 0 pending)
+	-----
+	Group2:
+		description1:	+10.00",
+]
+`;
+
+exports[`messages getSummaryMessages should not add empty groups 2`] = `
+[
+  "📝 Storage (TheTable)
+	0 added
+	0 skipped (0 existing, 0 pending)",
+]
+`;
+
 exports[`messages getSummaryMessages should return a summary message 1`] = `
 "7 transactions scraped.
 (3 pending, 4 completed)
 
 Accounts updated:
 	✔️ [max] account1: 1
-	✔️ [max] account2: 6,-------
+	✔️ [max] account2: 6
+
 Pending txns:
 	description1:	+20.00
 	description1:	+20.00 USD
@@ -35,7 +55,8 @@ Accounts updated:
 	❌ [max] GENERIC
 		Some error message
 	❌ [hapoalim] CHANGE_PASSWORD
-	✔️ [hapoalim] account1: 1,-------
+	✔️ [hapoalim] account1: 1
+
 Pending txns:
 	😶 None"
 `;
@@ -47,7 +68,8 @@ exports[`messages getSummaryMessages should return a summary message with instal
 (0 pending, 2 completed)
 
 Accounts updated:
-	✔️ [max] account1: 2,-------
+	✔️ [max] account1: 2
+
 Pending txns:
 	😶 None"
 `;
@@ -68,7 +90,8 @@ exports[`messages getSummaryMessages should return a summary message with no res
 "0 transactions scraped.
 
 Accounts updated:
-	😶 None,-------
+	😶 None
+
 Pending txns:
 	😶 None"
 `;

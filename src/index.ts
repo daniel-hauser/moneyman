@@ -4,6 +4,7 @@ import { send, editMessage, sendError } from "./notifier.js";
 import { saveResults, storages } from "./storage/index.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 import { getSummaryMessages } from "./messages.js";
+import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
 
 const logger = createLogger("main");
 
@@ -55,6 +56,7 @@ async function run() {
 
       logToPublicLog("Saving...");
       await saveResults(results);
+      await sendFailureScreenShots();
     } catch (e) {
       logger(e);
       await sendError(e);

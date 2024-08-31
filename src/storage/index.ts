@@ -1,4 +1,4 @@
-import { send, sendError } from "../notifier.js";
+import { editMessage, send, sendError } from "../notifier.js";
 import type { AccountScrapeResult, TransactionRow } from "../types.js";
 import { LocalJsonStorage } from "./json.js";
 import { GoogleSheetsStorage } from "./sheets.js";
@@ -7,7 +7,7 @@ import { transactionHash, transactionUniqueId } from "./utils.js";
 import { YNABStorage } from "./ynab.js";
 import { BuxferStorage } from "./buxfer.js";
 import { WebPostStorage } from "./web-post.js";
-import { statsString } from "../messages.js";
+import { saved, saving } from "../messages.js";
 import { createLogger } from "../utils/logger.js";
 
 const logger = createLogger("storage");
@@ -45,8 +45,9 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
 
     try {
       logger(`Saving ${txns.length} transactions to ${name}`);
+      const message = await send(saving(name));
       const stats = await storage.saveTransactions(txns);
-      await send(statsString(stats));
+      await editMessage(message?.message_id, saved(stats));
     } catch (e) {
       logger(`Error saving transactions to ${name}`, e);
       sendError(e, `saveTransactions::${name}`);

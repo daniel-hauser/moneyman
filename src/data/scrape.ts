@@ -2,6 +2,7 @@ import { createScraper, ScraperScrapingResult } from "israeli-bank-scrapers";
 import { AccountConfig } from "../types.js";
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
 import { createLogger } from "../utils/logger.js";
+import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
 
 const logger = createLogger("scrape");
 
@@ -21,6 +22,7 @@ export async function getAccountTransactions(
       futureMonthsToScrape: Number.isNaN(futureMonthsToScrape)
         ? undefined
         : futureMonthsToScrape,
+      storeFailureScreenShotPath: getFailureScreenShotPath(account.companyId),
     });
 
     scraper.onProgress((companyId, { type }) => {
