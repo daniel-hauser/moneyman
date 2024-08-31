@@ -5,13 +5,9 @@ import {
 } from "google-spreadsheet";
 import { JWT } from "google-auth-library";
 import { parseISO, format } from "date-fns";
-import {
-  GOOGLE_SHEET_ID,
-  worksheetName,
-  currentDate,
-  systemName,
-  TRANSACTION_HASH_TYPE,
-} from "../config/ScrapeConfig.js";
+import { worksheetName } from "../config/ScrapeConfig.js";
+import { GOOGLE_SHEET_ID, currentDate, systemName } from "../config/config.js";
+import { TRANSACTION_HASH_TYPE } from "../config/SharedConfig.js";
 import type {
   TransactionRow,
   TransactionStorage,

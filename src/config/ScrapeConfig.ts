@@ -1,10 +1,10 @@
 import { subDays } from "date-fns";
-import { AccountConfig } from "../types.js";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
 import {
   TELEGRAM_API_KEY,
   TELEGRAM_CHAT_ID,
   GOOGLE_SHEET_ID,
+  TRANSACTION_HASH_TYPE,
   systemTimezone,
   systemName,
   currentDate,
@@ -27,7 +27,6 @@ const {
   BUXFER_USER_NAME = "",
   BUXFER_PASSWORD = "",
   BUXFER_ACCOUNTS = "",
-  TRANSACTION_HASH_TYPE = "",
   WEB_POST_URL = "",
 } = process.env;
 
@@ -56,22 +55,20 @@ export {
   BUXFER_USER_NAME,
   BUXFER_PASSWORD,
   BUXFER_ACCOUNTS,
-  TRANSACTION_HASH_TYPE,
   WEB_POST_URL,
+  TRANSACTION_HASH_TYPE,
   systemName,
   systemTimezone,
   currentDate,
 };
 
-function parseAccounts(accountsJson?: string): Array<AccountConfig> {
+function parseAccounts(accountsJson?: string) {
   try {
     const parsed = JSON.parse(accountsJson!);
     if (Array.isArray(parsed)) {
-      // TODO: Add schema validations?
-      return parsed as Array<AccountConfig>;
+      return parsed;
     }
   } catch {}
-
   throw new TypeError("ACCOUNTS_JSON must be a valid array");
 }
 

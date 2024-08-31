@@ -10,6 +10,7 @@ logToPublicLog("Parsing shared config");
 export const TELEGRAM_API_KEY = process.env.TELEGRAM_API_KEY || "";
 export const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "";
 export const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || "";
+export const TRANSACTION_HASH_TYPE = process.env.TRANSACTION_HASH_TYPE || "";
 
 export const systemName = "moneyman";
 export const systemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
