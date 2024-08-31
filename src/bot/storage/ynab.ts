@@ -1,9 +1,5 @@
-import {
-  YNAB_TOKEN,
-  YNAB_BUDGET_ID,
-  YNAB_ACCOUNTS,
-  TRANSACTION_HASH_TYPE,
-} from "../config/ScrapeConfig.js";
+import { YNAB_TOKEN, YNAB_BUDGET_ID, YNAB_ACCOUNTS } from "../config/config.js";
+import { TRANSACTION_HASH_TYPE } from "../config/config.js";
 import { SaveStats, TransactionRow, TransactionStorage } from "../types.js";
 import { createLogger } from "./../utils/logger.js";
 import { parseISO, format } from "date-fns";

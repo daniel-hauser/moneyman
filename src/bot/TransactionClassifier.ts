@@ -1,10 +1,7 @@
 import { Telegraf, Markup } from "telegraf";
 import { SpreadsheetManager } from "../spreadsheet/SpreadsheetManager";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
-import {
-  ClassificationOption,
-  botTimeoutMinutes,
-} from "../config/ClassifyConfig.js";
+import { ClassificationOption, botTimeoutMinutes } from "../config/config.js";
 
 const logger = createLogger("notifier");
 

@@ -5,9 +5,9 @@ import {
 } from "google-spreadsheet";
 import { JWT } from "google-auth-library";
 import { parseISO, format } from "date-fns";
-import { worksheetName } from "../config/ScrapeConfig.js";
 import { GOOGLE_SHEET_ID, currentDate, systemName } from "../config/config.js";
-import { TRANSACTION_HASH_TYPE } from "../config/SharedConfig.js";
+import { TRANSACTION_HASH_TYPE } from "../config/config.js";
+import { WORKSHEET_NAME } from "../config/config.js";
 import type {
   TransactionRow,
   TransactionStorage,
@@ -103,7 +103,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
 
     const stats = {
       name: "Google Sheets",
-      table: worksheetName,
+      table: WORKSHEET_NAME,
       total: txns.length,
       added: 0,
       pending: 0,
@@ -201,10 +201,10 @@ export class GoogleSheetsStorage implements TransactionStorage {
       throw error;
     }
 
-    if (!(worksheetName in doc.sheetsByTitle)) {
+    if (!(WORKSHEET_NAME in doc.sheetsByTitle)) {
       logger("Creating new sheet");
       try {
-        const sheet = await doc.addSheet({ title: worksheetName });
+        const sheet = await doc.addSheet({ title: WORKSHEET_NAME });
         await sheet.setHeaderRow(GoogleSheetsStorage.FileHeaders);
       } catch (error) {
         logger(`Error creating new sheet: ${error.message}`);
@@ -212,6 +212,6 @@ export class GoogleSheetsStorage implements TransactionStorage {
       }
     }
 
-    this.sheet = doc.sheetsByTitle[worksheetName];
+    this.sheet = doc.sheetsByTitle[WORKSHEET_NAME];
   }
 }

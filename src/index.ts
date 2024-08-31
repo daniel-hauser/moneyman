@@ -3,7 +3,7 @@ import {
   accounts,
   futureMonthsToScrape,
   scrapeStartDate,
-} from "./config/ScrapeConfig.js";
+} from "./config/config.js";
 import { send, editMessage, sendError } from "./notifier.js";
 import { saveResults, storages } from "./storage/index.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";

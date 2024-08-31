@@ -2,7 +2,7 @@ import {
   BUXFER_USER_NAME,
   BUXFER_PASSWORD,
   BUXFER_ACCOUNTS,
-} from "../config/ScrapeConfig.js";
+} from "../config/config.js";
 import { SaveStats, TransactionRow, TransactionStorage } from "../types.js";
 import { createLogger } from "./../utils/logger.js";
 import { parseISO, format } from "date-fns";

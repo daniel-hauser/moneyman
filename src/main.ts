@@ -9,8 +9,8 @@ import {
   TELEGRAM_API_KEY,
   TELEGRAM_CHAT_ID,
   GOOGLE_SHEET_ID,
-} from "./config/ClassifyConfig.js";
-import { classificationOptions } from "./config/config.js";
+  classificationOptions,
+} from "./config/config.js";
 
 const logger = createLogger("main");
 
