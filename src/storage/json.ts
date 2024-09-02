@@ -6,6 +6,7 @@ import type {
   TransactionStorage,
   SaveStats,
 } from "../types.js";
+import { saved } from "../messages.js";
 
 const logger = createLogger("LocalJsonStorage");
 
@@ -37,11 +38,15 @@ export class LocalJsonStorage implements TransactionStorage {
       table: fileName,
       total: txns.length,
       added: txns.length,
+      updated: 0,
       pending: NaN,
       skipped: 0,
       existing: NaN,
     };
 
     return stats;
+  }
+  logStats(stats: SaveStats): string {
+    return saved(stats);
   }
 }

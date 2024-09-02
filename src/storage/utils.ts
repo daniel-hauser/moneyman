@@ -49,3 +49,7 @@ export function transactionUniqueId(
   ];
   return parts.map((p) => String(p ?? "").trim()).join("_");
 }
+
+export function isDateInFuture(date: string): boolean {
+  return new Date(date) > new Date();
+}

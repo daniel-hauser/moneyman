@@ -20,6 +20,7 @@ import type {
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { sendDeprecationMessage } from "../notifier.js";
 import { normalizeCurrency } from "../utils/currency.js";
+import { saved } from "../messages.js";
 
 const logger = createLogger("GoogleSheetsStorage");
 
@@ -106,6 +107,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
       table: worksheetName,
       total: txns.length,
       added: 0,
+      updated: 0,
       pending: 0,
       existing: 0,
       skipped: 0,
@@ -201,5 +203,8 @@ export class GoogleSheetsStorage implements TransactionStorage {
     }
 
     this.sheet = doc.sheetsByTitle[worksheetName];
+  }
+  logStats(stats: SaveStats): string {
+    return saved(stats);
   }
 }

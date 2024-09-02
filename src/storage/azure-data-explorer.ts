@@ -15,6 +15,7 @@ import type {
   TransactionRow,
   TransactionStorage,
 } from "../types.js";
+import { saved } from "../messages.js";
 
 const logger = createLogger("azure-data-explorer");
 
@@ -59,12 +60,12 @@ export class AzureDataExplorerStorage implements TransactionStorage {
   canSave() {
     return Boolean(
       AZURE_APP_ID &&
-        AZURE_APP_KEY &&
-        AZURE_TENANT_ID &&
-        ADE_DATABASE_NAME &&
-        ADE_TABLE_NAME &&
-        ADE_INGESTION_MAPPING &&
-        ADE_INGEST_URI,
+      AZURE_APP_KEY &&
+      AZURE_TENANT_ID &&
+      ADE_DATABASE_NAME &&
+      ADE_TABLE_NAME &&
+      ADE_INGESTION_MAPPING &&
+      ADE_INGEST_URI,
     );
   }
 
@@ -80,6 +81,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
       table: ADE_TABLE_NAME!,
       total: txns.length,
       added: txns.length,
+      updated: 0,
       pending,
       skipped: 0,
       existing: NaN,
@@ -112,5 +114,9 @@ export class AzureDataExplorerStorage implements TransactionStorage {
         scrapedAt: new Date().toISOString(),
       },
     };
+  }
+
+  logStats(stats: SaveStats): string {
+    return saved(stats);
   }
 }

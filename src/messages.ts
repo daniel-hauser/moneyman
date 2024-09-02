@@ -110,7 +110,7 @@ function transactionsByStatus(results: Array<AccountScrapeResult>) {
   };
 }
 
-function highlightedTransactionsString(
+export function highlightedTransactionsString(
   groups: Record<string, TransactionRow[]> | undefined,
   indent = 0,
 ) {

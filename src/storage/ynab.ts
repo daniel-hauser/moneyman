@@ -11,6 +11,8 @@ import * as ynab from "ynab";
 import hash from "hash-it";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { sendDeprecationMessage } from "../notifier.js";
+import { isDateInFuture } from "./utils.js";
+import { saved } from "../messages.js";
 
 const YNAB_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("YNABStorage");
@@ -31,10 +33,6 @@ export class YNABStorage implements TransactionStorage {
     return Boolean(YNAB_TOKEN && YNAB_BUDGET_ID);
   }
 
-  isDateInFuture(date: string) {
-    return new Date(date) > new Date();
-  }
-
   async saveTransactions(txns: Array<TransactionRow>) {
     await this.init();
 
@@ -43,6 +41,7 @@ export class YNABStorage implements TransactionStorage {
       table: `budget: "${this.budgetName}"`,
       total: txns.length,
       added: 0,
+      updated: 0,
       pending: 0,
       existing: 0,
       skipped: 0,
@@ -55,8 +54,8 @@ export class YNABStorage implements TransactionStorage {
     for (let tx of txns) {
       const isPending = tx.status === TransactionStatuses.Pending;
       // YNAB doesn't support future transcation. Will result in 400 Bad Request
-      const isDateInFuture = this.isDateInFuture(tx.date);
-      if (isPending || isDateInFuture) {
+      const dateInFuture = isDateInFuture(tx.date);
+      if (isPending || dateInFuture) {
         if (isPending) {
           stats.pending++;
         }
@@ -146,5 +145,9 @@ export class YNABStorage implements TransactionStorage {
       ).toString(),
       memo: tx.memo,
     };
+  }
+
+  logStats(stats: SaveStats): string {
+    return saved(stats);
   }
 }

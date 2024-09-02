@@ -12,6 +12,8 @@ import {
   BuxferTransaction,
   AddTransactionsResponse,
 } from "buxfer-ts-client";
+import { isDateInFuture } from "./utils.js";
+import { highlightedTransactionsString } from "../messages.js";
 
 const BUXFER_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("BuxferStorage");
@@ -38,6 +40,7 @@ export class BuxferStorage implements TransactionStorage {
       table: `Accounts: "${Array.from(this.accountToBuxferAccount.keys())}"`,
       total: txns.length,
       added: 0,
+      updated: 0,
       pending: 0,
       existing: 0,
       skipped: 0,
@@ -53,6 +56,15 @@ export class BuxferStorage implements TransactionStorage {
         missingAccounts.add(tx.account);
         stats.skipped++;
         continue;
+      }
+
+      // Count pending transactions and allow them to upload to Buxfer
+      const isPending = tx.status === TransactionStatuses.Pending;
+      const dateInFuture = isDateInFuture(tx.date);
+      if (isPending || dateInFuture) {
+        if (isPending) {
+          stats.pending++;
+        }
       }
 
       // Converting to Buxfer format.
@@ -71,11 +83,12 @@ export class BuxferStorage implements TransactionStorage {
         `sending to Buxfer accounts: "${this.accountToBuxferAccount.keys()}"`,
       );
       const resp: AddTransactionsResponse =
-        await this.buxferClient.addTransactions(txToSend, true);
+        await this.buxferClient.addUpdateTransactions(txToSend);
       logger("transactions sent to Buxfer successfully!");
       stats.added = resp.addedTransactionIds.length;
-      stats.existing = resp.duplicatedTransactionIds.length;
-      stats.skipped += stats.existing;
+      stats.existing = resp.existingTransactionIds.length;  // TODO - Add updated transactions attribute to SaveStats && logs
+      stats.updated = resp.updatedTransactionIds.length;
+      stats.skipped += resp.existingTransactionIds.length; // The existing are not added or updated so skipped ... 
     }
 
     if (missingAccounts.size > 0) {
@@ -117,5 +130,16 @@ export class BuxferStorage implements TransactionStorage {
         tx.status === TransactionStatuses.Completed ? "cleared" : "pending",
       type: tx.chargedAmount > 0 ? "income" : "expense",
     };
+  }
+
+  logStats(stats: SaveStats): string {
+    return `
+    📝 ${stats.name} (${stats.table})
+    \t${stats.added} added
+    \t${stats.updated} updated
+    \t${stats.pending} pending
+    \t${stats.skipped} skipped (${stats.existing} existing)
+    ${highlightedTransactionsString(stats.highlightedTransactions, 1)}`.trim();
+
   }
 }
