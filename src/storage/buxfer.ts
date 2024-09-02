@@ -12,10 +12,10 @@ import {
   BuxferTransaction,
   AddTransactionsResponse,
 } from "buxfer-ts-client";
-import { isDateInFuture } from "./utils.js";
 import { highlightedTransactionsString } from "../messages.js";
 
 const BUXFER_DATE_FORMAT = "yyyy-MM-dd";
+const ILS_CURRENCY_LABELS = ["₪", "ILS"];
 const logger = createLogger("BuxferStorage");
 
 export class BuxferStorage implements TransactionStorage {
@@ -44,6 +44,7 @@ export class BuxferStorage implements TransactionStorage {
       pending: 0,
       existing: 0,
       skipped: 0,
+      foreign: 0,
     } satisfies SaveStats;
 
     // Initialize an array to store non-pending and non-empty account ID transactions on Buxfer format.
@@ -58,13 +59,19 @@ export class BuxferStorage implements TransactionStorage {
         continue;
       }
 
-      // Count pending transactions and allow them to upload to Buxfer
+      // Count pending transactions, not necessarily skipped
       const isPending = tx.status === TransactionStatuses.Pending;
-      const dateInFuture = isDateInFuture(tx.date);
-      if (isPending || dateInFuture) {
-        if (isPending) {
-          stats.pending++;
-        }
+      if (isPending) {
+        stats.pending++;
+      }
+
+      // Skip transactions not charged in ILS - Buxfer accounts supports single currencies only 
+      // Foreign currencies resolve to ILS when settled after changing from pending status
+      const isIlsCharge = this.isIlsCharge(tx);
+      if (!isIlsCharge) {
+        stats.skipped++;
+        stats.foreign++;
+        continue;
       }
 
       // Converting to Buxfer format.
@@ -86,9 +93,9 @@ export class BuxferStorage implements TransactionStorage {
         await this.buxferClient.addUpdateTransactions(txToSend);
       logger("transactions sent to Buxfer successfully!");
       stats.added = resp.addedTransactionIds.length;
-      stats.existing = resp.existingTransactionIds.length;  // TODO - Add updated transactions attribute to SaveStats && logs
+      stats.existing = resp.existingTransactionIds.length;
       stats.updated = resp.updatedTransactionIds.length;
-      stats.skipped += resp.existingTransactionIds.length; // The existing are not added or updated so skipped ... 
+      stats.skipped += resp.existingTransactionIds.length;
     }
 
     if (missingAccounts.size > 0) {
@@ -96,6 +103,10 @@ export class BuxferStorage implements TransactionStorage {
     }
 
     return stats;
+  }
+  isIlsCharge(tx: TransactionRow): boolean {
+    return (tx.chargedCurrency != undefined && ILS_CURRENCY_LABELS.includes(tx.chargedCurrency.trim()))
+      || (tx.originalCurrency != undefined && ILS_CURRENCY_LABELS.includes(tx.originalCurrency.trim()));
   }
 
   tagTransactionsByRules(txToSend: BuxferTransaction[]) {
@@ -138,8 +149,7 @@ export class BuxferStorage implements TransactionStorage {
     \t${stats.added} added
     \t${stats.updated} updated
     \t${stats.pending} pending
-    \t${stats.skipped} skipped (${stats.existing} existing)
+    \t${stats.skipped} skipped (${stats.existing} existing ${stats.foreign} pending in foreign currency)
     ${highlightedTransactionsString(stats.highlightedTransactions, 1)}`.trim();
-
   }
 }
