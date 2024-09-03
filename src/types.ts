@@ -30,14 +30,14 @@ export type CategoryDef = {
 };
 
 export interface SaveStats {
-  name: string;     // Store name
+  name: string; // Store name
   table: string;
-  total: number;    // Total scrapped transactions handled
-  added: number;    // Newly added to store
-  updated?: number;  // Existing that changed and updated
-  pending: number;  // Total scrapped transactions that are pending
-  skipped: number;  // Transactions not added due to validation checks or the already exist
-  existing: number; // Scrapped transactions that already exists in store 
+  total: number; // Total scrapped transactions handled
+  added: number; // Newly added to store
+  updated?: number; // Existing that changed and updated
+  pending: number; // Total scrapped transactions that are pending
+  skipped: number; // Transactions not added due to validation checks or the already exist
+  existing: number; // Scrapped transactions that already exists in store
   foreign?: number; // Scrapped transactions that are charged in foreign currency (not ILS)
   highlightedTransactions?: Record<string, Array<TransactionRow>>;
 }

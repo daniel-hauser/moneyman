@@ -60,12 +60,12 @@ export class AzureDataExplorerStorage implements TransactionStorage {
   canSave() {
     return Boolean(
       AZURE_APP_ID &&
-      AZURE_APP_KEY &&
-      AZURE_TENANT_ID &&
-      ADE_DATABASE_NAME &&
-      ADE_TABLE_NAME &&
-      ADE_INGESTION_MAPPING &&
-      ADE_INGEST_URI,
+        AZURE_APP_KEY &&
+        AZURE_TENANT_ID &&
+        ADE_DATABASE_NAME &&
+        ADE_TABLE_NAME &&
+        ADE_INGESTION_MAPPING &&
+        ADE_INGEST_URI,
     );
   }
 

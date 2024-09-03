@@ -65,7 +65,7 @@ export class BuxferStorage implements TransactionStorage {
         stats.pending++;
       }
 
-      // Skip transactions not charged in ILS - Buxfer accounts supports single currencies only 
+      // Skip transactions not charged in ILS - Buxfer accounts supports single currencies only
       // Foreign currencies resolve to ILS when settled after changing from pending status
       const isIlsCharge = this.isIlsCharge(tx);
       if (!isIlsCharge) {
@@ -105,8 +105,12 @@ export class BuxferStorage implements TransactionStorage {
     return stats;
   }
   isIlsCharge(tx: TransactionRow): boolean {
-    return (tx.chargedCurrency != undefined && ILS_CURRENCY_LABELS.includes(tx.chargedCurrency.trim()))
-      || (tx.originalCurrency != undefined && ILS_CURRENCY_LABELS.includes(tx.originalCurrency.trim()));
+    return (
+      (tx.chargedCurrency != undefined &&
+        ILS_CURRENCY_LABELS.includes(tx.chargedCurrency.trim())) ||
+      (tx.originalCurrency != undefined &&
+        ILS_CURRENCY_LABELS.includes(tx.originalCurrency.trim()))
+    );
   }
 
   tagTransactionsByRules(txToSend: BuxferTransaction[]) {
