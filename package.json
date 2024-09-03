@@ -30,7 +30,7 @@
   "dependencies": {
     "azure-kusto-data": "^6.0.2",
     "azure-kusto-ingest": "^6.0.2",
-    "buxfer-ts-client": "^1.0.4",
+    "buxfer-ts-client": "^1.0.6",
     "date-fns": "^3.6.0",
     "debug": "^4.3.6",
     "dotenv": "^16.4.5",
