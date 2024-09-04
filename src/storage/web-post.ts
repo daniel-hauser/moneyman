@@ -7,7 +7,6 @@ import type {
 import { WEB_POST_URL } from "../config.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { transactionRow } from "./sheets.js";
-import { saved } from "../messages.js";
 
 const logger = createLogger("WebPostStorage");
 
@@ -55,14 +54,12 @@ export class WebPostStorage implements TransactionStorage {
       total: txns.length,
       added,
       updated: 0,
+      foreign: 0,
       pending,
       skipped: skipped + pending,
       existing: skipped,
     };
 
     return stats;
-  }
-  logStats(stats: SaveStats): string {
-    return saved(stats);
   }
 }

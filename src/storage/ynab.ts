@@ -12,7 +12,7 @@ import hash from "hash-it";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { sendDeprecationMessage } from "../notifier.js";
 import { isDateInFuture } from "./utils.js";
-import { saved } from "../messages.js";
+import { checkIlsCharge } from "../utils/currency.js";
 
 const YNAB_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("YNABStorage");
@@ -42,6 +42,7 @@ export class YNABStorage implements TransactionStorage {
       total: txns.length,
       added: 0,
       updated: 0,
+      foreign: 0,
       pending: 0,
       existing: 0,
       skipped: 0,
@@ -52,8 +53,14 @@ export class YNABStorage implements TransactionStorage {
     const missingAccounts = new Set<string>();
 
     for (let tx of txns) {
+      // Register foreign transactions that did not resolve to ILS yet (also pending)
+      const isIlsCharge = checkIlsCharge(tx);
+      if (!isIlsCharge) {
+        stats.foreign++;
+      }
+
       const isPending = tx.status === TransactionStatuses.Pending;
-      // YNAB doesn't support future transcation. Will result in 400 Bad Request
+      // YNAB doesn't support future transactions. Will result in 400 Bad Request
       const dateInFuture = isDateInFuture(tx.date);
       if (isPending || dateInFuture) {
         if (isPending) {
@@ -145,9 +152,5 @@ export class YNABStorage implements TransactionStorage {
       ).toString(),
       memo: tx.memo,
     };
-  }
-
-  logStats(stats: SaveStats): string {
-    return saved(stats);
   }
 }

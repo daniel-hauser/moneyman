@@ -15,7 +15,6 @@ import type {
   TransactionRow,
   TransactionStorage,
 } from "../types.js";
-import { saved } from "../messages.js";
 
 const logger = createLogger("azure-data-explorer");
 
@@ -82,6 +81,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
       total: txns.length,
       added: txns.length,
       updated: 0,
+      foreign: 0,
       pending,
       skipped: 0,
       existing: NaN,
@@ -114,9 +114,5 @@ export class AzureDataExplorerStorage implements TransactionStorage {
         scrapedAt: new Date().toISOString(),
       },
     };
-  }
-
-  logStats(stats: SaveStats): string {
-    return saved(stats);
   }
 }

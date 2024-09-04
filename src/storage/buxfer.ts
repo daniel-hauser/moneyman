@@ -12,10 +12,9 @@ import {
   BuxferTransaction,
   AddTransactionsResponse,
 } from "buxfer-ts-client";
-import { highlightedTransactionsString } from "../messages.js";
+import { checkIlsCharge } from "../utils/currency.js";
 
 const BUXFER_DATE_FORMAT = "yyyy-MM-dd";
-const ILS_CURRENCY_LABELS = ["₪", "ILS"];
 const logger = createLogger("BuxferStorage");
 
 export class BuxferStorage implements TransactionStorage {
@@ -66,8 +65,7 @@ export class BuxferStorage implements TransactionStorage {
       }
 
       // Skip transactions not charged in ILS - Buxfer accounts supports single currencies only
-      // Foreign currencies resolve to ILS when settled after changing from pending status
-      const isIlsCharge = this.isIlsCharge(tx);
+      const isIlsCharge = checkIlsCharge(tx);
       if (!isIlsCharge) {
         stats.skipped++;
         stats.foreign++;
@@ -104,14 +102,6 @@ export class BuxferStorage implements TransactionStorage {
 
     return stats;
   }
-  isIlsCharge(tx: TransactionRow): boolean {
-    return (
-      (tx.chargedCurrency != undefined &&
-        ILS_CURRENCY_LABELS.includes(tx.chargedCurrency.trim())) ||
-      (tx.originalCurrency != undefined &&
-        ILS_CURRENCY_LABELS.includes(tx.originalCurrency.trim()))
-    );
-  }
 
   tagTransactionsByRules(txToSend: BuxferTransaction[]) {
     // TODO - Implement declarative rule engine
@@ -145,15 +135,5 @@ export class BuxferStorage implements TransactionStorage {
         tx.status === TransactionStatuses.Completed ? "cleared" : "pending",
       type: tx.chargedAmount > 0 ? "income" : "expense",
     };
-  }
-
-  logStats(stats: SaveStats): string {
-    return `
-    📝 ${stats.name} (${stats.table})
-    \t${stats.added} added
-    \t${stats.updated} updated
-    \t${stats.pending} pending
-    \t${stats.skipped} skipped (${stats.existing} existing ${stats.foreign} pending in foreign currency)
-    ${highlightedTransactionsString(stats.highlightedTransactions, 1)}`.trim();
   }
 }

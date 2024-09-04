@@ -75,6 +75,7 @@ describe("messages", () => {
           total: 1,
           added: 2,
           pending: 3,
+          foreign: 0,
           skipped: 4,
           existing: 5,
         },
@@ -84,6 +85,7 @@ describe("messages", () => {
           total: 6,
           added: 7,
           pending: 8,
+          foreign: 0,
           skipped: 9,
           existing: 10,
           highlightedTransactions: {
@@ -204,6 +206,7 @@ describe("messages", () => {
           total: 1,
           added: 2,
           pending: 3,
+          foreign: 0,
           skipped: 4,
           existing: 5,
           highlightedTransactions: {
@@ -233,6 +236,7 @@ describe("messages", () => {
           total: 1,
           added: 0,
           pending: 0,
+          foreign: 0,
           skipped: 0,
           existing: 0,
           highlightedTransactions: {
@@ -262,6 +266,7 @@ describe("messages", () => {
           total: 1,
           added: 0,
           pending: 0,
+          foreign: 0,
           skipped: 0,
           existing: 0,
           highlightedTransactions: {

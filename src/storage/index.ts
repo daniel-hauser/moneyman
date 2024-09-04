@@ -47,7 +47,7 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
       logger(`Saving ${txns.length} transactions to ${name}`);
       const message = await send(saving(name));
       const stats = await storage.saveTransactions(txns);
-      await editMessage(message?.message_id, storage.logStats(stats));
+      await editMessage(message?.message_id, saved(stats));
     } catch (e) {
       logger(`Error saving transactions to ${name}`, e);
       sendError(e, `saveTransactions::${name}`);

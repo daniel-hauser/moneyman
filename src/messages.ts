@@ -84,9 +84,10 @@ export function saved(stats: SaveStats): string {
   return `
 📝 ${stats.name} (${stats.table})
 \t${stats.added} added
-\t${stats.skipped} skipped (${stats.existing} existing, ${
-    stats.pending
-  } pending)
+\t${stats.updated !== undefined ? stats.updated : 0} updated
+\t${stats.pending} pending
+\t${stats.foreign} pending in foreign currency
+\t${stats.skipped} skipped
 ${highlightedTransactionsString(stats.highlightedTransactions, 1)}`.trim();
 }
 

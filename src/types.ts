@@ -30,15 +30,45 @@ export type CategoryDef = {
 };
 
 export interface SaveStats {
-  name: string; // Store name
+  /**
+   * Store name
+   */
+  name: string;
+  /**
+   * Store elements to be updated (Accounts, budgets, etc ...)
+   */
   table: string;
-  total: number; // Total scrapped transactions handled
-  added: number; // Newly added to store
-  updated?: number; // Existing that changed and updated
-  pending: number; // Total scrapped transactions that are pending
-  skipped: number; // Transactions not added due to validation checks or the already exist
-  existing: number; // Scrapped transactions that already exists in store
-  foreign?: number; // Scrapped transactions that are charged in foreign currency (not ILS)
+  /**
+   * Total scrapped transactions handled
+   */
+  total: number;
+  /**
+   * Newly added to store
+   */
+  added: number;
+  /**
+   * Transactions existing in store that changed status and updated
+   */
+  updated?: number;
+  /**
+   * Total scrapped transactions that are pending status
+   */
+  pending: number;
+  /**
+   * Transactions not added due to validation checks or the already exist
+   */
+  skipped: number;
+  /**
+   * Transactions that already exists in store and don't required an update
+   */
+  existing: number;
+  /**
+   * Scrapped transactions that are charged in foreign currency (not ILS)
+   */
+  foreign: number;
+  /**
+   * Transactions to be highlighted in the stats report
+   */
   highlightedTransactions?: Record<string, Array<TransactionRow>>;
 }
 
@@ -46,5 +76,4 @@ export interface TransactionStorage {
   canSave(): boolean;
   init(): Promise<void>;
   saveTransactions(txns: Array<TransactionRow>): Promise<SaveStats>;
-  logStats(stats: SaveStats): string;
 }
