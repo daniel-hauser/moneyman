@@ -43,7 +43,6 @@ function transactionsString(
     (tx) => normalizeCurrency(tx.chargedCurrency) !== "ILS",
   );
 
-
   return `
 ${total} transactions scraped.
 ${total > 0 ? `(${pending.length} pending, ${completed.length} completed)` : ""}
