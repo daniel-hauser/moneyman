@@ -3,6 +3,7 @@ import {
   TransactionTypes,
 } from "israeli-bank-scrapers/lib/transactions.js";
 import { AccountScrapeResult, Transaction } from "./types";
+import { normalizeCurrency } from "./utils/currency";
 
 export function getSummaryMessages(results: Array<AccountScrapeResult>) {
   const accountsSummary = results.flatMap(({ result, companyId }) => {
@@ -35,12 +36,18 @@ function transactionsString(
   completed: Array<Transaction>,
 ) {
   const total = pending.length + completed.length;
+  const foreignOriginal = completed.filter(
+    (tx) => normalizeCurrency(tx.originalCurrency) !== "ILS",
+  );
+  const foreignCharged = completed.filter(
+    (tx) => normalizeCurrency(tx.chargedCurrency) !== "ILS",
+  );
+
 
   return `
 ${total} transactions scraped.
-${
-  total > 0 ? `(${pending.length} pending, ${completed.length} completed)` : ""
-}`.trim();
+${total > 0 ? `(${pending.length} pending, ${completed.length} completed)` : ""}
+${foreignOriginal.length > 0 ? `From completed, ${foreignOriginal.length} not originally in ILS${foreignCharged.length ? ` and ${foreignCharged.length} not charged in ILS` : ""}` : ""}`.trim();
 }
 
 function transactionAmount(t: Transaction): number {

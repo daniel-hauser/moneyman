@@ -47,6 +47,12 @@ describe("messages", () => {
           originalAmount: 5,
           originalCurrency: "USD",
         }),
+        transaction({
+          chargedAmount: 1000,
+          originalAmount: 1000,
+          originalCurrency: "USD",
+          chargedCurrency: "USD",
+        }),
       ];
       const results: Array<AccountScrapeResult> = [
         {
@@ -258,6 +264,7 @@ export function transaction(t: Partial<Transaction>): Transaction {
     description: "description1",
     originalAmount: 10,
     originalCurrency: "ILS",
+    chargedCurrency: "ILS",
     chargedAmount: t.status === TransactionStatuses.Pending ? 0 : 10,
     status: TransactionStatuses.Completed,
     ...t,
