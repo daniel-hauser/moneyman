@@ -1,20 +1,53 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
-import { getSummaryMessages, saved } from "./messages";
-import {
-  AccountScrapeResult,
-  SaveStats,
-  Transaction,
-  TransactionRow,
-} from "./types";
+import { getSummaryMessages } from "./messages";
+import { AccountScrapeResult, Transaction, TransactionRow } from "./types";
 import {
   TransactionStatuses,
   TransactionTypes,
 } from "israeli-bank-scrapers/lib/transactions";
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors";
+import { createSaveStats, SaveStats, statsString } from "./saveStats";
 
 describe("messages", () => {
   describe("getSummaryMessages", () => {
     it("should return a summary message", () => {
+      const txns1 = [
+        transaction({
+          chargedAmount: -20,
+          originalAmount: -100,
+          description: "ILS",
+          chargedCurrency: "ILS",
+          originalCurrency: "USD",
+        }),
+      ];
+
+      const txns2 = [
+        transaction({
+          type: TransactionTypes.Installments,
+        }),
+        transaction({
+          status: TransactionStatuses.Pending,
+          originalAmount: 20,
+        }),
+        transaction({
+          status: TransactionStatuses.Pending,
+          originalAmount: 20,
+          originalCurrency: "USD",
+        }),
+        transaction({
+          status: TransactionStatuses.Pending,
+          originalAmount: -20,
+        }),
+        transaction({
+          description: "description2",
+          memo: "memo2",
+        }),
+        transaction({
+          chargedAmount: 20,
+          originalAmount: 5,
+          originalCurrency: "USD",
+        }),
+      ];
       const results: Array<AccountScrapeResult> = [
         {
           companyId: CompanyTypes.max,
@@ -23,45 +56,11 @@ describe("messages", () => {
             accounts: [
               {
                 accountNumber: "account1",
-                txns: [
-                  transaction({
-                    chargedAmount: -20,
-                    originalAmount: -100,
-                    description: "ILS",
-                    chargedCurrency: "ILS",
-                    originalCurrency: "USD",
-                  }),
-                ],
+                txns: txns1,
               },
               {
                 accountNumber: "account2",
-                txns: [
-                  transaction({
-                    type: TransactionTypes.Installments,
-                  }),
-                  transaction({
-                    status: TransactionStatuses.Pending,
-                    originalAmount: 20,
-                  }),
-                  transaction({
-                    status: TransactionStatuses.Pending,
-                    originalAmount: 20,
-                    originalCurrency: "USD",
-                  }),
-                  transaction({
-                    status: TransactionStatuses.Pending,
-                    originalAmount: -20,
-                  }),
-                  transaction({
-                    description: "description2",
-                    memo: "memo2",
-                  }),
-                  transaction({
-                    chargedAmount: 20,
-                    originalAmount: 5,
-                    originalCurrency: "USD",
-                  }),
-                ],
+                txns: txns2,
               },
             ],
           },
@@ -69,23 +68,11 @@ describe("messages", () => {
       ];
 
       const stats: Array<SaveStats> = [
-        {
-          name: "Storage 1",
-          table: "TheTable",
-          total: 1,
-          added: 2,
-          pending: 3,
-          skipped: 4,
-          existing: 5,
-        },
-        {
-          name: "Storage 2",
-          table: "TheTable",
-          total: 6,
-          added: 7,
-          pending: 8,
-          skipped: 9,
-          existing: 10,
+        createSaveStats("Storage 1", "TheTable", txns1 as any, {
+          added: txns1.length,
+        }),
+        createSaveStats("Storage 2", "TheTable", txns2 as any, {
+          added: txns2.length,
           highlightedTransactions: {
             Group1: [
               {
@@ -104,13 +91,13 @@ describe("messages", () => {
               },
             ],
           },
-        },
+        }),
       ];
 
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(saved);
+      const saveSummaries = stats.map(statsString);
       expect(saveSummaries).toMatchSnapshot();
     });
 
@@ -122,7 +109,7 @@ describe("messages", () => {
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(saved);
+      const saveSummaries = stats.map(statsString);
       expect(saveSummaries).toMatchSnapshot();
     });
 
@@ -162,7 +149,7 @@ describe("messages", () => {
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(saved);
+      const saveSummaries = stats.map(statsString);
       expect(saveSummaries).toMatchSnapshot();
     });
 
@@ -198,14 +185,8 @@ describe("messages", () => {
       ];
 
       const stats: Array<SaveStats> = [
-        {
-          name: "Storage 1",
-          table: "TheTable",
-          total: 1,
+        createSaveStats("Storage 1", "TheTable", transactions as any, {
           added: 2,
-          pending: 3,
-          skipped: 4,
-          existing: 5,
           highlightedTransactions: {
             SomeGroup: transactions.map<TransactionRow>((t) => ({
               account: "account1",
@@ -215,26 +196,26 @@ describe("messages", () => {
               ...t,
             })),
           },
-        },
+        }),
       ];
 
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(saved);
+      const saveSummaries = stats.map(statsString);
       expect(saveSummaries).toMatchSnapshot();
     });
 
     it("should not add empty groups", () => {
+      const tx = {
+        ...transaction({}),
+        hash: "hash1",
+        uniqueId: "uniqueId1",
+        account: "account1",
+        companyId: CompanyTypes.max,
+      };
       const stats: Array<SaveStats> = [
-        {
-          name: "Storage",
-          table: "TheTable",
-          total: 1,
-          added: 0,
-          pending: 0,
-          skipped: 0,
-          existing: 0,
+        createSaveStats("Storage", "TheTable", [tx], {
           highlightedTransactions: {
             Group1: [],
             Group2: [
@@ -247,36 +228,29 @@ describe("messages", () => {
               },
             ],
           },
-        },
+        }),
       ];
 
-      const saveSummaries = stats.map(saved);
+      const saveSummaries = stats.map(statsString);
       expect(saveSummaries).toMatchSnapshot();
     });
 
     it("should not add empty groups", () => {
       const stats: Array<SaveStats> = [
-        {
-          name: "Storage",
-          table: "TheTable",
-          total: 1,
-          added: 0,
-          pending: 0,
-          skipped: 0,
-          existing: 0,
+        createSaveStats("Storage", "TheTable", [], {
           highlightedTransactions: {
             Group1: [],
           },
-        },
+        }),
       ];
 
-      const saveSummaries = stats.map(saved);
+      const saveSummaries = stats.map(statsString);
       expect(saveSummaries).toMatchSnapshot();
     });
   });
 });
 
-function transaction(t: Partial<Transaction>): Transaction {
+export function transaction(t: Partial<Transaction>): Transaction {
   return {
     type: TransactionTypes.Normal,
     date: new Date().toISOString(),

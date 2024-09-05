@@ -36,11 +36,11 @@ Pending txns:
 exports[`messages getSummaryMessages should return a summary message 2`] = `
 [
   "📝 Storage 1 (TheTable)
-	2 added
-	4 skipped (5 existing, 3 pending)",
+	1 added
+	0 skipped (0 existing, 0 pending)",
   "📝 Storage 2 (TheTable)
-	7 added
-	9 skipped (10 existing, 8 pending)
+	6 added
+	0 skipped (0 existing, 3 pending)
 	-----
 	Group1:
 		description1:	+10.00",
@@ -78,7 +78,7 @@ exports[`messages getSummaryMessages should return a summary message with instal
 [
   "📝 Storage 1 (TheTable)
 	2 added
-	4 skipped (5 existing, 3 pending)
+	0 skipped (0 existing, 0 pending)
 	-----
 	SomeGroup:
 		should be +20:	+20.00

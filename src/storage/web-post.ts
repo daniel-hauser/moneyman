@@ -1,12 +1,9 @@
 import { createLogger } from "../utils/logger.js";
-import type {
-  TransactionRow,
-  TransactionStorage,
-  SaveStats,
-} from "../types.js";
+import type { TransactionRow, TransactionStorage } from "../types.js";
 import { WEB_POST_URL } from "../config.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { transactionRow } from "./sheets.js";
+import { createSaveStats } from "../saveStats.js";
 
 const logger = createLogger("WebPostStorage");
 
@@ -47,16 +44,9 @@ export class WebPostStorage implements TransactionStorage {
     const { added = nonPendingTxns.length, skipped = NaN } =
       await response.json();
 
-    const pending = txns.length - nonPendingTxns.length;
-    const stats: SaveStats = {
-      name: "WebPostStorage",
-      table: "web-post",
-      total: txns.length,
-      added,
-      pending,
-      skipped: skipped + pending,
-      existing: skipped,
-    };
+    const stats = createSaveStats("WebPostStorage", "web-post", txns);
+    stats.added = added;
+    stats.skipped += stats.pending;
 
     return stats;
   }

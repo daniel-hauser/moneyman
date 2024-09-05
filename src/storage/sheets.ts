@@ -12,14 +12,11 @@ import {
   systemName,
   TRANSACTION_HASH_TYPE,
 } from "./../config.js";
-import type {
-  TransactionRow,
-  TransactionStorage,
-  SaveStats,
-} from "../types.js";
+import type { TransactionRow, TransactionStorage } from "../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { sendDeprecationMessage } from "../notifier.js";
 import { normalizeCurrency } from "../utils/currency.js";
+import { createSaveStats } from "../saveStats.js";
 
 const logger = createLogger("GoogleSheetsStorage");
 
@@ -101,18 +98,11 @@ export class GoogleSheetsStorage implements TransactionStorage {
     const rows: SheetRow[] = [];
     await this.init();
 
-    const stats = {
-      name: "Google Sheets",
-      table: worksheetName,
-      total: txns.length,
-      added: 0,
-      pending: 0,
-      existing: 0,
-      skipped: 0,
+    const stats = createSaveStats("Google Sheets", worksheetName, txns, {
       highlightedTransactions: {
         Added: [] as Array<TransactionRow>,
       },
-    } satisfies SaveStats;
+    });
 
     for (let tx of txns) {
       if (TRANSACTION_HASH_TYPE === "moneyman") {
@@ -139,7 +129,6 @@ export class GoogleSheetsStorage implements TransactionStorage {
       }
 
       if (tx.status === TransactionStatuses.Pending) {
-        stats.pending++;
         stats.skipped++;
         continue;
       }
