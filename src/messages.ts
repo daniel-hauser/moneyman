@@ -36,17 +36,27 @@ function transactionsString(
   completed: Array<Transaction>,
 ) {
   const total = pending.length + completed.length;
-  const foreignOriginal = completed.filter(
-    (tx) => normalizeCurrency(tx.originalCurrency) !== "ILS",
-  );
-  const foreignCharged = completed.filter(
-    (tx) => normalizeCurrency(tx.chargedCurrency) !== "ILS",
-  );
 
   return `
 ${total} transactions scraped.
 ${total > 0 ? `(${pending.length} pending, ${completed.length} completed)` : ""}
-${foreignOriginal.length > 0 ? `From completed, ${foreignOriginal.length} not originally in ILS${foreignCharged.length ? ` and ${foreignCharged.length} not charged in ILS` : ""}` : ""}`.trim();
+${foreignTransactionsSummary(completed)}
+`.trim();
+}
+
+function foreignTransactionsSummary(completed: Array<Transaction>) {
+  const original = completed.filter(
+    (tx) => normalizeCurrency(tx.originalCurrency) !== "ILS",
+  ).length;
+
+  if (original === 0) {
+    return "";
+  }
+
+  const charged = completed.filter(
+    (tx) => normalizeCurrency(tx.chargedCurrency) !== "ILS",
+  ).length;
+  return `From completed, ${original} not originally in ILS${charged ? ` and ${charged} not charged in ILS` : ""}`;
 }
 
 function transactionAmount(t: Transaction): number {
