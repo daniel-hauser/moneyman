@@ -1,5 +1,4 @@
 import { Telegraf, TelegramError } from "telegraf";
-import { Message } from "telegraf/typings/core/types/typegram";
 import { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID } from "./config.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 
@@ -30,10 +29,6 @@ export async function sendPhoto(photoPath: string, caption: string) {
     { source: photoPath },
     { caption, has_spoiler: true },
   );
-}
-
-export async function deleteMessage(message: Message.TextMessage) {
-  await bot?.telegram.deleteMessage(TELEGRAM_CHAT_ID, message.message_id);
 }
 
 export async function editMessage(

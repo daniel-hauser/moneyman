@@ -1,6 +1,6 @@
 import { performance } from "perf_hooks";
 import { getAccountTransactions } from "./scrape.js";
-import { AccountConfig, AccountScrapeResult } from "../types";
+import { AccountConfig, AccountScrapeResult } from "../types.js";
 import { createLogger } from "../utils/logger.js";
 
 const logger = createLogger("data");

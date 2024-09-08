@@ -2,7 +2,7 @@ import {
   TransactionStatuses,
   TransactionTypes,
 } from "israeli-bank-scrapers/lib/transactions.js";
-import { AccountScrapeResult, Transaction } from "./types";
+import { AccountScrapeResult, Transaction } from "./types.js";
 import { normalizeCurrency } from "./utils/currency.js";
 
 export function getSummaryMessages(results: Array<AccountScrapeResult>) {
