@@ -2,12 +2,8 @@ import {
   TransactionStatuses,
   TransactionTypes,
 } from "israeli-bank-scrapers/lib/transactions.js";
-import {
-  AccountScrapeResult,
-  SaveStats,
-  Transaction,
-  TransactionRow,
-} from "./types";
+import { AccountScrapeResult, Transaction } from "./types";
+import { normalizeCurrency } from "./utils/currency";
 
 export function getSummaryMessages(results: Array<AccountScrapeResult>) {
   const accountsSummary = results.flatMap(({ result, companyId }) => {
@@ -43,9 +39,24 @@ function transactionsString(
 
   return `
 ${total} transactions scraped.
-${
-  total > 0 ? `(${pending.length} pending, ${completed.length} completed)` : ""
-}`.trim();
+${total > 0 ? `(${pending.length} pending, ${completed.length} completed)` : ""}
+${foreignTransactionsSummary(completed)}
+`.trim();
+}
+
+function foreignTransactionsSummary(completed: Array<Transaction>) {
+  const original = completed.filter(
+    (tx) => normalizeCurrency(tx.originalCurrency) !== "ILS",
+  ).length;
+
+  if (original === 0) {
+    return "";
+  }
+
+  const charged = completed.filter(
+    (tx) => normalizeCurrency(tx.chargedCurrency) !== "ILS",
+  ).length;
+  return `From completed, ${original} not originally in ILS${charged ? ` and ${charged} not charged in ILS` : ""}`;
 }
 
 function transactionAmount(t: Transaction): number {
@@ -73,21 +84,15 @@ function transactionString(t: Transaction) {
   }`;
 }
 
-function transactionList(transactions: Array<Transaction>, indent = "\t") {
+export function transactionList(
+  transactions: Array<Transaction>,
+  indent = "\t",
+) {
   return transactions.map((t) => `${indent}${transactionString(t)}`).join("\n");
 }
+
 export function saving(storage: string) {
   return `📝 ${storage} Saving...`;
-}
-
-export function saved(stats: SaveStats): string {
-  return `
-📝 ${stats.name} (${stats.table})
-\t${stats.added} added
-\t${stats.skipped} skipped (${stats.existing} existing, ${
-    stats.pending
-  } pending)
-${highlightedTransactionsString(stats.highlightedTransactions, 1)}`.trim();
 }
 
 function transactionsByStatus(results: Array<AccountScrapeResult>) {
@@ -108,27 +113,4 @@ function transactionsByStatus(results: Array<AccountScrapeResult>) {
     pending: pendingTxns,
     completed: scrapedTxns,
   };
-}
-
-function highlightedTransactionsString(
-  groups: Record<string, TransactionRow[]> | undefined,
-  indent = 0,
-) {
-  if (!groups || Object.keys(groups).length === 0) {
-    return "";
-  }
-
-  const indentString = "\t".repeat(indent);
-  const groupsString = Object.entries(groups)
-    .filter(([_, txns]) => txns.length > 0)
-    .map(([name, txns]) => {
-      const transactionsString = transactionList(txns, `${indentString}\t`);
-      return `${indentString}${name}:\n${transactionsString}`;
-    });
-
-  if (groupsString.length === 0) {
-    return "";
-  }
-
-  return `${indentString}${"-".repeat(5)}\n${groupsString}`;
 }

@@ -7,8 +7,9 @@ import { transactionHash, transactionUniqueId } from "./utils.js";
 import { YNABStorage } from "./ynab.js";
 import { BuxferStorage } from "./buxfer.js";
 import { WebPostStorage } from "./web-post.js";
-import { saved, saving } from "../messages.js";
+import { saving } from "../messages.js";
 import { createLogger } from "../utils/logger.js";
+import { statsString } from "../saveStats.js";
 
 const logger = createLogger("storage");
 
@@ -47,7 +48,7 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
       logger(`Saving ${txns.length} transactions to ${name}`);
       const message = await send(saving(name));
       const stats = await storage.saveTransactions(txns);
-      await editMessage(message?.message_id, saved(stats));
+      await editMessage(message?.message_id, statsString(stats));
     } catch (e) {
       logger(`Error saving transactions to ${name}`, e);
       sendError(e, `saveTransactions::${name}`);
