@@ -49,7 +49,9 @@ export function transactionRow(tx: TransactionRow): SheetRow {
     "scraped by": systemName,
     identifier: `${tx.identifier ?? ""}`,
     // Assuming the transaction is not pending, so we can use the original currency as the charged currency
-    chargedCurrency: normalizeCurrency(tx.chargedCurrency) || normalizeCurrency(tx.originalCurrency),
+    chargedCurrency:
+      normalizeCurrency(tx.chargedCurrency) ||
+      normalizeCurrency(tx.originalCurrency),
   };
 }
 
