@@ -1,10 +1,10 @@
 import type { CompanyTypes } from "israeli-bank-scrapers";
-import type { Transaction } from "israeli-bank-scrapers/lib/transactions";
+import type { Transaction } from "israeli-bank-scrapers/lib/transactions.js";
 import type {
   ScraperScrapingResult,
   ScraperCredentials,
 } from "israeli-bank-scrapers";
-import { SaveStats } from "./saveStats";
+import { SaveStats } from "./saveStats.js";
 export type { Transaction };
 
 export type AccountConfig = ScraperCredentials & {
