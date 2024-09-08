@@ -4,6 +4,7 @@ import type {
   ScraperScrapingResult,
   ScraperCredentials,
 } from "israeli-bank-scrapers";
+import { SaveStats } from "./saveStats";
 export type { Transaction };
 
 export type AccountConfig = ScraperCredentials & {
@@ -28,17 +29,6 @@ export type CategoryDef = {
   startsWith?: Array<string>;
   eq?: Array<string>;
 };
-
-export interface SaveStats {
-  name: string;
-  table: string;
-  total: number;
-  added: number;
-  pending: number;
-  skipped: number;
-  existing: number;
-  highlightedTransactions?: Record<string, Array<TransactionRow>>;
-}
 
 export interface TransactionStorage {
   canSave(): boolean;

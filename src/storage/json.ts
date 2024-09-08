@@ -1,11 +1,8 @@
 import path from "node:path";
 import fs from "node:fs/promises";
 import { createLogger } from "./../utils/logger.js";
-import type {
-  TransactionRow,
-  TransactionStorage,
-  SaveStats,
-} from "../types.js";
+import type { TransactionRow, TransactionStorage } from "../types.js";
+import { createSaveStats } from "../saveStats.js";
 
 const logger = createLogger("LocalJsonStorage");
 
@@ -32,15 +29,9 @@ export class LocalJsonStorage implements TransactionStorage {
 
     await fs.appendFile(fileName, JSON.stringify(txns), { encoding: "utf8" });
 
-    const stats: SaveStats = {
-      name: "LocalJsonStorage",
-      table: fileName,
-      total: txns.length,
+    const stats = createSaveStats("LocalJsonStorage", fileName, txns, {
       added: txns.length,
-      pending: NaN,
-      skipped: 0,
-      existing: NaN,
-    };
+    });
 
     return stats;
   }

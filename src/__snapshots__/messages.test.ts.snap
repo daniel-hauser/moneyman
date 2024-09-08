@@ -20,12 +20,13 @@ exports[`messages getSummaryMessages should not add empty groups 2`] = `
 `;
 
 exports[`messages getSummaryMessages should return a summary message 1`] = `
-"7 transactions scraped.
-(3 pending, 4 completed)
+"8 transactions scraped.
+(3 pending, 5 completed)
+From completed, 3 not originally in ILS and 1 not charged in ILS
 
 Accounts updated:
 	✔️ [max] account1: 1
-	✔️ [max] account2: 6
+	✔️ [max] account2: 7
 
 Pending txns:
 	description1:	+20.00
@@ -36,11 +37,11 @@ Pending txns:
 exports[`messages getSummaryMessages should return a summary message 2`] = `
 [
   "📝 Storage 1 (TheTable)
-	2 added
-	4 skipped (5 existing, 3 pending)",
+	1 added
+	0 skipped (0 existing, 0 pending)",
   "📝 Storage 2 (TheTable)
 	7 added
-	9 skipped (10 existing, 8 pending)
+	0 skipped (0 existing, 3 pending)
 	-----
 	Group1:
 		description1:	+10.00",
@@ -78,7 +79,7 @@ exports[`messages getSummaryMessages should return a summary message with instal
 [
   "📝 Storage 1 (TheTable)
 	2 added
-	4 skipped (5 existing, 3 pending)
+	0 skipped (0 existing, 0 pending)
 	-----
 	SomeGroup:
 		should be +20:	+20.00

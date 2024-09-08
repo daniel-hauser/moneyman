@@ -1,6 +1,5 @@
 import { Readable } from "node:stream";
 import { KustoConnectionStringBuilder } from "azure-kusto-data";
-import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import {
   DataFormat,
   IngestClient,
@@ -10,11 +9,8 @@ import { sendError } from "../notifier.js";
 import { systemName } from "./../config.js";
 import { createLogger } from "./../utils/logger.js";
 import type KustoIngestClient from "azure-kusto-ingest/types/src/ingestClient.js";
-import type {
-  SaveStats,
-  TransactionRow,
-  TransactionStorage,
-} from "../types.js";
+import type { TransactionRow, TransactionStorage } from "../types.js";
+import { createSaveStats } from "../saveStats.js";
 
 const logger = createLogger("azure-data-explorer");
 
@@ -71,19 +67,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
   async saveTransactions(txns: Array<TransactionRow>) {
     logger(`Saving ${txns.length} transactions`);
 
-    const pending = txns.filter(
-      (tx) => tx.status === TransactionStatuses.Pending,
-    ).length;
-
-    const stats: SaveStats = {
-      name: "AzureDataExplorer",
-      table: ADE_TABLE_NAME!,
-      total: txns.length,
-      added: txns.length,
-      pending,
-      skipped: 0,
-      existing: NaN,
-    };
+    const stats = createSaveStats("AzureDataExplorer", ADE_TABLE_NAME, txns);
 
     if (!this.ingestClient) {
       await sendError(
@@ -96,6 +80,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
       );
       try {
         await this.ingestClient.ingestFromStream(stream);
+        stats.added = txns.length;
       } catch (e) {
         await sendError(e, "AzureDataExplorer.ingestFromStream");
       }
