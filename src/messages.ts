@@ -3,7 +3,7 @@ import {
   TransactionTypes,
 } from "israeli-bank-scrapers/lib/transactions.js";
 import { AccountScrapeResult, Transaction } from "./types";
-import { normalizeCurrency } from "./utils/currency";
+import { normalizeCurrency } from "./utils/currency.js";
 
 export function getSummaryMessages(results: Array<AccountScrapeResult>) {
   const accountsSummary = results.flatMap(({ result, companyId }) => {
