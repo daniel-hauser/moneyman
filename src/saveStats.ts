@@ -20,6 +20,11 @@ export interface SaveStats {
    */
   added: number;
   /**
+   * Existing transactions that were update
+   */
+  updated?: number;
+
+  /**
    * Total scrapped transactions that are pending status
    */
   pending: number;
@@ -70,7 +75,7 @@ export function createSaveStats<TInit extends Partial<SaveStats>>(
 export function statsString(stats: SaveStats): string {
   return `
 📝 ${stats.name}${stats.table ? ` (${stats.table})` : ""}
-\t${stats.added} added
+\t${stats.added} added${stats.updated ? `\t${stats.updated} updated` : ""}
 \t${stats.skipped} skipped (${stats.existing} existing, ${
     stats.pending
   } pending)

@@ -68,10 +68,11 @@ export class BuxferStorage implements TransactionStorage {
         `sending to Buxfer accounts: "${this.accountToBuxferAccount.keys()}"`,
       );
       const resp: AddTransactionsResponse =
-        await this.buxferClient.addTransactions(txToSend, true);
+        await this.buxferClient.addUpdateTransactions(txToSend);
       logger("transactions sent to Buxfer successfully!");
       stats.added = resp.addedTransactionIds.length;
-      stats.existing = resp.duplicatedTransactionIds.length;
+      stats.existing = resp.existingTransactionIds.length;
+      stats.updated = resp.updatedTransactionIds.length;
       stats.skipped += stats.existing;
     }
 
