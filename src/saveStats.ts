@@ -1,6 +1,6 @@
-import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions";
+import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { TransactionRow } from "./types";
-import { transactionList } from "./messages";
+import { transactionList } from "./messages.js";
 
 export interface SaveStats {
   /**
