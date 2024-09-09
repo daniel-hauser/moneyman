@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { subDays, format } from "date-fns";
-import { AccountConfig } from "./types";
+import { AccountConfig } from "./types.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 
 const logger = createLogger("config");

@@ -2,8 +2,8 @@ import {
   Transaction,
   TransactionStatuses,
   TransactionTypes,
-} from "israeli-bank-scrapers/lib/transactions";
-import { transactionUniqueId, transactionHash } from "./utils";
+} from "israeli-bank-scrapers/lib/transactions.js";
+import { transactionUniqueId, transactionHash } from "./utils.js";
 import { CompanyTypes } from "israeli-bank-scrapers";
 
 const transaction1: Transaction = {
