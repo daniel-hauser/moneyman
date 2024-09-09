@@ -116,10 +116,15 @@ export class BuxferStorage implements TransactionStorage {
       accountId: Number(accountId),
       date: format(parseISO(tx.date), BUXFER_DATE_FORMAT, {}),
       amount: tx.chargedAmount,
-      description: tx.description,
+      description: this.createCompositeDescription(tx),
       status:
         tx.status === TransactionStatuses.Completed ? "cleared" : "pending",
       type: tx.chargedAmount > 0 ? "income" : "expense",
     };
+  }
+
+  private createCompositeDescription(tx: TransactionRow): string {
+    const compositeDescription: string = `${tx.description}${tx.memo!.length === 0 ? "" : ` | ${tx.memo}`}`;
+    return compositeDescription;
   }
 }
