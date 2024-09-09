@@ -124,7 +124,7 @@ export class BuxferStorage implements TransactionStorage {
   }
 
   private createCompositeDescription(tx: TransactionRow): string {
-    const compositeDescription: string = `${tx.description}${tx.memo!.length === 0 ? "" : ` | ${tx.memo}`}`;
+    const compositeDescription: string = `${tx.description}${tx.memo != null && tx.memo.length > 0 ? ` | ${tx.memo}` : ""}`;
     return compositeDescription;
   }
 }
