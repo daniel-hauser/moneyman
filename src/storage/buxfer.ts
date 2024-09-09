@@ -123,6 +123,11 @@ export class BuxferStorage implements TransactionStorage {
     };
   }
 
+  /**
+   * Buxfer does not allow updating all trx fields via REST API so this will add additional fields to the description with '|' separators
+   * @param tx Converted transaction from scrapper
+   * @returns Composite description string
+   */
   private createCompositeDescription(tx: TransactionRow): string {
     const compositeDescription: string = `${tx.description}${tx.memo != null && tx.memo.length > 0 ? ` | ${tx.memo}` : ""}`;
     return compositeDescription;
