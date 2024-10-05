@@ -5,6 +5,7 @@ import { createLogger } from "../utils/logger.js";
 import { createBrowser } from "../browser.js";
 import { sendError } from "../notifier.js";
 import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
+import { ScraperOptions } from "israeli-bank-scrapers";
 
 const logger = createLogger("scraper");
 
@@ -21,8 +22,11 @@ export async function scrapeAccounts(
 
   logger(`scraping %d accounts`, accounts.length);
   logger(`start date %s`, startDate.toISOString());
+
+  let futureMonths: number | undefined = undefined;
   if (!Number.isNaN(futureMonthsToScrape)) {
     logger(`months to scrap: %d`, futureMonthsToScrape);
+    futureMonths = futureMonthsToScrape;
   }
 
   const status: Array<string> = [];
@@ -44,20 +48,20 @@ export async function scrapeAccounts(
     const browserContext = await browser.createBrowserContext();
     accountLogger(`browser context created`);
 
+    const scraperOptions = {
+      browserContext,
+      startDate,
+      companyId: account.companyId,
+      futureMonthsToScrape: futureMonths,
+      storeFailureScreenShotPath: getFailureScreenShotPath(account.companyId),
+    } satisfies ScraperOptions;
+
     accountLogger(`scraping`);
 
     const scraperStart = performance.now();
     const result = await getAccountTransactions(
       account,
-      {
-        browserContext,
-        startDate,
-        companyId: account.companyId,
-        futureMonthsToScrape: Number.isNaN(futureMonthsToScrape)
-          ? undefined
-          : futureMonthsToScrape,
-        storeFailureScreenShotPath: getFailureScreenShotPath(account.companyId),
-      },
+      scraperOptions,
       (cid, step) => setStatusMessage(i, `[${cid}] ${step}`),
     );
 
