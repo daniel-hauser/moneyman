@@ -67,13 +67,14 @@ export function createSaveStats<TInit extends Partial<SaveStats>>(
   };
 }
 
-export function statsString(stats: SaveStats): string {
+export function statsString(stats: SaveStats, saveDurationMs: number): string {
   return `
 📝 ${stats.name}${stats.table ? ` (${stats.table})` : ""}
 \t${stats.added} added
 \t${stats.skipped} skipped (${stats.existing} existing, ${
     stats.pending
   } pending)
+\ttook ${(saveDurationMs / 1000).toFixed(2)}s
 ${highlightedTransactionsString(stats.highlightedTransactions, 1)}`.trim();
 }
 
