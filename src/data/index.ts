@@ -40,13 +40,17 @@ export async function scrapeAccounts(
     const account = accounts[i];
     const accountLogger = logger.extend(`#${i} (${account.companyId})`);
 
+    accountLogger("creating browser context");
+    const browserContext = await browser.createBrowserContext();
+    accountLogger(`browser context created`);
+
     accountLogger(`scraping`);
 
     const scraperStart = performance.now();
     const result = await getAccountTransactions(
       account,
       {
-        browserContext: browser.defaultBrowserContext(),
+        browserContext,
         startDate,
         companyId: account.companyId,
         futureMonthsToScrape: Number.isNaN(futureMonthsToScrape)
