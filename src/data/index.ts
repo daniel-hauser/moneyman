@@ -30,7 +30,7 @@ export async function scrapeAccounts(
   }
 
   const status: Array<string> = [];
-  function setStatusMessage(i: number, message: string) {
+  async function setStatusMessage(i: number, message: string) {
     status[i] = message;
     return scrapeStatusChanged?.(status);
   }
@@ -42,37 +42,20 @@ export async function scrapeAccounts(
 
   for (let i = 0; i < accounts.length; i++) {
     const account = accounts[i];
-    const accountLogger = logger.extend(`#${i} (${account.companyId})`);
 
-    accountLogger("creating browser context");
-    const browserContext = await browser.createBrowserContext();
-    accountLogger(`browser context created`);
-
-    const scraperOptions = {
-      browserContext,
-      startDate,
-      companyId: account.companyId,
-      futureMonthsToScrape: futureMonths,
-      storeFailureScreenShotPath: getFailureScreenShotPath(account.companyId),
-    } satisfies ScraperOptions;
-
-    accountLogger(`scraping`);
-
-    const scraperStart = performance.now();
-    const result = await getAccountTransactions(
+    results[i] = await scrapeAccount(
+      logger.extend(`#${i} (${account.companyId})`),
       account,
-      scraperOptions,
-      (cid, step) => setStatusMessage(i, `[${cid}] ${step}`),
+      {
+        browserContext: await browser.createBrowserContext(),
+        startDate,
+        companyId: account.companyId,
+        futureMonthsToScrape: futureMonths,
+        storeFailureScreenShotPath: getFailureScreenShotPath(account.companyId),
+      },
+      (message, append = false) =>
+        setStatusMessage(i, append ? `${status[i]} ${message}` : message),
     );
-
-    const duration = (performance.now() - scraperStart) / 1000;
-    accountLogger(`scraping ended, took ${duration.toFixed(1)}s`);
-    await setStatusMessage(i, `${status[i]}, took ${duration.toFixed(1)}s`);
-
-    results.push({
-      companyId: account.companyId,
-      result,
-    });
   }
 
   const duration = (performance.now() - start) / 1000;
@@ -107,5 +90,30 @@ function getStats(results: Array<AccountScrapeResult>) {
   return {
     accounts,
     transactions,
+  };
+}
+
+async function scrapeAccount(
+  logger: debug.IDebugger,
+  account: AccountConfig,
+  scraperOptions: ScraperOptions,
+  setStatusMessage: (message: string, append?: boolean) => Promise<void>,
+) {
+  logger(`scraping`);
+
+  const scraperStart = performance.now();
+  const result = await getAccountTransactions(
+    account,
+    scraperOptions,
+    (cid, step) => setStatusMessage(`[${cid}] ${step}`),
+  );
+
+  const duration = (performance.now() - scraperStart) / 1000;
+  logger(`scraping ended, took ${duration.toFixed(1)}s`);
+  await setStatusMessage(`, took ${duration.toFixed(1)}s`, true);
+
+  return {
+    companyId: account.companyId,
+    result,
   };
 }
