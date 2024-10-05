@@ -6,7 +6,7 @@ import { createBrowser } from "../browser.js";
 import { sendError } from "../notifier.js";
 import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
 
-const logger = createLogger("data");
+const logger = createLogger("scraper");
 
 export async function scrapeAccounts(
   accounts: Array<AccountConfig>,
@@ -26,30 +26,27 @@ export async function scrapeAccounts(
   }
 
   const status: Array<string> = [];
+  function setStatusMessage(i: number, message: string) {
+    status[i] = message;
+    return scrapeStatusChanged?.(status);
+  }
   const results: Array<AccountScrapeResult> = [];
 
   logger("Creating a browser");
   const browser = await createBrowser();
   logger(`Browser created, starting to scrape ${accounts.length} accounts`);
 
-  const defaultBrowserContext = browser?.defaultBrowserContext();
-
   for (let i = 0; i < accounts.length; i++) {
     const account = accounts[i];
     const accountLogger = logger.extend(`#${i} (${account.companyId})`);
 
-    accountLogger(`scraping account`);
-
-    function setStatusMessage(message: string) {
-      status[i] = message;
-      return scrapeStatusChanged?.(status);
-    }
+    accountLogger(`scraping`);
 
     const scraperStart = performance.now();
     const result = await getAccountTransactions(
       account,
       {
-        browserContext: defaultBrowserContext,
+        browserContext: browser.defaultBrowserContext(),
         startDate,
         companyId: account.companyId,
         futureMonthsToScrape: Number.isNaN(futureMonthsToScrape)
@@ -57,12 +54,12 @@ export async function scrapeAccounts(
           : futureMonthsToScrape,
         storeFailureScreenShotPath: getFailureScreenShotPath(account.companyId),
       },
-      (cid, step) => setStatusMessage(`[${cid}] ${step}`),
+      (cid, step) => setStatusMessage(i, `[${cid}] ${step}`),
     );
 
     const duration = (performance.now() - scraperStart) / 1000;
     accountLogger(`scraping ended, took ${duration.toFixed(1)}s`);
-    await setStatusMessage(`${status[i]}, took ${duration.toFixed(1)}s`);
+    await setStatusMessage(i, `${status[i]}, took ${duration.toFixed(1)}s`);
 
     results.push({
       companyId: account.companyId,
@@ -71,7 +68,7 @@ export async function scrapeAccounts(
   }
 
   const duration = (performance.now() - start) / 1000;
-  logger(`scraping ended total duration: ${duration}s, got`, getStats(results));
+  logger(`scraping ended, total duration: ${duration.toFixed(1)}s`);
   await scrapeStatusChanged?.(status, duration);
 
   try {
@@ -82,6 +79,7 @@ export async function scrapeAccounts(
     logger(`failed to close browser`, e);
   }
 
+  logger(getStats(results));
   return results;
 }
 
