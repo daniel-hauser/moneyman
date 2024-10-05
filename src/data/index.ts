@@ -3,9 +3,12 @@ import { getAccountTransactions } from "./scrape.js";
 import { AccountConfig, AccountScrapeResult } from "../types.js";
 import { createLogger } from "../utils/logger.js";
 import { createBrowser } from "../browser.js";
-import { sendError } from "../notifier.js";
+import { send, sendError } from "../notifier.js";
 import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
 import { ScraperOptions } from "israeli-bank-scrapers";
+import { parallelScrapers } from "../config.js";
+import { parallelLimit } from "async";
+import os from "node:os";
 
 const logger = createLogger("scraper");
 
@@ -30,33 +33,51 @@ export async function scrapeAccounts(
   }
 
   const status: Array<string> = [];
-  async function setStatusMessage(i: number, message: string) {
-    status[i] = message;
-    return scrapeStatusChanged?.(status);
-  }
-  const results: Array<AccountScrapeResult> = [];
 
   logger("Creating a browser");
   const browser = await createBrowser();
   logger(`Browser created, starting to scrape ${accounts.length} accounts`);
 
-  for (let i = 0; i < accounts.length; i++) {
-    const account = accounts[i];
-
-    results[i] = await scrapeAccount(
-      logger.extend(`#${i} (${account.companyId})`),
-      account,
-      {
-        browserContext: await browser.createBrowserContext(),
-        startDate,
-        companyId: account.companyId,
-        futureMonthsToScrape: futureMonths,
-        storeFailureScreenShotPath: getFailureScreenShotPath(account.companyId),
-      },
-      (message, append = false) =>
-        setStatusMessage(i, append ? `${status[i]} ${message}` : message),
+  if (Number(parallelScrapers) > 1) {
+    logger(`Running with ${parallelScrapers} parallel scrapers`);
+    send(
+      `System info: ${JSON.stringify(
+        {
+          parallelScrapers: Number(parallelScrapers),
+          availableParallelism: os.availableParallelism(),
+          totalMemoryGB: (os.totalmem() / 1000000000).toFixed(2),
+          freeMemoryGB: (os.freemem() / 1000000000).toFixed(2),
+          cpus: os.cpus().length,
+        },
+        null,
+        2,
+      )}`,
     );
   }
+
+  const results = await parallelLimit<AccountConfig, AccountScrapeResult[]>(
+    accounts.map(
+      (account, i) => async () =>
+        scrapeAccount(
+          logger.extend(`#${i} (${account.companyId})`),
+          account,
+          {
+            browserContext: await browser.createBrowserContext(),
+            startDate,
+            companyId: account.companyId,
+            futureMonthsToScrape: futureMonths,
+            storeFailureScreenShotPath: getFailureScreenShotPath(
+              account.companyId,
+            ),
+          },
+          async (message, append = false) => {
+            status[i] = append ? `${status[i]} ${message}` : message;
+            return scrapeStatusChanged?.(status);
+          },
+        ),
+    ),
+    Number(parallelScrapers),
+  );
 
   const duration = (performance.now() - start) / 1000;
   logger(`scraping ended, total duration: ${duration.toFixed(1)}s`);

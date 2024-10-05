@@ -25,6 +25,7 @@ const {
   BUXFER_ACCOUNTS = "",
   TRANSACTION_HASH_TYPE = "",
   WEB_POST_URL = "",
+  MAX_PARALLEL_SCRAPERS = "",
 } = process.env;
 
 /**
@@ -34,6 +35,7 @@ export const daysBackToScrape = DAYS_BACK || 10;
 export const worksheetName = WORKSHEET_NAME || "_moneyman";
 export const futureMonthsToScrape = parseInt(FUTURE_MONTHS, 10);
 export const systemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+export const parallelScrapers = MAX_PARALLEL_SCRAPERS || 1;
 
 const accountsToScrape = ACCOUNTS_TO_SCRAPE.split(",")
   .filter(Boolean)
