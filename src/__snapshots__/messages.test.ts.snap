@@ -5,6 +5,7 @@ exports[`messages getSummaryMessages should not add empty groups 1`] = `
   "📝 Storage (TheTable)
 	0 added
 	0 skipped (0 existing, 0 pending)
+	took 0.00s
 	-----
 	Group2:
 		description1:	+10.00",
@@ -15,7 +16,8 @@ exports[`messages getSummaryMessages should not add empty groups 2`] = `
 [
   "📝 Storage (TheTable)
 	0 added
-	0 skipped (0 existing, 0 pending)",
+	0 skipped (0 existing, 0 pending)
+	took 0.00s",
 ]
 `;
 
@@ -38,10 +40,12 @@ exports[`messages getSummaryMessages should return a summary message 2`] = `
 [
   "📝 Storage 1 (TheTable)
 	1 added
-	0 skipped (0 existing, 0 pending)",
+	0 skipped (0 existing, 0 pending)
+	took 350.00s",
   "📝 Storage 2 (TheTable)
 	7 added
 	0 skipped (0 existing, 3 pending)
+	took 350.00s
 	-----
 	Group1:
 		description1:	+10.00",
@@ -80,6 +84,7 @@ exports[`messages getSummaryMessages should return a summary message with instal
   "📝 Storage 1 (TheTable)
 	2 added
 	0 skipped (0 existing, 0 pending)
+	took 0.00s
 	-----
 	SomeGroup:
 		should be +20:	+20.00

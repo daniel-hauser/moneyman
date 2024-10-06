@@ -103,7 +103,7 @@ describe("messages", () => {
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map((stats) => statsString(stats, 350000));
       expect(saveSummaries).toMatchSnapshot();
     });
 
@@ -115,7 +115,7 @@ describe("messages", () => {
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map((stats) => statsString(stats, 0));
       expect(saveSummaries).toMatchSnapshot();
     });
 
@@ -155,7 +155,7 @@ describe("messages", () => {
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map((stats) => statsString(stats, 0));
       expect(saveSummaries).toMatchSnapshot();
     });
 
@@ -208,7 +208,7 @@ describe("messages", () => {
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map((stats) => statsString(stats, 0));
       expect(saveSummaries).toMatchSnapshot();
     });
 
@@ -237,7 +237,7 @@ describe("messages", () => {
         }),
       ];
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map((stats) => statsString(stats, 0));
       expect(saveSummaries).toMatchSnapshot();
     });
 
@@ -250,7 +250,7 @@ describe("messages", () => {
         }),
       ];
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map((stats) => statsString(stats, 0));
       expect(saveSummaries).toMatchSnapshot();
     });
   });

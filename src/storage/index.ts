@@ -10,8 +10,9 @@ import { WebPostStorage } from "./web-post.js";
 import { saving } from "../messages.js";
 import { createLogger } from "../utils/logger.js";
 import { statsString } from "../saveStats.js";
+import { parallel } from "async";
 
-const logger = createLogger("storage");
+const baseLogger = createLogger("storage");
 
 export const storages = [
   new LocalJsonStorage(),
@@ -34,26 +35,32 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
     return;
   }
 
-  for (let storage of storages) {
-    const { name } = storage.constructor;
-    try {
-      logger(`Initializing ${name}`);
-      await storage.init();
-    } catch (e) {
-      logger(`Error initializing ${name}`, e);
-      sendError(e, `init::${name}`);
-    }
+  await parallel(
+    storages.map((storage) => async () => {
+      const { name } = storage.constructor;
+      const logger = baseLogger.extend(name);
+      try {
+        logger(`initializing`);
+        await storage.init();
+      } catch (e) {
+        logger(`error initializing`, e);
+        sendError(e, `init::${name}`);
+      }
 
-    try {
-      logger(`Saving ${txns.length} transactions to ${name}`);
-      const message = await send(saving(name));
-      const stats = await storage.saveTransactions(txns);
-      await editMessage(message?.message_id, statsString(stats));
-    } catch (e) {
-      logger(`Error saving transactions to ${name}`, e);
-      sendError(e, `saveTransactions::${name}`);
-    }
-  }
+      try {
+        logger(`saving ${txns.length} transactions`);
+        const message = await send(saving(name));
+        const start = performance.now();
+        const stats = await storage.saveTransactions(txns);
+        const duration = performance.now() - start;
+        logger(`saved`);
+        await editMessage(message?.message_id, statsString(stats, duration));
+      } catch (e) {
+        logger(`error saving transactions`, e);
+        sendError(e, `saveTransactions::${name}`);
+      }
+    }),
+  );
 }
 
 function resultsToTransactions(
