@@ -23,6 +23,7 @@ on:
     - cron: "33 10 * * *"
 env:
   REGISTRY: ghcr.io
+  MAX_PARALLEL_SCRAPERS: 3
 jobs:
   scrape:
     runs-on: ubuntu-latest
@@ -90,4 +91,4 @@ jobs:
           BUXFER_ACCOUNTS: ${{ secrets.BUXFER_ACCOUNTS }}
           TRANSACTION_HASH_TYPE: ${{ secrets.TRANSACTION_HASH_TYPE }}
           WEB_POST_URL: ${{ secrets.WEB_POST_URL }}
-          MAX_PARALLEL_SCRAPERS: ${{ github.event.inputs.parallelScrapes }}
+          MAX_PARALLEL_SCRAPERS: ${{ github.event.inputs.parallelScrapes || env.MAX_PARALLEL_SCRAPERS }}

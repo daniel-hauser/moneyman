@@ -3,6 +3,15 @@ name: Create and publish a Docker image
 on:
   push:
     branches: ["main"]
+    paths:
+      - "src/**"
+      - "patches/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - ".eslintrc.js"
+      - ".prettierrc.js"
+      - ".github/workflows/build.yml"
   workflow_dispatch:
 
 env:
