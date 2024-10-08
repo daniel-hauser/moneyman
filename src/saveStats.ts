@@ -1,6 +1,7 @@
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { TransactionRow } from "./types.js";
 import { transactionList } from "./messages.js";
+import { Timer } from "./utils/Timer.js";
 
 export interface SaveStats {
   /**
@@ -67,9 +68,15 @@ export function createSaveStats<TInit extends Partial<SaveStats>>(
   };
 }
 
-export function statsString(stats: SaveStats, saveDurationMs: number): string {
+export function statsString(
+  stats: SaveStats,
+  saveDurationMs: number,
+  steps: Array<Timer> = [],
+): string {
+  const header = `📝 ${stats.name}${stats.table ? ` (${stats.table})` : ""}`;
+  const stepsString = "\n" + steps.map((s) => `\t${s}`).join("\n");
   return `
-📝 ${stats.name}${stats.table ? ` (${stats.table})` : ""}
+${header}${stepsString.trim()}
 \t${stats.added} added
 \t${stats.skipped} skipped (${stats.existing} existing, ${
     stats.pending

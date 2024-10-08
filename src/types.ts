@@ -32,5 +32,8 @@ export type CategoryDef = {
 
 export interface TransactionStorage {
   canSave(): boolean;
-  saveTransactions(txns: Array<TransactionRow>): Promise<SaveStats>;
+  saveTransactions(
+    txns: Array<TransactionRow>,
+    onProgress: (status: string) => Promise<void>,
+  ): Promise<SaveStats>;
 }
