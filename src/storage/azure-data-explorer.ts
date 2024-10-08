@@ -27,7 +27,7 @@ const {
 export class AzureDataExplorerStorage implements TransactionStorage {
   ingestClient: KustoIngestClient;
 
-  async init() {
+  init() {
     logger("init");
 
     try {
@@ -52,6 +52,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
       sendError(e, "AzureDataExplorerStorage");
     }
   }
+
   canSave() {
     return Boolean(
       AZURE_APP_ID &&
@@ -64,8 +65,12 @@ export class AzureDataExplorerStorage implements TransactionStorage {
     );
   }
 
-  async saveTransactions(txns: Array<TransactionRow>) {
+  async saveTransactions(
+    txns: Array<TransactionRow>,
+    onProgress: (status: string) => Promise<void>,
+  ) {
     logger(`Saving ${txns.length} transactions`);
+    this.init();
 
     const stats = createSaveStats("AzureDataExplorer", ADE_TABLE_NAME, txns);
 
@@ -79,7 +84,10 @@ export class AzureDataExplorerStorage implements TransactionStorage {
         JSON.stringify(txns.map(this.transactionRow)),
       );
       try {
-        await this.ingestClient.ingestFromStream(stream);
+        await Promise.all([
+          onProgress("Ingesting"),
+          this.ingestClient.ingestFromStream(stream),
+        ]);
         stats.added = txns.length;
       } catch (e) {
         await sendError(e, "AzureDataExplorer.ingestFromStream");

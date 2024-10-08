@@ -103,3 +103,41 @@ Pending txns:
 `;
 
 exports[`messages getSummaryMessages should return a summary message with no results 2`] = `[]`;
+
+exports[`messages getSummaryMessages should support steps 1`] = `
+[
+  "📝 Storage (TheTable)Step1, took 0.01s
+	Step2, took 0.10s
+	Step3, took 10.00s
+	Step4, took 100.46s
+	1 added
+	0 skipped (0 existing, 0 pending)
+	took 0.00s
+	-----
+	Group1:
+		description1:	+10.00",
+]
+`;
+
+exports[`messages saving should return a saving message 1`] = `"📝 Storage Saving..."`;
+
+exports[`messages saving should return a saving message with not finished steps 1`] = `
+"📝 Storage Saving...
+	Step1, took 0.01s
+	Step2, took 0.10s
+	Step3, took 10.00s
+	Step4"
+`;
+
+exports[`messages saving should return a saving message with one not finished step 1`] = `
+"📝 Storage Saving...
+	Step4"
+`;
+
+exports[`messages saving should return a saving message with steps 1`] = `
+"📝 Storage Saving...
+	Step1, took 0.01s
+	Step2, took 0.10s
+	Step3, took 10.00s
+	Step4, took 100.46s"
+`;

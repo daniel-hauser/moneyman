@@ -1,5 +1,9 @@
 import { editMessage, send, sendError } from "../notifier.js";
-import type { AccountScrapeResult, TransactionRow } from "../types.js";
+import {
+  AccountScrapeResult,
+  TransactionRow,
+  TransactionStorage,
+} from "../types.js";
 import { LocalJsonStorage } from "./json.js";
 import { GoogleSheetsStorage } from "./sheets.js";
 import { AzureDataExplorerStorage } from "./azure-data-explorer.js";
@@ -11,6 +15,7 @@ import { saving } from "../messages.js";
 import { createLogger } from "../utils/logger.js";
 import { statsString } from "../saveStats.js";
 import { parallel } from "async";
+import { Timer } from "../utils/Timer.js";
 
 const baseLogger = createLogger("storage");
 
@@ -36,25 +41,27 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
   }
 
   await parallel(
-    storages.map((storage) => async () => {
+    storages.map((storage: TransactionStorage) => async () => {
       const { name } = storage.constructor;
       const logger = baseLogger.extend(name);
-      try {
-        logger(`initializing`);
-        await storage.init();
-      } catch (e) {
-        logger(`error initializing`, e);
-        sendError(e, `init::${name}`);
-      }
+      const steps: Array<Timer> = [];
 
       try {
         logger(`saving ${txns.length} transactions`);
         const message = await send(saving(name));
         const start = performance.now();
-        const stats = await storage.saveTransactions(txns);
+        const stats = await storage.saveTransactions(txns, async (step) => {
+          steps.at(-1)?.end();
+          steps.push(new Timer(step));
+          await editMessage(message?.message_id, saving(name, steps));
+        });
         const duration = performance.now() - start;
+        steps.at(-1)?.end();
         logger(`saved`);
-        await editMessage(message?.message_id, statsString(stats, duration));
+        await editMessage(
+          message?.message_id,
+          statsString(stats, duration, steps),
+        );
       } catch (e) {
         logger(`error saving transactions`, e);
         sendError(e, `saveTransactions::${name}`);
