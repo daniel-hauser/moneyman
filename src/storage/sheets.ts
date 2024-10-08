@@ -73,20 +73,12 @@ export class GoogleSheetsStorage implements TransactionStorage {
 
   existingTransactionsHashes = new Set<string>();
 
-  private initPromise: null | Promise<void> = null;
-
   private sheet: null | GoogleSpreadsheetWorksheet = null;
 
   async init() {
-    // Init only once
-    if (!this.initPromise) {
-      this.initPromise = (async () => {
-        await this.initDocAndSheet();
-        await this.loadHashes();
-      })();
-    }
-
-    await this.initPromise;
+    logger("init");
+    await this.initDocAndSheet();
+    await this.loadHashes();
   }
 
   canSave() {

@@ -32,6 +32,5 @@ export type CategoryDef = {
 
 export interface TransactionStorage {
   canSave(): boolean;
-  init(): Promise<void>;
   saveTransactions(txns: Array<TransactionRow>): Promise<SaveStats>;
 }

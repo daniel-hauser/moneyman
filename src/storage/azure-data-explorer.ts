@@ -52,6 +52,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
       sendError(e, "AzureDataExplorerStorage");
     }
   }
+
   canSave() {
     return Boolean(
       AZURE_APP_ID &&
@@ -66,6 +67,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
 
   async saveTransactions(txns: Array<TransactionRow>) {
     logger(`Saving ${txns.length} transactions`);
+    await this.init();
 
     const stats = createSaveStats("AzureDataExplorer", ADE_TABLE_NAME, txns);
 

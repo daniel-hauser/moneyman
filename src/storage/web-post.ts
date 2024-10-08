@@ -10,17 +10,12 @@ const logger = createLogger("WebPostStorage");
 export class WebPostStorage implements TransactionStorage {
   private url = WEB_POST_URL;
 
-  async init() {
-    logger("init");
-  }
-
   canSave() {
     return Boolean(this.url) && URL.canParse(this.url);
   }
 
   async saveTransactions(txns: Array<TransactionRow>) {
     logger("saveTransactions");
-    await this.init();
 
     const nonPendingTxns = txns.filter(
       (txn) => txn.status !== TransactionStatuses.Pending,

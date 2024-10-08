@@ -39,13 +39,6 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
     storages.map((storage) => async () => {
       const { name } = storage.constructor;
       const logger = baseLogger.extend(name);
-      try {
-        logger(`initializing`);
-        await storage.init();
-      } catch (e) {
-        logger(`error initializing`, e);
-        sendError(e, `init::${name}`);
-      }
 
       try {
         logger(`saving ${txns.length} transactions`);
