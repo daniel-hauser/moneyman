@@ -106,7 +106,8 @@ exports[`messages getSummaryMessages should return a summary message with no res
 
 exports[`messages getSummaryMessages should support steps 1`] = `
 [
-  "📝 Storage (TheTable)Step1, took 0.01s
+  "📝 Storage (TheTable)
+	Step1, took 0.01s
 	Step2, took 0.10s
 	Step3, took 10.00s
 	Step4, took 100.46s

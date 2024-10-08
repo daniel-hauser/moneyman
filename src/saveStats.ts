@@ -74,9 +74,9 @@ export function statsString(
   steps: Array<Timer> = [],
 ): string {
   const header = `📝 ${stats.name}${stats.table ? ` (${stats.table})` : ""}`;
-  const stepsString = "\n" + steps.map((s) => `\t${s}`).join("\n");
+  const stepsString = steps.map((s) => `\t${s}`).join("\n");
   return `
-${header}${stepsString.trim()}
+${header}${stepsString ? "\n" + stepsString : ""}
 \t${stats.added} added
 \t${stats.skipped} skipped (${stats.existing} existing, ${
     stats.pending
