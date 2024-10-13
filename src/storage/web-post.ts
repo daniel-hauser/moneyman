@@ -10,17 +10,15 @@ const logger = createLogger("WebPostStorage");
 export class WebPostStorage implements TransactionStorage {
   private url = WEB_POST_URL;
 
-  async init() {
-    logger("init");
-  }
-
   canSave() {
     return Boolean(this.url) && URL.canParse(this.url);
   }
 
-  async saveTransactions(txns: Array<TransactionRow>) {
+  async saveTransactions(
+    txns: Array<TransactionRow>,
+    onProgress: (status: string) => Promise<void>,
+  ) {
     logger("saveTransactions");
-    await this.init();
 
     const nonPendingTxns = txns.filter(
       (txn) => txn.status !== TransactionStatuses.Pending,
@@ -28,13 +26,16 @@ export class WebPostStorage implements TransactionStorage {
 
     logger(`Posting ${nonPendingTxns.length} transactions to ${this.url}`);
 
-    const response = await fetch(this.url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(nonPendingTxns.map((tx) => transactionRow(tx))),
-    });
+    const [response] = await Promise.all([
+      fetch(this.url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(nonPendingTxns.map((tx) => transactionRow(tx))),
+      }),
+      onProgress("Sending"),
+    ]);
 
     if (!response.ok) {
       logger(`Failed to post transactions: ${response.statusText}`);

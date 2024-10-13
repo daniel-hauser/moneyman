@@ -73,21 +73,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
 
   existingTransactionsHashes = new Set<string>();
 
-  private initPromise: null | Promise<void> = null;
-
   private sheet: null | GoogleSpreadsheetWorksheet = null;
-
-  async init() {
-    // Init only once
-    if (!this.initPromise) {
-      this.initPromise = (async () => {
-        await this.initDocAndSheet();
-        await this.loadHashes();
-      })();
-    }
-
-    await this.initPromise;
-  }
 
   canSave() {
     const { GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY } =
@@ -97,9 +83,13 @@ export class GoogleSheetsStorage implements TransactionStorage {
     );
   }
 
-  async saveTransactions(txns: Array<TransactionRow>) {
+  async saveTransactions(
+    txns: Array<TransactionRow>,
+    onProgress: (status: string) => Promise<void>,
+  ) {
     const rows: SheetRow[] = [];
-    await this.init();
+    await Promise.all([onProgress("Initializing"), this.initDocAndSheet()]);
+    await Promise.all([onProgress("Loading hashes"), this.loadHashes()]);
 
     const stats = createSaveStats("Google Sheets", worksheetName, txns, {
       highlightedTransactions: {
@@ -142,8 +132,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
 
     if (rows.length) {
       stats.added = rows.length;
-      await this.sheet?.addRows(rows);
-
+      await Promise.all([onProgress("Saving"), this.sheet?.addRows(rows)]);
       if (TRANSACTION_HASH_TYPE !== "moneyman") {
         sendDeprecationMessage("hashFiledChange");
       }
