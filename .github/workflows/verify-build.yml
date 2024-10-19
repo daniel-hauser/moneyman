@@ -3,12 +3,34 @@ name: Node.js CI
 on:
   push:
     branches: [main]
+
   pull_request:
     branches: [main]
+    paths:
+      - "src/**"
+      - "patches/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - ".eslintrc.js"
+      - ".prettierrc.js"
+      - ".github/workflows/verify-build.yml"
 
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: latest
+          cache: "npm"
+      - run: npm ci
+      - run: npm run lint
+
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
 
     strategy:
       matrix:
@@ -22,11 +44,28 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
       - run: npm ci
-      - run: npm run lint
       - run: npm run test
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      matrix:
+        node-version: [20, latest]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: latest
+          cache: "npm"
+      - run: npm ci
       - run: npm run build
+
   build_image:
     runs-on: ubuntu-latest
+    needs: build
+
     permissions:
       contents: read
       packages: write

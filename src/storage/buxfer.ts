@@ -7,11 +7,7 @@ import { TransactionRow, TransactionStorage } from "../types.js";
 import { createLogger } from "./../utils/logger.js";
 import { parseISO, format } from "date-fns";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
-import {
-  BuxferApiClient,
-  BuxferTransaction,
-  AddTransactionsResponse,
-} from "buxfer-ts-client";
+import { BuxferApiClient, BuxferTransaction } from "buxfer-ts-client";
 import { createSaveStats } from "../saveStats.js";
 
 const BUXFER_DATE_FORMAT = "yyyy-MM-dd";
@@ -31,7 +27,10 @@ export class BuxferStorage implements TransactionStorage {
     return Boolean(BUXFER_USER_NAME && BUXFER_PASSWORD && BUXFER_ACCOUNTS);
   }
 
-  async saveTransactions(txns: Array<TransactionRow>) {
+  async saveTransactions(
+    txns: Array<TransactionRow>,
+    onProgress: (status: string) => Promise<void>,
+  ) {
     await this.init();
 
     const stats = createSaveStats(
@@ -74,8 +73,10 @@ export class BuxferStorage implements TransactionStorage {
       logger(
         `sending to Buxfer accounts: "${this.accountToBuxferAccount.keys()}"`,
       );
-      const resp: AddTransactionsResponse =
-        await this.buxferClient.addTransactions(txToSend, false);
+      const [resp] = await Promise.all([
+        this.buxferClient.addTransactions(txToSend, false),
+        onProgress("Sending"),
+      ]);
       logger("transactions sent to Buxfer successfully!");
       stats.added = resp.addedTransactionIds.length;
       stats.existing = resp.existingTransactionIds.length;

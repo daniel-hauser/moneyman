@@ -1,5 +1,5 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
-import { getSummaryMessages } from "./messages.js";
+import { getSummaryMessages, saving } from "./messages.js";
 import { AccountScrapeResult, Transaction, TransactionRow } from "./types.js";
 import {
   TransactionStatuses,
@@ -7,6 +7,7 @@ import {
 } from "israeli-bank-scrapers/lib/transactions.js";
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
 import { createSaveStats, SaveStats, statsString } from "./saveStats.js";
+import { Timer } from "./utils/Timer.js";
 
 describe("messages", () => {
   describe("getSummaryMessages", () => {
@@ -103,7 +104,7 @@ describe("messages", () => {
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map((stats) => statsString(stats, 350000));
       expect(saveSummaries).toMatchSnapshot();
     });
 
@@ -115,7 +116,7 @@ describe("messages", () => {
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map((stats) => statsString(stats, 0));
       expect(saveSummaries).toMatchSnapshot();
     });
 
@@ -155,7 +156,7 @@ describe("messages", () => {
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map((stats) => statsString(stats, 0));
       expect(saveSummaries).toMatchSnapshot();
     });
 
@@ -208,7 +209,7 @@ describe("messages", () => {
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map((stats) => statsString(stats, 0));
       expect(saveSummaries).toMatchSnapshot();
     });
 
@@ -237,7 +238,7 @@ describe("messages", () => {
         }),
       ];
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map((stats) => statsString(stats, 0));
       expect(saveSummaries).toMatchSnapshot();
     });
 
@@ -250,8 +251,67 @@ describe("messages", () => {
         }),
       ];
 
-      const saveSummaries = stats.map(statsString);
+      const saveSummaries = stats.map((stats) => statsString(stats, 0));
       expect(saveSummaries).toMatchSnapshot();
+    });
+
+    it("should support steps", () => {
+      const tx = {
+        ...transaction({}),
+        hash: "hash1",
+        uniqueId: "uniqueId1",
+        account: "account1",
+        companyId: CompanyTypes.max,
+      };
+      const stats: Array<SaveStats> = [
+        createSaveStats("Storage", "TheTable", [tx], {
+          added: 1,
+          highlightedTransactions: {
+            Group1: [tx],
+          },
+        }),
+      ];
+      const steps: Array<Timer> = [
+        Object.assign(new Timer("Step1"), { duration: 10 }),
+        Object.assign(new Timer("Step2"), { duration: 100 }),
+        Object.assign(new Timer("Step3"), { duration: 10_000 }),
+        Object.assign(new Timer("Step4"), { duration: 100_456 }),
+      ];
+      const saveSummaries = stats.map((stats) => statsString(stats, 0, steps));
+      expect(saveSummaries).toMatchSnapshot();
+    });
+  });
+
+  describe("saving", () => {
+    it("should return a saving message", () => {
+      const savingMessage = saving("Storage");
+      expect(savingMessage).toMatchSnapshot();
+    });
+
+    it("should return a saving message with steps", () => {
+      const steps: Array<Timer> = [
+        Object.assign(new Timer("Step1"), { duration: 10 }),
+        Object.assign(new Timer("Step2"), { duration: 100 }),
+        Object.assign(new Timer("Step3"), { duration: 10_000 }),
+        Object.assign(new Timer("Step4"), { duration: 100_456 }),
+      ];
+      const savingMessage = saving("Storage", steps);
+      expect(savingMessage).toMatchSnapshot();
+    });
+
+    it("should return a saving message with not finished steps", () => {
+      const savingMessage = saving("Storage", [
+        Object.assign(new Timer("Step1"), { duration: 10 }),
+        Object.assign(new Timer("Step2"), { duration: 100 }),
+        Object.assign(new Timer("Step3"), { duration: 10000 }),
+        new Timer("Step4"),
+      ]);
+      expect(savingMessage).toMatchSnapshot();
+    });
+
+    it("should return a saving message with one not finished step", () => {
+      const savingMessage = saving("Storage", [new Timer("Step4")]);
+      expect(savingMessage).toMatchSnapshot();
     });
   });
 });

@@ -4,6 +4,7 @@ import {
 } from "israeli-bank-scrapers/lib/transactions.js";
 import { AccountScrapeResult, Transaction } from "./types.js";
 import { normalizeCurrency } from "./utils/currency.js";
+import { Timer } from "./utils/Timer.js";
 
 export function getSummaryMessages(results: Array<AccountScrapeResult>) {
   const accountsSummary = results.flatMap(({ result, companyId }) => {
@@ -91,8 +92,9 @@ export function transactionList(
   return transactions.map((t) => `${indent}${transactionString(t)}`).join("\n");
 }
 
-export function saving(storage: string) {
-  return `📝 ${storage} Saving...`;
+export function saving(storage: string, steps: Array<Timer> = []) {
+  const stepsString = steps.map((s) => `\t${s}`).join("\n");
+  return `📝 ${storage} Saving...\n${stepsString}`.trim();
 }
 
 function transactionsByStatus(results: Array<AccountScrapeResult>) {

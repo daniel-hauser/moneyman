@@ -36,8 +36,11 @@ export class YNABStorage implements TransactionStorage {
     return new Date(date) > new Date();
   }
 
-  async saveTransactions(txns: Array<TransactionRow>) {
-    await this.init();
+  async saveTransactions(
+    txns: Array<TransactionRow>,
+    onProgress: (status: string) => Promise<void>,
+  ) {
+    await Promise.all([onProgress("Initializing"), this.init()]);
 
     const stats = createSaveStats(
       "YNABStorage",
@@ -75,12 +78,12 @@ export class YNABStorage implements TransactionStorage {
     if (txToSend.length > 0) {
       // Send transactions to YNAB
       logger(`sending to YNAB budget: "${this.budgetName}"`);
-      const resp = await this.ynabAPI.transactions.createTransactions(
-        YNAB_BUDGET_ID,
-        {
+      const [resp] = await Promise.all([
+        this.ynabAPI.transactions.createTransactions(YNAB_BUDGET_ID, {
           transactions: txToSend,
-        },
-      );
+        }),
+        onProgress("Sending"),
+      ]);
       logger("transactions sent to YNAB successfully!");
       stats.added = resp.data.transactions?.length ?? 0;
       stats.existing = resp.data.duplicate_import_ids?.length ?? 0;
