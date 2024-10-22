@@ -1,6 +1,6 @@
 import { performance } from "perf_hooks";
 import { getAccountTransactions } from "./scrape.js";
-import { AccountConfig, AccountScrapeResult } from "../types.js";
+import { AccountConfig, AccountScrapeResult, ScraperConfig } from "../types.js";
 import { createLogger } from "../utils/logger.js";
 import { createBrowser } from "./browser.js";
 import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
@@ -10,14 +10,16 @@ import { parallelLimit } from "async";
 const logger = createLogger("scraper");
 
 export async function scrapeAccounts(
-  accounts: Array<AccountConfig>,
-  startDate: Date,
-  futureMonthsToScrape: number,
+  {
+    accounts,
+    startDate,
+    futureMonthsToScrape,
+    parallelScrapers,
+  }: ScraperConfig,
   scrapeStatusChanged?: (
     status: Array<string>,
     totalTime?: number,
   ) => Promise<void>,
-  parallelScrapers?: number,
   onError?: (e: Error, caller: string) => void,
 ) {
   const start = performance.now();

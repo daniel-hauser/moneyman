@@ -1,9 +1,3 @@
-import {
-  TRANSACTION_HASH_TYPE,
-  YNAB_ACCOUNTS,
-  YNAB_BUDGET_ID,
-  YNAB_TOKEN,
-} from "../../config.js";
 import { TransactionRow, TransactionStorage } from "../../types.js";
 import { createLogger } from "../../utils/logger.js";
 import { format, parseISO } from "date-fns";
@@ -15,6 +9,13 @@ import { createSaveStats } from "../saveStats.js";
 
 const YNAB_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("YNABStorage");
+
+const {
+  YNAB_TOKEN = "",
+  YNAB_BUDGET_ID = "",
+  YNAB_ACCOUNTS = "",
+  TRANSACTION_HASH_TYPE = "",
+} = process.env;
 
 export class YNABStorage implements TransactionStorage {
   private ynabAPI: ynab.API;

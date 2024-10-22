@@ -38,6 +38,13 @@ export interface TransactionStorage {
   ): Promise<SaveStats>;
 }
 
+export type ScraperConfig = {
+  startDate: Date;
+  futureMonthsToScrape: number;
+  parallelScrapers: number;
+  accounts: Array<AccountConfig>;
+};
+
 export interface RunnerHooks {
   onBeforeStart(): Promise<void>;
   onStatusChanged(rows: string[], totalTime?: number): Promise<void>;

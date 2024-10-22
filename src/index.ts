@@ -1,10 +1,5 @@
 import { scrapeAccounts } from "./scraper/index.js";
-import {
-  accounts,
-  futureMonthsToScrape,
-  parallelScrapers,
-  scrapeStartDate,
-} from "./config.js";
+import { scraperConfig } from "./config.js";
 import { sendError } from "./bot/notifier.js";
 import { createLogger } from "./utils/logger.js";
 import { RunnerHooks } from "./types.js";
@@ -31,14 +26,11 @@ async function runScraper(hooks: RunnerHooks) {
 
     logger("Starting to scrape");
     const results = await scrapeAccounts(
-      accounts,
-      scrapeStartDate,
-      futureMonthsToScrape,
+      scraperConfig,
       async (status, totalTime) => {
         logger("Status changed", { status, totalTime });
         return hooks.onStatusChanged(status, totalTime);
       },
-      parallelScrapers,
       async (e, caller) => {
         logger("Error while scraping", e);
         return hooks.onError(e, caller);
