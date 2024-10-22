@@ -46,9 +46,11 @@ function getAccounts(): Array<AccountConfig> {
     .filter(Boolean)
     .map((a) => a.trim());
 
-  return accountsToScrape.length == 0 ? allAccounts : allAccounts.filter(
-    (account) => accountsToScrape.includes(account.companyId),
-  );
+  return accountsToScrape.length == 0
+    ? allAccounts
+    : allAccounts.filter((account) =>
+        accountsToScrape.includes(account.companyId),
+      );
 }
 
 export const scraperConfig: ScraperConfig = {

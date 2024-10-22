@@ -134,9 +134,10 @@ export class YNABStorage implements TransactionStorage {
       amount,
       payee_id: undefined,
       payee_name: tx.description,
-      cleared: tx.status === TransactionStatuses.Completed
-        ? ynab.TransactionClearedStatus.Cleared
-        : undefined,
+      cleared:
+        tx.status === TransactionStatuses.Completed
+          ? ynab.TransactionClearedStatus.Cleared
+          : undefined,
       approved: false,
       import_id: hash(
         TRANSACTION_HASH_TYPE === "moneyman" ? tx.uniqueId : tx.hash,

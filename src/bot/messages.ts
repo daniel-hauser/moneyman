@@ -102,7 +102,7 @@ export function saving(storage: string, steps: Array<Timer> = []) {
 function transactionsByStatus(results: Array<AccountScrapeResult>) {
   const allTxns = results
     .flatMap(({ result }) =>
-      result.accounts?.flatMap((account) => account?.txns)
+      result.accounts?.flatMap((account) => account?.txns),
     )
     .filter((t): t is Transaction => t !== undefined);
 

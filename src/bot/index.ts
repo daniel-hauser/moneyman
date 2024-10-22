@@ -8,41 +8,34 @@ import { editMessage, send, sendError } from "./notifier.js";
 const logger = createLogger("bot");
 
 export async function runWithStorage(runScraper: Runner) {
-    const message = await send("Starting...");
-    if (!storages.length) {
-        logger("No storages found, aborting");
-        await editMessage(message?.message_id, "No storages found, aborting");
-        return;
-    }
+  const message = await send("Starting...");
+  if (!storages.length) {
+    logger("No storages found, aborting");
+    await editMessage(message?.message_id, "No storages found, aborting");
+    return;
+  }
 
-    await runScraper(
-        {
-            async onStatusChanged(
-                status: Array<string>,
-                totalTime?: number,
-            ) {
-                const text = status.join("\n");
-                await editMessage(
-                    message?.message_id,
-                    totalTime
-                        ? text +
-                            `\n\nTotal time: ${totalTime.toFixed(1)} seconds`
-                        : text,
-                );
-            },
-            async onResultsReady(results: AccountScrapeResult[]) {
-                await send(getSummaryMessages(results));
-                await saveResults(results);
-                await sendFailureScreenShots();
-            },
-            async onError(e: Error, caller: string = "unknown") {
-                await sendError(e, caller);
-            },
-            async onBeforeStart() {
-            },
-        },
-    );
+  await runScraper({
+    async onStatusChanged(status: Array<string>, totalTime?: number) {
+      const text = status.join("\n");
+      await editMessage(
+        message?.message_id,
+        totalTime
+          ? text + `\n\nTotal time: ${totalTime.toFixed(1)} seconds`
+          : text,
+      );
+    },
+    async onResultsReady(results: AccountScrapeResult[]) {
+      await send(getSummaryMessages(results));
+      await saveResults(results);
+      await sendFailureScreenShots();
+    },
+    async onError(e: Error, caller: string = "unknown") {
+      await sendError(e, caller);
+    },
+    async onBeforeStart() {},
+  });
 
-    logger("Scraping ended");
-    logToPublicLog("Scraping ended");
+  logger("Scraping ended");
+  logToPublicLog("Scraping ended");
 }

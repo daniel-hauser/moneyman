@@ -5,8 +5,8 @@ import puppeteer, {
 import { createLogger } from "../utils/logger.js";
 
 export const browserArgs = ["--disable-dev-shm-usage", "--no-sandbox"];
-export const browserExecutablePath = process.env.PUPPETEER_EXECUTABLE_PATH ||
-  undefined;
+export const browserExecutablePath =
+  process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
 
 const logger = createLogger("browser");
 

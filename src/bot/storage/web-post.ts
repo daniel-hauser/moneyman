@@ -41,8 +41,8 @@ export class WebPostStorage implements TransactionStorage {
       throw new Error(`Failed to post transactions: ${response.statusText}`);
     }
 
-    const { added = nonPendingTxns.length, skipped = NaN } = await response
-      .json();
+    const { added = nonPendingTxns.length, skipped = NaN } =
+      await response.json();
 
     const stats = createSaveStats("WebPostStorage", "web-post", txns);
     stats.added = added;

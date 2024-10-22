@@ -8,8 +8,11 @@ import { createSaveStats } from "../saveStats.js";
 const BUXFER_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("BuxferStorage");
 
-const { BUXFER_USER_NAME = "", BUXFER_PASSWORD = "", BUXFER_ACCOUNTS = "" } =
-  process.env;
+const {
+  BUXFER_USER_NAME = "",
+  BUXFER_PASSWORD = "",
+  BUXFER_ACCOUNTS = "",
+} = process.env;
 
 export class BuxferStorage implements TransactionStorage {
   private buxferClient: BuxferApiClient;
@@ -116,9 +119,8 @@ export class BuxferStorage implements TransactionStorage {
       date: format(parseISO(tx.date), BUXFER_DATE_FORMAT, {}),
       amount: tx.chargedAmount,
       description: tx.description,
-      status: tx.status === TransactionStatuses.Completed
-        ? "cleared"
-        : "pending",
+      status:
+        tx.status === TransactionStatuses.Completed ? "cleared" : "pending",
       type: tx.chargedAmount > 0 ? "income" : "expense",
     };
   }

@@ -31,8 +31,8 @@ export class AzureDataExplorerStorage implements TransactionStorage {
     logger("init");
 
     try {
-      const connection = KustoConnectionStringBuilder
-        .withAadApplicationKeyAuthentication(
+      const connection =
+        KustoConnectionStringBuilder.withAadApplicationKeyAuthentication(
           ADE_INGEST_URI!,
           AZURE_APP_ID!,
           AZURE_APP_KEY!,
