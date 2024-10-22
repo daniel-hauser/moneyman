@@ -3,7 +3,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { glob } from "glob";
 import { createLogger } from "./logger.js";
-import { sendPhoto } from "../notifier.js";
 
 const logger = createLogger("failureScreenshot");
 const tempFolder = path.join(fs.realpathSync(os.tmpdir()), "moneyman");
@@ -20,7 +19,9 @@ export function getFailureScreenShotPath(companyId: string) {
   return filePath;
 }
 
-export async function sendFailureScreenShots() {
+export async function sendFailureScreenShots(
+  sendPhoto: (photoPath: string, caption: string) => Promise<unknown>,
+) {
   try {
     const files = await glob(`${tempFolder}/**/*.png`, { absolute: true });
     logger("Sending failure screenshots", { files });

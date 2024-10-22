@@ -1,7 +1,7 @@
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
-import { TransactionRow } from "./types.js";
+import { TransactionRow } from "../types.js";
 import { transactionList } from "./messages.js";
-import { Timer } from "./utils/Timer.js";
+import { Timer } from "../utils/Timer.js";
 
 export interface SaveStats {
   /**
@@ -78,9 +78,7 @@ export function statsString(
   return `
 ${header}${stepsString ? "\n" + stepsString : ""}
 \t${stats.added} added
-\t${stats.skipped} skipped (${stats.existing} existing, ${
-    stats.pending
-  } pending)
+\t${stats.skipped} skipped (${stats.existing} existing, ${stats.pending} pending)
 \ttook ${(saveDurationMs / 1000).toFixed(2)}s
 ${highlightedTransactionsString(stats.highlightedTransactions, 1)}`.trim();
 }

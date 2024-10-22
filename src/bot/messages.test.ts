@@ -1,13 +1,13 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { getSummaryMessages, saving } from "./messages.js";
-import { AccountScrapeResult, Transaction, TransactionRow } from "./types.js";
+import { AccountScrapeResult, Transaction, TransactionRow } from "../types.js";
 import {
   TransactionStatuses,
   TransactionTypes,
 } from "israeli-bank-scrapers/lib/transactions.js";
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
 import { createSaveStats, SaveStats, statsString } from "./saveStats.js";
-import { Timer } from "./utils/Timer.js";
+import { Timer } from "../utils/Timer.js";
 
 describe("messages", () => {
   describe("getSummaryMessages", () => {

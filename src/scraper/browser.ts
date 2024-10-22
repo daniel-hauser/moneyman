@@ -2,7 +2,7 @@ import puppeteer, {
   type Browser,
   type PuppeteerLaunchOptions,
 } from "puppeteer";
-import { createLogger } from "./utils/logger.js";
+import { createLogger } from "../utils/logger.js";
 
 export const browserArgs = ["--disable-dev-shm-usage", "--no-sandbox"];
 export const browserExecutablePath =

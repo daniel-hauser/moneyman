@@ -1,10 +1,10 @@
 import type { CompanyTypes } from "israeli-bank-scrapers";
 import type { Transaction } from "israeli-bank-scrapers/lib/transactions.js";
 import type {
-  ScraperScrapingResult,
   ScraperCredentials,
+  ScraperScrapingResult,
 } from "israeli-bank-scrapers";
-import { SaveStats } from "./saveStats.js";
+import { SaveStats } from "./bot/saveStats.js";
 export type { Transaction };
 
 export type AccountConfig = ScraperCredentials & {
@@ -37,3 +37,22 @@ export interface TransactionStorage {
     onProgress: (status: string) => Promise<void>,
   ): Promise<SaveStats>;
 }
+
+export type ScraperConfig = {
+  startDate: Date;
+  futureMonthsToScrape: number;
+  parallelScrapers: number;
+  accounts: Array<AccountConfig>;
+};
+
+export interface RunnerHooks {
+  onBeforeStart(): Promise<void>;
+  onStatusChanged(rows: string[], totalTime?: number): Promise<void>;
+  onResultsReady(results: AccountScrapeResult[]): Promise<void>;
+  onError(e: Error, caller?: string): Promise<void>;
+  failureScreenshotHandler: (
+    photoPath: string,
+    caption: string,
+  ) => Promise<unknown>;
+}
+export type Runner = (hooks: RunnerHooks) => Promise<void>;
