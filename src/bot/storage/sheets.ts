@@ -1,4 +1,4 @@
-import { createLogger } from "./../utils/logger.js";
+import { createLogger } from "../../utils/logger.js";
 import {
   GoogleSpreadsheet,
   GoogleSpreadsheetWorksheet,
@@ -11,12 +11,12 @@ import {
   systemName,
   TRANSACTION_HASH_TYPE,
   worksheetName,
-} from "./../config.js";
-import type { TransactionRow, TransactionStorage } from "../types.js";
+} from "../../config.js";
+import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
-import { sendDeprecationMessage } from "../bot/notifier.js";
-import { normalizeCurrency } from "../utils/currency.js";
-import { createSaveStats } from "../bot/saveStats.js";
+import { sendDeprecationMessage } from "../notifier.js";
+import { normalizeCurrency } from "../../utils/currency.js";
+import { createSaveStats } from "../saveStats.js";
 
 const logger = createLogger("GoogleSheetsStorage");
 

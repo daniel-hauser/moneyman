@@ -1,6 +1,6 @@
 import { parallelScrapers } from "../config.js";
 import * as os from "os";
-import { saveResults, storages } from "../storage";
+import { saveResults, storages } from "./storage/index.js";
 import { AccountScrapeResult, Runner } from "../types.js";
 import { sendFailureScreenShots } from "../utils/failureScreenshot.js";
 import { createLogger, logToPublicLog } from "../utils/logger.js";

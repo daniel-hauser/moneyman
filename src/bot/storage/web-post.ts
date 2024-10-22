@@ -1,9 +1,9 @@
-import { createLogger } from "../utils/logger.js";
-import type { TransactionRow, TransactionStorage } from "../types.js";
-import { WEB_POST_URL } from "../config.js";
+import { createLogger } from "../../utils/logger.js";
+import type { TransactionRow, TransactionStorage } from "../../types.js";
+import { WEB_POST_URL } from "../../config.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { transactionRow } from "./sheets.js";
-import { createSaveStats } from "../bot/saveStats.js";
+import { createSaveStats } from "../saveStats.js";
 
 const logger = createLogger("WebPostStorage");
 

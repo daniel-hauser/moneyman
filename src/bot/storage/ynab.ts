@@ -3,15 +3,15 @@ import {
   YNAB_ACCOUNTS,
   YNAB_BUDGET_ID,
   YNAB_TOKEN,
-} from "../config.js";
-import { TransactionRow, TransactionStorage } from "../types.js";
-import { createLogger } from "./../utils/logger.js";
+} from "../../config.js";
+import { TransactionRow, TransactionStorage } from "../../types.js";
+import { createLogger } from "../../utils/logger.js";
 import { format, parseISO } from "date-fns";
 import * as ynab from "ynab";
 import hash from "hash-it";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
-import { sendDeprecationMessage } from "../bot/notifier.js";
-import { createSaveStats } from "../bot/saveStats.js";
+import { sendDeprecationMessage } from "../notifier.js";
+import { createSaveStats } from "../saveStats.js";
 
 const YNAB_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("YNABStorage");

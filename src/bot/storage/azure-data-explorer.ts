@@ -5,12 +5,12 @@ import {
   IngestClient,
   IngestionProperties,
 } from "azure-kusto-ingest";
-import { sendError } from "../bot/notifier.js";
-import { systemName } from "./../config.js";
-import { createLogger } from "./../utils/logger.js";
+import { sendError } from "../notifier.js";
+import { systemName } from "../../config.js";
+import { createLogger } from "../../utils/logger.js";
 import type { KustoIngestClient } from "azure-kusto-ingest/types/src/ingestClient.js";
-import type { TransactionRow, TransactionStorage } from "../types.js";
-import { createSaveStats } from "../bot/saveStats.js";
+import type { TransactionRow, TransactionStorage } from "../../types.js";
+import { createSaveStats } from "../saveStats.js";
 
 const logger = createLogger("azure-data-explorer");
 
