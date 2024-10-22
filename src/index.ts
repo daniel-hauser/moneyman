@@ -40,12 +40,10 @@ async function runScraper(hooks: RunnerHooks) {
     logger("Scraping ended");
     await hooks.onResultsReady(results);
 
-    await sendFailureScreenShots(
-      (photoPath, caption) => {
-        logger("Sending failure screenshot", { photoPath, caption });
-        return hooks.failureScreenshotHandler(photoPath, caption);
-      },
-    );
+    await sendFailureScreenShots((photoPath, caption) => {
+      logger("Sending failure screenshot", { photoPath, caption });
+      return hooks.failureScreenshotHandler(photoPath, caption);
+    });
   } catch (e) {
     logger("Error", e);
     await hooks.onError(e);
