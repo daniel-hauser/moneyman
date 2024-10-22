@@ -3,7 +3,7 @@ import type { TransactionRow, TransactionStorage } from "../types.js";
 import { WEB_POST_URL } from "../config.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { transactionRow } from "./sheets.js";
-import { createSaveStats } from "../saveStats.js";
+import { createSaveStats } from "../bot/saveStats.js";
 
 const logger = createLogger("WebPostStorage");
 
@@ -42,8 +42,8 @@ export class WebPostStorage implements TransactionStorage {
       throw new Error(`Failed to post transactions: ${response.statusText}`);
     }
 
-    const { added = nonPendingTxns.length, skipped = NaN } =
-      await response.json();
+    const { added = nonPendingTxns.length, skipped = NaN } = await response
+      .json();
 
     const stats = createSaveStats("WebPostStorage", "web-post", txns);
     stats.added = added;

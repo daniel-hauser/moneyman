@@ -2,7 +2,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { createLogger } from "./../utils/logger.js";
 import type { TransactionRow, TransactionStorage } from "../types.js";
-import { createSaveStats } from "../saveStats.js";
+import { createSaveStats } from "../bot/saveStats.js";
 
 const logger = createLogger("LocalJsonStorage");
 

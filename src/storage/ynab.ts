@@ -1,17 +1,17 @@
 import {
-  YNAB_TOKEN,
-  YNAB_BUDGET_ID,
-  YNAB_ACCOUNTS,
   TRANSACTION_HASH_TYPE,
+  YNAB_ACCOUNTS,
+  YNAB_BUDGET_ID,
+  YNAB_TOKEN,
 } from "../config.js";
 import { TransactionRow, TransactionStorage } from "../types.js";
 import { createLogger } from "./../utils/logger.js";
-import { parseISO, format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import * as ynab from "ynab";
 import hash from "hash-it";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
-import { sendDeprecationMessage } from "../notifier.js";
-import { createSaveStats } from "../saveStats.js";
+import { sendDeprecationMessage } from "../bot/notifier.js";
+import { createSaveStats } from "../bot/saveStats.js";
 
 const YNAB_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("YNABStorage");
@@ -133,10 +133,9 @@ export class YNABStorage implements TransactionStorage {
       amount,
       payee_id: undefined,
       payee_name: tx.description,
-      cleared:
-        tx.status === TransactionStatuses.Completed
-          ? ynab.TransactionClearedStatus.Cleared
-          : undefined,
+      cleared: tx.status === TransactionStatuses.Completed
+        ? ynab.TransactionClearedStatus.Cleared
+        : undefined,
       approved: false,
       import_id: hash(
         TRANSACTION_HASH_TYPE === "moneyman" ? tx.uniqueId : tx.hash,

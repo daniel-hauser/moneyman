@@ -1,14 +1,14 @@
 import {
-  BUXFER_USER_NAME,
-  BUXFER_PASSWORD,
   BUXFER_ACCOUNTS,
+  BUXFER_PASSWORD,
+  BUXFER_USER_NAME,
 } from "../config.js";
 import { TransactionRow, TransactionStorage } from "../types.js";
 import { createLogger } from "./../utils/logger.js";
-import { parseISO, format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { BuxferApiClient, BuxferTransaction } from "buxfer-ts-client";
-import { createSaveStats } from "../saveStats.js";
+import { createSaveStats } from "../bot/saveStats.js";
 
 const BUXFER_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("BuxferStorage");
@@ -118,8 +118,9 @@ export class BuxferStorage implements TransactionStorage {
       date: format(parseISO(tx.date), BUXFER_DATE_FORMAT, {}),
       amount: tx.chargedAmount,
       description: tx.description,
-      status:
-        tx.status === TransactionStatuses.Completed ? "cleared" : "pending",
+      status: tx.status === TransactionStatuses.Completed
+        ? "cleared"
+        : "pending",
       type: tx.chargedAmount > 0 ? "income" : "expense",
     };
   }

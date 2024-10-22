@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { glob } from "glob";
 import { createLogger } from "./logger.js";
-import { sendPhoto } from "../notifier.js";
+import { sendPhoto } from "../bot/notifier.js";
 
 const logger = createLogger("failureScreenshot");
 const tempFolder = path.join(fs.realpathSync(os.tmpdir()), "moneyman");

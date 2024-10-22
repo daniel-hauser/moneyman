@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { subDays, format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { AccountConfig } from "./types.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 
@@ -35,24 +35,24 @@ export const daysBackToScrape = DAYS_BACK || 10;
 export const worksheetName = WORKSHEET_NAME || "_moneyman";
 export const futureMonthsToScrape = parseInt(FUTURE_MONTHS, 10);
 export const systemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-export const parallelScrapers = MAX_PARALLEL_SCRAPERS || 1;
+export const parallelScrapers = Number(MAX_PARALLEL_SCRAPERS) || 1;
 
 const accountsToScrape = ACCOUNTS_TO_SCRAPE.split(",")
   .filter(Boolean)
   .map((a) => a.trim());
 
 export {
+  BUXFER_ACCOUNTS,
+  BUXFER_PASSWORD,
+  BUXFER_USER_NAME,
+  GOOGLE_SHEET_ID,
   TELEGRAM_API_KEY,
   TELEGRAM_CHAT_ID,
-  GOOGLE_SHEET_ID,
-  YNAB_TOKEN,
-  YNAB_BUDGET_ID,
-  YNAB_ACCOUNTS,
-  BUXFER_USER_NAME,
-  BUXFER_PASSWORD,
-  BUXFER_ACCOUNTS,
   TRANSACTION_HASH_TYPE,
   WEB_POST_URL,
+  YNAB_ACCOUNTS,
+  YNAB_BUDGET_ID,
+  YNAB_TOKEN,
 };
 export const systemName = "moneyman";
 export const currentDate = format(Date.now(), "yyyy-MM-dd");

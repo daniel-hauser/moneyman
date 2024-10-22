@@ -3,20 +3,20 @@ import {
   GoogleSpreadsheet,
   GoogleSpreadsheetWorksheet,
 } from "google-spreadsheet";
-import { JWT, GoogleAuth } from "google-auth-library";
-import { parseISO, format } from "date-fns";
+import { GoogleAuth, JWT } from "google-auth-library";
+import { format, parseISO } from "date-fns";
 import {
-  GOOGLE_SHEET_ID,
-  worksheetName,
   currentDate,
+  GOOGLE_SHEET_ID,
   systemName,
   TRANSACTION_HASH_TYPE,
+  worksheetName,
 } from "./../config.js";
 import type { TransactionRow, TransactionStorage } from "../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
-import { sendDeprecationMessage } from "../notifier.js";
+import { sendDeprecationMessage } from "../bot/notifier.js";
 import { normalizeCurrency } from "../utils/currency.js";
-import { createSaveStats } from "../saveStats.js";
+import { createSaveStats } from "../bot/saveStats.js";
 
 const logger = createLogger("GoogleSheetsStorage");
 
@@ -49,8 +49,7 @@ export function transactionRow(tx: TransactionRow): SheetRow {
     "scraped by": systemName,
     identifier: `${tx.identifier ?? ""}`,
     // Assuming the transaction is not pending, so we can use the original currency as the charged currency
-    chargedCurrency:
-      normalizeCurrency(tx.chargedCurrency) ||
+    chargedCurrency: normalizeCurrency(tx.chargedCurrency) ||
       normalizeCurrency(tx.originalCurrency),
   };
 }

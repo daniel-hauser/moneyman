@@ -1,11 +1,12 @@
 import { Telegraf, TelegramError } from "telegraf";
-import { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID } from "./config.js";
-import { createLogger, logToPublicLog } from "./utils/logger.js";
+import { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID } from "../config.js";
+import { createLogger, logToPublicLog } from "../utils/logger.js";
 
 const logger = createLogger("notifier");
 
-const bot =
-  TELEGRAM_API_KEY && TELEGRAM_CHAT_ID ? new Telegraf(TELEGRAM_API_KEY) : null;
+const bot = TELEGRAM_API_KEY && TELEGRAM_CHAT_ID
+  ? new Telegraf(TELEGRAM_API_KEY)
+  : null;
 
 logToPublicLog(
   bot
@@ -68,16 +69,19 @@ function canIgnoreTelegramError(e: Error) {
 
 export function sendError(message: any, caller: string = "") {
   return send(
-    `${caller}\n❌ ${String(
-      message instanceof Error
-        ? `${message.message}\n${message.stack}`
-        : message,
-    )}`.trim(),
+    `${caller}\n❌ ${
+      String(
+        message instanceof Error
+          ? `${message.message}\n${message.stack}`
+          : message,
+      )
+    }`.trim(),
   );
 }
 
 const deprecationMessages = {
-  ["hashFiledChange"]: `This run is using the old transaction hash field, please update to the new one (it might require manual de-duping of some transactions). See https://github.com/daniel-hauser/moneyman/issues/268 for more details.`,
+  ["hashFiledChange"]:
+    `This run is using the old transaction hash field, please update to the new one (it might require manual de-duping of some transactions). See https://github.com/daniel-hauser/moneyman/issues/268 for more details.`,
 } as const;
 const { HIDDEN_DEPRECATIONS = "" } = process.env;
 logger(`Hidden deprecations: ${HIDDEN_DEPRECATIONS}`);

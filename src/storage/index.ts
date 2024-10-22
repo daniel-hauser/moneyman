@@ -1,4 +1,4 @@
-import { editMessage, send, sendError } from "../notifier.js";
+import { editMessage, send, sendError } from "../bot/notifier.js";
 import {
   AccountScrapeResult,
   TransactionRow,
@@ -11,9 +11,9 @@ import { transactionHash, transactionUniqueId } from "./utils.js";
 import { YNABStorage } from "./ynab.js";
 import { BuxferStorage } from "./buxfer.js";
 import { WebPostStorage } from "./web-post.js";
-import { saving } from "../messages.js";
+import { saving } from "../bot/messages.js";
 import { createLogger } from "../utils/logger.js";
-import { statsString } from "../saveStats.js";
+import { statsString } from "../bot/saveStats.js";
 import { parallel } from "async";
 import { Timer } from "../utils/Timer.js";
 
