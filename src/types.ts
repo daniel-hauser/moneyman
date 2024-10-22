@@ -50,5 +50,9 @@ export interface RunnerHooks {
   onStatusChanged(rows: string[], totalTime?: number): Promise<void>;
   onResultsReady(results: AccountScrapeResult[]): Promise<void>;
   onError(e: Error, caller?: string): Promise<void>;
+  failureScreenshotHandler: (
+    photoPath: string,
+    caption: string,
+  ) => Promise<unknown>;
 }
 export type Runner = (hooks: RunnerHooks) => Promise<void>;

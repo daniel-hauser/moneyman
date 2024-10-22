@@ -1,9 +1,8 @@
 import { saveResults, storages } from "./storage/index.js";
 import { AccountScrapeResult, Runner } from "../types.js";
-import { sendFailureScreenShots } from "../utils/failureScreenshot.js";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
 import { getSummaryMessages } from "./messages.js";
-import { editMessage, send, sendError } from "./notifier.js";
+import { editMessage, send, sendError, sendPhoto } from "./notifier.js";
 
 const logger = createLogger("bot");
 
@@ -28,12 +27,14 @@ export async function runWithStorage(runScraper: Runner) {
     async onResultsReady(results: AccountScrapeResult[]) {
       await send(getSummaryMessages(results));
       await saveResults(results);
-      await sendFailureScreenShots();
     },
     async onError(e: Error, caller: string = "unknown") {
       await sendError(e, caller);
     },
     async onBeforeStart() {},
+    async failureScreenshotHandler(photoPath, caption) {
+      await sendPhoto(photoPath, caption);
+    },
   });
 
   logger("Scraping ended");

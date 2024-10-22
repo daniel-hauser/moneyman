@@ -4,6 +4,7 @@ import { sendError } from "./bot/notifier.js";
 import { createLogger } from "./utils/logger.js";
 import { RunnerHooks } from "./types.js";
 import { runWithStorage } from "./bot/index.js";
+import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
 
 const logger = createLogger("main");
 
@@ -38,6 +39,13 @@ async function runScraper(hooks: RunnerHooks) {
     );
     logger("Scraping ended");
     await hooks.onResultsReady(results);
+
+    await sendFailureScreenShots(
+      (photoPath, caption) => {
+        logger("Sending failure screenshot", { photoPath, caption });
+        return hooks.failureScreenshotHandler(photoPath, caption);
+      },
+    );
   } catch (e) {
     logger("Error", e);
     await hooks.onError(e);
