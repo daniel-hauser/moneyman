@@ -1,5 +1,3 @@
-import { parallelScrapers } from "../config.js";
-import * as os from "os";
 import { saveResults, storages } from "./storage/index.js";
 import { AccountScrapeResult, Runner } from "../types.js";
 import { sendFailureScreenShots } from "../utils/failureScreenshot.js";
@@ -41,29 +39,6 @@ export async function runWithStorage(runScraper: Runner) {
                 await sendError(e, caller);
             },
             async onBeforeStart() {
-                if (parallelScrapers > 1) {
-                    logger(
-                        `Running with ${parallelScrapers} parallel scrapers`,
-                    );
-                    send(
-                        `System info: ${
-                            JSON.stringify(
-                                {
-                                    parallelScrapers: Number(parallelScrapers),
-                                    availableParallelism: os
-                                        .availableParallelism(),
-                                    totalMemoryGB: (os.totalmem() / 1000000000)
-                                        .toFixed(2),
-                                    freeMemoryGB: (os.freemem() / 1000000000)
-                                        .toFixed(2),
-                                    cpus: os.cpus().length,
-                                },
-                                null,
-                                2,
-                            )
-                        }`,
-                    );
-                }
             },
         },
     );
