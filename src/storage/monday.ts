@@ -67,11 +67,21 @@ export class MondayStorage implements TransactionStorage {
       'Authorization': MONDAY_TOKEN,
       'Content-Type': 'application/json'
     };
+    const today = new Date();
+    // Calculate past date by subtracting `daysAgo`
+    const pastDate = new Date(today);
+    pastDate.setDate(today.getDate() - 60);
+
+    // Calculate future date by adding 2 months
+    const futureDate = new Date(today);
+    futureDate.setMonth(today.getMonth() + 2);
+    const futureDateString = this.formatDate(futureDate);
+    const pastDateString = this.formatDate(pastDate);
 
     const query = `
       query {
         boards(ids: ${boardId}) {
-          items_page {
+          items_page (limit: 300, query_params:{rules: [{column_id: "date", compare_value: ["${pastDateString}","${futureDateString}"], operator:between}]operator:and}) {
             items {
               id
               column_values {
@@ -99,7 +109,9 @@ export class MondayStorage implements TransactionStorage {
     }
   }
 
-
+  // TODO: looks like we have two issues here:
+  // 1. handeling escaping charaters in hebrew like ג׳ו, monday API doesnt like it
+  // 2. rate limit - add a delay on the creation of each transaction as the current implementation has timeouts
   async saveTransactions(txns: Array<TransactionRow>) {
     await this.init();
 
@@ -170,14 +182,31 @@ export class MondayStorage implements TransactionStorage {
     return stats;
 
   }
+
+  private formatDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed, so add 1
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   // Function to create items from a list of MondayTransactions
-  private async createItemsFromTransactions(boardId: number, transactions: MondayTransaction[]): Promise<void> {
+  private async createItemsFromTransactions(boardId: number, transactions: MondayTransaction[], delayMs: number = 3000): Promise<void> {
     for (const transaction of transactions) {
       await this.createMondayItem(boardId, transaction);
+      await this.delay(delayMs); // Introduce delay between requests
     }
   }
   // Function to create an item on Monday.com
   private async createMondayItem(boardId: number, transaction: MondayTransaction): Promise<void> {
+
+    const itemName = escapeString(transaction.description);
+    const columnValues = escapeString(this.getColumnValues(transaction));
+
     // Headers for the request
     const headers = {
       'Authorization': MONDAY_TOKEN,
@@ -189,7 +218,7 @@ export class MondayStorage implements TransactionStorage {
     mutation {
       create_item (board_id: ${boardId},
        create_labels_if_missing: true,
-       item_name: "${transaction.description}",
+       item_name: "${transaction.description.replace(/"/g, '\\"')}",
         column_values: "${this.getColumnValues(transaction)}") {
 
         id
@@ -239,18 +268,27 @@ export class MondayStorage implements TransactionStorage {
       date: transaction.date,
       numbers: transaction.amount,
       text1: transaction.memo,
-      dropdown__1: {
-        labels: [transaction.account]
-      },
+      // dropdown__1: { // should change this to status as the dropdown is not supported when importing from CSV
+      //   labels: [transaction.account]
+      // },
       date8: transaction.scraped_at,
       text0: transaction.identifier,
       status3: transaction.category,
       status__1: transaction.chargedCurrency,
-      text__1: transaction.uniqueId
+      text__1: transaction.uniqueId,
+      // status0__1: transaction.account
     };
 
     return JSON.stringify(columnValues).replace(/"/g, '\\"');
   }
+}
+
+function escapeString(input: string): string {
+  return input.replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t');
 }
 
 // TODO: extratct to monday api helper with the function above of graphQL 
