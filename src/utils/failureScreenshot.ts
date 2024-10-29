@@ -15,7 +15,7 @@ export function getFailureScreenShotPath(companyId: string) {
   }
 
   const filePath = path.join(companyDir, `${companyId}-${Date.now()}.png`);
-  logger("getFailureScreenShotPath", { filePath });
+  logger("getFailureScreenShotPath %o", filePath);
 
   return filePath;
 }

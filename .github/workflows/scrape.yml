@@ -15,10 +15,16 @@ on:
         default: "auto_moneyman"
         required: false
         description: "The name of the worksheet to write to"
+      parallelScrapes:
+        default: "1"
+        required: false
+        description: "Number of parallel scrapes to run"
   schedule:
-    - cron: "33 10 * * *"
+    # In Israel: [12:05, 00:05] or [13:05, 01:05] on DST
+    - cron: "5 10,22 * * *"
 env:
   REGISTRY: ghcr.io
+  MAX_PARALLEL_SCRAPERS: 3
 jobs:
   scrape:
     runs-on: ubuntu-latest
@@ -57,6 +63,7 @@ jobs:
           -e BUXFER_ACCOUNTS
           -e TRANSACTION_HASH_TYPE
           -e WEB_POST_URL
+          -e MAX_PARALLEL_SCRAPERS
           ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:latest
         env:
           DEBUG: ""
@@ -85,3 +92,4 @@ jobs:
           BUXFER_ACCOUNTS: ${{ secrets.BUXFER_ACCOUNTS }}
           TRANSACTION_HASH_TYPE: ${{ secrets.TRANSACTION_HASH_TYPE }}
           WEB_POST_URL: ${{ secrets.WEB_POST_URL }}
+          MAX_PARALLEL_SCRAPERS: ${{ github.event.inputs.parallelScrapes || env.MAX_PARALLEL_SCRAPERS }}
