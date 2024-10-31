@@ -117,7 +117,7 @@ export class BuxferStorage implements TransactionStorage {
       accountId: Number(accountId),
       date: format(parseISO(tx.date), BUXFER_DATE_FORMAT, {}),
       amount: tx.chargedAmount,
-      description: this.createCompositeDescription(tx),
+      description: [tx.description, tx.memo].filter(Boolean).join(" | "),
       // TODO - uncomment once the API bug is resolved on Buxfer service --> status: = tx.status === TransactionStatuses.Completed ? "cleared" : "pending",
       type: tx.chargedAmount > 0 ? "income" : "expense",
     };
