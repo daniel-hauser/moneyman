@@ -117,19 +117,10 @@ export class BuxferStorage implements TransactionStorage {
       accountId: Number(accountId),
       date: format(parseISO(tx.date), BUXFER_DATE_FORMAT, {}),
       amount: tx.chargedAmount,
-      description: [tx.description, tx.memo].filter(Boolean).join(" | "),
-      // TODO - uncomment once the API bug is resolved on Buxfer service --> status: = tx.status === TransactionStatuses.Completed ? "cleared" : "pending",
+      description: [tx.description, tx.memo].filter(Boolean).join(" | "), // Buxfer does not allow updating all trx fields via REST API so this will add additional fields to the description with '|' separators
+      status:
+        tx.status === TransactionStatuses.Completed ? "cleared" : "pending",
       type: tx.chargedAmount > 0 ? "income" : "expense",
     };
-  }
-
-  /**
-   * Buxfer does not allow updating all trx fields via REST API so this will add additional fields to the description with '|' separators
-   * @param tx Converted transaction from scrapper
-   * @returns Composite description string
-   */
-  private createCompositeDescription(tx: TransactionRow): string {
-    const compositeDescription: string = `${tx.description}${tx.memo != null && tx.memo.length > 0 ? ` | ${tx.memo}` : ""}`;
-    return compositeDescription;
   }
 }
