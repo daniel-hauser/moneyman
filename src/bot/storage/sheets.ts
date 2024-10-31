@@ -1,24 +1,28 @@
-import { createLogger } from "./../utils/logger.js";
+import { createLogger } from "../../utils/logger.js";
 import {
   GoogleSpreadsheet,
   GoogleSpreadsheetWorksheet,
 } from "google-spreadsheet";
-import { JWT, GoogleAuth } from "google-auth-library";
-import { parseISO, format } from "date-fns";
-import {
-  GOOGLE_SHEET_ID,
-  worksheetName,
-  currentDate,
-  systemName,
-  TRANSACTION_HASH_TYPE,
-} from "./../config.js";
-import type { TransactionRow, TransactionStorage } from "../types.js";
+import { GoogleAuth, JWT } from "google-auth-library";
+import { format, parseISO } from "date-fns";
+import { systemName } from "../../config.js";
+import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { sendDeprecationMessage } from "../notifier.js";
-import { normalizeCurrency } from "../utils/currency.js";
+import { normalizeCurrency } from "../../utils/currency.js";
 import { createSaveStats } from "../saveStats.js";
 
 const logger = createLogger("GoogleSheetsStorage");
+
+const {
+  WORKSHEET_NAME = "_moneyman",
+  GOOGLE_SHEET_ID = "",
+  GOOGLE_SERVICE_ACCOUNT_EMAIL,
+  GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+  TRANSACTION_HASH_TYPE,
+} = process.env;
+
+const currentDate = format(Date.now(), "yyyy-MM-dd");
 
 export type SheetRow = {
   date: string;
@@ -76,8 +80,6 @@ export class GoogleSheetsStorage implements TransactionStorage {
   private sheet: null | GoogleSpreadsheetWorksheet = null;
 
   canSave() {
-    const { GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY } =
-      process.env;
     return Boolean(
       GOOGLE_SERVICE_ACCOUNT_EMAIL && GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
     );
@@ -91,7 +93,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
     await Promise.all([onProgress("Initializing"), this.initDocAndSheet()]);
     await Promise.all([onProgress("Loading hashes"), this.loadHashes()]);
 
-    const stats = createSaveStats("Google Sheets", worksheetName, txns, {
+    const stats = createSaveStats("Google Sheets", WORKSHEET_NAME, txns, {
       highlightedTransactions: {
         Added: [] as Array<TransactionRow>,
       },
@@ -175,12 +177,12 @@ export class GoogleSheetsStorage implements TransactionStorage {
 
     await doc.loadInfo();
 
-    if (!(worksheetName in doc.sheetsByTitle)) {
+    if (!(WORKSHEET_NAME in doc.sheetsByTitle)) {
       logger("Creating new sheet");
-      const sheet = await doc.addSheet({ title: worksheetName });
+      const sheet = await doc.addSheet({ title: WORKSHEET_NAME });
       await sheet.setHeaderRow(GoogleSheetsStorage.FileHeaders);
     }
 
-    this.sheet = doc.sheetsByTitle[worksheetName];
+    this.sheet = doc.sheetsByTitle[WORKSHEET_NAME];
   }
 }

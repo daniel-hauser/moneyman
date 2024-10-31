@@ -1,17 +1,18 @@
-import {
-  BUXFER_USER_NAME,
-  BUXFER_PASSWORD,
-  BUXFER_ACCOUNTS,
-} from "../config.js";
-import { TransactionRow, TransactionStorage } from "../types.js";
-import { createLogger } from "./../utils/logger.js";
-import { parseISO, format } from "date-fns";
+import { TransactionRow, TransactionStorage } from "../../types.js";
+import { createLogger } from "../../utils/logger.js";
+import { format, parseISO } from "date-fns";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { BuxferApiClient, BuxferTransaction } from "buxfer-ts-client";
 import { createSaveStats } from "../saveStats.js";
 
 const BUXFER_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("BuxferStorage");
+
+const {
+  BUXFER_USER_NAME = "",
+  BUXFER_PASSWORD = "",
+  BUXFER_ACCOUNTS = "",
+} = process.env;
 
 export class BuxferStorage implements TransactionStorage {
   private buxferClient: BuxferApiClient;
