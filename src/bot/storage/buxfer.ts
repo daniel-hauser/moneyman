@@ -118,7 +118,7 @@ export class BuxferStorage implements TransactionStorage {
       accountId: Number(accountId),
       date: format(parseISO(tx.date), BUXFER_DATE_FORMAT, {}),
       amount: tx.chargedAmount,
-      description: tx.description,
+      description: [tx.description, tx.memo].filter(Boolean).join(" | "), // Buxfer does not allow updating all trx fields via REST API so this will add additional fields to the description with '|' separators
       status:
         tx.status === TransactionStatuses.Completed ? "cleared" : "pending",
       type: tx.chargedAmount > 0 ? "income" : "expense",
