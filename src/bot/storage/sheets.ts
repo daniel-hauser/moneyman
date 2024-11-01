@@ -75,8 +75,6 @@ export class GoogleSheetsStorage implements TransactionStorage {
     "chargedCurrency",
   ];
 
-  existingTransactionsHashes = new Set<string>();
-
   private sheet: null | GoogleSpreadsheetWorksheet = null;
 
   canSave() {
@@ -89,9 +87,18 @@ export class GoogleSheetsStorage implements TransactionStorage {
     txns: Array<TransactionRow>,
     onProgress: (status: string) => Promise<void>,
   ) {
-    const rows: SheetRow[] = [];
-    await Promise.all([onProgress("Initializing"), this.initDocAndSheet()]);
-    await Promise.all([onProgress("Loading hashes"), this.loadHashes()]);
+    const [doc] = await Promise.all([
+      this.getDoc(),
+      onProgress("Initializing doc"),
+    ]);
+    const [sheet] = await Promise.all([
+      this.getSheet(doc),
+      onProgress("Getting sheet"),
+    ]);
+    const [existingHashes] = await Promise.all([
+      this.loadHashes(sheet),
+      onProgress("Loading hashes"),
+    ]);
 
     const stats = createSaveStats("Google Sheets", WORKSHEET_NAME, txns, {
       highlightedTransactions: {
@@ -99,23 +106,24 @@ export class GoogleSheetsStorage implements TransactionStorage {
       },
     });
 
+    const rows: SheetRow[] = [];
     for (let tx of txns) {
       if (TRANSACTION_HASH_TYPE === "moneyman") {
         // Use the new uniqueId as the unique identifier for the transactions if the hash type is moneyman
-        if (this.existingTransactionsHashes.has(tx.uniqueId)) {
+        if (existingHashes.has(tx.uniqueId)) {
           stats.existing++;
           stats.skipped++;
           continue;
         }
       }
 
-      if (this.existingTransactionsHashes.has(tx.hash)) {
+      if (existingHashes.has(tx.hash)) {
         if (TRANSACTION_HASH_TYPE === "moneyman") {
           logger(`Skipping, old hash ${tx.hash} is already in the sheet`);
         }
 
         // To avoid double counting, skip if the new hash is already in the sheet
-        if (!this.existingTransactionsHashes.has(tx.uniqueId)) {
+        if (!existingHashes.has(tx.uniqueId)) {
           stats.existing++;
           stats.skipped++;
         }
@@ -143,15 +151,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
     return stats;
   }
 
-  private async loadHashes() {
-    const rows = await this.sheet?.getRows<SheetRow>();
-    for (let row of rows!) {
-      this.existingTransactionsHashes.add(row.get("hash"));
-    }
-    logger(`${this.existingTransactionsHashes.size} hashes loaded`);
-  }
-
-  private async initDocAndSheet() {
+  private async getDoc() {
     const {
       GOOGLE_SERVICE_ACCOUNT_EMAIL: client_email,
       GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: private_key,
@@ -173,17 +173,33 @@ export class GoogleSheetsStorage implements TransactionStorage {
         scopes: ["https://www.googleapis.com/auth/spreadsheets"],
       });
     }
+
     const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, authToken);
-
     await doc.loadInfo();
+    return doc;
+  }
 
-    if (!(WORKSHEET_NAME in doc.sheetsByTitle)) {
-      logger("Creating new sheet");
-      const sheet = await doc.addSheet({ title: WORKSHEET_NAME });
-      await sheet.setHeaderRow(GoogleSheetsStorage.FileHeaders);
-      await doc.loadInfo();
+  private async getSheet(doc: GoogleSpreadsheet) {
+    if (WORKSHEET_NAME in doc.sheetsByTitle) {
+      return doc.sheetsByTitle[WORKSHEET_NAME];
     }
 
-    this.sheet = doc.sheetsByTitle[WORKSHEET_NAME];
+    logger("Creating new sheet");
+    return doc.addSheet({
+      title: WORKSHEET_NAME,
+      headerValues: GoogleSheetsStorage.FileHeaders,
+    });
+  }
+
+  private async loadHashes(sheet: GoogleSpreadsheetWorksheet) {
+    const rows = await sheet.getRows<SheetRow>();
+    if (!rows) {
+      throw new Error(`loadHashes: getRows returned ${rows}`);
+    }
+
+    const existingHashes = new Set(rows.map((row) => row.get("hash")));
+    logger(`${existingHashes.size} hashes loaded`);
+
+    return existingHashes;
   }
 }
