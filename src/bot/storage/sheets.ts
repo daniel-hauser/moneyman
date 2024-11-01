@@ -4,7 +4,7 @@ import {
   GoogleSpreadsheet,
   GoogleSpreadsheetWorksheet,
 } from "google-spreadsheet";
-import { GoogleAuth, JWT } from "google-auth-library";
+import { GoogleAuth } from "google-auth-library";
 import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { sendDeprecationMessage } from "../notifier.js";
@@ -114,24 +114,13 @@ export class GoogleSheetsStorage implements TransactionStorage {
       GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: private_key,
     } = process.env;
 
-    // By default, try to automatically get credentials
-    // (maybe we're running in Google Cloud, who knows)
-    let authToken: JWT | GoogleAuth<any> = new GoogleAuth({
-      scopes: [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive.file",
-      ],
+    const credentials = { client_email, private_key };
+    const auth = new GoogleAuth({
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+      credentials: client_email && private_key ? credentials : undefined,
     });
-    if (client_email && private_key) {
-      logger("Using ServiceAccountAuth");
-      authToken = new JWT({
-        email: client_email,
-        key: private_key,
-        scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-      });
-    }
 
-    const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, authToken);
+    const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, auth);
     await doc.loadInfo();
     return doc;
   }
