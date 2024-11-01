@@ -181,6 +181,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
       logger("Creating new sheet");
       const sheet = await doc.addSheet({ title: WORKSHEET_NAME });
       await sheet.setHeaderRow(GoogleSheetsStorage.FileHeaders);
+      await doc.loadInfo();
     }
 
     this.sheet = doc.sheetsByTitle[WORKSHEET_NAME];
