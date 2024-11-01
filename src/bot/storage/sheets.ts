@@ -117,6 +117,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
    * Load hashes from the "hash" column, assuming the first row is a header row
    */
   private async loadHashes(sheet: GoogleSpreadsheetWorksheet) {
+    await sheet.loadHeaderRow();
     const hashColumnNumber = sheet.headerValues.indexOf("hash");
     if (hashColumnNumber === -1) {
       throw new Error("Hash column not found");
