@@ -2,9 +2,9 @@ import {
   TransactionStatuses,
   TransactionTypes,
 } from "israeli-bank-scrapers/lib/transactions.js";
-import { AccountScrapeResult, Transaction } from "./types.js";
-import { normalizeCurrency } from "./utils/currency.js";
-import { Timer } from "./utils/Timer.js";
+import { AccountScrapeResult, Transaction } from "../types.js";
+import { normalizeCurrency } from "../utils/currency.js";
+import { Timer } from "../utils/Timer.js";
 
 export function getSummaryMessages(results: Array<AccountScrapeResult>) {
   const accountsSummary = results.flatMap(({ result, companyId }) => {
@@ -57,7 +57,9 @@ function foreignTransactionsSummary(completed: Array<Transaction>) {
   const charged = completed.filter(
     (tx) => normalizeCurrency(tx.chargedCurrency) !== "ILS",
   ).length;
-  return `From completed, ${original} not originally in ILS${charged ? ` and ${charged} not charged in ILS` : ""}`;
+  return `From completed, ${original} not originally in ILS${
+    charged ? ` and ${charged} not charged in ILS` : ""
+  }`;
 }
 
 function transactionAmount(t: Transaction): number {

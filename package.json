@@ -31,12 +31,12 @@
     "async": "^3.2.6",
     "azure-kusto-data": "^6.0.2",
     "azure-kusto-ingest": "^6.0.2",
-    "buxfer-ts-client": "^1.1.0",
+    "buxfer-ts-client": "^1.1.2",
     "date-fns": "^4.1.0",
     "debug": "^4.3.7",
     "dotenv": "^16.4.5",
     "glob": "^11.0.0",
-    "google-auth-library": "^9.14.1",
+    "google-auth-library": "^9.14.2",
     "google-spreadsheet": "^4.1.4",
     "hash-it": "^6.0.0",
     "israeli-bank-scrapers": "^5.2.0",
@@ -46,14 +46,14 @@
   "devDependencies": {
     "@types/async": "^3.2.24",
     "@types/debug": "^4.1.12",
-    "@types/jest": "^29.5.13",
+    "@types/jest": "^29.5.14",
     "husky": "^9.1.6",
     "jest": "^29.7.0",
     "patch-package": "^8.0.0",
     "prettier": "^3.3.3",
     "pretty-quick": "^4.0.0",
     "ts-jest": "^29.2.5",
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.3"
   },
   "husky": {
     "hooks": {
