@@ -1,5 +1,4 @@
 import { createLogger } from "../../utils/logger.js";
-import { columnToLetter } from "google-spreadsheet/src/lib/utils.js";
 import {
   GoogleSpreadsheet,
   GoogleSpreadsheetWorksheet,
@@ -9,7 +8,7 @@ import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { sendDeprecationMessage } from "../notifier.js";
 import { createSaveStats } from "../saveStats.js";
-import { TableRow, tableRow, TableHeaders } from "../transactionTableRow.js";
+import { TableRow, tableRow } from "../transactionTableRow.js";
 
 const logger = createLogger("GoogleSheetsStorage");
 
@@ -122,8 +121,12 @@ export class GoogleSheetsStorage implements TransactionStorage {
       throw new Error("Hash column not found");
     }
 
-    const hashColumnLetter = columnToLetter(hashColumnNumber + 1);
-    const range = `${hashColumnLetter}2:${hashColumnLetter}`;
+    if (hashColumnNumber >= 26) {
+      throw new Error("Currently only supports single letter columns");
+    }
+
+    const columnLetter = String.fromCharCode(65 + hashColumnNumber);
+    const range = `${columnLetter}2:${columnLetter}`;
 
     const columns = await sheet.getCellsInRange(range, {
       majorDimension: "COLUMNS",
