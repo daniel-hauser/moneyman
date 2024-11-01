@@ -1,5 +1,6 @@
 import { retry } from "async";
 import { createLogger } from "../../utils/logger.js";
+import { columnToLetter } from "google-spreadsheet/src/lib/utils.js";
 import {
   GoogleSpreadsheet,
   GoogleSpreadsheetWorksheet,
@@ -130,15 +131,26 @@ export class GoogleSheetsStorage implements TransactionStorage {
     });
   }
 
+  /**
+   * Load hashes from the "hash" column, assuming the first row is a header row
+   */
   private async loadHashes(sheet: GoogleSpreadsheetWorksheet) {
-    const rows = await sheet.getRows<TableRow>();
-    if (!rows) {
-      throw new Error(`loadHashes: getRows returned ${rows}`);
+    const hashColumnNumber = sheet.headerValues.indexOf("hash");
+    if (hashColumnNumber === -1) {
+      throw new Error("Hash column not found");
     }
 
-    const existingHashes = new Set(rows.map((row) => row.get("hash")));
-    logger(`${existingHashes.size} hashes loaded`);
+    const hashColumnLetter = columnToLetter(hashColumnNumber + 1);
+    const range = `${hashColumnLetter}2:${hashColumnLetter}`;
 
-    return existingHashes;
+    const columns = await sheet.getCellsInRange(range, {
+      majorDimension: "COLUMNS",
+    });
+
+    if (Array.isArray(columns)) {
+      return new Set(columns[0] as string[]);
+    }
+
+    throw new Error("loadHashesBetter: getCellsInRange returned non-array");
   }
 }
