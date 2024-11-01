@@ -1,3 +1,4 @@
+import { retry } from "async";
 import { createLogger } from "../../utils/logger.js";
 import {
   GoogleSpreadsheet,
@@ -31,14 +32,26 @@ export class GoogleSheetsStorage implements TransactionStorage {
     txns: Array<TransactionRow>,
     onProgress: (status: string) => Promise<void>,
   ) {
-    const [doc] = await Promise.all([
-      this.getDoc(),
-      onProgress("Initializing doc"),
-    ]);
-    const [sheet] = await Promise.all([
-      this.getSheet(doc),
-      onProgress("Getting sheet"),
-    ]);
+    const [doc] = await Promise.all([this.getDoc(), onProgress("Getting doc")]);
+
+    const sheet = await retry(3, async () => {
+      await onProgress("Getting sheet");
+      if (doc.sheetsByTitle[WORKSHEET_NAME]) {
+        return doc.sheetsByTitle[WORKSHEET_NAME];
+      }
+
+      const [sheet] = await Promise.all([
+        this.addSheet(doc),
+        onProgress("Adding sheet"),
+      ]);
+
+      if (!sheet) {
+        throw new Error("sheet not found");
+      }
+
+      return sheet;
+    });
+
     const [existingHashes] = await Promise.all([
       this.loadHashes(sheet),
       onProgress("Loading hashes"),
@@ -123,11 +136,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
     return doc;
   }
 
-  private async getSheet(doc: GoogleSpreadsheet) {
-    if (WORKSHEET_NAME in doc.sheetsByTitle) {
-      return doc.sheetsByTitle[WORKSHEET_NAME];
-    }
-
+  private async addSheet(doc: GoogleSpreadsheet) {
     logger("Creating new sheet");
     return doc.addSheet({
       title: WORKSHEET_NAME,
