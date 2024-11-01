@@ -13,17 +13,21 @@ import { TableRow, tableRow } from "../transactionTableRow.js";
 const logger = createLogger("GoogleSheetsStorage");
 
 const {
-  WORKSHEET_NAME = "_moneyman",
+  WORKSHEET_NAME,
   GOOGLE_SHEET_ID = "",
   GOOGLE_SERVICE_ACCOUNT_EMAIL,
   GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
   TRANSACTION_HASH_TYPE,
 } = process.env;
 
+const worksheetName = WORKSHEET_NAME || "_moneyman";
+
 export class GoogleSheetsStorage implements TransactionStorage {
   canSave() {
     return Boolean(
-      GOOGLE_SERVICE_ACCOUNT_EMAIL && GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+      GOOGLE_SHEET_ID &&
+        GOOGLE_SERVICE_ACCOUNT_EMAIL &&
+        GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
     );
   }
 
@@ -34,12 +38,9 @@ export class GoogleSheetsStorage implements TransactionStorage {
     const [doc] = await Promise.all([this.getDoc(), onProgress("Getting doc")]);
 
     await onProgress("Getting sheet");
-    const sheet = doc.sheetsByTitle[WORKSHEET_NAME];
+    const sheet = doc.sheetsByTitle[worksheetName];
     if (!sheet) {
-      await onProgress(`Sheet ${WORKSHEET_NAME} not found`);
-      throw new Error(
-        `sheet not found.\n${JSON.stringify({ sheets: Object.keys(doc.sheetsByTitle) }, null, 2)}`,
-      );
+      throw new Error(`Sheet ${worksheetName} not found`);
     }
 
     const [existingHashes] = await Promise.all([
@@ -47,7 +48,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
       onProgress("Loading hashes"),
     ]);
 
-    const stats = createSaveStats("Google Sheets", WORKSHEET_NAME, txns, {
+    const stats = createSaveStats("Google Sheets", worksheetName, txns, {
       highlightedTransactions: {
         Added: [] as Array<TransactionRow>,
       },
