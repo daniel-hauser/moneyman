@@ -1,4 +1,3 @@
-import { retry } from "async";
 import { createLogger } from "../../utils/logger.js";
 import { columnToLetter } from "google-spreadsheet/src/lib/utils.js";
 import {
@@ -35,23 +34,14 @@ export class GoogleSheetsStorage implements TransactionStorage {
   ) {
     const [doc] = await Promise.all([this.getDoc(), onProgress("Getting doc")]);
 
-    const sheet = await retry(3, async () => {
-      await onProgress("Getting sheet");
-      if (doc.sheetsByTitle[WORKSHEET_NAME]) {
-        return doc.sheetsByTitle[WORKSHEET_NAME];
-      }
-
-      const [sheet] = await Promise.all([
-        this.addSheet(doc),
-        onProgress("Adding sheet"),
-      ]);
-
-      if (!sheet) {
-        throw new Error("sheet not found");
-      }
-
-      return sheet;
-    });
+    await onProgress("Getting sheet");
+    const sheet = doc.sheetsByTitle[WORKSHEET_NAME];
+    if (!sheet) {
+      await onProgress("Sheet not found");
+      throw new Error(
+        `sheet not found. sheets: ${Object.keys(doc.sheetsByTitle)}`,
+      );
+    }
 
     const [existingHashes] = await Promise.all([
       this.loadHashes(sheet),
@@ -121,14 +111,6 @@ export class GoogleSheetsStorage implements TransactionStorage {
     const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, auth);
     await doc.loadInfo();
     return doc;
-  }
-
-  private async addSheet(doc: GoogleSpreadsheet) {
-    logger("Creating new sheet");
-    return doc.addSheet({
-      title: WORKSHEET_NAME,
-      headerValues: [...TableHeaders],
-    });
   }
 
   /**
