@@ -109,15 +109,12 @@ export class GoogleSheetsStorage implements TransactionStorage {
   }
 
   private async getDoc() {
-    const {
-      GOOGLE_SERVICE_ACCOUNT_EMAIL: client_email,
-      GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: private_key,
-    } = process.env;
-
-    const credentials = { client_email, private_key };
     const auth = new GoogleAuth({
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-      credentials: client_email && private_key ? credentials : undefined,
+      credentials: {
+        client_email: GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        private_key: GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+      },
     });
 
     const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, auth);
