@@ -36,9 +36,9 @@ export class GoogleSheetsStorage implements TransactionStorage {
     await onProgress("Getting sheet");
     const sheet = doc.sheetsByTitle[WORKSHEET_NAME];
     if (!sheet) {
-      await onProgress("Sheet not found");
+      await onProgress(`Sheet ${WORKSHEET_NAME} not found`);
       throw new Error(
-        `sheet not found. sheets: ${Object.keys(doc.sheetsByTitle)}`,
+        `sheet not found.\n${JSON.stringify({ sheets: Object.keys(doc.sheetsByTitle) }, null, 2)}`,
       );
     }
 
