@@ -4,13 +4,11 @@ import {
   GoogleSpreadsheetWorksheet,
 } from "google-spreadsheet";
 import { GoogleAuth, JWT } from "google-auth-library";
-import { format, parseISO } from "date-fns";
-import { systemName } from "../../config.js";
 import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { sendDeprecationMessage } from "../notifier.js";
-import { normalizeCurrency } from "../../utils/currency.js";
 import { createSaveStats } from "../saveStats.js";
+import { TableRow, tableRow, TableHeaders } from "../transactionTableRow.js";
 
 const logger = createLogger("GoogleSheetsStorage");
 
@@ -22,61 +20,7 @@ const {
   TRANSACTION_HASH_TYPE,
 } = process.env;
 
-const currentDate = format(Date.now(), "yyyy-MM-dd");
-
-export type SheetRow = {
-  date: string;
-  amount: number;
-  description: string;
-  memo: string;
-  category: string;
-  account: string;
-  hash: string;
-  comment: string;
-  "scraped at": string;
-  "scraped by": string;
-  identifier: string;
-  chargedCurrency: string;
-};
-
-export function transactionRow(tx: TransactionRow): SheetRow {
-  return {
-    date: format(parseISO(tx.date), "dd/MM/yyyy", {}),
-    amount: tx.chargedAmount,
-    description: tx.description,
-    memo: tx.memo ?? "",
-    category: tx.category ?? "",
-    account: tx.account,
-    hash: TRANSACTION_HASH_TYPE === "moneyman" ? tx.uniqueId : tx.hash,
-    comment: "",
-    "scraped at": currentDate,
-    "scraped by": systemName,
-    identifier: `${tx.identifier ?? ""}`,
-    // Assuming the transaction is not pending, so we can use the original currency as the charged currency
-    chargedCurrency:
-      normalizeCurrency(tx.chargedCurrency) ||
-      normalizeCurrency(tx.originalCurrency),
-  };
-}
-
 export class GoogleSheetsStorage implements TransactionStorage {
-  static FileHeaders: Array<keyof SheetRow> = [
-    "date",
-    "amount",
-    "description",
-    "memo",
-    "category",
-    "account",
-    "hash",
-    "comment",
-    "scraped at",
-    "scraped by",
-    "identifier",
-    "chargedCurrency",
-  ];
-
-  private sheet: null | GoogleSpreadsheetWorksheet = null;
-
   canSave() {
     return Boolean(
       GOOGLE_SERVICE_ACCOUNT_EMAIL && GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
@@ -106,7 +50,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
       },
     });
 
-    const rows: SheetRow[] = [];
+    const rows: TableRow[] = [];
     for (let tx of txns) {
       if (TRANSACTION_HASH_TYPE === "moneyman") {
         // Use the new uniqueId as the unique identifier for the transactions if the hash type is moneyman
@@ -136,13 +80,13 @@ export class GoogleSheetsStorage implements TransactionStorage {
         continue;
       }
 
-      rows.push(transactionRow(tx));
+      rows.push(tableRow(tx));
       stats.highlightedTransactions.Added.push(tx);
     }
 
     if (rows.length) {
       stats.added = rows.length;
-      await Promise.all([onProgress("Saving"), this.sheet?.addRows(rows)]);
+      await Promise.all([onProgress("Saving"), sheet.addRows(rows)]);
       if (TRANSACTION_HASH_TYPE !== "moneyman") {
         sendDeprecationMessage("hashFiledChange");
       }
@@ -187,12 +131,12 @@ export class GoogleSheetsStorage implements TransactionStorage {
     logger("Creating new sheet");
     return doc.addSheet({
       title: WORKSHEET_NAME,
-      headerValues: GoogleSheetsStorage.FileHeaders,
+      headerValues: [...TableHeaders],
     });
   }
 
   private async loadHashes(sheet: GoogleSpreadsheetWorksheet) {
-    const rows = await sheet.getRows<SheetRow>();
+    const rows = await sheet.getRows<TableRow>();
     if (!rows) {
       throw new Error(`loadHashes: getRows returned ${rows}`);
     }

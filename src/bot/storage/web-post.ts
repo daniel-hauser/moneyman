@@ -1,7 +1,7 @@
 import { createLogger } from "../../utils/logger.js";
 import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
-import { transactionRow } from "./sheets.js";
+import { tableRow } from "../transactionTableRow.js";
 import { createSaveStats } from "../saveStats.js";
 
 const logger = createLogger("WebPostStorage");
@@ -31,7 +31,7 @@ export class WebPostStorage implements TransactionStorage {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(nonPendingTxns.map((tx) => transactionRow(tx))),
+        body: JSON.stringify(nonPendingTxns.map((tx) => tableRow(tx))),
       }),
       onProgress("Sending"),
     ]);
