@@ -194,10 +194,10 @@ The transactions will be sent as a JSON array in the body of the request with th
 
 Use the following env vars to setup:
 
-| env variable name               | description                                          |
-|---------------------------------|------------------------------------------------------|
-| `WEB_POST_URL`                  | The URL to post to                                   |
-| `WEB_POST_AUTHORIZATION_TOKEN`  | Authorization header value like this: `Bearer *****` |
+| env variable name              | description                                          |
+| ------------------------------ | ---------------------------------------------------- |
+| `WEB_POST_URL`                 | The URL to post to                                   |
+| `WEB_POST_AUTHORIZATION_TOKEN` | Authorization header value like this: `Bearer *****` |
 
 > [!IMPORTANT]
 > Be sure to post only to a trusted server.

@@ -30,7 +30,7 @@ export class WebPostStorage implements TransactionStorage {
       "Content-Type": "application/json",
     };
 
-    if(!!this.authorizationToken) {
+    if (!!this.authorizationToken) {
       headers["Authorization"] = this.authorizationToken;
     }
 
