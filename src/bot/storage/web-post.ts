@@ -26,18 +26,15 @@ export class WebPostStorage implements TransactionStorage {
 
     logger(`Posting ${nonPendingTxns.length} transactions to ${this.url}`);
 
-    const headers = {
-      "Content-Type": "application/json",
-    };
-
-    if(!!this.authorizationToken) {
-      headers["Authorization"] = this.authorizationToken;
-    }
-
     const [response] = await Promise.all([
       fetch(this.url, {
         method: "POST",
-        headers: headers,
+        headers:  {
+          "Content-Type": "application/json",
+          ...(this.authorizationToken && {
+            Authorization: this.authorizationToken,
+          }),
+        },
         body: JSON.stringify(nonPendingTxns.map((tx) => tableRow(tx))),
       }),
       onProgress("Sending"),
