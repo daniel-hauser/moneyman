@@ -29,7 +29,7 @@ export class WebPostStorage implements TransactionStorage {
     const [response] = await Promise.all([
       fetch(this.url, {
         method: "POST",
-        headers:  {
+        headers: {
           "Content-Type": "application/json",
           ...(this.authorizationToken && {
             Authorization: this.authorizationToken,
