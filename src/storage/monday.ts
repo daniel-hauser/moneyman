@@ -232,7 +232,7 @@ export class MondayStorage implements TransactionStorage {
 
       // Handle the response
       if (response.data.errors) {
-        console.error('Error creating item:', response.data.errors);
+        console.error('Error creating item:', response.data.errors, columnValues);
       } else {
         console.log('Item created successfully:', response.data.data.create_item.id);
       }
@@ -267,7 +267,7 @@ export class MondayStorage implements TransactionStorage {
     const columnValues = {
       date: transaction.date,
       numbers: transaction.amount,
-      text1: transaction.memo,
+      text1: transaction.memo.replace(/"/g, ''),
       // dropdown__1: { // should change this to status as the dropdown is not supported when importing from CSV
       //   labels: [transaction.account]
       // },
@@ -276,7 +276,7 @@ export class MondayStorage implements TransactionStorage {
       status3: transaction.category,
       status__1: transaction.chargedCurrency,
       text__1: transaction.uniqueId,
-      // status0__1: transaction.account
+      status0__3: transaction.account
     };
 
     return JSON.stringify(columnValues).replace(/"/g, '\\"');
