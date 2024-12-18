@@ -1,13 +1,14 @@
 import Trool from "trool";
+import { exportGSheetToCSV } from "../../utils/Google.js";
 import { MoneymanTransaction } from "./moneymanTransaction.js";
 import { TransactionRow } from "../../types.js";
 import { createLogger } from "../../utils/logger.js";
 import * as fs from "fs";
 
 const {
-  RULE_TABLE_CSV_FILE_PATH,
-  WORKSHEET_NAME,
-  GOOGLE_SHEET_ID = "",
+  RULES_TABLE_CSV_FILE_PATH,
+  GOOGLE_WORKSHEET_NAME_RULES = "",
+  GOOGLE_SHEET_ID_RULES,
   GOOGLE_SERVICE_ACCOUNT_EMAIL,
   GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
 } = process.env;
@@ -15,59 +16,90 @@ const {
 const logger = createLogger("TransactionRuleEngine");
 
 export class TransactionRuleEngine {
-  private decisionTableCsv: string;
-  private decisionTableFound: boolean;
+  private rulesTableCsv: string;
+  private rulesTableFound: boolean = false;
+  private fetchRulesFromGsheet: boolean = false;
+  private trool: Trool;
 
   constructor(csvFilePath?: string) {
-    logger("Load decision table");
     if (csvFilePath && fs.existsSync(csvFilePath)) {
-      // CTOR relative path
-      this.decisionTableCsv = this.readFileAsString(csvFilePath);
+      this.rulesTableCsv = this.readFileAsString(csvFilePath);
     } else if (
-      RULE_TABLE_CSV_FILE_PATH &&
-      fs.existsSync(RULE_TABLE_CSV_FILE_PATH)
+      RULES_TABLE_CSV_FILE_PATH &&
+      fs.existsSync(RULES_TABLE_CSV_FILE_PATH)
     ) {
-      // Env variable relative path
-      this.decisionTableCsv = this.readFileAsString(RULE_TABLE_CSV_FILE_PATH);
+      this.rulesTableCsv = this.readFileAsString(RULES_TABLE_CSV_FILE_PATH);
     } else if (
-      GOOGLE_SHEET_ID &&
+      GOOGLE_SHEET_ID_RULES &&
+      GOOGLE_WORKSHEET_NAME_RULES &&
       GOOGLE_SERVICE_ACCOUNT_EMAIL &&
       GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
     ) {
-      // TODO - Get the string from user gsheet table if environment is set for using it
+      // Google sheet rules table designated
+      this.fetchRulesFromGsheet = true;
     }
-    if (this.decisionTableCsv && this.decisionTableCsv !== "") {
-      logger("Decision table loaded");
-      this.decisionTableFound = true;
-    } else {
-      logger("Decision table not found ...");
-      this.decisionTableFound = false;
+    this.checkRulesTableCsv();
+    this.initTrool();
+  }
+
+  private checkRulesTableCsv() {
+    if (this.rulesTableCsv && this.rulesTableCsv !== "") {
+      logger("Rules table loaded");
+      this.rulesTableFound = true;
+    }
+  }
+
+  private initTrool() {
+    try {
+      this.trool = new Trool(false);
+    } catch (error) {
+      const TroolClass = (Trool as any).default;
+      this.trool = new TroolClass(false);
     }
   }
 
   canApplyRules(): boolean {
-    return this.decisionTableFound;
+    return this.rulesTableFound || this.fetchRulesFromGsheet;
+  }
+
+  private async loadRulesTable() {
+    await this.readRulesFromGsheet();
+    if (this.rulesTableFound) {
+      await this.trool.init(this.rulesTableCsv, true);
+      logger("Rules loaded");
+    } else {
+      throw new Error("Can't load rules table not found");
+    }
+  }
+
+  private async readRulesFromGsheet() {
+    if (this.fetchRulesFromGsheet) {
+      this.rulesTableCsv = await exportGSheetToCSV(
+        GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+        GOOGLE_SHEET_ID_RULES,
+        GOOGLE_WORKSHEET_NAME_RULES,
+      );
+      this.checkRulesTableCsv();
+    }
   }
 
   async applyRules(txns: Array<TransactionRow>): Promise<TransactionRow[]> {
     try {
-      logger("Init rule engine");
-      const TroolClass = (Trool as any).default;
-      const trool = new TroolClass(false);
-      await trool.init(this.decisionTableCsv, true);
+      await this.loadRulesTable();
       const factsHolder = {
         MoneymanTransactions: txns.map((trx) =>
           MoneymanTransaction.fromTransactionRow(trx),
         ),
       };
-      const updatedFacts = trool.applyRules(factsHolder);
+      const updatedFacts = this.trool.applyRules(factsHolder);
       logger("Storage rules applied on transactions");
       return updatedFacts.MoneymanTransactions.map((trx) =>
         trx.toTransactionRow(),
       );
     } catch (error) {
-      logger(error);
-      return txns;
+      logger(`Failed to apply rules on transactions: ${error}`);
+      return txns; // This method should not fail the flow and be graceful
     }
   }
 

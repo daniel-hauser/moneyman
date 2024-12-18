@@ -54,7 +54,7 @@ describe("MoneymanTransaction class", () => {
 });
 
 const TEST_TRANSACTION_RULES_FILE_PATH =
-  "src/bot/rules/transactionRuleTableTest.csv";
+  "src/bot/rule-engine/transactionRuleTableTest.csv";
 describe("RuleEngine constructor path finder", () => {
   it("should find rules csv file from provided path", () => {
     const ruleEngine = new TransactionRuleEngine(
@@ -70,7 +70,6 @@ describe("RuleEngineLogic", () => {
       TEST_TRANSACTION_RULES_FILE_PATH,
     );
     const updatedTrx = await ruleEngine.applyRules([transactionRow2]);
-
     expect(updatedTrx.length).toBe(1);
     expect(updatedTrx[0].tags).toBeDefined;
     const tag = updatedTrx[0].tags?.[0];
