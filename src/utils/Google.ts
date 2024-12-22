@@ -14,7 +14,7 @@ export async function getGoogleSheet(
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
       credentials: {
         client_email: serviceAccountEmail,
-        private_key: serviceAccountPrivateKey,
+        private_key: readAsBas64String(serviceAccountPrivateKey),
       },
     });
 
@@ -58,6 +58,11 @@ export async function exportGSheetToCSV(
     logger(`Error exporting google sheet to CSV ${error}`);
     throw error;
   }
+}
+
+function readAsBas64String(serviceAccountPrivateKey: string): string {
+  const temp = serviceAccountPrivateKey.replace(/\\n/g, '\n');// Buffer.from(serviceAccountPrivateKey , 'base64').toString('ascii');
+  return temp;
 }
 
 function arrayBufferToString(buffer: ArrayBuffer): string {
