@@ -1,22 +1,30 @@
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { GoogleAuth } from "google-auth-library";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger("utils/Google");
 
 export async function getGoogleSheet(
   serviceAccountEmail: string,
   serviceAccountPrivateKey: string,
   sheetId: string,
 ) {
-  const auth = new GoogleAuth({
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    credentials: {
-      client_email: serviceAccountEmail,
-      private_key: serviceAccountPrivateKey,
-    },
-  });
+  try {
+    const auth = new GoogleAuth({
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+      credentials: {
+        client_email: serviceAccountEmail,
+        private_key: serviceAccountPrivateKey,
+      },
+    });
 
-  const doc = new GoogleSpreadsheet(sheetId, auth);
-  await doc.loadInfo();
-  return doc;
+    const doc = new GoogleSpreadsheet(sheetId, auth);
+    await doc.loadInfo();
+    return doc;
+  } catch (error) {
+    logger(`Error fetching google sheet: ${error}`);
+    throw error;
+  }
 }
 
 export async function exportGSheetToCSV(
@@ -47,7 +55,8 @@ export async function exportGSheetToCSV(
     const csvData = arrayBufferToString(arrayBuffer);
     return csvData;
   } catch (error) {
-    throw new Error(`Error exporting google sheet to CSV: ${error}`);
+    logger(`Error exporting google sheet to CSV ${error}`);
+    throw error;
   }
 }
 
