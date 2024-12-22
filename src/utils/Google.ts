@@ -61,7 +61,7 @@ export async function exportGSheetToCSV(
 }
 
 function readAsBas64String(serviceAccountPrivateKey: string): string {
-  const temp = serviceAccountPrivateKey.replace(/\\n/g, '\n');// Buffer.from(serviceAccountPrivateKey , 'base64').toString('ascii');
+  const temp = serviceAccountPrivateKey.replace(/\\n/g, "\n"); // Buffer.from(serviceAccountPrivateKey , 'base64').toString('ascii');
   return temp;
 }
 
