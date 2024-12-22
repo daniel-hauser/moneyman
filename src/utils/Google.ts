@@ -1,6 +1,6 @@
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { GoogleAuth } from "google-auth-library";
-import { createLogger } from "../utils/logger";
+import { createLogger } from "../utils/logger.js";
 
 const logger = createLogger("utils/Google");
 
