@@ -2,6 +2,7 @@ import Trool from "trool";
 import { exportGSheetToCSV } from "../../utils/Google.js";
 import { MoneymanTransaction } from "./moneymanTransaction.js";
 import { TransactionRow } from "../../types.js";
+import { send, sendError } from "../notifier.js";
 import { createLogger } from "../../utils/logger.js";
 import * as fs from "fs";
 
@@ -66,7 +67,7 @@ export class TransactionRuleEngine {
     await this.readRulesFromGsheet();
     if (this.rulesTableFound) {
       await this.trool.init(this.rulesTableCsv, true);
-      logger("Rules loaded");
+      logger("Rules loaded to engine");
     } else {
       throw new Error("Can't load rules table not found");
     }
@@ -93,12 +94,13 @@ export class TransactionRuleEngine {
         ),
       };
       const updatedFacts = this.trool.applyRules(factsHolder);
-      logger("Storage rules applied on transactions");
-      return updatedFacts.MoneymanTransactions.map((trx) =>
-        trx.toTransactionRow(),
+      const updatedTransactionRows = updatedFacts.MoneymanTransactions.map(
+        (trx) => trx.toTransactionRow(),
       );
+      send("Transactions rules applied");
+      return updatedTransactionRows;
     } catch (error) {
-      logger(`Failed to apply rules on transactions: ${error}`);
+      sendError(error, "TransactionRules::");
       return txns; // This method should not fail the flow and be graceful
     }
   }

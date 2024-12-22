@@ -270,3 +270,16 @@ Example:
   "5897": "123456"
 }
 ```
+
+## Define Transaction Rules - WIP
+
+### Setup
+
+Use the following env vars to setup:
+
+| env variable name                    | description                                                   |
+| ------------------------------------ | ------------------------------------------------------------- |
+| `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | The super secret api key of your service account              |
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL`       | The service account's email address                           |
+| `GOOGLE_SHEET_ID`                    | The id of the spreadsheet you shared with the service account |
+| `WORKSHEET_NAME`                     | The name of the sheet you want to add the transactions to     |
