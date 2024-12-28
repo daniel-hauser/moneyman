@@ -11,7 +11,7 @@ const {
   GOOGLE_WORKSHEET_NAME_RULES = "",
   GOOGLE_SHEET_ID_RULES,
   GOOGLE_SERVICE_ACCOUNT_EMAIL,
-  GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_BASE_64,
+  GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
 } = process.env;
 
 const logger = createLogger("TransactionRuleEngine");
@@ -21,8 +21,7 @@ export class TransactionRuleEngine {
   private rulesTableFound: boolean = false;
   private fetchRulesFromGsheet: boolean = false;
   private trool: Trool;
-  private GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
-
+  private escapedPrivateKey;
   constructor(csvFilePath?: string) {
     if (csvFilePath && fs.existsSync(csvFilePath)) {
       this.rulesTableCsv = this.readFileAsString(csvFilePath);
@@ -35,11 +34,10 @@ export class TransactionRuleEngine {
       GOOGLE_SHEET_ID_RULES &&
       GOOGLE_WORKSHEET_NAME_RULES &&
       GOOGLE_SERVICE_ACCOUNT_EMAIL &&
-      GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_BASE_64
+      GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
     ) {
       // Google sheet rules table designated
-      const decodedKey = Buffer.from(GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_BASE_64, 'base64').toString('utf-8'); 
-      this.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = decodedKey;
+      this.escapedPrivateKey = GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY.replace(/\\n/g, "\n");
       this.fetchRulesFromGsheet = true;
     }
     this.checkRulesTableCsv();
@@ -78,9 +76,10 @@ export class TransactionRuleEngine {
 
   private async readRulesFromGsheet() {
     if (this.fetchRulesFromGsheet) {
+      
       this.rulesTableCsv = await exportGSheetToCSV(
         GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        this.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+        this.escapedPrivateKey,
         GOOGLE_SHEET_ID_RULES,
         GOOGLE_WORKSHEET_NAME_RULES,
       );

@@ -77,10 +77,3 @@ describe("RuleEngineLogic", () => {
   });
 });
 
-describe.skip("Encode Google Private Key To Base64 - run this locally only", () => {
-  it.skip("should encode Google Private Key To Base64 - run this locally only", async () => {
-    const secret_key = "SUPER_SECRET_PRIVATE_KEY_TO_ENCODE";
-    const encoded_key_str = Buffer.from(secret_key, "utf-8").toString("base64");
-    console.log("Base64 Encoded Key:", encoded_key_str);
-  });
-});
