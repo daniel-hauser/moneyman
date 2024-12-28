@@ -37,7 +37,6 @@ export class TransactionRuleEngine {
       GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
     ) {
       // Google sheet rules table designated
-      send(`GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: ${GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY}`)
       this.fetchRulesFromGsheet = true;
     }
     this.checkRulesTableCsv();
