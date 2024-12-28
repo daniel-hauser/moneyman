@@ -278,7 +278,7 @@ Example:
 1. Follow the instructions [here](https://theoephraim.github.io/node-google-spreadsheet/#/guides/authentication?id=setting-up-your-quotapplicationquot) to create a google service account.
 2. Download the JSON key file of the service account to your local machine.
 3. Create a [new sheet](https://sheets.new/) and share it with your service account using the `GOOGLE_SERVICE_ACCOUNT_EMAIL`.
-4. Create a sheet with following the format described in the [Trool package](https://github.com/seanpmaxwell/Trool), or copy this [template sheet](https://docs.google.com/spreadsheets/d/1p0i4c0RcmTdC0pZjwUCDIjNhAOn5dPDdplQ9_wU24vM/edit?usp=sharing) to get started.
+4. Create a rules sheet following the format described in the [Trool package](https://github.com/seanpmaxwell/Trool), or copy this [template sheet](https://docs.google.com/spreadsheets/d/1p0i4c0RcmTdC0pZjwUCDIjNhAOn5dPDdplQ9_wU24vM/edit?usp=sharing) to get started.
 5. Define your business logic for defining the transaction rules. Any method on the MoneymanTransaction class can be invoked by the rules engine and provided with args defined in the CSV table columns.
 
 6. Use the following env vars to setup:
