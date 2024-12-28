@@ -1,5 +1,4 @@
 import { GoogleSpreadsheet } from "google-spreadsheet";
-import { CredentialBody } from "google-auth-library";
 import { GoogleAuth } from "google-auth-library";
 import { createLogger } from "../utils/logger.js";
 
@@ -29,7 +28,7 @@ export async function getGoogleSheet(
 }
 
 export async function exportGSheetToCSV(
-  googleCredentials: CredentialBody,
+  googleCredentials: any,
   sheetId: string | undefined,
   worksheetName: string | undefined,
 ): Promise<string> {

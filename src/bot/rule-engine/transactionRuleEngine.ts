@@ -5,7 +5,6 @@ import { TransactionRow } from "../../types.js";
 import { send, sendError } from "../notifier.js";
 import { createLogger } from "../../utils/logger.js";
 import * as fs from "fs";
-import { CredentialBody } from "google-auth-library";
 
 const {
   RULES_TABLE_CSV_FILE_PATH,
@@ -21,7 +20,7 @@ export class TransactionRuleEngine {
   private rulesTableFound: boolean = false;
   private fetchRulesFromGsheet: boolean = false;
   private trool: Trool;
-  private googleCredentials: CredentialBody;
+  private googleCredentials: any;
   constructor(csvFilePath?: string) {
     if (csvFilePath && fs.existsSync(csvFilePath)) {
       this.rulesTableCsv = this.readFileAsString(csvFilePath);
