@@ -35,6 +35,9 @@ jobs:
       - name: Pull image
         run: docker pull ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:latest
 
+      - name: Set up Google Credentials
+        run: echo "${{ secrets.GOOGLE_CREDENTIALS }}" > google-credentials.json
+
       - name: Run scraper
         run: docker run --rm
           -e DEBUG
@@ -49,6 +52,7 @@ jobs:
           -e GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
           -e GOOGLE_SHEET_ID_RULES
           -e GOOGLE_WORKSHEET_NAME_RULES
+          -e GOOGLE_APPLICATION_CREDENTIALS
           -e ACCOUNTS_TO_SCRAPE
           -e ADE_DATABASE_NAME
           -e ADE_TABLE_NAME
@@ -81,6 +85,7 @@ jobs:
           GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY }}
           GOOGLE_SHEET_ID_RULES: ${{ secrets.GOOGLE_SHEET_ID_RULES }}
           GOOGLE_WORKSHEET_NAME_RULES: ${{ secrets.GOOGLE_WORKSHEET_NAME_RULES }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/google-credentials.json
           ADE_DATABASE_NAME: ${{ secrets.ADE_DATABASE_NAME }}
           ADE_TABLE_NAME: ${{ secrets.ADE_TABLE_NAME }}
           ADE_INGESTION_MAPPING: ${{ secrets.ADE_INGESTION_MAPPING }}

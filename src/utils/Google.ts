@@ -1,4 +1,5 @@
 import { GoogleSpreadsheet } from "google-spreadsheet";
+import { CredentialBody } from "google-auth-library";
 import { GoogleAuth } from "google-auth-library";
 import { createLogger } from "../utils/logger.js";
 
@@ -28,14 +29,13 @@ export async function getGoogleSheet(
 }
 
 export async function exportGSheetToCSV(
-  serviceAccountEmail: string | undefined,
-  serviceAccountPrivateKey: string | undefined,
+  googleCredentials: CredentialBody,
   sheetId: string | undefined,
   worksheetName: string | undefined,
 ): Promise<string> {
   if (
-    !serviceAccountEmail ||
-    !serviceAccountPrivateKey ||
+    !googleCredentials.client_email ||
+    !googleCredentials.private_key ||
     !sheetId ||
     !worksheetName
   ) {
@@ -43,8 +43,8 @@ export async function exportGSheetToCSV(
   }
   try {
     const doc = await getGoogleSheet(
-      serviceAccountEmail,
-      serviceAccountPrivateKey,
+      googleCredentials.client_email,
+      googleCredentials.private_key,
       sheetId,
     );
     const sheet = doc.sheetsByTitle[worksheetName];

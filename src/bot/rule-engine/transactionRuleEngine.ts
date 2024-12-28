@@ -5,13 +5,13 @@ import { TransactionRow } from "../../types.js";
 import { send, sendError } from "../notifier.js";
 import { createLogger } from "../../utils/logger.js";
 import * as fs from "fs";
+import { CredentialBody } from "google-auth-library";
 
 const {
   RULES_TABLE_CSV_FILE_PATH,
   GOOGLE_WORKSHEET_NAME_RULES = "",
   GOOGLE_SHEET_ID_RULES,
-  GOOGLE_SERVICE_ACCOUNT_EMAIL,
-  GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+  GOOGLE_APPLICATION_CREDENTIALS,
 } = process.env;
 
 const logger = createLogger("TransactionRuleEngine");
@@ -21,7 +21,7 @@ export class TransactionRuleEngine {
   private rulesTableFound: boolean = false;
   private fetchRulesFromGsheet: boolean = false;
   private trool: Trool;
-  private escapedPrivateKey;
+  private googleCredentials: CredentialBody;
   constructor(csvFilePath?: string) {
     if (csvFilePath && fs.existsSync(csvFilePath)) {
       this.rulesTableCsv = this.readFileAsString(csvFilePath);
@@ -30,16 +30,15 @@ export class TransactionRuleEngine {
       fs.existsSync(RULES_TABLE_CSV_FILE_PATH)
     ) {
       this.rulesTableCsv = this.readFileAsString(RULES_TABLE_CSV_FILE_PATH);
-    } else if (
-      GOOGLE_SHEET_ID_RULES &&
-      GOOGLE_WORKSHEET_NAME_RULES &&
-      GOOGLE_SERVICE_ACCOUNT_EMAIL &&
-      GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
-    ) {
-      // Google sheet rules table designated
-      this.escapedPrivateKey = GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY.replace(/\\n/g, "\n");
+    } else if (GOOGLE_APPLICATION_CREDENTIALS) {
+      const jsonString = fs.readFileSync(
+        GOOGLE_APPLICATION_CREDENTIALS,
+        "utf8",
+      );
+      this.googleCredentials = JSON.parse(jsonString);
       this.fetchRulesFromGsheet = true;
     }
+
     this.checkRulesTableCsv();
     this.initTrool();
   }
@@ -76,10 +75,8 @@ export class TransactionRuleEngine {
 
   private async readRulesFromGsheet() {
     if (this.fetchRulesFromGsheet) {
-      
       this.rulesTableCsv = await exportGSheetToCSV(
-        GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        this.escapedPrivateKey,
+        this.googleCredentials,
         GOOGLE_SHEET_ID_RULES,
         GOOGLE_WORKSHEET_NAME_RULES,
       );

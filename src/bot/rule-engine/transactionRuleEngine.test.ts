@@ -76,4 +76,3 @@ describe("RuleEngineLogic", () => {
     expect(tag).toEqual("utilities / electric");
   });
 });
-
