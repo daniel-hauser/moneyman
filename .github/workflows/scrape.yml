@@ -40,6 +40,7 @@ jobs:
 
       - name: Run scraper
         run: docker run --rm
+          -v $PWD/google-credentials.json:/app/google-credentials.json
           -e DEBUG
           -e DAYS_BACK
           -e TZ
@@ -85,7 +86,7 @@ jobs:
           GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY }}
           GOOGLE_SHEET_ID_RULES: ${{ secrets.GOOGLE_SHEET_ID_RULES }}
           GOOGLE_WORKSHEET_NAME_RULES: ${{ secrets.GOOGLE_WORKSHEET_NAME_RULES }}
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/google-credentials.json
+          GOOGLE_APPLICATION_CREDENTIALS: "/app/google-credentials.json"
           ADE_DATABASE_NAME: ${{ secrets.ADE_DATABASE_NAME }}
           ADE_TABLE_NAME: ${{ secrets.ADE_TABLE_NAME }}
           ADE_INGESTION_MAPPING: ${{ secrets.ADE_INGESTION_MAPPING }}
