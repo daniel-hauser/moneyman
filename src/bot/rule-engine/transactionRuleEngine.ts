@@ -30,12 +30,16 @@ export class TransactionRuleEngine {
     ) {
       this.rulesTableCsv = this.readFileAsString(RULES_TABLE_CSV_FILE_PATH);
     } else if (GOOGLE_APPLICATION_CREDENTIALS) {
-      const jsonString = fs.readFileSync(
-        GOOGLE_APPLICATION_CREDENTIALS,
-        "utf8",
-      );
-      this.googleCredentials = JSON.parse(jsonString);
-      this.fetchRulesFromGsheet = true;
+      try {
+        const jsonString = fs.readFileSync(
+          GOOGLE_APPLICATION_CREDENTIALS,
+          "utf8",
+        );
+        this.googleCredentials = JSON.parse(jsonString);
+        this.fetchRulesFromGsheet = true;
+      } catch (error) {
+        logger("Failed to parse Google credentials, rules will not be applied");
+      }
     }
 
     this.checkRulesTableCsv();
@@ -50,9 +54,12 @@ export class TransactionRuleEngine {
   }
 
   private initTrool() {
+    // This is required due to issues with the Trool package that only resolve as done here
     try {
+      // Works via jest UT
       this.trool = new Trool(false);
     } catch (error) {
+      // Works from the main project launch ...
       const TroolClass = (Trool as any).default;
       this.trool = new TroolClass(false);
     }
@@ -99,7 +106,7 @@ export class TransactionRuleEngine {
       return updatedTransactionRows;
     } catch (error) {
       sendError(error, "TransactionRules::");
-      return txns; // This method should not fail the flow and be graceful
+      return txns; // Rules should not fail the flow and be graceful
     }
   }
 
