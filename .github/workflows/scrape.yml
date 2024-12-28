@@ -103,3 +103,6 @@ jobs:
           TRANSACTION_HASH_TYPE: ${{ secrets.TRANSACTION_HASH_TYPE }}
           WEB_POST_URL: ${{ secrets.WEB_POST_URL }}
           MAX_PARALLEL_SCRAPERS: ${{ github.event.inputs.parallelScrapes || env.MAX_PARALLEL_SCRAPERS }}
+
+      - name: Clean up Google Credentials 
+        run: rm google-credentials.json
