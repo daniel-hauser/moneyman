@@ -253,7 +253,7 @@ export class MondayStorage implements TransactionStorage {
       type: tx.chargedAmount > 0 ? "income" : "expense",
       memo: tx.memo ?? "",
       category: tx.category ?? "",
-      account: tx.account,
+      account: `${tx.companyId} ${tx.account}`,
       uniqueId: TRANSACTION_HASH_TYPE === "moneyman" ? tx.uniqueId : tx.hash,
       scraped_at: currentDate,
       scraped_by: systemName,
@@ -268,15 +268,11 @@ export class MondayStorage implements TransactionStorage {
       date: transaction.date,
       numbers: transaction.amount,
       text1: transaction.memo.replace(/"/g, ''),
-      // dropdown__1: { // should change this to status as the dropdown is not supported when importing from CSV
-      //   labels: [transaction.account]
-      // },
       date8: transaction.scraped_at,
       text0: transaction.identifier,
-      // status3: transaction.category,
       status__1: transaction.chargedCurrency,
       text__1: transaction.uniqueId,
-      status0__3: transaction.account,
+      status03__1: transaction.account,
       category_mkmwkz7p: {
         labels: [transaction.category]
       }
