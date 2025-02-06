@@ -273,10 +273,13 @@ export class MondayStorage implements TransactionStorage {
       // },
       date8: transaction.scraped_at,
       text0: transaction.identifier,
-      status3: transaction.category,
+      // status3: transaction.category,
       status__1: transaction.chargedCurrency,
       text__1: transaction.uniqueId,
-      status0__3: transaction.account
+      status0__3: transaction.account,
+      category_mkmwkz7p: {
+        labels: [transaction.category]
+      }
     };
 
     return JSON.stringify(columnValues).replace(/"/g, '\\"');
