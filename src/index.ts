@@ -1,9 +1,10 @@
-import { scrapeAccounts } from "./data/index.js";
-import { accounts, futureMonthsToScrape, scrapeStartDate } from "./config.js";
-import { send, editMessage, sendError } from "./notifier.js";
-import { initializeStorage, saveResults, storages } from "./storage/index.js";
-import { createLogger, logToPublicLog } from "./utils/logger.js";
-import { getSummaryMessages } from "./messages.js";
+import { scrapeAccounts } from "./scraper/index.js";
+import { scraperConfig } from "./config.js";
+import { sendError } from "./bot/notifier.js";
+import { createLogger } from "./utils/logger.js";
+import { RunnerHooks } from "./types.js";
+import { runWithStorage } from "./bot/index.js";
+import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
 
 const logger = createLogger("main");
 
@@ -19,45 +20,41 @@ await run();
 // kill internal browsers if stuck
 process.exit(0);
 
-async function run() {
-  logToPublicLog("Scraping started");
-  logger("Scraping started");
+async function runScraper(hooks: RunnerHooks) {
+  try {
+    logger("About to start");
+    await hooks.onBeforeStart();
 
-  const message = await send("Starting...");
+    logger("Starting to scrape");
+    const results = await scrapeAccounts(
+      scraperConfig,
+      async (status, totalTime) => {
+        logger("Status changed", { status, totalTime });
+        return hooks.onStatusChanged(status, totalTime);
+      },
+      async (e, caller) => {
+        logger("Error while scraping", e);
+        return hooks.onError(e, caller);
+      },
+    );
+    logger("Scraping ended");
+    await hooks.onResultsReady(results);
 
-  if (!storages.length) {
-    logger("No storages found, aborting");
-    await editMessage(message?.message_id, "No storages found, aborting");
-  } else {
-    try {
-      const [results] = await Promise.all([
-        scrapeAccounts(
-          accounts,
-          scrapeStartDate,
-          futureMonthsToScrape,
-          async (stats, totalTime) => {
-            const text = stats.join("\n");
-            await editMessage(
-              message?.message_id,
-              totalTime
-                ? text + `\n\nTotal time: ${totalTime.toFixed(1)} seconds`
-                : text,
-            );
-          },
-        ),
-        initializeStorage(),
-      ]);
-
-      const saved = await saveResults(results);
-      for (const message of getSummaryMessages(results, saved.stats)) {
-        await send(message);
-      }
-    } catch (e) {
-      logger(e);
-      await sendError(e);
-    }
+    await sendFailureScreenShots((photoPath, caption) => {
+      logger("Sending failure screenshot", { photoPath, caption });
+      return hooks.failureScreenshotHandler(photoPath, caption);
+    });
+  } catch (e) {
+    logger("Error", e);
+    await hooks.onError(e);
   }
+}
 
-  logger("Scraping ended");
-  logToPublicLog("Scraping ended");
+async function run() {
+  try {
+    logger("Running with storage");
+    await runWithStorage(runScraper);
+  } catch (error) {
+    logger(error);
+  }
 }

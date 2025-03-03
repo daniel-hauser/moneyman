@@ -1,0 +1,144 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`messages getSummaryMessages should not add empty groups 1`] = `
+[
+  "📝 Storage (TheTable)
+	0 added
+	0 skipped (0 existing, 0 pending)
+	took 0.00s
+	-----
+	Group2:
+		description1:	+10.00",
+]
+`;
+
+exports[`messages getSummaryMessages should not add empty groups 2`] = `
+[
+  "📝 Storage (TheTable)
+	0 added
+	0 skipped (0 existing, 0 pending)
+	took 0.00s",
+]
+`;
+
+exports[`messages getSummaryMessages should return a summary message 1`] = `
+"8 transactions scraped.
+(3 pending, 5 completed)
+From completed, 3 not originally in ILS and 1 not charged in ILS
+
+Accounts updated:
+	✔️ [max] account1: 1
+	✔️ [max] account2: 7
+
+Pending txns:
+	description1:	+20.00
+	description1:	+20.00 USD
+	description1:	-20.00"
+`;
+
+exports[`messages getSummaryMessages should return a summary message 2`] = `
+[
+  "📝 Storage 1 (TheTable)
+	1 added
+	0 skipped (0 existing, 0 pending)
+	took 350.00s",
+  "📝 Storage 2 (TheTable)
+	7 added
+	0 skipped (0 existing, 3 pending)
+	took 350.00s
+	-----
+	Group1:
+		description1:	+10.00",
+]
+`;
+
+exports[`messages getSummaryMessages should return a summary message with failed results 1`] = `
+"1 transactions scraped.
+(0 pending, 1 completed)
+
+Accounts updated:
+	❌ [max] GENERIC
+		Some error message
+	❌ [hapoalim] CHANGE_PASSWORD
+	✔️ [hapoalim] account1: 1
+
+Pending txns:
+	😶 None"
+`;
+
+exports[`messages getSummaryMessages should return a summary message with failed results 2`] = `[]`;
+
+exports[`messages getSummaryMessages should return a summary message with installments 1`] = `
+"2 transactions scraped.
+(0 pending, 2 completed)
+
+Accounts updated:
+	✔️ [max] account1: 2
+
+Pending txns:
+	😶 None"
+`;
+
+exports[`messages getSummaryMessages should return a summary message with installments 2`] = `
+[
+  "📝 Storage 1 (TheTable)
+	2 added
+	0 skipped (0 existing, 0 pending)
+	took 0.00s
+	-----
+	SomeGroup:
+		should be +20:	+20.00
+		should be -20:	-20.00",
+]
+`;
+
+exports[`messages getSummaryMessages should return a summary message with no results 1`] = `
+"0 transactions scraped.
+
+Accounts updated:
+	😶 None
+
+Pending txns:
+	😶 None"
+`;
+
+exports[`messages getSummaryMessages should return a summary message with no results 2`] = `[]`;
+
+exports[`messages getSummaryMessages should support steps 1`] = `
+[
+  "📝 Storage (TheTable)
+	Step1, took 0.01s
+	Step2, took 0.10s
+	Step3, took 10.00s
+	Step4, took 100.46s
+	1 added
+	0 skipped (0 existing, 0 pending)
+	took 0.00s
+	-----
+	Group1:
+		description1:	+10.00",
+]
+`;
+
+exports[`messages saving should return a saving message 1`] = `"📝 Storage Saving..."`;
+
+exports[`messages saving should return a saving message with not finished steps 1`] = `
+"📝 Storage Saving...
+	Step1, took 0.01s
+	Step2, took 0.10s
+	Step3, took 10.00s
+	Step4"
+`;
+
+exports[`messages saving should return a saving message with one not finished step 1`] = `
+"📝 Storage Saving...
+	Step4"
+`;
+
+exports[`messages saving should return a saving message with steps 1`] = `
+"📝 Storage Saving...
+	Step1, took 0.01s
+	Step2, took 0.10s
+	Step3, took 10.00s
+	Step4, took 100.46s"
+`;

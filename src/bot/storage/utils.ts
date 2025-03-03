@@ -1,6 +1,6 @@
 import { formatISO, parseISO, roundToNearestMinutes } from "date-fns";
 import type { CompanyTypes } from "israeli-bank-scrapers";
-import type { Transaction } from "israeli-bank-scrapers/lib/transactions";
+import type { Transaction } from "israeli-bank-scrapers/lib/transactions.js";
 
 /**
  * Generates a hash for a transaction that can be used to ~uniquely identify it.

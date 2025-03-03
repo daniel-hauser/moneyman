@@ -1,19 +1,21 @@
-import {
-  YNAB_TOKEN,
-  YNAB_BUDGET_ID,
-  YNAB_ACCOUNTS,
-  TRANSACTION_HASH_TYPE,
-} from "../config.js";
-import { SaveStats, TransactionRow, TransactionStorage } from "../types.js";
-import { createLogger } from "./../utils/logger.js";
-import { parseISO, format } from "date-fns";
+import { TransactionRow, TransactionStorage } from "../../types.js";
+import { createLogger } from "../../utils/logger.js";
+import { format, parseISO } from "date-fns";
 import * as ynab from "ynab";
 import hash from "hash-it";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { sendDeprecationMessage } from "../notifier.js";
+import { createSaveStats } from "../saveStats.js";
 
 const YNAB_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("YNABStorage");
+
+const {
+  YNAB_TOKEN = "",
+  YNAB_BUDGET_ID = "",
+  YNAB_ACCOUNTS = "",
+  TRANSACTION_HASH_TYPE = "",
+} = process.env;
 
 export class YNABStorage implements TransactionStorage {
   private ynabAPI: ynab.API;
@@ -35,31 +37,27 @@ export class YNABStorage implements TransactionStorage {
     return new Date(date) > new Date();
   }
 
-  async saveTransactions(txns: Array<TransactionRow>) {
-    await this.init();
+  async saveTransactions(
+    txns: Array<TransactionRow>,
+    onProgress: (status: string) => Promise<void>,
+  ) {
+    await Promise.all([onProgress("Initializing"), this.init()]);
 
-    const stats = {
-      name: "YNABStorage",
-      table: `budget: "${this.budgetName}"`,
-      total: txns.length,
-      added: 0,
-      pending: 0,
-      existing: 0,
-      skipped: 0,
-    } satisfies SaveStats;
+    const stats = createSaveStats(
+      "YNABStorage",
+      `budget: "${this.budgetName}"`,
+      txns,
+    );
 
     // Initialize an array to store non-pending and non-empty account ID transactions on YNAB format.
-    const txToSend: ynab.SaveTransaction[] = [];
+    const txToSend: ynab.SaveTransactionWithOptionalFields[] = [];
     const missingAccounts = new Set<string>();
 
     for (let tx of txns) {
       const isPending = tx.status === TransactionStatuses.Pending;
-      // YNAB doesn't support future transcation. Will result in 400 Bad Request
+      // YNAB doesn't support future transactions. Will result in 400 Bad Request
       const isDateInFuture = this.isDateInFuture(tx.date);
       if (isPending || isDateInFuture) {
-        if (isPending) {
-          stats.pending++;
-        }
         stats.skipped++;
         continue;
       }
@@ -81,12 +79,12 @@ export class YNABStorage implements TransactionStorage {
     if (txToSend.length > 0) {
       // Send transactions to YNAB
       logger(`sending to YNAB budget: "${this.budgetName}"`);
-      const resp = await this.ynabAPI.transactions.createTransactions(
-        YNAB_BUDGET_ID,
-        {
+      const [resp] = await Promise.all([
+        this.ynabAPI.transactions.createTransactions(YNAB_BUDGET_ID, {
           transactions: txToSend,
-        },
-      );
+        }),
+        onProgress("Sending"),
+      ]);
       logger("transactions sent to YNAB successfully!");
       stats.added = resp.data.transactions?.length ?? 0;
       stats.existing = resp.data.duplicate_import_ids?.length ?? 0;
@@ -127,14 +125,14 @@ export class YNABStorage implements TransactionStorage {
   private convertTransactionToYnabFormat(
     tx: TransactionRow,
     accountId: string,
-  ): ynab.SaveTransaction {
+  ): ynab.SaveTransactionWithIdOrImportId {
     const amount = Math.round(tx.chargedAmount * 1000);
 
     return {
       account_id: accountId,
       date: format(parseISO(tx.date), YNAB_DATE_FORMAT, {}),
       amount,
-      payee_id: null,
+      payee_id: undefined,
       payee_name: tx.description,
       cleared:
         tx.status === TransactionStatuses.Completed
