@@ -42,7 +42,7 @@ export async function scrapeAccounts(
   const results = await parallelLimit<AccountConfig, AccountScrapeResult[]>(
     accounts.map(
       (account, i) => async () =>
-        scrapeAccount(
+        await scrapeAccount(
           logger.extend(`#${i} (${account.companyId})`),
           account,
           {
@@ -56,7 +56,7 @@ export async function scrapeAccounts(
           },
           async (message, append = false) => {
             status[i] = append ? `${status[i]} ${message}` : message;
-            return scrapeStatusChanged?.(status);
+            return await scrapeStatusChanged?.(status);
           },
         ),
     ),
