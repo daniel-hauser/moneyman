@@ -30,11 +30,11 @@ async function runScraper(hooks: RunnerHooks) {
       scraperConfig,
       async (status, totalTime) => {
         logger("Status changed", { status, totalTime });
-        return hooks.onStatusChanged(status, totalTime);
+        return await hooks.onStatusChanged(status, totalTime);
       },
       async (e, caller) => {
         logger("Error while scraping", e);
-        return hooks.onError(e, caller);
+        return await hooks.onError(e, caller);
       },
     );
     logger("Scraping ended");
