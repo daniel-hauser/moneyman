@@ -9,6 +9,9 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    groups:
+      development-dependencies:
+        dependency-type: "development"
 
   - package-ecosystem: "docker"
     directory: "/"
