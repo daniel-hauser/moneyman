@@ -41,7 +41,7 @@
     "hash-it": "^6.0.0",
     "israeli-bank-scrapers": "^5.4.2",
     "telegraf": "^4.16.3",
-    "ynab": "^2.6.0"
+    "ynab": "^2.8.0"
   },
   "devDependencies": {
     "@types/async": "^3.2.24",
