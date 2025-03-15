@@ -1,16 +1,16 @@
-import {
+const {
   MONDAY_BOARD_ID,
   MONDAY_TOKEN,
   currentDate,
   systemName,
   TRANSACTION_HASH_TYPE,
-} from "../config.js";
+} = process.env;
 import axios from 'axios';
-import { SaveStats, TransactionRow, TransactionStorage } from "../types.js";
-import { createLogger } from "../utils/logger.js";
 import { parseISO, format } from "date-fns";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
-import { normalizeCurrency } from "../utils/currency.js";
+import { createLogger } from '../../utils/logger';
+import { TransactionRow, TransactionStorage } from '../../types';
+import { SaveStats } from '../saveStats';
 
 const logger = createLogger("MondayStorage");
 const URL = 'https://api.monday.com/v2';
@@ -26,7 +26,7 @@ interface MondayTransaction {
   category: string;
   scraped_by: string;
   scraped_at: string;
-  identifier: string;
+  identifier: string | number;
   chargedCurrency: string
 
 }
@@ -50,8 +50,10 @@ export class MondayStorage implements TransactionStorage {
   canSave() {
     return Boolean(MONDAY_BOARD_ID && MONDAY_TOKEN);
   }
-
   private async loadHashes() {
+    if (!MONDAY_BOARD_ID) {
+      throw new Error('MONDAY_BOARD_ID is not defined');
+    }
     const items = await this.getAllItemsFromBoard(+MONDAY_BOARD_ID);
     for (const item of items) {
       const columnValue = item.column_values.find((col: any) => col.id === this.uniqueIdColumnID);
@@ -169,13 +171,14 @@ export class MondayStorage implements TransactionStorage {
 
       // Send transactions to Monday
       logger(
-        `sending to Monday`,
+        `sending ${txToSend.length} transactions to Monday`,
       );
+      if (!MONDAY_BOARD_ID) {
+        throw new Error('MONDAY_BOARD_ID is not defined');
+      }
       const resp = await this.createItemsFromTransactions(+MONDAY_BOARD_ID, txToSend);
 
       logger("transactions sent to Monday successfully!");
-      // stats.added = resp.addedTransactionIds.length;
-      // stats.existing = resp.duplicatedTransactionIds.length;
       stats.skipped += stats.existing;
     }
 
@@ -255,10 +258,10 @@ export class MondayStorage implements TransactionStorage {
       category: tx.category ?? "",
       account: `${tx.companyId} ${tx.account}`,
       uniqueId: TRANSACTION_HASH_TYPE === "moneyman" ? tx.uniqueId : tx.hash,
-      scraped_at: currentDate,
-      scraped_by: systemName,
-      identifier: `${tx.identifier ?? ""}`,
-      chargedCurrency: normalizeCurrency(tx.chargedCurrency),
+      scraped_at: currentDate ?? "",
+      scraped_by: systemName ?? "",
+      identifier: String(tx.identifier ?? ""),
+      chargedCurrency: tx.chargedCurrency ?? "",
     };
   }
 
