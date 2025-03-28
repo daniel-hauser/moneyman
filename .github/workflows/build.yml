@@ -2,9 +2,7 @@ name: Create and publish a Docker image
 
 on:
   push:
-    branches:
-      - main
-      - docker-tags
+    branches: ["main"]
     paths:
       - "src/**"
       - "patches/**"
