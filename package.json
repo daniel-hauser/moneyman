@@ -41,7 +41,7 @@
     "hash-it": "^6.0.0",
     "israeli-bank-scrapers": "^5.4.4",
     "telegraf": "^4.16.3",
-    "ynab": "^2.8.0"
+    "ynab": "^2.9.0"
   },
   "devDependencies": {
     "@types/async": "^3.2.24",
@@ -53,7 +53,7 @@
     "patch-package": "^8.0.0",
     "prettier": "^3.5.3",
     "pretty-quick": "^4.1.1",
-    "ts-jest": "^29.2.6",
+    "ts-jest": "^29.3.0",
     "typescript": "^5.8.2"
   },
   "husky": {
