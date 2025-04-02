@@ -64,6 +64,7 @@ jobs:
           -e TRANSACTION_HASH_TYPE
           -e WEB_POST_URL
           -e MAX_PARALLEL_SCRAPERS
+          -e DOMAIN_TRACKING_ENABLED
           ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:latest
         env:
           DEBUG: ""
@@ -93,3 +94,4 @@ jobs:
           TRANSACTION_HASH_TYPE: ${{ secrets.TRANSACTION_HASH_TYPE }}
           WEB_POST_URL: ${{ secrets.WEB_POST_URL }}
           MAX_PARALLEL_SCRAPERS: ${{ github.event.inputs.parallelScrapes || env.MAX_PARALLEL_SCRAPERS }}
+          DOMAIN_TRACKING_ENABLED: ${{ vars.DOMAIN_TRACKING_ENABLED }}

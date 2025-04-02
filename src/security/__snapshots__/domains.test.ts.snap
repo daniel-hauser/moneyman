@@ -1,0 +1,15 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`domains initDomainTracking should set up page request listener for relevant target types 1`] = `
+{
+  "max": {
+    "domains": [
+      "baz.com",
+      "bar.com",
+    ],
+    "pages": [
+      "https://foo.com",
+    ],
+  },
+}
+`;

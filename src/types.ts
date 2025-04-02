@@ -54,5 +54,8 @@ export interface RunnerHooks {
     photoPath: string,
     caption: string,
   ) => Promise<unknown>;
+  reportUsedDomains(
+    domainsByCompany: Partial<Record<CompanyTypes, unknown>>,
+  ): Promise<void>;
 }
 export type Runner = (hooks: RunnerHooks) => Promise<void>;
