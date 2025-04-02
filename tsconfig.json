@@ -9,7 +9,5 @@
     "outDir": "dst",
     "module": "ESNext"
   },
-  "include": [
-    "src/**/*"
-  ]
+  "include": ["src/**/*"]
 }
