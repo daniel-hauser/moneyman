@@ -98,6 +98,20 @@ Example:
 | `HIDDEN_DEPRECATIONS`       | ''                 | A comma separated list of deprecations to hide                                                                                                |
 | `PUPPETEER_EXECUTABLE_PATH` | `undefined`        | An ExecutablePath for the scraper. if undefined defaults to system.                                                                           |
 | `MAX_PARALLEL_SCRAPERS`     | `1`                | The maximum number of parallel scrapers to run                                                                                                |
+| `DOMAIN_TRACKING_ENABLED`   | ''                 | Enable tracking of all domains accessed during scraping                                                                                       |
+
+### Domain Security
+
+Given the nature of the scraping process, it's important to keep track of the domains accessed during the scraping process and ensure we connect only to the domains we expect.
+
+#### Domain Tracking
+
+After enabling the domain tracking setting, the process will keep track of all domains accessed during the scraping process.
+When the scraping process is done, a message will be sent to the telegram chat with the list of domains accessed.
+
+#### Domain Whitelisting
+
+TBD
 
 ### Get notified in telegram
 
@@ -105,7 +119,7 @@ We use telegram to send you the update status.
 
 1. Create your bot following [this](https://core.telegram.org/bots#creating-a-new-bot)
 2. Open this url `https://api.telegram.org/bot<TELEGRAM_API_KEY>/getUpdates`
-3. Send a message to your bot and fnd the chat id
+3. Send a message to your bot and find the chat id
 
 Use the following env vars to setup:
 
