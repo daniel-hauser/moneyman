@@ -42,7 +42,7 @@ export async function runWithStorage(runScraper: Runner) {
       await sendPhoto(photoPath, caption);
     },
     async reportUsedDomains(domains) {
-      await sendJSON(domains, "Used domains");
+      await sendJSON(domains, "used-domains.txt");
     },
   });
 
