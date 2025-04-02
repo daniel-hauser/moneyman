@@ -37,6 +37,16 @@ export async function sendPhoto(photoPath: string, caption: string) {
   );
 }
 
+export async function sendJSON(json: {}, caption: string) {
+  logger(`Sending JSON`, { json, caption });
+  const buffer = Buffer.from(JSON.stringify(json, null, 2), "utf-8");
+  return await bot?.telegram.sendDocument(
+    TELEGRAM_CHAT_ID,
+    { source: buffer },
+    { caption },
+  );
+}
+
 export async function editMessage(
   message: number | undefined,
   newText: string,
