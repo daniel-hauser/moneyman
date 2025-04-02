@@ -35,6 +35,7 @@ export async function runWithStorage(runScraper: Runner) {
     async failureScreenshotHandler(photoPath, caption) {
       await sendPhoto(photoPath, caption);
     },
+    async reportUsedDomains() {},
   });
 
   logger("Scraping ended");

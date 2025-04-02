@@ -2,7 +2,7 @@ import { performance } from "perf_hooks";
 import { getAccountTransactions } from "./scrape.js";
 import { AccountConfig, AccountScrapeResult, ScraperConfig } from "../types.js";
 import { createLogger } from "../utils/logger.js";
-import { createBrowser } from "./browser.js";
+import { createBrowser, createSecureBrowserContext } from "./browser.js";
 import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
 import { ScraperOptions } from "israeli-bank-scrapers";
 import { parallelLimit } from "async";
@@ -40,26 +40,24 @@ export async function scrapeAccounts(
   logger(`Browser created, starting to scrape ${accounts.length} accounts`);
 
   const results = await parallelLimit<AccountConfig, AccountScrapeResult[]>(
-    accounts.map(
-      (account, i) => async () =>
-        scrapeAccount(
-          logger.extend(`#${i} (${account.companyId})`),
-          account,
-          {
-            browserContext: await browser.createBrowserContext(),
-            startDate,
-            companyId: account.companyId,
-            futureMonthsToScrape: futureMonths,
-            storeFailureScreenShotPath: getFailureScreenShotPath(
-              account.companyId,
-            ),
-          },
-          async (message, append = false) => {
-            status[i] = append ? `${status[i]} ${message}` : message;
-            return scrapeStatusChanged?.(status);
-          },
-        ),
-    ),
+    accounts.map((account, i) => async () => {
+      const { companyId } = account;
+      return scrapeAccount(
+        logger.extend(`#${i} (${companyId})`),
+        account,
+        {
+          browserContext: await createSecureBrowserContext(browser, companyId),
+          startDate,
+          companyId,
+          futureMonthsToScrape: futureMonths,
+          storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
+        },
+        async (message, append = false) => {
+          status[i] = append ? `${status[i]} ${message}` : message;
+          return scrapeStatusChanged?.(status);
+        },
+      );
+    }),
     Number(parallelScrapers),
   );
 
