@@ -5,9 +5,11 @@
     "strictNullChecks": true,
     "esModuleInterop": true,
     "moduleResolution": "Node",
-    "target": "es2017",
+    "target": "es2022",
     "outDir": "dst",
     "module": "ESNext"
   },
-  "include": ["src/**/*"]
+  "include": [
+    "src/**/*"
+  ]
 }
