@@ -11,11 +11,13 @@ on:
       - "tsconfig.json"
       - ".eslintrc.js"
       - ".prettierrc.js"
+      - "Dockerfile"
+      - "docker-compose.yml"
       - ".github/workflows/build.yml"
   workflow_dispatch:
 
 concurrency:
-  group: build-main
+  group: build-${{ github.ref_name }}
   cancel-in-progress: true
 
 env:
@@ -42,7 +44,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Docker metadata
+      - name: Extract Docker metadata and set tags
         id: meta
         uses: docker/metadata-action@v5
         with:
