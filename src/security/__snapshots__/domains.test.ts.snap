@@ -3,8 +3,8 @@
 exports[`domains initDomainTracking should set up page request listener for relevant target types 1`] = `
 {
   "infra": {
-     "domains": [],
-     "pages": [],
+    "domains": [],
+    "pages": [],
   },
   "max": {
     "domains": [
