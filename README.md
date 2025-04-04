@@ -15,10 +15,10 @@ This app requires some technical skills, if you prefer a GUI app you can use [Ca
 **Important:**
 The current implementation assumes that you run the code on secure and trusted computers.
 
-**It’s a bad idea**
+**It's a bad idea**
 to put all your financial data and passwords in one place, especially with more than read-only access.
 
-By using moneyman, you acknowledge that you are taking full responsibility for the code quality and will use it only after you review the code and validate that it’s secure.
+By using moneyman, you acknowledge that you are taking full responsibility for the code quality and will use it only after you review the code and validate that it's secure.
 
 **Please use a proper secret management solution to save and pass the environment variables**
 
@@ -99,6 +99,7 @@ Example:
 | `PUPPETEER_EXECUTABLE_PATH` | `undefined`        | An ExecutablePath for the scraper. if undefined defaults to system.                                                                           |
 | `MAX_PARALLEL_SCRAPERS`     | `1`                | The maximum number of parallel scrapers to run                                                                                                |
 | `DOMAIN_TRACKING_ENABLED`   | ''                 | Enable tracking of all domains accessed during scraping                                                                                       |
+| `HEADED_MODE`               | `false`            | Run the browser in headed mode instead of headless.                                                                                           |
 
 ### Domain Security
 

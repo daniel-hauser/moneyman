@@ -8,7 +8,8 @@ on:
         required: false
         description: "Accounts to scrape (comma separated)"
       daysBack:
-        default: "10"
+        type: number
+        default: 10
         required: false
         description: "Days back to scrape"
       worksheetName:
@@ -16,9 +17,15 @@ on:
         required: false
         description: "The name of the worksheet to write to"
       parallelScrapes:
-        default: "1"
+        type: number
+        default: 1
         required: false
         description: "Number of parallel scrapes to run"
+      headed:
+        type: boolean
+        default: false
+        required: false
+        description: "Run scraper in headed mode"
       containerTag:
         default: "latest"
         required: false
@@ -72,6 +79,7 @@ jobs:
           -e WEB_POST_URL
           -e MAX_PARALLEL_SCRAPERS
           -e DOMAIN_TRACKING_ENABLED
+          -e HEADED_MODE
           ${{ steps.set-container-image.outputs.image }}
         env:
           DEBUG: ""
@@ -79,6 +87,7 @@ jobs:
           DAYS_BACK: ${{ github.event.inputs.daysBack }}
           WORKSHEET_NAME: ${{ github.event.inputs.worksheetName }}
           ACCOUNTS_TO_SCRAPE: ${{ github.event.inputs.accountsToScrape }}
+          HEADED_MODE: ${{ github.event.inputs.headed }}
           ACCOUNTS_JSON: ${{ secrets.ACCOUNTS_JSON }}
           TELEGRAM_API_KEY: ${{ secrets.TELEGRAM_API_KEY }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

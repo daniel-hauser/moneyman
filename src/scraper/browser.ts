@@ -7,16 +7,26 @@ import puppeteer, {
 import { createLogger } from "../utils/logger.js";
 import { initDomainTracking } from "../security/domains.js";
 
-export const browserArgs = ["--disable-dev-shm-usage", "--no-sandbox"];
-export const browserExecutablePath =
-  process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
+const { HEADED_MODE, PUPPETEER_EXECUTABLE_PATH } = process.env;
+
+const headless = HEADED_MODE !== "true";
+const args = headless
+  ? ["--disable-dev-shm-usage", "--no-sandbox"]
+  : [
+      "--disable-dev-shm-usage",
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-gpu",
+      "--disable-software-rasterizer",
+    ];
 
 const logger = createLogger("browser");
 
 export async function createBrowser(): Promise<Browser> {
   const options = {
-    args: browserArgs,
-    executablePath: browserExecutablePath,
+    args,
+    headless,
+    executablePath: PUPPETEER_EXECUTABLE_PATH || undefined,
   } satisfies PuppeteerLaunchOptions;
 
   logger("Creating browser", options);
