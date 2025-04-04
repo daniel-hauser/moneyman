@@ -135,7 +135,8 @@ export class ActualBudgetStorage implements TransactionStorage {
     logger("init");
 
     const tempDir = path.join(os.tmpdir(), "moneyman-actual-data");
-    if (!(await fs.stat(tempDir)).isDirectory()) {
+    const dirExists = await fs.stat(tempDir).catch(() => false);
+    if (!dirExists) {
       await fs.mkdir(tempDir, { recursive: true });
     }
 
