@@ -8,7 +8,7 @@ const {
 import axios from 'axios';
 import { parseISO, format } from "date-fns";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
-import { createLogger } from '../../utils/logger';
+import { createLogger } from "../../utils/logger.js";
 import { TransactionRow, TransactionStorage } from '../../types';
 import { SaveStats } from '../saveStats';
 
@@ -27,8 +27,8 @@ interface MondayTransaction {
   scraped_by: string;
   scraped_at: string;
   identifier: string | number;
-  chargedCurrency: string
-
+  chargedCurrency: string;
+  processedDate: string;
 }
 export class MondayStorage implements TransactionStorage {
 
@@ -262,6 +262,7 @@ export class MondayStorage implements TransactionStorage {
       scraped_by: systemName ?? "",
       identifier: String(tx.identifier ?? ""),
       chargedCurrency: tx.chargedCurrency ?? "",
+      processedDate: format(parseISO(tx.processedDate), "yyyy-MM-dd", {}),
     };
   }
 
@@ -276,6 +277,7 @@ export class MondayStorage implements TransactionStorage {
       status__1: transaction.chargedCurrency,
       text__1: transaction.uniqueId,
       status03__1: transaction.account,
+      date_mkpn8z61: transaction.processedDate,
       category_mkmwkz7p: {
         labels: [transaction.category]
       }

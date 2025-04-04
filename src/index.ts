@@ -12,7 +12,7 @@ process.on("uncaughtException", (err, origin) => {
   console.error("uncaughtException, sending error");
   sendError(`
 Caught exception: ${err}
-Exception origin: ${origin}`).catch((e) => {});
+Exception origin: ${origin}`).catch((e) => { });
 });
 
 await run();

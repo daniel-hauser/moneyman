@@ -16,6 +16,7 @@ import { createLogger } from "../../utils/logger.js";
 import { statsString } from "../saveStats.js";
 import { parallel } from "async";
 import { Timer } from "../../utils/Timer.js";
+import { MondayStorage } from "./monday.js";
 
 const baseLogger = createLogger("storage");
 
@@ -26,6 +27,7 @@ export const storages = [
   new YNABStorage(),
   new BuxferStorage(),
   new WebPostStorage(),
+  new MondayStorage(),
 ].filter((s) => s.canSave());
 
 export async function saveResults(results: Array<AccountScrapeResult>) {
