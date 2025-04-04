@@ -9,12 +9,23 @@ import { initDomainTracking } from "../security/domains.js";
 
 const { HEADED_MODE, PUPPETEER_EXECUTABLE_PATH } = process.env;
 
+const headless = HEADED_MODE !== "true";
+const args = headless
+  ? ["--disable-dev-shm-usage", "--no-sandbox"]
+  : [
+      "--disable-dev-shm-usage",
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-gpu",
+      "--disable-software-rasterizer",
+    ];
+
 const logger = createLogger("browser");
 
 export async function createBrowser(): Promise<Browser> {
   const options = {
-    args: ["--disable-dev-shm-usage", "--no-sandbox"],
-    headless: HEADED_MODE !== "true",
+    args,
+    headless,
     executablePath: PUPPETEER_EXECUTABLE_PATH || undefined,
   } satisfies PuppeteerLaunchOptions;
 
