@@ -1,10 +1,24 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { createLogger } from "../utils/logger.js";
 import { type BrowserContext, type HTTPRequest, TargetType } from "puppeteer";
+import { ClientRequestInterceptor } from "@mswjs/interceptors/ClientRequest";
 
 const logger = createLogger("domain-security");
 
 const domainsByCompany: Map<CompanyTypes, Map<string, Set<string>>> = new Map();
+const domainsFromNode: Set<string> = new Set();
+
+export function monitorNodeConnections() {
+  if (process.env.DOMAIN_TRACKING_ENABLED) {
+    const interceptor = new ClientRequestInterceptor();
+    interceptor.apply();
+    interceptor.on("request", ({ request }) => {
+      logger(`Outgoing request: ${request.method} ${request.url}`);
+      const { hostname } = new URL(request.url);
+      domainsFromNode.add(hostname);
+    });
+  }
+}
 
 export async function initDomainTracking(
   browserContext: BrowserContext,
@@ -63,7 +77,9 @@ function handleRequest(
 }
 
 export async function reportUsedDomains(
-  report: (domains: Partial<Record<CompanyTypes, unknown>>) => Promise<void>,
+  report: (
+    domains: Partial<Record<CompanyTypes | "infra", unknown>>,
+  ) => Promise<void>,
 ): Promise<void> {
   if (domainsByCompany.size === 0) {
     logger(`No domains recorded`);
@@ -82,6 +98,12 @@ export async function reportUsedDomains(
       },
     ]),
   );
+
+  domainsRecord.infra = {
+    pages: [],
+    domains: Array.from(domainsFromNode),
+  };
+
   await report(domainsRecord);
   logger(`Reported used domains`, domainsRecord);
 }
