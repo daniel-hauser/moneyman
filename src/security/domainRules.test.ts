@@ -1,15 +1,11 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
-import { DomainRuleManager, Rule, loadDomainRules } from "./domainRules.js";
+import { loadDomainRules } from "./domainRules.js";
 
 jest.mock("../utils/logger.js", () => ({
   createLogger: jest.fn(() => jest.fn()),
 }));
 
 describe("domainRules", () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe("loadDomainRules", () => {
     it("should load rules from the provided string", () => {
       const ruleManager = loadDomainRules(

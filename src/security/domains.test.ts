@@ -51,6 +51,11 @@ describe("domains", () => {
       page.url.mockReturnValue("https://foo.com");
       target.page.mockResolvedValue(page);
 
+      process.env.FIREWALL_SETTINGS = `
+      
+      ALLOW https://bar.com
+      BLOCK https://baz.com
+      `;
       await initDomainTracking(browserContext, CompanyTypes.max);
 
       const targetCreatedCallback = browserContext.on.mock.calls[0][1] as (
@@ -64,7 +69,11 @@ describe("domains", () => {
         request: HTTPRequest,
       ) => void;
 
-      for (const url of ["https://baz.com", "https://bar.com"]) {
+      for (const url of [
+        "https://baz.com",
+        "https://bar.com",
+        "https://foo.com",
+      ]) {
         const mockRequest = mock<HTTPRequest>();
         mockRequest.url.mockReturnValue(url);
         requestCallback(mockRequest);

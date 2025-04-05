@@ -2,7 +2,7 @@ import { CompanyTypes } from "israeli-bank-scrapers";
 import { createLogger } from "../utils/logger.js";
 import { type BrowserContext, type HTTPRequest, TargetType } from "puppeteer";
 import { ClientRequestInterceptor } from "@mswjs/interceptors/ClientRequest";
-import { DomainRuleManager, loadDomainRules, Rule } from "./domainRules.js";
+import { DomainRuleManager, loadDomainRules } from "./domainRules.js";
 import { sendError } from "../bot/notifier.js";
 
 const logger = createLogger("domain-security");
@@ -75,28 +75,23 @@ async function handleRequest(
   companyId: CompanyTypes,
   rules: DomainRuleManager,
 ) {
-  try {
-    const url = new URL(request.url());
-    if (ignoreUrl(url.hostname) || ignoreUrl(pageUrl)) {
-      return;
-    }
-    if (!pagesByCompany.has(companyId)) {
-      pagesByCompany.set(companyId, new Set());
-    }
-    pagesByCompany.get(companyId)!.add(url.hostname);
+  const url = new URL(request.url());
+  if (ignoreUrl(url.hostname) || ignoreUrl(pageUrl)) {
+    return;
+  }
+  if (!pagesByCompany.has(companyId)) {
+    pagesByCompany.set(companyId, new Set());
+  }
+  pagesByCompany.get(companyId)!.add(url.hostname);
 
-    const rule = rules.getRule(url, companyId);
-    const block = rule === "BLOCK";
-    trackRequest(url.hostname, companyId, block);
-    if (block) {
-      logger(`[${companyId}] Blocking request to ${url.hostname}`);
-      await request.abort();
-    } else {
-      logger(`[${companyId}] Allowing request ${pageUrl}->${url.hostname}`);
-    }
-  } catch (error) {
-    logger(`Failed to record domain access`, error);
-    sendError(error.message, "handleRequest");
+  const rule = rules.getRule(url, companyId);
+  const block = rule === "BLOCK";
+  trackRequest(url.hostname, companyId, block);
+  if (block) {
+    logger(`[${companyId}] Blocking request to ${url.hostname}`);
+    await request.abort();
+  } else {
+    logger(`[${companyId}] Allowing request ${pageUrl}->${url.hostname}`);
   }
 }
 
