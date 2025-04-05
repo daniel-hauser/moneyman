@@ -51,10 +51,29 @@ export async function initDomainTracking(
         case TargetType.BACKGROUND_PAGE: {
           logger(`Target created`, target.type());
           const page = await target.page();
-          page?.setRequestInterception(rules.hasAnyRule(companyId));
-          page?.on("request", (request) => {
-            const currentUrl = page.url();
-            handleRequest(request, currentUrl, companyId, rules);
+          await page?.setRequestInterception(rules.hasAnyRule(companyId));
+          page?.on("request", async (request) => {
+            const pageUrl = page.url();
+            const url = new URL(request.url());
+            const { hostname } = url;
+
+            if (!ignoreUrl(pageUrl) && !ignoreUrl(hostname)) {
+              if (!pagesByCompany.has(companyId)) {
+                pagesByCompany.set(companyId, new Set());
+              }
+              pagesByCompany.get(companyId)!.add(hostname);
+
+              const block = rules.isBlocked(url, companyId);
+              trackRequest(hostname, companyId, block);
+              if (block) {
+                logger(`[${companyId}] Blocking request to ${hostname}`);
+                await request.abort();
+                return;
+              }
+            }
+
+            logger(`[${companyId}] Allowing request ${pageUrl}->${hostname}`);
+            await request.continue();
           });
           break;
         }
@@ -92,6 +111,7 @@ async function handleRequest(
     await request.abort();
   } else {
     logger(`[${companyId}] Allowing request ${pageUrl}->${url.hostname}`);
+    await request.continue();
   }
 }
 

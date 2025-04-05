@@ -7,6 +7,7 @@ export type Rule = "ALLOW" | "BLOCK" | "DEFAULT";
 
 export interface DomainRuleManager {
   getRule: (url: URL | string, company: CompanyTypes) => Rule;
+  isBlocked: (url: URL | string, company: CompanyTypes) => boolean;
   hasAnyRule(company: CompanyTypes): boolean;
 }
 
@@ -95,7 +96,9 @@ export function loadDomainRules(
       }
       return rule;
     },
-
+    isBlocked(url: URL | string, company: CompanyTypes): boolean {
+      return this.getRule(url, company) === "BLOCK";
+    },
     hasAnyRule(company: CompanyTypes): boolean {
       function hasRule(node: TrieNode): boolean {
         return (
