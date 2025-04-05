@@ -89,6 +89,9 @@ export function loadDomainRules(
     getRule: (url: URL | string, company: CompanyTypes): Rule => {
       const { hostname } = typeof url === "string" ? new URL(url) : url;
       const rule = lookupRule(hostname, company);
+      if (rule === "DEFAULT" && process.env.BLOCK_BY_DEFAULT) {
+        return "BLOCK";
+      }
       return rule;
     },
   };

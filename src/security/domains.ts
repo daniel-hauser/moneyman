@@ -3,31 +3,28 @@ import { createLogger } from "../utils/logger.js";
 import { type BrowserContext, type HTTPRequest, TargetType } from "puppeteer";
 import { ClientRequestInterceptor } from "@mswjs/interceptors/ClientRequest";
 import { DomainRuleManager, loadDomainRules, Rule } from "./domainRules.js";
+import { sendError } from "../bot/notifier.js";
 
 const logger = createLogger("domain-security");
 
+const domainsFromNode: Set<string> = new Set();
+const pagesByCompany: Map<CompanyTypes, Set<string>> = new Map();
 const blockedByCompany: Map<CompanyTypes, Set<string>> = new Map();
 const allowedByCompany: Map<CompanyTypes, Set<string>> = new Map();
-const domainsByCompany: Map<CompanyTypes, Set<string>> = new Map();
-const pagesByCompany: Map<CompanyTypes, Set<string>> = new Map();
-const domainsFromNode: Set<string> = new Set();
 
-function trackRequestByRule(
+function trackRequest(
   domain: string,
   companyId: CompanyTypes,
-  rule: Rule,
+  isBlocked: boolean,
 ) {
-  const maps = {
-    ALLOW: allowedByCompany,
-    BLOCK: blockedByCompany,
-    DEFAULT: allowedByCompany,
-  } as const;
-
-  if (!maps[rule].has(companyId)) {
-    maps[rule].set(companyId, new Set());
+  const domainsByCompany = isBlocked ? blockedByCompany : allowedByCompany;
+  if (!domainsByCompany.has(companyId)) {
+    domainsByCompany.set(companyId, new Set());
   }
-  maps[rule].get(companyId)!.add(domain);
-  logger(`[${companyId}] ${rule} request for domain: ${domain}`);
+  domainsByCompany.get(companyId)!.add(domain);
+  logger(
+    `[${companyId}] ${isBlocked ? "BLOCK" : "ALLOW"} request for domain: ${domain}`,
+  );
 }
 
 export function monitorNodeConnections() {
@@ -68,11 +65,11 @@ export async function initDomainTracking(
   }
 }
 
-function validateUrl(url: string): boolean {
-  return url !== "about:blank" && url !== "";
+function ignoreUrl(url: string): boolean {
+  return url === "about:blank" || url === "" || url === "invalid";
 }
 
-function handleRequest(
+async function handleRequest(
   request: HTTPRequest,
   pageUrl: string,
   companyId: CompanyTypes,
@@ -80,7 +77,7 @@ function handleRequest(
 ) {
   try {
     const url = new URL(request.url());
-    if (!(validateUrl(url.hostname) && validateUrl(pageUrl))) {
+    if (ignoreUrl(url.hostname) || ignoreUrl(pageUrl)) {
       return;
     }
     if (!pagesByCompany.has(companyId)) {
@@ -89,18 +86,17 @@ function handleRequest(
     pagesByCompany.get(companyId)!.add(url.hostname);
 
     const rule = rules.getRule(url, companyId);
-    trackRequestByRule(url.hostname, companyId, rule);
-    if (
-      rule === "BLOCK" ||
-      (rule === "DEFAULT" && process.env.BLOCK_BY_DEFAULT)
-    ) {
+    const block = rule === "BLOCK";
+    trackRequest(url.hostname, companyId, block);
+    if (block) {
       logger(`[${companyId}] Blocking request to ${url.hostname}`);
-      request.abort();
+      await request.abort();
+    } else {
+      logger(`[${companyId}] Allowing request ${pageUrl}->${url.hostname}`);
     }
-
-    logger(`[${companyId}] request ${pageUrl}->${url.hostname}`);
   } catch (error) {
     logger(`Failed to record domain access`, error);
+    sendError(error.message, "handleRequest");
   }
 }
 
@@ -109,18 +105,23 @@ export async function reportUsedDomains(
     domains: Partial<Record<CompanyTypes | "infra", unknown>>,
   ) => Promise<void>,
 ): Promise<void> {
-  if (domainsByCompany.size === 0) {
+  const allCompanies = new Set([
+    ...allowedByCompany.keys(),
+    ...blockedByCompany.keys(),
+  ]);
+  if (allCompanies.size === 0) {
     logger(`No domains recorded`);
     return;
   }
 
-  logger(`Reporting used domains`, domainsByCompany);
+  logger(`Reporting used domains`, { allowedByCompany, blockedByCompany });
   const domainsRecord = Object.fromEntries(
-    Array.from(domainsByCompany.entries()).map(([company, domains]) => [
+    Array.from(allCompanies).map((company) => [
       company,
       {
         pages: Array.from(pagesByCompany.get(company) ?? []),
-        domains: Array.from(domains),
+        allowed: Array.from(allowedByCompany.get(company) ?? []),
+        blocked: Array.from(blockedByCompany.get(company) ?? []),
       },
     ]),
   );
