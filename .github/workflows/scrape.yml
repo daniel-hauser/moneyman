@@ -72,6 +72,8 @@ jobs:
           -e WEB_POST_URL
           -e MAX_PARALLEL_SCRAPERS
           -e DOMAIN_TRACKING_ENABLED
+          -e FIREWALL_SETTINGS
+          -e BLOCK_BY_DEFAULT
           ${{ steps.set-container-image.outputs.image }}
         env:
           DEBUG: ""
@@ -102,3 +104,5 @@ jobs:
           WEB_POST_URL: ${{ secrets.WEB_POST_URL }}
           MAX_PARALLEL_SCRAPERS: ${{ github.event.inputs.parallelScrapes || env.MAX_PARALLEL_SCRAPERS }}
           DOMAIN_TRACKING_ENABLED: ${{ vars.DOMAIN_TRACKING_ENABLED }}
+          FIREWALL_SETTINGS: ${{ secrets.FIREWALL_SETTINGS }}
+          BLOCK_BY_DEFAULT: ${{ vars.BLOCK_BY_DEFAULT }}
