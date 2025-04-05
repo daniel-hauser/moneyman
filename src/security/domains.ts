@@ -3,7 +3,6 @@ import { createLogger } from "../utils/logger.js";
 import { type BrowserContext, type HTTPRequest, TargetType } from "puppeteer";
 import { ClientRequestInterceptor } from "@mswjs/interceptors/ClientRequest";
 import { DomainRuleManager, loadDomainRules } from "./domainRules.js";
-import { sendError } from "../bot/notifier.js";
 
 const logger = createLogger("domain-security");
 
@@ -52,6 +51,7 @@ export async function initDomainTracking(
         case TargetType.BACKGROUND_PAGE: {
           logger(`Target created`, target.type());
           const page = await target.page();
+          page?.setRequestInterception(rules.hasAnyRule(companyId));
           page?.on("request", (request) => {
             const currentUrl = page.url();
             handleRequest(request, currentUrl, companyId, rules);

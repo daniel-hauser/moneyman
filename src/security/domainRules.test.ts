@@ -57,4 +57,35 @@ describe("domainRules", () => {
       expect(ruleManager.getRule(url, company)).toBe(expected);
     });
   });
+
+  describe("DomainRuleManager.hasAnyRule", () => {
+    it("should return true if company has rules defined", () => {
+      const ruleManager = loadDomainRules(`
+        hapoalim ALLOW api.bankhapoalim.co.il
+        leumi BLOCK api.leumi.co.il
+        visaCal ALLOW cal-online.co.il
+      `);
+
+      expect(ruleManager.hasAnyRule(CompanyTypes.hapoalim)).toBe(true);
+      expect(ruleManager.hasAnyRule(CompanyTypes.leumi)).toBe(true);
+      expect(ruleManager.hasAnyRule(CompanyTypes.visaCal)).toBe(true);
+    });
+
+    it("should return false if company has no rules defined", () => {
+      const ruleManager = loadDomainRules(`
+        hapoalim ALLOW api.bankhapoalim.co.il
+        leumi BLOCK api.leumi.co.il
+      `);
+
+      expect(ruleManager.hasAnyRule(CompanyTypes.max)).toBe(false);
+      expect(ruleManager.hasAnyRule(CompanyTypes.isracard)).toBe(false);
+    });
+
+    it("should return false with empty rules", () => {
+      const ruleManager = loadDomainRules("");
+
+      expect(ruleManager.hasAnyRule(CompanyTypes.hapoalim)).toBe(false);
+      expect(ruleManager.hasAnyRule(CompanyTypes.leumi)).toBe(false);
+    });
+  });
 });
