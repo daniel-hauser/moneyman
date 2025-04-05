@@ -280,6 +280,29 @@ describe("messages", () => {
       const saveSummaries = stats.map((stats) => statsString(stats, 0, steps));
       expect(saveSummaries).toMatchSnapshot();
     });
+
+    it("should support stats with skipped transactions", () => {
+      const tx = {
+        ...transaction({}),
+        hash: "hash1",
+        uniqueId: "uniqueId1",
+        account: "account1",
+        companyId: CompanyTypes.max,
+      };
+      const stats: Array<SaveStats> = [
+        createSaveStats("Storage", "TheTable", [tx], {
+          added: 1,
+          skipped: 2,
+          existing: 1,
+          pending: 1,
+          highlightedTransactions: {
+            Group1: [tx],
+          },
+        }),
+      ];
+      const saveSummaries = stats.map((stats) => statsString(stats, 0));
+      expect(saveSummaries).toMatchSnapshot();
+    });
   });
 
   describe("saving", () => {

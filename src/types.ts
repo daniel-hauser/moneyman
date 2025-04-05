@@ -45,15 +45,17 @@ export type ScraperConfig = {
   accounts: Array<AccountConfig>;
 };
 
+export type ImageWithCaption = {
+  photoPath: string;
+  caption: string;
+};
+
 export interface RunnerHooks {
   onBeforeStart(): Promise<void>;
   onStatusChanged(rows: string[], totalTime?: number): Promise<void>;
   onResultsReady(results: AccountScrapeResult[]): Promise<void>;
   onError(e: Error, caller?: string): Promise<void>;
-  failureScreenshotHandler: (
-    photoPath: string,
-    caption: string,
-  ) => Promise<unknown>;
+  failureScreenshotsHandler: (photos: ImageWithCaption[]) => Promise<unknown>;
   reportUsedDomains(
     domainsByCompany: Partial<Record<CompanyTypes, unknown>>,
   ): Promise<void>;
