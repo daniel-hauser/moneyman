@@ -78,7 +78,7 @@ export function statsString(
   return `
 ${header}${stepsString ? "\n" + stepsString : ""}
 \t${stats.added} added
-\t${stats.skipped} skipped (${stats.existing} existing, ${stats.pending} pending)
+${stats.skipped > 0 ? `\t${stats.skipped} skipped (${stats.existing} existing, ${stats.pending} pending)` : ""}
 \ttook ${(saveDurationMs / 1000).toFixed(2)}s
 ${highlightedTransactionsString(stats.highlightedTransactions, 1)}`.trim();
 }
