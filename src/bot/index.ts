@@ -7,7 +7,7 @@ import {
   send,
   sendError,
   sendJSON,
-  sendPhoto,
+  sendPhotos,
 } from "./notifier.js";
 
 const logger = createLogger("bot");
@@ -38,8 +38,8 @@ export async function runWithStorage(runScraper: Runner) {
       await sendError(e, caller);
     },
     async onBeforeStart() {},
-    async failureScreenshotHandler(photoPath, caption) {
-      await sendPhoto(photoPath, caption);
+    async failureScreenshotsHandler(photos) {
+      await sendPhotos(photos);
     },
     async reportUsedDomains(domains) {
       await sendJSON(domains, "used-domains.txt");
