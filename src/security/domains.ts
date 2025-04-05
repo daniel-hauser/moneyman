@@ -1,8 +1,8 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { createLogger } from "../utils/logger.js";
-import { type BrowserContext, type HTTPRequest, TargetType } from "puppeteer";
+import { type BrowserContext, TargetType } from "puppeteer";
 import { ClientRequestInterceptor } from "@mswjs/interceptors/ClientRequest";
-import { DomainRuleManager, loadDomainRules } from "./domainRules.js";
+import { loadDomainRules } from "./domainRules.js";
 
 const logger = createLogger("domain-security");
 
@@ -53,27 +53,30 @@ export async function initDomainTracking(
           const page = await target.page();
           await page?.setRequestInterception(rules.hasAnyRule(companyId));
           page?.on("request", async (request) => {
-            const pageUrl = page.url();
-            const url = new URL(request.url());
-            const { hostname } = url;
+            try {
+              const pageUrl = page.url();
+              const url = new URL(request.url());
+              const { hostname } = url;
 
-            if (!ignoreUrl(pageUrl) && !ignoreUrl(hostname)) {
-              if (!pagesByCompany.has(companyId)) {
-                pagesByCompany.set(companyId, new Set());
-              }
-              pagesByCompany.get(companyId)!.add(hostname);
+              if (!ignoreUrl(pageUrl) && !ignoreUrl(hostname)) {
+                if (!pagesByCompany.has(companyId)) {
+                  pagesByCompany.set(companyId, new Set());
+                }
+                pagesByCompany.get(companyId)!.add(pageUrl);
 
-              const block = rules.isBlocked(url, companyId);
-              trackRequest(hostname, companyId, block);
-              if (block) {
-                logger(`[${companyId}] Blocking request to ${hostname}`);
-                await request.abort();
-                return;
+                const block = rules.isBlocked(url, companyId);
+                trackRequest(hostname, companyId, block);
+                if (block) {
+                  logger(`[${companyId}] Blocking request to ${hostname}`);
+                  return await request.abort();
+                }
               }
+
+              logger(`[${companyId}] Allowing request ${pageUrl}->${hostname}`);
+              await request.continue();
+            } catch (error) {
+              logger(`Error handling request: ${error.message}`);
             }
-
-            logger(`[${companyId}] Allowing request ${pageUrl}->${hostname}`);
-            await request.continue();
           });
           break;
         }
@@ -86,33 +89,6 @@ export async function initDomainTracking(
 
 function ignoreUrl(url: string): boolean {
   return url === "about:blank" || url === "" || url === "invalid";
-}
-
-async function handleRequest(
-  request: HTTPRequest,
-  pageUrl: string,
-  companyId: CompanyTypes,
-  rules: DomainRuleManager,
-) {
-  const url = new URL(request.url());
-  if (ignoreUrl(url.hostname) || ignoreUrl(pageUrl)) {
-    return;
-  }
-  if (!pagesByCompany.has(companyId)) {
-    pagesByCompany.set(companyId, new Set());
-  }
-  pagesByCompany.get(companyId)!.add(url.hostname);
-
-  const rule = rules.getRule(url, companyId);
-  const block = rule === "BLOCK";
-  trackRequest(url.hostname, companyId, block);
-  if (block) {
-    logger(`[${companyId}] Blocking request to ${url.hostname}`);
-    await request.abort();
-  } else {
-    logger(`[${companyId}] Allowing request ${pageUrl}->${url.hostname}`);
-    await request.continue();
-  }
 }
 
 export async function reportUsedDomains(

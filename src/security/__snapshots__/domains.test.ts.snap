@@ -11,9 +11,7 @@ exports[`domains initDomainTracking should set up page request listener for rele
     ],
     "blocked": [],
     "pages": [
-      "baz.com",
-      "bar.com",
-      "foo.com",
+      "https://foo.com",
     ],
   },
 }
