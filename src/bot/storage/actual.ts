@@ -39,6 +39,7 @@ const TRANSACTION_HASH_TYPE =
 
 export class ActualBudgetStorage implements TransactionStorage {
   private bankToActualAccountMap: Map<string, string>;
+  private accountIdToNameMap: Map<string, string>;
   private initialized: boolean = false;
 
   canSave() {
@@ -98,14 +99,14 @@ export class ActualBudgetStorage implements TransactionStorage {
         actualAccountId,
         transactions,
       ] of transactionsByActualAccountId) {
+        const accountName =
+          this.accountIdToNameMap.get(actualAccountId) || actualAccountId;
         logger(
-          `Processing ${transactions.length} transactions for Actual Budget account ${actualAccountId}`,
+          `Processing ${transactions.length} transactions for account "${accountName}"`,
         );
         const [importResponse] = await Promise.all([
           actualApi.importTransactions(actualAccountId, transactions),
-          onProgress(
-            `Sending transactions for Actual Budget account ${actualAccountId}`,
-          ),
+          onProgress(`Sending transactions for account "${accountName}"`),
         ]);
 
         if (importResponse.errors?.length) {
@@ -150,6 +151,9 @@ export class ActualBudgetStorage implements TransactionStorage {
 
     const actualAccounts = await actualApi.getAccounts();
     const validActualAccountIds = new Set(actualAccounts.map((a) => a.id));
+    this.accountIdToNameMap = new Map(
+      actualAccounts.map((a) => [a.id, a.name]),
+    );
 
     this.bankToActualAccountMap = this.parseActualAccounts(ACTUAL_ACCOUNTS!);
 
@@ -158,8 +162,10 @@ export class ActualBudgetStorage implements TransactionStorage {
       actualAccountId,
     ] of this.bankToActualAccountMap.entries()) {
       if (!validActualAccountIds.has(actualAccountId)) {
+        const accountName =
+          this.accountIdToNameMap.get(actualAccountId) || actualAccountId;
         logger(
-          `Warning: Actual Budget account ${actualAccountId} for bank account ${bankAccountId} does not exist`,
+          `Warning: Actual Budget account "${accountName}" for bank account ${bankAccountId} does not exist`,
         );
         this.bankToActualAccountMap.delete(bankAccountId);
       }
