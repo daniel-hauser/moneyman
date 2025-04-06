@@ -11,7 +11,7 @@ import { createSaveStats } from "../saveStats.js";
 interface ActualTransaction {
   id?: string;
   account: string;
-  date: string;
+  date: Date | string;
   amount?: number;
   payee?: string;
   payee_name?: string;
@@ -189,11 +189,11 @@ export class ActualBudgetStorage implements TransactionStorage {
     tx: TransactionRow,
     actualAccountId: string,
   ): ActualTransaction {
-    const amount = Math.round(tx.chargedAmount * 1000);
+    const amount = actualApi.utils.amountToInteger(tx.chargedAmount);
 
     return {
       account: actualAccountId,
-      date: tx.date,
+      date: new Date(tx.date),
       amount,
       payee_name: tx.description,
       cleared: tx.status === TransactionStatuses.Completed,
