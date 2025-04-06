@@ -7,6 +7,7 @@ import {
   Target,
   Page,
   HTTPRequest,
+  Frame,
 } from "puppeteer";
 import { mock } from "jest-mock-extended";
 
@@ -52,9 +53,8 @@ describe("domains", () => {
       target.page.mockResolvedValue(page);
 
       process.env.FIREWALL_SETTINGS = `
-      
-      ALLOW https://bar.com
-      BLOCK https://baz.com
+      max ALLOW bar.com
+      max BLOCK baz.com
       `;
       await initDomainTracking(browserContext, CompanyTypes.max);
 
@@ -63,21 +63,37 @@ describe("domains", () => {
       ) => Promise<void>;
       await targetCreatedCallback(target);
 
-      expect(page.on).toHaveBeenCalledWith("request", expect.any(Function));
+      expect(page.setRequestInterception).toHaveBeenCalledWith(true);
+      expect(page.on).toHaveBeenCalledTimes(2);
+      expect(page.on).toHaveBeenNthCalledWith(
+        1,
+        "framenavigated",
+        expect.any(Function),
+      );
+      expect(page.on).toHaveBeenNthCalledWith(
+        2,
+        "request",
+        expect.any(Function),
+      );
+      const [[, framenavigated], [, request]] = page.on.mock.calls;
+      const framenavigatedCallback = framenavigated as (f: Frame) => void;
 
-      const requestCallback = page.on.mock.calls[0][1] as (
-        request: HTTPRequest,
-      ) => void;
+      framenavigatedCallback(
+        mock<Frame>({ url: () => "https://bar.com/hello" }),
+      );
 
-      for (const url of [
-        "https://baz.com",
-        "https://bar.com",
-        "https://foo.com",
-      ]) {
-        const mockRequest = mock<HTTPRequest>();
-        mockRequest.url.mockReturnValue(url);
-        requestCallback(mockRequest);
-      }
+      const mockRequestBar = mock<HTTPRequest>({
+        url: () => "https://bar.com",
+      });
+      const mockRequestBaz = mock<HTTPRequest>({
+        url: () => "https://baz.com",
+      });
+      const requestCallback = request as (r: HTTPRequest) => void;
+      requestCallback(mockRequestBar);
+      requestCallback(mockRequestBaz);
+
+      expect(mockRequestBar.continue).toHaveBeenCalled();
+      expect(mockRequestBaz.abort).toHaveBeenCalled();
 
       await reportUsedDomains(async (report) => {
         expect(report).toMatchSnapshot();

@@ -31,7 +31,6 @@ describe("domainRules", () => {
       for (const [company, domain, rule] of [
         [CompanyTypes.hapoalim, "https://api.bankhapoalim.co.il", "ALLOW"],
         [CompanyTypes.leumi, "https://api.leumi.co.il", "BLOCK"],
-        [CompanyTypes.hapoalim, "https://foo.bankhapoalim.co.il", "DEFAULT"],
       ] as const) {
         expect(ruleManager.getRule(domain, company)).toBe(rule);
       }

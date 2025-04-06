@@ -5,13 +5,13 @@ exports[`domains initDomainTracking should set up page request listener for rele
   "infra": [],
   "max": {
     "allowed": [
-      "baz.com",
       "bar.com",
-      "foo.com",
     ],
-    "blocked": [],
+    "blocked": [
+      "baz.com",
+    ],
     "pages": [
-      "https://foo.com",
+      "foo.com/",
     ],
   },
 }
