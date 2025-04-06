@@ -138,6 +138,9 @@ When a rule exists for a specific domain, the scraper will:
 - `BLOCK` - Block the connection
 - If no rule exists for a domain, the default behavior is to allow the connection
 
+> [!IMPORTANT]
+> All rules apply only if there is at least one rule for the scraper. scrapers with no rules will allow all connections
+
 Rules support parent domain matching, so a rule for `example.com` will apply to `api.example.com` and `www.example.com` as well.
 
 ### Get notified in telegram

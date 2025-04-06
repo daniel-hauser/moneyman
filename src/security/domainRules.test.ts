@@ -1,14 +1,14 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
-import { loadDomainRules } from "./domainRules.js";
+import { DomainRuleManager } from "./domainRules.js";
 
 jest.mock("../utils/logger.js", () => ({
   createLogger: jest.fn(() => jest.fn()),
 }));
 
 describe("domainRules", () => {
-  describe("loadDomainRules", () => {
+  describe("DomainRuleManager", () => {
     it("should load rules from the provided string", () => {
-      const ruleManager = loadDomainRules(
+      const ruleManager = new DomainRuleManager(
         `hapoalim ALLOW api.bankhapoalim.co.il`,
       );
       const result = ruleManager.getRule(
@@ -16,6 +16,24 @@ describe("domainRules", () => {
         CompanyTypes.hapoalim,
       );
       expect(result).toBe("ALLOW");
+    });
+
+    it("should load one-line rules", () => {
+      const ruleManager = new DomainRuleManager(
+        `hapoalim ALLOW api.bankhapoalim.co.il|hapoalim BLOCK fonts.gstatic.com`,
+      );
+      expect(
+        ruleManager.getRule(
+          "https://api.bankhapoalim.co.il/login",
+          CompanyTypes.hapoalim,
+        ),
+      ).toBe("ALLOW");
+      expect(
+        ruleManager.getRule(
+          "https://fonts.gstatic.com/login",
+          CompanyTypes.hapoalim,
+        ),
+      ).toBe("BLOCK");
     });
 
     it("should ignore comment lines and empty lines in rules string", () => {
@@ -27,7 +45,7 @@ describe("domainRules", () => {
         leumi BLOCK api.leumi.co.il
         # hapoalim BLOCK foo.bankhapoalim.co.il
       `;
-      const ruleManager = loadDomainRules(rulesString);
+      const ruleManager = new DomainRuleManager(rulesString);
       for (const [company, domain, rule] of [
         [CompanyTypes.hapoalim, "https://api.bankhapoalim.co.il", "ALLOW"],
         [CompanyTypes.leumi, "https://api.leumi.co.il", "BLOCK"],
@@ -38,20 +56,22 @@ describe("domainRules", () => {
   });
 
   describe("DomainRuleManager.getRule", () => {
-    const ruleManager = loadDomainRules(`
+    const ruleManager = new DomainRuleManager(`
             visaCal ALLOW cal-online.co.il
             visaCal BLOCK google.com
+            visaCal BLOCK facebook.com
+            visaCal BLOCK fonts.gstatic.com
           `);
 
     it.each([
       ["ALLOW", "https://cal-online.co.il", CompanyTypes.visaCal],
+      ["ALLOW", "https://api.cal-online.co.il", CompanyTypes.visaCal],
       ["BLOCK", "https://google.com", CompanyTypes.visaCal],
-      ["DEFAULT", "https://google.com", CompanyTypes.max],
       ["BLOCK", "https://www.google.com", CompanyTypes.visaCal],
-      ["DEFAULT", "https://www.facebook.com", CompanyTypes.visaCal],
-      ["DEFAULT", "https://fonts.gstatic.com", CompanyTypes.visaCal],
-      ["ALLOW", "https://api.cal-online.co.il", CompanyTypes.visaCal],
-      ["ALLOW", "https://api.cal-online.co.il", CompanyTypes.visaCal],
+      ["BLOCK", "https://www.facebook.com", CompanyTypes.visaCal],
+      ["BLOCK", "https://fonts.gstatic.com", CompanyTypes.visaCal],
+      ["ALLOW", "https://other.gstatic.com", CompanyTypes.visaCal], // Not blocked subdomain
+      ["ALLOW", "https://google.com", CompanyTypes.hapoalim], // Different company
     ])("should return %s for %s under %s", (expected, url, company) => {
       expect(ruleManager.getRule(url, company)).toBe(expected);
     });
@@ -59,7 +79,7 @@ describe("domainRules", () => {
 
   describe("DomainRuleManager.hasAnyRule", () => {
     it("should return true if company has rules defined", () => {
-      const ruleManager = loadDomainRules(`
+      const ruleManager = new DomainRuleManager(`
         hapoalim ALLOW api.bankhapoalim.co.il
         leumi BLOCK api.leumi.co.il
         visaCal ALLOW cal-online.co.il
@@ -71,7 +91,7 @@ describe("domainRules", () => {
     });
 
     it("should return false if company has no rules defined", () => {
-      const ruleManager = loadDomainRules(`
+      const ruleManager = new DomainRuleManager(`
         hapoalim ALLOW api.bankhapoalim.co.il
         leumi BLOCK api.leumi.co.il
       `);
@@ -81,7 +101,7 @@ describe("domainRules", () => {
     });
 
     it("should return false with empty rules", () => {
-      const ruleManager = loadDomainRules("");
+      const ruleManager = new DomainRuleManager("");
 
       expect(ruleManager.hasAnyRule(CompanyTypes.hapoalim)).toBe(false);
       expect(ruleManager.hasAnyRule(CompanyTypes.leumi)).toBe(false);

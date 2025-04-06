@@ -3,40 +3,33 @@ import { createLogger } from "../utils/logger.js";
 import { addToKeyedMap } from "../utils/collections.js";
 
 const logger = createLogger("domain-rules");
-
-export type Rule = "ALLOW" | "BLOCK" | "DEFAULT";
-
-export interface DomainRuleManager {
-  getRule: (url: URL | string, company: CompanyTypes) => Rule;
-  isBlocked: (url: URL | string, company: CompanyTypes) => boolean;
-  hasAnyRule(company: CompanyTypes): boolean;
-}
+export type Rule = "ALLOW" | "BLOCK";
 
 interface TrieNode {
   rules: Map<CompanyTypes, Rule>;
   children: Map<string, TrieNode>;
 }
 
-/**
- * Load domain rules
- * Format: [company] [ALLOW/BLOCK] [domain]
- * @returns A DomainRuleManager object with methods to check rules
- */
-export function loadDomainRules(
-  rulesString: string = process.env.FIREWALL_SETTINGS || "",
-): DomainRuleManager {
-  const domainTrie: TrieNode = {
-    rules: new Map(),
-    children: new Map(),
-  };
+export class DomainRuleManager {
+  private cachedRules = new Map<string, Map<CompanyTypes, Rule>>();
+  private rootDomainTrie: TrieNode = { rules: new Map(), children: new Map() };
 
   /**
-   * Insert a domain rule into the trie
+   * @param rulesString Domain rules string. Format: [company] [ALLOW/BLOCK] [domain]
    */
-  function insertRule(domain: string, company: CompanyTypes, rule: Rule): void {
+  public constructor(
+    rulesString: string = process.env.FIREWALL_SETTINGS || "",
+  ) {
+    const rules = this.parseDomainRules(rulesString);
+    for (const [companyId, action, domain] of rules) {
+      this.insertRule(domain, companyId, action);
+    }
+  }
+
+  private insertRule(domain: string, company: CompanyTypes, rule: Rule): void {
     // We store domains reversed in the trie (com.example.api) for efficient parent domain matching
     const parts = domain.split(".").reverse();
-    let current = domainTrie;
+    let current = this.rootDomainTrie;
 
     for (const part of parts) {
       if (!current.children.has(part)) {
@@ -45,90 +38,71 @@ export function loadDomainRules(
       current = current.children.get(part)!;
     }
 
-    // Set rule at the leaf node
     current.rules.set(company, rule);
     logger(`Inserted rule: ${company} ${rule} ${domain}`);
   }
 
   /**
-   * Look up a rule for a domain and company in the trie
-   * Returns the rule if found, or null for default behavior (allow)
+   * Check a URL against the domain rules for a specific company
+   * @param url URL to check
+   * @param company Company ID to check rules for
+   * @returns "ALLOW" or "BLOCK" if a rule is found
    */
-  function lookupRule(domain: string, company: CompanyTypes): Rule {
-    // We store domains reversed in the trie (com.example.api)
+  getRule(url: URL | string, company: CompanyTypes): Rule {
+    const defaultRule = process.env.BLOCK_BY_DEFAULT ? "BLOCK" : "ALLOW";
+    const { hostname } = typeof url === "string" ? new URL(url) : url;
+    if (!this.cachedRules.get(hostname)?.get(company)) {
+      const rule = this.lookupRule(hostname, company);
+      addToKeyedMap(this.cachedRules, hostname, [company, rule ?? defaultRule]);
+    }
+
+    return this.cachedRules.get(hostname)!.get(company)!;
+  }
+
+  isBlocked(url: URL | string, company: CompanyTypes): boolean {
+    return this.getRule(url, company) === "BLOCK";
+  }
+
+  hasAnyRule(company: CompanyTypes): boolean {
+    function hasRule({ rules, children }: TrieNode): boolean {
+      return rules.has(company) || Array.from(children.values()).some(hasRule);
+    }
+    return hasRule(this.rootDomainTrie);
+  }
+
+  private lookupRule(domain: string, company: CompanyTypes): Rule | undefined {
+    // We store domains reversed in the trie (com.example.api) for efficient parent domain matching
     const parts = domain.split(".").reverse();
 
-    // Recursive function to traverse the trie and find the most specific rule
-    function findRule(node: TrieNode, index: number): Rule | null {
-      // Check if current node has a rule for this company
-      const currentRule = node.rules.get(company) ?? null;
+    function findRule(node: TrieNode, index: number): Rule | undefined {
+      const currentRule = node.rules.get(company);
       if (index >= parts.length || !node.children.has(parts[index])) {
         return currentRule;
       }
-
-      // Go deeper in the trie
       const childNode = node.children.get(parts[index])!;
       const childRule = findRule(childNode, index + 1);
-
       return childRule ?? currentRule;
     }
 
-    return findRule(domainTrie, 0) ?? "DEFAULT";
+    return findRule(this.rootDomainTrie, 0);
   }
 
-  for (const [companyId, action, domain] of parseDomainRules(rulesString)) {
-    if (action === "ALLOW" || action === "BLOCK" || action === "DEFAULT") {
-      insertRule(domain, companyId, action);
-    }
+  private parseDomainRules(rules: string): [CompanyTypes, Rule, string][] {
+    return (
+      rules
+        // TODO: The split by pipe is undocumented, and is here to support one-line env vars with no comment support
+        .split(/\n|\|/)
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith("#"))
+        .map((line) => line.split(" ").filter((part) => part.trim()))
+        .filter(
+          (parts): parts is [string, string, string] => parts.length === 3,
+        )
+        .map(([companyId, action, domain]) => [
+          companyId as CompanyTypes,
+          action as Rule,
+          domain,
+        ])
+    );
   }
-
-  const cachedRules = new Map<string, Map<CompanyTypes, Rule>>();
-  return {
-    /**
-     * Check a URL against the domain rules for a specific company
-     * @param url URL to check
-     * @param company Company ID to check rules for
-     * @returns "ALLOW" or "BLOCK" if a rule is found, "DEFAULT" if no rule exists
-     */
-    getRule: (url: URL | string, company: CompanyTypes): Rule => {
-      const { hostname } = typeof url === "string" ? new URL(url) : url;
-      if (!cachedRules.has(hostname)) {
-        const rule = lookupRule(hostname, company);
-        addToKeyedMap(cachedRules, hostname, [
-          company,
-          rule === "DEFAULT" && process.env.BLOCK_BY_DEFAULT ? "BLOCK" : rule,
-        ]);
-      }
-      return cachedRules.get(hostname)!.get(company)!;
-    },
-    isBlocked(url: URL | string, company: CompanyTypes): boolean {
-      return this.getRule(url, company) === "BLOCK";
-    },
-    hasAnyRule(company: CompanyTypes): boolean {
-      function hasRule(node: TrieNode): boolean {
-        return (
-          node.rules.has(company) ||
-          Array.from(node.children.values()).some(hasRule)
-        );
-      }
-      return hasRule(domainTrie);
-    },
-  };
-}
-
-function parseDomainRules(rulesString: string): [CompanyTypes, Rule, string][] {
-  return (
-    rulesString
-      // TODO: The split by pipe is undocumented, and is here to support one-line env vars with no comment support
-      .split(/\n|\|/)
-      .map((line) => line.trim())
-      .filter((line) => line && !line.startsWith("#"))
-      .map((line) => line.split(" ").filter((part) => part.trim()))
-      .filter((parts): parts is [string, string, string] => parts.length === 3)
-      .map(([companyId, action, domain]) => [
-        companyId as CompanyTypes,
-        action as Rule,
-        domain,
-      ])
-  );
 }

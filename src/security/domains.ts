@@ -2,7 +2,7 @@ import { CompanyTypes } from "israeli-bank-scrapers";
 import { createLogger } from "../utils/logger.js";
 import { type BrowserContext, TargetType } from "puppeteer";
 import { ClientRequestInterceptor } from "@mswjs/interceptors/ClientRequest";
-import { loadDomainRules } from "./domainRules.js";
+import { DomainRuleManager } from "./domainRules.js";
 import { addToKeyedSet } from "../utils/collections.js";
 
 const logger = createLogger("domain-security");
@@ -29,7 +29,7 @@ export async function initDomainTracking(
   companyId: CompanyTypes,
 ): Promise<void> {
   if (process.env.DOMAIN_TRACKING_ENABLED) {
-    const rules = loadDomainRules();
+    const rules = new DomainRuleManager();
     browserContext.on("targetcreated", async (target) => {
       switch (target.type()) {
         case TargetType.PAGE:
