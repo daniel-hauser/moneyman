@@ -45,9 +45,9 @@ async function runScraper(hooks: RunnerHooks) {
     logger("Scraping ended");
     await hooks.onResultsReady(results);
 
-    await sendFailureScreenShots((photoPath, caption) => {
-      logger("Sending failure screenshot", { photoPath, caption });
-      return hooks.failureScreenshotHandler(photoPath, caption);
+    await sendFailureScreenShots((photos) => {
+      logger("Sending failure screenshot", { photos });
+      return hooks.failureScreenshotsHandler(photos);
     });
 
     await reportUsedDomains((domainsByCompany) => {

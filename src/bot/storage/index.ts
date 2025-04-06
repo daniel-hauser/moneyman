@@ -11,6 +11,7 @@ import { transactionHash, transactionUniqueId } from "./utils.js";
 import { YNABStorage } from "./ynab.js";
 import { BuxferStorage } from "./buxfer.js";
 import { WebPostStorage } from "./web-post.js";
+import { TelegramStorage } from "./telegram.js";
 import { saving } from "../messages.js";
 import { createLogger } from "../../utils/logger.js";
 import { statsString } from "../saveStats.js";
@@ -26,6 +27,7 @@ export const storages = [
   new YNABStorage(),
   new BuxferStorage(),
   new WebPostStorage(),
+  new TelegramStorage(),
 ].filter((s) => s.canSave());
 
 export async function saveResults(results: Array<AccountScrapeResult>) {

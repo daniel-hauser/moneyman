@@ -1,5 +1,6 @@
 import { Telegraf, TelegramError } from "telegraf";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
+import type { ImageWithCaption } from "../types.js";
 
 const logger = createLogger("notifier");
 
@@ -34,6 +35,18 @@ export async function sendPhoto(photoPath: string, caption: string) {
     TELEGRAM_CHAT_ID,
     { source: photoPath },
     { caption, has_spoiler: true },
+  );
+}
+
+export async function sendPhotos(photos: Array<ImageWithCaption>) {
+  logger(`Sending photos`, { photos });
+  return await bot?.telegram.sendMediaGroup(
+    TELEGRAM_CHAT_ID,
+    photos.map(({ photoPath, caption }) => ({
+      type: "photo",
+      caption,
+      media: { source: photoPath },
+    })),
   );
 }
 
