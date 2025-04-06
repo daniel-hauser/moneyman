@@ -3,6 +3,7 @@ import { createLogger } from "../utils/logger.js";
 import { type BrowserContext, TargetType } from "puppeteer";
 import { ClientRequestInterceptor } from "@mswjs/interceptors/ClientRequest";
 import { loadDomainRules } from "./domainRules.js";
+import { addToKeyedSet } from "../utils/collections.js";
 
 const logger = createLogger("domain-security");
 
@@ -10,21 +11,6 @@ const domainsFromNode: Set<string> = new Set();
 const pagesByCompany: Map<CompanyTypes, Set<string>> = new Map();
 const blockedByCompany: Map<CompanyTypes, Set<string>> = new Map();
 const allowedByCompany: Map<CompanyTypes, Set<string>> = new Map();
-
-function trackRequest(
-  domain: string,
-  companyId: CompanyTypes,
-  isBlocked: boolean,
-) {
-  const domainsByCompany = isBlocked ? blockedByCompany : allowedByCompany;
-  if (!domainsByCompany.has(companyId)) {
-    domainsByCompany.set(companyId, new Set());
-  }
-  domainsByCompany.get(companyId)!.add(domain);
-  logger(
-    `[${companyId}] ${isBlocked ? "BLOCK" : "ALLOW"} request for domain: ${domain}`,
-  );
-}
 
 export function monitorNodeConnections() {
   if (process.env.DOMAIN_TRACKING_ENABLED) {
@@ -51,33 +37,57 @@ export async function initDomainTracking(
         case TargetType.BACKGROUND_PAGE: {
           logger(`Target created`, target.type());
           const page = await target.page();
-          await page?.setRequestInterception(rules.hasAnyRule(companyId));
-          page?.on("request", async (request) => {
-            try {
-              const pageUrl = page.url();
+          if (!page) {
+            logger(`No page found for target, unexpected`);
+            return;
+          }
+
+          page.on("framenavigated", (frame) => {
+            logger(`Frame navigated: ${frame.url()}`);
+            const { hostname, pathname } = new URL(page.url());
+            addToKeyedSet(pagesByCompany, companyId, hostname + pathname);
+          });
+
+          const canIntercept = rules.hasAnyRule(companyId);
+          if (canIntercept) {
+            logger(`[${companyId}] Setting request interception`);
+            await page.setRequestInterception(true);
+
+            page.on("request", async (request) => {
               const url = new URL(request.url());
-              const { hostname } = url;
+              const pageUrl = new URL(page.url());
 
-              if (!ignoreUrl(pageUrl) && !ignoreUrl(hostname)) {
-                if (!pagesByCompany.has(companyId)) {
-                  pagesByCompany.set(companyId, new Set());
-                }
-                pagesByCompany.get(companyId)!.add(pageUrl);
-
-                const block = rules.isBlocked(url, companyId);
-                trackRequest(hostname, companyId, block);
-                if (block) {
-                  logger(`[${companyId}] Blocking request to ${hostname}`);
-                  return await request.abort();
-                }
+              if (ignoreUrl(url.hostname)) {
+                await request.continue();
+                return;
               }
 
-              logger(`[${companyId}] Allowing request ${pageUrl}->${hostname}`);
-              await request.continue();
-            } catch (error) {
-              logger(`Error handling request: ${error.message}`);
-            }
-          });
+              if (rules.isBlocked(url, companyId)) {
+                addToKeyedSet(blockedByCompany, companyId, url.hostname);
+                logger(
+                  `[${companyId}] Blocking ${pageUrl.hostname}->${url.hostname}`,
+                );
+                await request.abort();
+              } else {
+                addToKeyedSet(allowedByCompany, companyId, url.hostname);
+                logger(
+                  `[${companyId}] Allowing ${pageUrl.hostname}->${url.hostname}`,
+                );
+                await request.continue();
+              }
+            });
+          } else {
+            page.on("request", async (request) => {
+              const { hostname } = new URL(request.url());
+              if (!ignoreUrl(hostname)) {
+                addToKeyedSet(allowedByCompany, companyId, hostname);
+              }
+
+              const pageUrl = new URL(page.url());
+              logger(`[${companyId}] ${pageUrl.hostname}->${hostname}`);
+            });
+          }
+
           break;
         }
         default:

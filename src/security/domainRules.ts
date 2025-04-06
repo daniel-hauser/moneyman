@@ -1,5 +1,6 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { createLogger } from "../utils/logger.js";
+import { addToKeyedMap } from "../utils/collections.js";
 
 const logger = createLogger("domain-rules");
 
@@ -81,6 +82,7 @@ export function loadDomainRules(
     }
   }
 
+  const cachedRules = new Map<string, Map<CompanyTypes, Rule>>();
   return {
     /**
      * Check a URL against the domain rules for a specific company
@@ -90,11 +92,14 @@ export function loadDomainRules(
      */
     getRule: (url: URL | string, company: CompanyTypes): Rule => {
       const { hostname } = typeof url === "string" ? new URL(url) : url;
-      const rule = lookupRule(hostname, company);
-      if (rule === "DEFAULT" && process.env.BLOCK_BY_DEFAULT) {
-        return "BLOCK";
+      if (!cachedRules.has(hostname)) {
+        const rule = lookupRule(hostname, company);
+        addToKeyedMap(cachedRules, hostname, [
+          company,
+          rule === "DEFAULT" && process.env.BLOCK_BY_DEFAULT ? "BLOCK" : rule,
+        ]);
       }
-      return rule;
+      return cachedRules.get(hostname)!.get(company)!;
     },
     isBlocked(url: URL | string, company: CompanyTypes): boolean {
       return this.getRule(url, company) === "BLOCK";
@@ -112,15 +117,18 @@ export function loadDomainRules(
 }
 
 function parseDomainRules(rulesString: string): [CompanyTypes, Rule, string][] {
-  return rulesString
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith("#"))
-    .map((line) => line.split(" ").filter((part) => part.trim()))
-    .filter((parts): parts is [string, string, string] => parts.length === 3)
-    .map(([companyId, action, domain]) => [
-      companyId as CompanyTypes,
-      action as Rule,
-      domain,
-    ]);
+  return (
+    rulesString
+      // TODO: The split by pipe is undocumented, and is here to support one-line env vars with no comment support
+      .split(/\n|\|/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#"))
+      .map((line) => line.split(" ").filter((part) => part.trim()))
+      .filter((parts): parts is [string, string, string] => parts.length === 3)
+      .map(([companyId, action, domain]) => [
+        companyId as CompanyTypes,
+        action as Rule,
+        domain,
+      ])
+  );
 }
