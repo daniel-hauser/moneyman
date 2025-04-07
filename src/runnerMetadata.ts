@@ -1,6 +1,6 @@
-import { RunMetadata } from "./types";
+import type { RunMetadata } from "./types";
 import { getUsedDomains } from "./security/domains.js";
-import { createLogger } from "./utils/logger";
+import { createLogger } from "./utils/logger.js";
 
 const logger = createLogger("runner-metadata");
 
