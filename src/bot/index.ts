@@ -41,8 +41,8 @@ export async function runWithStorage(runScraper: Runner) {
     async failureScreenshotsHandler(photos) {
       await sendPhotos(photos);
     },
-    async reportUsedDomains(domains) {
-      await sendJSON(domains, "used-domains.txt");
+    async reportRunMetadata(metadata) {
+      await sendJSON(metadata, "run-metadata.txt");
     },
   });
 

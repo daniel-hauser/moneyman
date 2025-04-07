@@ -76,14 +76,12 @@ function handleRequest(
   }
 }
 
-export async function reportUsedDomains(
-  report: (
-    domains: Partial<Record<CompanyTypes | "infra", unknown>>,
-  ) => Promise<void>,
-): Promise<void> {
+export async function getUsedDomains(): Promise<
+  Partial<Record<CompanyTypes | "infra", unknown>>
+> {
   if (domainsByCompany.size === 0) {
     logger(`No domains recorded`);
-    return;
+    return {};
   }
 
   logger(`Reporting used domains`, domainsByCompany);
@@ -104,6 +102,6 @@ export async function reportUsedDomains(
     domains: Array.from(domainsFromNode),
   };
 
-  await report(domainsRecord);
   logger(`Reported used domains`, domainsRecord);
+  return domainsRecord;
 }
