@@ -50,14 +50,17 @@ export type ImageWithCaption = {
   caption: string;
 };
 
+export type RunMetadata = {
+  domainsByCompany: Partial<Record<CompanyTypes, unknown>>;
+  networkInfo: unknown;
+};
+
 export interface RunnerHooks {
   onBeforeStart(): Promise<void>;
   onStatusChanged(rows: string[], totalTime?: number): Promise<void>;
   onResultsReady(results: AccountScrapeResult[]): Promise<void>;
   onError(e: Error, caller?: string): Promise<void>;
   failureScreenshotsHandler: (photos: ImageWithCaption[]) => Promise<unknown>;
-  reportUsedDomains(
-    domainsByCompany: Partial<Record<CompanyTypes, unknown>>,
-  ): Promise<void>;
+  reportRunMetadata(metadata: RunMetadata): Promise<void>;
 }
 export type Runner = (hooks: RunnerHooks) => Promise<void>;
