@@ -1,9 +1,19 @@
 import { RunMetadata } from "./types";
 import { getUsedDomains } from "./security/domains.js";
+import { createLogger } from "./utils/logger";
+
+const logger = createLogger("runner-metadata");
 
 async function getExternalIp(): Promise<{ ip: string }> {
-  const res = await fetch("https://ipinfo.io/json");
-  return res.json();
+  try {
+    const res = await fetch(
+      process.env.GET_IP_INFO_URL || "https://ipinfo.io/json",
+    );
+    return res.json();
+  } catch (e) {
+    logger("Failed to get external IP", e);
+    return { ip: "unknown" };
+  }
 }
 
 export async function reportRunMetadata(
