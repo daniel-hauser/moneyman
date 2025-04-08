@@ -57,25 +57,25 @@ export async function initDomainTracking(
               const url = new URL(request.url());
               const pageUrl = new URL(page.url());
 
-              const reqString = `${request.method()}(${request.resourceType()}) ${url.hostname}`;
+              const reqKey = `${request.method()}(${request.resourceType()}) ${url.hostname}`;
               if (request.isInterceptResolutionHandled()) {
-                logger(`[${companyId}] Request already handled ${reqString}`);
+                logger(`[${companyId}] Request already handled ${reqKey}`);
                 logToMetadataFile(
-                  `[${companyId}] Request already handled ${reqString}`,
+                  `[${companyId}] Request already handled ${reqKey}`,
                 );
                 return;
               }
 
               if (ignoreUrl(url.hostname) || !rules.isBlocked(url, companyId)) {
-                addToKeyedSet(allowedByCompany, companyId, url.hostname);
+                addToKeyedSet(allowedByCompany, companyId, reqKey);
                 logger(
-                  `[${companyId}] Allowing ${pageUrl.hostname}->${reqString}`,
+                  `[${companyId}] Allowing ${pageUrl.hostname}->${reqKey}`,
                 );
                 await request.continue(undefined, 100);
               } else {
-                addToKeyedSet(blockedByCompany, companyId, url.hostname);
+                addToKeyedSet(blockedByCompany, companyId, reqKey);
                 logger(
-                  `[${companyId}] Blocking ${pageUrl.hostname}->${reqString}`,
+                  `[${companyId}] Blocking ${pageUrl.hostname}->${reqKey}`,
                 );
                 await request.abort(undefined, 100);
               }
@@ -83,12 +83,12 @@ export async function initDomainTracking(
           } else {
             page.on("request", async (request) => {
               const { hostname } = new URL(request.url());
+              const reqKey = `${request.method()}(${request.resourceType()}) ${hostname}`;
               if (!ignoreUrl(hostname)) {
-                addToKeyedSet(allowedByCompany, companyId, hostname);
+                addToKeyedSet(allowedByCompany, companyId, reqKey);
               }
-
               const pageUrl = new URL(page.url());
-              logger(`[${companyId}] ${pageUrl.hostname}->${hostname}`);
+              logger(`[${companyId}] ${pageUrl.hostname}->${reqKey}`);
             });
           }
 
