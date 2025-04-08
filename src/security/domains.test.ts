@@ -7,6 +7,7 @@ import {
   Target,
   Page,
   HTTPRequest,
+  InterceptResolutionAction,
   Frame,
 } from "puppeteer";
 import { mock } from "jest-mock-extended";
@@ -82,12 +83,8 @@ describe("domains", () => {
         mock<Frame>({ url: () => "https://bar.com/hello" }),
       );
 
-      const mockRequestBar = mock<HTTPRequest>({
-        url: () => "https://bar.com",
-      });
-      const mockRequestBaz = mock<HTTPRequest>({
-        url: () => "https://baz.com",
-      });
+      const mockRequestBar = mockHttpRequest("https://bar.com");
+      const mockRequestBaz = mockHttpRequest("https://baz.com");
       const requestCallback = request as (r: HTTPRequest) => void;
       requestCallback(mockRequestBar);
       requestCallback(mockRequestBaz);
@@ -110,3 +107,14 @@ describe("domains", () => {
     });
   });
 });
+
+function mockHttpRequest(url: string): HTTPRequest {
+  const req = mock<HTTPRequest>();
+  req.url.mockReturnValue(url);
+  req.continue.mockResolvedValue();
+  req.abort.mockResolvedValue();
+  req.interceptResolutionState.mockReturnValue({
+    action: InterceptResolutionAction.None,
+  });
+  return req;
+}
