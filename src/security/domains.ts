@@ -66,27 +66,18 @@ export async function initDomainTracking(
                 return;
               }
 
-              const { action: resolution } = request.interceptResolutionState();
               if (ignoreUrl(url.hostname) || !rules.isBlocked(url, companyId)) {
                 addToKeyedSet(allowedByCompany, companyId, url.hostname);
                 logger(
                   `[${companyId}] Allowing ${pageUrl.hostname}->${reqString}`,
                 );
-                await request.continue().catch((error) => {
-                  logToMetadataFile(
-                    `[${companyId}][CONTINUE]: ${reqString} ${error.message}. interceptResolutionState was ${resolution}`,
-                  );
-                });
+                await request.continue(undefined, 100);
               } else {
                 addToKeyedSet(blockedByCompany, companyId, url.hostname);
                 logger(
                   `[${companyId}] Blocking ${pageUrl.hostname}->${reqString}`,
                 );
-                await request.abort().catch((error) => {
-                  logToMetadataFile(
-                    `[${companyId}][ABORT]: ${reqString} ${error.message}. interceptResolutionState was ${resolution}`,
-                  );
-                });
+                await request.abort(undefined, 100);
               }
             });
           } else {
