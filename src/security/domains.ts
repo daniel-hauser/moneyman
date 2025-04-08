@@ -57,25 +57,34 @@ export async function initDomainTracking(
               const url = new URL(request.url());
               const pageUrl = new URL(page.url());
 
+              const reqString = `${request.method()}(${request.resourceType()}) ${url.hostname}`;
+              if (request.isInterceptResolutionHandled()) {
+                logger(`[${companyId}] Request already handled ${reqString}`);
+                logToMetadataFile(
+                  `[${companyId}] Request already handled ${reqString}`,
+                );
+                return;
+              }
+
               const { action: resolution } = request.interceptResolutionState();
               if (ignoreUrl(url.hostname) || !rules.isBlocked(url, companyId)) {
                 addToKeyedSet(allowedByCompany, companyId, url.hostname);
                 logger(
-                  `[${companyId}] Allowing ${pageUrl.hostname}->${url.hostname}`,
+                  `[${companyId}] Allowing ${pageUrl.hostname}->${reqString}`,
                 );
                 await request.continue().catch((error) => {
                   logToMetadataFile(
-                    `[${companyId}][CONTINUE]: ${url.hostname} ${error.message}. interceptResolutionState was ${resolution}`,
+                    `[${companyId}][CONTINUE]: ${reqString} ${error.message}. interceptResolutionState was ${resolution}`,
                   );
                 });
               } else {
                 addToKeyedSet(blockedByCompany, companyId, url.hostname);
                 logger(
-                  `[${companyId}] Blocking ${pageUrl.hostname}->${url.hostname}`,
+                  `[${companyId}] Blocking ${pageUrl.hostname}->${reqString}`,
                 );
                 await request.abort().catch((error) => {
                   logToMetadataFile(
-                    `[${companyId}][ABORT]: ${url.hostname} ${error.message}. interceptResolutionState was ${resolution}`,
+                    `[${companyId}][ABORT]: ${reqString} ${error.message}. interceptResolutionState was ${resolution}`,
                   );
                 });
               }
