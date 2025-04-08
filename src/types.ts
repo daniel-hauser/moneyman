@@ -53,6 +53,7 @@ export type ImageWithCaption = {
 export type RunMetadata = {
   domainsByCompany: Partial<Record<CompanyTypes, unknown>>;
   networkInfo: unknown;
+  metadataLogEntries: Array<string>;
 };
 
 export interface RunnerHooks {
