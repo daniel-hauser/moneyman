@@ -11,6 +11,7 @@ const domainsFromNode: Set<string> = new Set();
 const pagesByCompany: Map<CompanyTypes, Set<string>> = new Map();
 const blockedByCompany: Map<CompanyTypes, Set<string>> = new Map();
 const allowedByCompany: Map<CompanyTypes, Set<string>> = new Map();
+const requestOverridesError: Map<CompanyTypes, Set<string>> = new Map();
 
 export function monitorNodeConnections() {
   if (process.env.DOMAIN_TRACKING_ENABLED) {
@@ -58,7 +59,10 @@ export async function initDomainTracking(
               const pageUrl = new URL(page.url());
 
               if (ignoreUrl(url.hostname)) {
-                await request.continue();
+                const { action } = request.interceptResolutionState();
+                await request.continue().catch((error) => {
+                  handleRequestError(companyId, url, action, error, "CONTINUE");
+                });
                 return;
               }
 
@@ -67,13 +71,20 @@ export async function initDomainTracking(
                 logger(
                   `[${companyId}] Blocking ${pageUrl.hostname}->${url.hostname}`,
                 );
-                await request.abort();
+
+                const { action } = request.interceptResolutionState();
+                await request.abort().catch((error) => {
+                  handleRequestError(companyId, url, action, error, "ABORT");
+                });
               } else {
                 addToKeyedSet(allowedByCompany, companyId, url.hostname);
                 logger(
                   `[${companyId}] Allowing ${pageUrl.hostname}->${url.hostname}`,
                 );
-                await request.continue();
+                const { action } = request.interceptResolutionState();
+                await request.continue().catch((error) => {
+                  handleRequestError(companyId, url, action, error, "CONTINUE");
+                });
               }
             });
           } else {
@@ -95,6 +106,18 @@ export async function initDomainTracking(
       }
     });
   }
+}
+
+function handleRequestError(
+  companyId: CompanyTypes,
+  url: URL,
+  action: string,
+  error: Error,
+  type: "ABORT" | "CONTINUE",
+): void {
+  const message = `[${type}] ${url.hostname} ${error.message}. interceptResolutionState was ${action}`;
+  addToKeyedSet(requestOverridesError, companyId, message);
+  logger(`[${companyId}] ${message}`);
 }
 
 function ignoreUrl(url: string): boolean {
