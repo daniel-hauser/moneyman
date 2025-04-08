@@ -1,6 +1,6 @@
 import { jest } from "@jest/globals";
 import { CompanyTypes } from "israeli-bank-scrapers";
-import { initDomainTracking, reportUsedDomains } from "./domains.js";
+import { initDomainTracking, getUsedDomains } from "./domains.js";
 import {
   BrowserContext,
   TargetType,
@@ -95,9 +95,7 @@ describe("domains", () => {
       expect(mockRequestBar.continue).toHaveBeenCalled();
       expect(mockRequestBaz.abort).toHaveBeenCalled();
 
-      await reportUsedDomains(async (report) => {
-        expect(report).toMatchSnapshot();
-      });
+      await expect(getUsedDomains()).resolves.toMatchSnapshot();
     });
 
     it("should handle requests correctly", async () => {

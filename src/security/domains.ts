@@ -124,18 +124,16 @@ function ignoreUrl(url: string): boolean {
   return url === "about:blank" || url === "" || url === "invalid";
 }
 
-export async function reportUsedDomains(
-  report: (
-    domains: Partial<Record<CompanyTypes | "infra", unknown>>,
-  ) => Promise<void>,
-): Promise<void> {
+export async function getUsedDomains(): Promise<
+  Partial<Record<CompanyTypes | "infra", unknown>>
+> {
   const allCompanies = new Set([
     ...allowedByCompany.keys(),
     ...blockedByCompany.keys(),
   ]);
   if (allCompanies.size === 0) {
     logger(`No domains recorded`);
-    return;
+    return {};
   }
 
   logger(`Reporting used domains`, { allowedByCompany, blockedByCompany });
@@ -150,6 +148,5 @@ export async function reportUsedDomains(
     ]),
   );
   const infraDomains = Array.from(domainsFromNode);
-  await report({ ...domainsRecord, infra: infraDomains });
-  logger(`Reported used domains`, { ...domainsRecord, infra: infraDomains });
+  return { ...domainsRecord, infra: infraDomains };
 }

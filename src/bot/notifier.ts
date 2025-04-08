@@ -40,6 +40,9 @@ export async function sendPhoto(photoPath: string, caption: string) {
 
 export async function sendPhotos(photos: Array<ImageWithCaption>) {
   logger(`Sending photos`, { photos });
+  if (photos.length === 0) {
+    return;
+  }
   return await bot?.telegram.sendMediaGroup(
     TELEGRAM_CHAT_ID,
     photos.map(({ photoPath, caption }) => ({
