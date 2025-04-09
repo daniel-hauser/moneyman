@@ -36,29 +36,22 @@ export async function createSecureBrowserContext(
 }
 
 async function initCloudflareSkipping(browserContext: BrowserContext) {
+  const cfParam = "__cf_chl_rt_tk";
+
   browserContext.on("targetcreated", async (target) => {
     if (target.type() === TargetType.PAGE) {
       const page = await target.page();
       page?.on("framenavigated", (frame) => {
-        logToMetadataFile(`Frame navigated: ${frame.url()}`);
-        const frameUrl = frame.url();
-        if (!frameUrl || frameUrl === "about:blank") {
-          return;
-        }
-        const url = new URL(frameUrl);
-        const cfParam = "__cf_chl_rt_tk__";
-        if (url.searchParams.has(cfParam)) {
-          logToMetadataFile(`Detected Cloudflare challenge ${url}`);
-          solveTurnstile(page).then((res) => {
+        const url = frame.url();
+        logToMetadataFile(
+          `Frame navigated: ${frame.url()}, parent=${frame.parentFrame()?.url() ?? "none"}`,
+        );
+        if (url.includes(cfParam)) {
+          logToMetadataFile(`Cloudflare challenge detected`);
+          solveTurnstile(page).then((res) =>
             logToMetadataFile(
               `Cloudflare challenge ended with ${res} for ${url}`,
-            );
-          });
-        } else if (
-          Array.from(url.searchParams.keys()).some((k) => k.startsWith("__cf"))
-        ) {
-          logToMetadataFile(
-            `Detected unsupported Cloudflare challenge: ${url.search}`,
+            ),
           );
         }
       });
