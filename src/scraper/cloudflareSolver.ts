@@ -77,8 +77,10 @@ async function solveVisible(
   windowHeight: number,
 ): Promise<string> {
   try {
-    const iframe = await page.waitForSelector("iframe", { timeout: 10000 });
+    logger("solveVisible, waiting for iframe");
+    const iframe = await page.waitForSelector("iframe", { timeout: 40_000 });
     if (!iframe) return "iframe not found";
+
     const boundingBox = await iframe.boundingBox();
     if (!boundingBox) return "iframe bounding box not found";
 
@@ -111,7 +113,7 @@ async function solveVisible(
     );
   } catch (error) {
     console.error("Timeout waiting for iframe:", error);
-    return "failed";
+    return "failed to find the iframe";
   }
 }
 

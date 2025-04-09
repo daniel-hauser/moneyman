@@ -52,6 +52,7 @@ async function initCloudflareSkipping(browserContext: BrowserContext) {
 
       page.on("framenavigated", (frame) => {
         const url = frame.url();
+        if (!url || url === "about:blank") return;
         logger("Frame navigated", url);
         logToMetadataFile(`Frame navigated: ${frame.url()}`);
         if (url.includes(cfParam)) {
