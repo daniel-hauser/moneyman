@@ -1,9 +1,10 @@
 import { Page } from "puppeteer";
+import { createLogger } from "../utils/logger.js";
+import { sleep } from "../utils/utils.js";
+
+const logger = createLogger("cloudflare-solver");
 
 type Point = [number, number];
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 function* getMousePath(from: Point, to: Point): Generator<Point> {
   let [x, y] = from;
@@ -31,6 +32,7 @@ function* getMousePath(from: Point, to: Point): Generator<Point> {
 }
 
 async function moveTo(page: Page, from: Point, to: Point): Promise<Point> {
+  logger("Moving mouse from", from, "to", to);
   for (const [px, py] of getMousePath(from, to)) {
     await page.mouse.move(px, py);
     if (Math.random() * 100 > 15) {
@@ -47,6 +49,7 @@ async function solveInvisible(
   windowHeight: number,
 ): Promise<string> {
   for (let i = 0; i < 10; i++) {
+    logger("solveInvisible - Attempt", i + 1);
     currentPosition = await moveTo(page, currentPosition, [
       Math.random() * windowWidth,
       Math.random() * windowHeight,
@@ -56,6 +59,7 @@ async function solveInvisible(
     if (elem) {
       const value = await elem.evaluate((el) => el.getAttribute("value"));
       if (value) {
+        logger("solveInvisible - Found value", value);
         return value;
       }
     }
@@ -63,7 +67,7 @@ async function solveInvisible(
     await sleep(Math.random() * 500 + 200);
   }
 
-  return "failed";
+  return "failed to get cf-turnstile-response";
 }
 
 async function solveVisible(
@@ -74,43 +78,41 @@ async function solveVisible(
 ): Promise<string> {
   try {
     const iframe = await page.waitForSelector("iframe", { timeout: 10000 });
-    if (iframe) {
-      const boundingBox = await iframe.boundingBox();
-      if (boundingBox) {
-        currentPosition = await moveTo(page, currentPosition, [
-          boundingBox.x + Math.random() * 12 + 5,
-          boundingBox.y + Math.random() * 12 + 5,
-        ]);
+    if (!iframe) return "iframe not found";
+    const boundingBox = await iframe.boundingBox();
+    if (!boundingBox) return "iframe bounding box not found";
 
-        const frame = await iframe.contentFrame();
-        if (frame) {
-          const checkbox = await frame.$("input");
-          if (checkbox) {
-            const checkboxBox = await checkbox.boundingBox();
-            if (checkboxBox) {
-              const { x, y, width, height } = checkboxBox;
-              currentPosition = await moveTo(page, currentPosition, [
-                x + width / 5 + Math.random() * (width - width / 5),
-                y + height / 5 + Math.random() * (height - height / 5),
-              ]);
-              await page.mouse.click(...currentPosition);
-              return await solveInvisible(
-                page,
-                currentPosition,
-                windowWidth,
-                windowHeight,
-              );
-            }
-          }
-        }
-      }
-    }
+    currentPosition = await moveTo(page, currentPosition, [
+      boundingBox.x + Math.random() * 12 + 5,
+      boundingBox.y + Math.random() * 12 + 5,
+    ]);
+
+    const frame = await iframe.contentFrame();
+    if (!frame) return "frame not found";
+
+    const checkbox = await frame.$("input");
+    if (!checkbox) return "checkbox not found";
+
+    const checkboxBox = await checkbox.boundingBox();
+    if (!checkboxBox) return "checkbox bounding box not found";
+
+    const { x, y, width, height } = checkboxBox;
+    currentPosition = await moveTo(page, currentPosition, [
+      x + width / 5 + Math.random() * (width - width / 5),
+      y + height / 5 + Math.random() * (height - height / 5),
+    ]);
+    await page.mouse.click(...currentPosition);
+    await sleep(500);
+    return await solveInvisible(
+      page,
+      currentPosition,
+      windowWidth,
+      windowHeight,
+    );
   } catch (error) {
     console.error("Timeout waiting for iframe:", error);
     return "failed";
   }
-
-  return "success";
 }
 
 export async function solveTurnstile(
@@ -119,6 +121,7 @@ export async function solveTurnstile(
 ): Promise<string> {
   const windowWidth = await page.evaluate(() => window.innerWidth);
   const windowHeight = await page.evaluate(() => window.innerHeight);
+  logger("Window size", { windowWidth, windowHeight });
   return invisible
     ? solveInvisible(page, [0, 0], windowWidth, windowHeight)
     : solveVisible(page, [0, 0], windowWidth, windowHeight);

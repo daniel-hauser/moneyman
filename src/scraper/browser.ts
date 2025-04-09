@@ -38,21 +38,31 @@ export async function createSecureBrowserContext(
 async function initCloudflareSkipping(browserContext: BrowserContext) {
   const cfParam = "__cf_chl_rt_tk";
 
+  logger("Setting up Cloudflare skipping");
   browserContext.on("targetcreated", async (target) => {
+    logger("Target created", target.type());
     if (target.type() === TargetType.PAGE) {
       const page = await target.page();
-      page?.on("framenavigated", (frame) => {
+      if (!page) return;
+
+      const userAgent = await page.evaluate(() => navigator.userAgent);
+      const newUA = userAgent.replace("HeadlessChrome/", "Chrome/");
+      logger("Replacing user agent", { userAgent, newUA });
+      await page.setUserAgent(newUA);
+
+      page.on("framenavigated", (frame) => {
         const url = frame.url();
-        logToMetadataFile(
-          `Frame navigated: ${frame.url()}, parent=${frame.parentFrame()?.url() ?? "none"}`,
-        );
+        logger("Frame navigated", url);
+        logToMetadataFile(`Frame navigated: ${frame.url()}`);
         if (url.includes(cfParam)) {
+          logger("Cloudflare challenge detected");
           logToMetadataFile(`Cloudflare challenge detected`);
-          solveTurnstile(page).then((res) =>
+          solveTurnstile(page).then((res) => {
+            logger(`Cloudflare challenge ended with ${res} for ${url}`);
             logToMetadataFile(
               `Cloudflare challenge ended with ${res} for ${url}`,
-            ),
-          );
+            );
+          });
         }
       });
     }

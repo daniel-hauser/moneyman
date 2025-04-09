@@ -15,7 +15,8 @@
     "build": "tsc",
     "lint": "prettier --check .",
     "lint:fix": "prettier --write .",
-    "test": "jest"
+    "test": "jest",
+    "test:scraper-access": "node dst/test-scraper-access.js"
   },
   "repository": {
     "type": "git",

@@ -25,4 +25,5 @@ export function logToMetadataFile(message: string) {
   const date = new Date().toISOString();
   metadataLogEntries.push(`[${date}] ${message}`);
   metadataLogger(message);
+  return message;
 }
