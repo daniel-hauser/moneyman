@@ -37,6 +37,7 @@ describe("Scraper access tests", async () => {
   let page: Page;
   afterEach(async () => {
     if (page) {
+      logger("afterEach: ", page.url(), page.title());
       await page.screenshot({
         path: `./screenshot_${new Date().toISOString().replace(/:/g, "-")}.png`,
       });

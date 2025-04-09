@@ -112,7 +112,8 @@ async function solveVisible(
       windowHeight,
     );
   } catch (error) {
-    console.error("Timeout waiting for iframe:", error);
+    logger("solveVisible error", error);
+    logger(await page.content());
     return "failed to find the iframe";
   }
 }
