@@ -43,7 +43,7 @@ async function initCloudflareSkipping(browserContext: BrowserContext) {
         logToMetadataFile(`Frame navigated: ${frame.url()}`);
         const frameUrl = frame.url();
         if (!frameUrl || frameUrl === "about:blank") {
-            return;
+          return;
         }
         const url = new URL(frameUrl);
         const cfParam = "__cf_chl_rt_tk__";
