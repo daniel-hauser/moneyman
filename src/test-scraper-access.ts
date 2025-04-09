@@ -37,7 +37,7 @@ describe("Scraper access tests", async () => {
   let page: Page;
   afterEach(async () => {
     if (page) {
-      logger("afterEach: ", page.url(), page.title());
+      logger("afterEach: ", page.url(), await page.title());
       await page.screenshot({
         path: `./screenshot_${new Date().toISOString().replace(/:/g, "-")}.png`,
       });
@@ -64,7 +64,10 @@ describe("Scraper access tests", async () => {
         `Title should have ${title}, actual: ${pageTitle}`,
       );
 
-      await page.waitForNetworkIdle();
+      await page.waitForNavigation({
+        waitUntil: "networkidle2",
+        timeout: 55_000,
+      });
 
       const textFound = await page
         .mainFrame()
