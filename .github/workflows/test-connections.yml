@@ -11,7 +11,7 @@ on:
       - "tsconfig.json"
       - "Dockerfile"
 jobs:
-  build_image:
+  test-connections:
     runs-on: ubuntu-latest
     continue-on-error: true
     permissions:
@@ -34,4 +34,4 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Run test-scraper-access script
-        run: docker run --rm moneyman:test npm run test-scraper-access
+        run: docker run --rm moneyman:test npm run test:scraper-access
