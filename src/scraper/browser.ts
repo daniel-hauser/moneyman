@@ -41,7 +41,11 @@ async function initCloudflareSkipping(browserContext: BrowserContext) {
       const page = await target.page();
       page?.on("framenavigated", (frame) => {
         logToMetadataFile(`Frame navigated: ${frame.url()}`);
-        const url = new URL(frame.url());
+        const frameUrl = frame.url();
+        if (!frameUrl || frameUrl === "about:blank") {
+            return;
+        }
+        const url = new URL(frameUrl);
         const cfParam = "__cf_chl_rt_tk__";
         if (url.searchParams.has(cfParam)) {
           logToMetadataFile(`Detected Cloudflare challenge ${url}`);
