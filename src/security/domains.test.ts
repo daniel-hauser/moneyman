@@ -7,6 +7,8 @@ import {
   Target,
   Page,
   HTTPRequest,
+  InterceptResolutionAction,
+  Frame,
 } from "puppeteer";
 import { mock } from "jest-mock-extended";
 
@@ -51,6 +53,10 @@ describe("domains", () => {
       page.url.mockReturnValue("https://foo.com");
       target.page.mockResolvedValue(page);
 
+      process.env.FIREWALL_SETTINGS = `
+      max ALLOW bar.com
+      max BLOCK baz.com
+      `;
       await initDomainTracking(browserContext, CompanyTypes.max);
 
       const targetCreatedCallback = browserContext.on.mock.calls[0][1] as (
@@ -58,17 +64,33 @@ describe("domains", () => {
       ) => Promise<void>;
       await targetCreatedCallback(target);
 
-      expect(page.on).toHaveBeenCalledWith("request", expect.any(Function));
+      expect(page.setRequestInterception).toHaveBeenCalledWith(true);
+      expect(page.on).toHaveBeenCalledTimes(2);
+      expect(page.on).toHaveBeenNthCalledWith(
+        1,
+        "framenavigated",
+        expect.any(Function),
+      );
+      expect(page.on).toHaveBeenNthCalledWith(
+        2,
+        "request",
+        expect.any(Function),
+      );
+      const [[, framenavigated], [, request]] = page.on.mock.calls;
+      const framenavigatedCallback = framenavigated as (f: Frame) => void;
 
-      const requestCallback = page.on.mock.calls[0][1] as (
-        request: HTTPRequest,
-      ) => void;
+      framenavigatedCallback(
+        mock<Frame>({ url: () => "https://bar.com/hello" }),
+      );
 
-      for (const url of ["https://baz.com", "https://bar.com"]) {
-        const mockRequest = mock<HTTPRequest>();
-        mockRequest.url.mockReturnValue(url);
-        requestCallback(mockRequest);
-      }
+      const mockRequestBar = mockHttpRequest("https://bar.com");
+      const mockRequestBaz = mockHttpRequest("https://baz.com");
+      const requestCallback = request as (r: HTTPRequest) => void;
+      requestCallback(mockRequestBar);
+      requestCallback(mockRequestBaz);
+
+      expect(mockRequestBar.continue).toHaveBeenCalled();
+      expect(mockRequestBaz.abort).toHaveBeenCalled();
 
       await expect(getUsedDomains()).resolves.toMatchSnapshot();
     });
@@ -85,3 +107,14 @@ describe("domains", () => {
     });
   });
 });
+
+function mockHttpRequest(url: string): HTTPRequest {
+  const req = mock<HTTPRequest>();
+  req.url.mockReturnValue(url);
+  req.continue.mockResolvedValue();
+  req.abort.mockResolvedValue();
+  req.interceptResolutionState.mockReturnValue({
+    action: InterceptResolutionAction.None,
+  });
+  return req;
+}

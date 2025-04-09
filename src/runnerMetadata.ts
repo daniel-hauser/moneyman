@@ -1,6 +1,6 @@
 import type { RunMetadata } from "./types";
 import { getUsedDomains } from "./security/domains.js";
-import { createLogger } from "./utils/logger.js";
+import { createLogger, metadataLogEntries } from "./utils/logger.js";
 
 const logger = createLogger("runner-metadata");
 
@@ -23,5 +23,5 @@ export async function reportRunMetadata(
     getUsedDomains(),
     getExternalIp(),
   ]);
-  await report({ domainsByCompany, networkInfo });
+  await report({ domainsByCompany, networkInfo, metadataLogEntries });
 }

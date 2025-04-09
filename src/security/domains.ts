@@ -1,12 +1,16 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
-import { createLogger } from "../utils/logger.js";
-import { type BrowserContext, type HTTPRequest, TargetType } from "puppeteer";
+import { createLogger, logToMetadataFile } from "../utils/logger.js";
+import { type BrowserContext, TargetType } from "puppeteer";
 import { ClientRequestInterceptor } from "@mswjs/interceptors/ClientRequest";
+import { DomainRuleManager } from "./domainRules.js";
+import { addToKeyedSet } from "../utils/collections.js";
 
 const logger = createLogger("domain-security");
 
-const domainsByCompany: Map<CompanyTypes, Map<string, Set<string>>> = new Map();
 const domainsFromNode: Set<string> = new Set();
+const pagesByCompany: Map<CompanyTypes, Set<string>> = new Map();
+const blockedByCompany: Map<CompanyTypes, Set<string>> = new Map();
+const allowedByCompany: Map<CompanyTypes, Set<string>> = new Map();
 
 export function monitorNodeConnections() {
   if (process.env.DOMAIN_TRACKING_ENABLED) {
@@ -25,6 +29,7 @@ export async function initDomainTracking(
   companyId: CompanyTypes,
 ): Promise<void> {
   if (process.env.DOMAIN_TRACKING_ENABLED) {
+    const rules = new DomainRuleManager();
     browserContext.on("targetcreated", async (target) => {
       switch (target.type()) {
         case TargetType.PAGE:
@@ -32,10 +37,61 @@ export async function initDomainTracking(
         case TargetType.BACKGROUND_PAGE: {
           logger(`Target created`, target.type());
           const page = await target.page();
-          page?.on("request", (request) => {
-            const currentUrl = page.url();
-            handleRequest(request, currentUrl, companyId);
+          if (!page) {
+            logger(`No page found for target, unexpected`);
+            return;
+          }
+
+          page.on("framenavigated", (frame) => {
+            logger(`Frame navigated: ${frame.url()}`);
+            const { hostname, pathname } = new URL(page.url());
+            addToKeyedSet(pagesByCompany, companyId, hostname + pathname);
           });
+
+          const canIntercept = rules.hasAnyRule(companyId);
+          if (canIntercept) {
+            logger(`[${companyId}] Setting request interception`);
+            await page.setRequestInterception(true);
+
+            page.on("request", async (request) => {
+              const url = new URL(request.url());
+              const pageUrl = new URL(page.url());
+
+              const reqKey = `${request.method()}(${request.resourceType()}) ${url.hostname}`;
+              if (request.isInterceptResolutionHandled()) {
+                logger(`[${companyId}] Request already handled ${reqKey}`);
+                logToMetadataFile(
+                  `[${companyId}] Request already handled ${reqKey}`,
+                );
+                return;
+              }
+
+              if (ignoreUrl(url.hostname) || !rules.isBlocked(url, companyId)) {
+                addToKeyedSet(allowedByCompany, companyId, reqKey);
+                logger(
+                  `[${companyId}] Allowing ${pageUrl.hostname}->${reqKey}`,
+                );
+                await request.continue(undefined, 100);
+              } else {
+                addToKeyedSet(blockedByCompany, companyId, reqKey);
+                logger(
+                  `[${companyId}] Blocking ${pageUrl.hostname}->${reqKey}`,
+                );
+                await request.abort(undefined, 100);
+              }
+            });
+          } else {
+            page.on("request", async (request) => {
+              const { hostname } = new URL(request.url());
+              const reqKey = `${request.method()}(${request.resourceType()}) ${hostname}`;
+              if (!ignoreUrl(hostname)) {
+                addToKeyedSet(allowedByCompany, companyId, reqKey);
+              }
+              const pageUrl = new URL(page.url());
+              logger(`[${companyId}] ${pageUrl.hostname}->${reqKey}`);
+            });
+          }
+
           break;
         }
         default:
@@ -45,63 +101,33 @@ export async function initDomainTracking(
   }
 }
 
-function validateUrl(url: string): boolean {
-  return url !== "about:blank" && url !== "";
-}
-
-function handleRequest(
-  request: HTTPRequest,
-  pageUrl: string,
-  companyId: CompanyTypes,
-) {
-  try {
-    const { hostname } = new URL(request.url());
-    if (!(validateUrl(hostname) && validateUrl(pageUrl))) {
-      return;
-    }
-
-    logger(`[${companyId}] request ${pageUrl}->${hostname}`);
-
-    if (!domainsByCompany.has(companyId)) {
-      domainsByCompany.set(companyId, new Map());
-    }
-
-    const companyDomains = domainsByCompany.get(companyId)!;
-    if (!companyDomains.has(pageUrl)) {
-      companyDomains.set(pageUrl, new Set());
-    }
-    companyDomains.get(pageUrl)!.add(hostname);
-  } catch (error) {
-    logger(`Failed to record domain access`, error);
-  }
+function ignoreUrl(url: string): boolean {
+  return url === "about:blank" || url === "" || url === "invalid";
 }
 
 export async function getUsedDomains(): Promise<
   Partial<Record<CompanyTypes | "infra", unknown>>
 > {
-  if (domainsByCompany.size === 0) {
+  const allCompanies = new Set([
+    ...allowedByCompany.keys(),
+    ...blockedByCompany.keys(),
+  ]);
+  if (allCompanies.size === 0) {
     logger(`No domains recorded`);
     return {};
   }
 
-  logger(`Reporting used domains`, domainsByCompany);
+  logger(`Reporting used domains`, { allowedByCompany, blockedByCompany });
   const domainsRecord = Object.fromEntries(
-    Array.from(domainsByCompany.entries()).map(([company, pages]) => [
+    Array.from(allCompanies).map((company) => [
       company,
       {
-        pages: Array.from(new Set(pages.keys())),
-        domains: Array.from(
-          new Set(Array.from(pages.values()).flatMap((d) => Array.from(d))),
-        ),
+        pages: Array.from(pagesByCompany.get(company) ?? []),
+        allowed: Array.from(allowedByCompany.get(company) ?? []),
+        blocked: Array.from(blockedByCompany.get(company) ?? []),
       },
     ]),
   );
-
-  domainsRecord.infra = {
-    pages: [],
-    domains: Array.from(domainsFromNode),
-  };
-
-  logger(`Reported used domains`, domainsRecord);
-  return domainsRecord;
+  const infraDomains = Array.from(domainsFromNode);
+  return { ...domainsRecord, infra: infraDomains };
 }

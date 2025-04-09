@@ -14,6 +14,7 @@ process.on("uncaughtException", (err, origin) => {
   console.error("uncaughtException, sending error");
   sendError(`
 Caught exception: ${err}
+err.stack: ${err.stack}
 Exception origin: ${origin}`).catch((e) => {});
 });
 
