@@ -1,7 +1,6 @@
 import debug from "debug";
 import assert from "node:assert";
-import { describe, after, afterEach, test } from "node:test";
-import type { BrowserContext } from "puppeteer";
+import { describe, after, test } from "node:test";
 import { CompanyTypes } from "israeli-bank-scrapers";
 import {
   createBrowser,
@@ -57,24 +56,10 @@ describe("Scraper access tests", async () => {
   const browser = await createBrowser();
   after(() => browser.close());
 
-  let context: BrowserContext;
-  afterEach(async () => {
-    if (context) {
-      const pages = await context.pages();
-      pages.forEach(async (page) => {
-        logger("afterEach: ", page.url(), await page.title());
-        await page.screenshot({
-          path: `./screenshot_${new Date().toISOString().replace(/:/g, "-")}.png`,
-        });
-        await page.close();
-      });
-    }
-  });
-
   for (const { company, url, title, expectedText } of sitesToCheck) {
     test(`should access ${company} at ${url}`, async () => {
       assert.ok(browser, "Browser should be created");
-      context = await createSecureBrowserContext(browser, company);
+      const context = await createSecureBrowserContext(browser, company);
       const page = await context.newPage();
       await page.setViewport({ width: 1920, height: 1080 });
 
