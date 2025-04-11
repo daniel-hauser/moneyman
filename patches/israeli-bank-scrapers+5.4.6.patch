@@ -1,8 +1,8 @@
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
-index 9bb5d71..e259987 100644
+index 9bb5d71..9e22c03 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
-@@ -247,9 +247,9 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+@@ -247,13 +247,19 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
      this.page.on('request', request => {
        if (request.url().includes('detector-dom.min.js')) {
          debug('force abort for request do download detector-dom.min.js resource');
@@ -14,6 +14,16 @@ index 9bb5d71..e259987 100644
        }
      });
      await (0, _browser.maskHeadlessUserAgent)(this.page);
+     await this.navigateTo(`${this.baseUrl}/personalarea/Login`);
++
++    const initialPageTitle = await this.page.title();
++    if (!initialPageTitle.includes('ישראכרט') && !initialPageTitle.includes('אמריקן אקספרס')) {
++      await this.page.waitForNavigation({ timeout: 30_000 });
++    }
++
+     this.emitProgress(_definitions.ScraperProgressTypes.LoggingIn);
+     const validateUrl = `${this.servicesUrl}?reqName=ValidateIdData`;
+     const validateRequest = {
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper-with-browser.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper-with-browser.js
 index 49895b5..843c21a 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper-with-browser.js

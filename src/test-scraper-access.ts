@@ -1,7 +1,8 @@
 import debug from "debug";
 import assert from "node:assert";
 import { describe, after, test } from "node:test";
-import { CompanyTypes } from "israeli-bank-scrapers";
+import { CompanyTypes, createScraper } from "israeli-bank-scrapers";
+import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
 import {
   createBrowser,
   createSecureBrowserContext,
@@ -21,7 +22,7 @@ process.env.FIREWALL_SETTINGS = [
 ].join("|");
 
 debug.enable(
-  "moneyman:browser,moneyman:test-scraper-access,moneyman:cloudflare-solver,moneyman:domain-rules",
+  "moneyman:browser,moneyman:test-scraper-access,moneyman:cloudflare-solver,moneyman:domain-rules,israeli-bank-scrapers:*",
 );
 
 type SiteTest = {
@@ -52,7 +53,7 @@ const sitesToCheck: Array<SiteTest> = [
   },
 ];
 
-describe("Scraper access tests", async () => {
+describe("Sites access tests", async () => {
   const browser = await createBrowser();
   after(() => browser.close());
 
@@ -96,4 +97,33 @@ describe("Scraper access tests", async () => {
       assert.ok(textFound, `Text should be found: ${expectedText}`);
     });
   }
+});
+
+describe("Scrapers access tests", async () => {
+  const browser = await createBrowser();
+  after(() => browser.close());
+
+  test("Can start scraping isracard", async () => {
+    const scraper = createScraper({
+      startDate: new Date(),
+      companyId: CompanyTypes.isracard,
+      browserContext: await createSecureBrowserContext(
+        browser,
+        CompanyTypes.isracard,
+      ),
+    });
+
+    const result = await scraper.scrape({
+      card6Digits: "123456",
+      id: "123456789",
+      password: "1234",
+    });
+
+    assert.equal(result.success, false, "Scraping should fail");
+    assert.equal(
+      result.errorType,
+      ScraperErrorTypes.InvalidPassword,
+      "Scraping should fail with invalid password",
+    );
+  });
 });
