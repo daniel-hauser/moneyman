@@ -103,27 +103,26 @@ describe("Scrapers access tests", async () => {
   const browser = await createBrowser();
   after(() => browser.close());
 
-  test("Can start scraping isracard", async () => {
-    const scraper = createScraper({
-      startDate: new Date(),
-      companyId: CompanyTypes.isracard,
-      browserContext: await createSecureBrowserContext(
-        browser,
-        CompanyTypes.isracard,
-      ),
-    });
+  for (const companyId of [CompanyTypes.amex, CompanyTypes.isracard]) {
+    test(`Can start scraping ${companyId}`, async () => {
+      const scraper = createScraper({
+        startDate: new Date(),
+        companyId,
+        browserContext: await createSecureBrowserContext(browser, companyId),
+      });
 
-    const result = await scraper.scrape({
-      card6Digits: "123456",
-      id: "123456789",
-      password: "1234",
-    });
+      const result = await scraper.scrape({
+        card6Digits: "123456",
+        id: "123456789",
+        password: "1234",
+      });
 
-    assert.equal(result.success, false, "Scraping should fail");
-    assert.equal(
-      result.errorType,
-      ScraperErrorTypes.InvalidPassword,
-      "Scraping should fail with invalid password",
-    );
-  });
+      assert.equal(result.success, false, "Scraping should fail");
+      assert.equal(
+        result.errorType,
+        ScraperErrorTypes.InvalidPassword,
+        "Scraping should fail with invalid password",
+      );
+    });
+  }
 });
