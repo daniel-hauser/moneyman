@@ -69,22 +69,6 @@ async function initCloudflareSkipping(browserContext: BrowserContext) {
           });
         }
       });
-
-      page.on("frameattached", async (frame) => {
-        logger("Frame attached", {
-          frameUrl: frame.url(),
-          parentFrameUrl: frame.parentFrame()?.url(),
-          // content: await frame.content(),
-        });
-      });
-
-      page.on("framedetached", async (frame) => {
-        logger("Frame detached", {
-          frameUrl: frame.url(),
-          parentFrameUrl: frame.parentFrame()?.url(),
-          // content: await frame.content(),
-        });
-      });
     }
   });
 }

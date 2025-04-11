@@ -42,74 +42,39 @@ async function moveTo(page: Page, from: Point, to: Point): Promise<Point> {
   return to;
 }
 
-async function solveInvisible(
-  page: Page,
-  currentPosition: Point,
-  windowWidth: number,
-  windowHeight: number,
-): Promise<string> {
-  for (let i = 0; i < 10; i++) {
-    logger("solveInvisible - Attempt", i + 1);
-    currentPosition = await moveTo(page, currentPosition, [
-      Math.random() * windowWidth,
-      Math.random() * windowHeight,
-    ]);
-
-    const elem = await page.$("[name=cf-turnstile-response]");
-    if (elem) {
-      const value = await elem.evaluate((el) => el.getAttribute("value"));
-      if (value) {
-        logger("solveInvisible - Found value", value);
-        return value;
-      }
-    }
-
-    await sleep(Math.random() * 500 + 200);
-  }
-
-  return "failed to get cf-turnstile-response";
-}
+const containerLocation = { x: 506, y: 257 };
+const checkboxBox = { x: 522, y: 280, width: 20, height: 20 };
 
 async function solveVisible(
   page: Page,
-  currentPosition: Point,
-  windowWidth: number,
-  windowHeight: number,
+  currentPosition: Point = [0, 0],
 ): Promise<string> {
   try {
-    const containerLoc = { x: 506, y: 257 };
     currentPosition = await moveTo(page, currentPosition, [
-      containerLoc.x + Math.random() * 12 + 5,
-      containerLoc.y + Math.random() * 12 + 5,
+      containerLocation.x + Math.random() * 12 + 5,
+      containerLocation.y + Math.random() * 12 + 5,
     ]);
 
+    logger("Moving");
     await sleep(1200);
 
-    const checkboxBox = { x: 522, y: 280, width: 20, height: 20 };
     const { x, y, width, height } = checkboxBox;
     currentPosition = await moveTo(page, currentPosition, [
       x + width / 5 + Math.random() * (width - width / 5),
       y + height / 5 + Math.random() * (height - height / 5),
     ]);
+
     await page.mouse.click(...currentPosition);
-    await sleep(500);
-    return await solveInvisible(
-      page,
-      currentPosition,
-      windowWidth,
-      windowHeight,
-    );
+    logger("Clicked");
+    await page.waitForNavigation({ timeout: 5000 });
+    return "success";
   } catch (error) {
     logger("solveVisible error", error);
-    logger(await page.content());
     return "failed to find the iframe";
   }
 }
 
-export async function solveTurnstile(
-  page: Page,
-  invisible: boolean = false,
-): Promise<string> {
+export async function solveTurnstile(page: Page): Promise<string> {
   const windowWidth = await page.evaluate(() => window.innerWidth);
   const windowHeight = await page.evaluate(() => window.innerHeight);
   logger("Window size", { windowWidth, windowHeight });
@@ -120,7 +85,5 @@ export async function solveTurnstile(
     [windowWidth / 2, windowHeight / 2],
     [Math.random() * windowWidth, Math.random() * windowHeight],
   );
-  return invisible
-    ? solveInvisible(page, [0, 0], windowWidth, windowHeight)
-    : solveVisible(page, [0, 0], windowWidth, windowHeight);
+  return solveVisible(page, [0, 0]);
 }
