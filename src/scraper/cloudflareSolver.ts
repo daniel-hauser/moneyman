@@ -77,27 +77,15 @@ async function solveVisible(
   windowHeight: number,
 ): Promise<string> {
   try {
-    logger("solveVisible, waiting for iframe");
-    const iframe = await page.waitForSelector("iframe", { timeout: 40_000 });
-    if (!iframe) return "iframe not found";
-
-    const boundingBox = await iframe.boundingBox();
-    if (!boundingBox) return "iframe bounding box not found";
-
+    const containerLoc = { x: 506, y: 257 };
     currentPosition = await moveTo(page, currentPosition, [
-      boundingBox.x + Math.random() * 12 + 5,
-      boundingBox.y + Math.random() * 12 + 5,
+      containerLoc.x + Math.random() * 12 + 5,
+      containerLoc.y + Math.random() * 12 + 5,
     ]);
 
-    const frame = await iframe.contentFrame();
-    if (!frame) return "frame not found";
+    await sleep(1200);
 
-    const checkbox = await frame.$("input");
-    if (!checkbox) return "checkbox not found";
-
-    const checkboxBox = await checkbox.boundingBox();
-    if (!checkboxBox) return "checkbox bounding box not found";
-
+    const checkboxBox = { x: 522, y: 280, width: 20, height: 20 };
     const { x, y, width, height } = checkboxBox;
     currentPosition = await moveTo(page, currentPosition, [
       x + width / 5 + Math.random() * (width - width / 5),
@@ -132,15 +120,6 @@ export async function solveTurnstile(
     [windowWidth / 2, windowHeight / 2],
     [Math.random() * windowWidth, Math.random() * windowHeight],
   );
-
-  logger("Wait for checkbox");
-  const checkbox = page.locator("::-p-aria([role=checkbox])");
-  checkbox.click();
-  const c = await checkbox.waitHandle();
-  const bb = await c.boundingBox();
-  logger("Checkbox bounding box", bb);
-  await c.click();
-
   return invisible
     ? solveInvisible(page, [0, 0], windowWidth, windowHeight)
     : solveVisible(page, [0, 0], windowWidth, windowHeight);
