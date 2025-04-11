@@ -125,6 +125,22 @@ export async function solveTurnstile(
   const windowWidth = await page.evaluate(() => window.innerWidth);
   const windowHeight = await page.evaluate(() => window.innerHeight);
   logger("Window size", { windowWidth, windowHeight });
+
+  logger("Moving mouse");
+  await moveTo(
+    page,
+    [windowWidth / 2, windowHeight / 2],
+    [Math.random() * windowWidth, Math.random() * windowHeight],
+  );
+
+  logger("Wait for checkbox");
+  const checkbox = page.locator("::-p-aria([role=checkbox])");
+  checkbox.click();
+  const c = await checkbox.waitHandle();
+  const bb = await c.boundingBox();
+  logger("Checkbox bounding box", bb);
+  await c.click();
+
   return invisible
     ? solveInvisible(page, [0, 0], windowWidth, windowHeight)
     : solveVisible(page, [0, 0], windowWidth, windowHeight);

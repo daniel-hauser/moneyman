@@ -40,8 +40,8 @@ async function initCloudflareSkipping(browserContext: BrowserContext) {
 
   logger("Setting up Cloudflare skipping");
   browserContext.on("targetcreated", async (target) => {
-    logger("Target created", target.type());
     if (target.type() === TargetType.PAGE) {
+      logger("Target created %o", target.type());
       const page = await target.page();
       if (!page) return;
 
@@ -53,7 +53,10 @@ async function initCloudflareSkipping(browserContext: BrowserContext) {
       page.on("framenavigated", (frame) => {
         const url = frame.url();
         if (!url || url === "about:blank") return;
-        logger("Frame navigated", url);
+        logger("Frame navigated", {
+          url,
+          parentFrameUrl: frame.parentFrame()?.url(),
+        });
         logToMetadataFile(`Frame navigated: ${frame.url()}`);
         if (url.includes(cfParam)) {
           logger("Cloudflare challenge detected");
@@ -65,6 +68,22 @@ async function initCloudflareSkipping(browserContext: BrowserContext) {
             );
           });
         }
+      });
+
+      page.on("frameattached", async (frame) => {
+        logger("Frame attached", {
+          frameUrl: frame.url(),
+          parentFrameUrl: frame.parentFrame()?.url(),
+          // content: await frame.content(),
+        });
+      });
+
+      page.on("framedetached", async (frame) => {
+        logger("Frame detached", {
+          frameUrl: frame.url(),
+          parentFrameUrl: frame.parentFrame()?.url(),
+          // content: await frame.content(),
+        });
       });
     }
   });
