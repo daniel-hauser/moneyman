@@ -55,6 +55,10 @@ export async function solveTurnstile(page: Page): Promise<string> {
     logger("Window size", { windowWidth, windowHeight });
     logToMetadataFile("Solving turnstile");
 
+    page.on("close", () => {
+      logToMetadataFile("Page closed");
+    });
+
     let currentPosition: Point = [0, 0];
     currentPosition = await moveTo(page, currentPosition, [
       containerLocation.x + Math.random() * 12 + 5,
