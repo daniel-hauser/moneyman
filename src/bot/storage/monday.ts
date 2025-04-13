@@ -111,9 +111,6 @@ export class MondayStorage implements TransactionStorage {
     }
   }
 
-  // TODO: looks like we have two issues here:
-  // 1. handeling escaping charaters in hebrew like ג׳ו, monday API doesnt like it
-  // 2. rate limit - add a delay on the creation of each transaction as the current implementation has timeouts
   async saveTransactions(txns: Array<TransactionRow>) {
     await this.init();
 
@@ -258,7 +255,7 @@ export class MondayStorage implements TransactionStorage {
       category: tx.category ?? "",
       account: `${tx.companyId} ${tx.account}`,
       uniqueId: TRANSACTION_HASH_TYPE === "moneyman" ? tx.uniqueId : tx.hash,
-      scraped_at: currentDate ?? "",
+      scraped_at: format(Date.now(), "yyyy-MM-dd"),
       scraped_by: systemName ?? "",
       identifier: String(tx.identifier ?? ""),
       chargedCurrency: tx.chargedCurrency ?? "",
