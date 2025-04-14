@@ -1,5 +1,5 @@
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
-index 9bb5d71..6f7762b 100644
+index 9bb5d71..eca7d61 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
 @@ -247,13 +247,26 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
@@ -22,7 +22,7 @@ index 9bb5d71..6f7762b 100644
 +      debug("initial page title: ", initialPageTitle);
 +      if (!initialPageTitle.includes('ישראכרט') && !initialPageTitle.includes('אמריקן אקספרס')) {
 +        debug("waiting for page to load");
-+        await this.page.waitForNavigation({ timeout: 30_000 });
++        await this.page.waitForNavigation({ timeout: 60_000 });
 +      }
 +    } catch (error) {
 +      debug("error while waiting for navigation: ", error);

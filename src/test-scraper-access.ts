@@ -13,9 +13,6 @@ import { getExternalIp } from "./runnerMetadata.js";
 
 const logger = createLogger("test-scraper-access");
 
-logger("Starting tests");
-logger("Connecting from: ", await getExternalIp());
-
 process.env.DOMAIN_TRACKING_ENABLED = "1";
 process.env.FIREWALL_SETTINGS = [
   ...["amex", "isracard"].flatMap((c) =>
@@ -31,6 +28,9 @@ process.env.FIREWALL_SETTINGS = [
 debug.enable(
   "moneyman:browser,moneyman:test-scraper-access,moneyman:cloudflare-solver,moneyman:domain-rules,israeli-bank-scrapers:*",
 );
+
+logger("Starting tests");
+logger("Connecting from: ", await getExternalIp());
 
 type SiteTest = {
   url: string;
