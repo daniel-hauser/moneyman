@@ -3,7 +3,7 @@ import { createLogger, logToMetadataFile } from "../utils/logger.js";
 import { type BrowserContext, TargetType } from "puppeteer";
 import { ClientRequestInterceptor } from "@mswjs/interceptors/ClientRequest";
 import { DomainRuleManager } from "./domainRules.js";
-import { addToKeyedSet } from "../utils/collections.js";
+import { addToKeyedMap, addToKeyedSet } from "../utils/collections.js";
 
 const logger = createLogger("domain-security");
 
@@ -11,6 +11,10 @@ const domainsFromNode: Set<string> = new Set();
 const pagesByCompany: Map<CompanyTypes, Set<string>> = new Map();
 const blockedByCompany: Map<CompanyTypes, Set<string>> = new Map();
 const allowedByCompany: Map<CompanyTypes, Set<string>> = new Map();
+const resourceTypesByCompany: Map<
+  CompanyTypes,
+  Map<string, string>
+> = new Map();
 
 export function monitorNodeConnections() {
   if (process.env.DOMAIN_TRACKING_ENABLED) {
@@ -57,14 +61,20 @@ export async function initDomainTracking(
               const url = new URL(request.url());
               const pageUrl = new URL(page.url());
 
-              const reqKey = `${request.method()}(${request.resourceType()}) ${url.hostname}`;
+              const resourceType = request.resourceType();
+              const reqKey = `${request.method()} ${url.hostname}`;
+
               if (request.isInterceptResolutionHandled()) {
-                logger(`[${companyId}] Request already handled ${reqKey}`);
-                logToMetadataFile(
-                  `[${companyId}] Request already handled ${reqKey}`,
-                );
+                const message = `[${companyId}] Request already handled ${reqKey} ${resourceType}`;
+                logger(message);
+                logToMetadataFile(message);
                 return;
               }
+
+              addToKeyedMap(resourceTypesByCompany, companyId, [
+                reqKey,
+                request.resourceType(),
+              ]);
 
               if (ignoreUrl(url.hostname) || !rules.isBlocked(url, companyId)) {
                 addToKeyedSet(allowedByCompany, companyId, reqKey);
@@ -119,14 +129,22 @@ export async function getUsedDomains(): Promise<
 
   logger(`Reporting used domains`, { allowedByCompany, blockedByCompany });
   const domainsRecord = Object.fromEntries(
-    Array.from(allCompanies).map((company) => [
-      company,
-      {
-        pages: Array.from(pagesByCompany.get(company) ?? []),
-        allowed: Array.from(allowedByCompany.get(company) ?? []),
-        blocked: Array.from(blockedByCompany.get(company) ?? []),
-      },
-    ]),
+    Array.from(allCompanies).map((company) => {
+      function withResourceType(key: string) {
+        return `${key} [${Array.from(resourceTypesByCompany.get(company)?.get(key) ?? []).sort()}]`;
+      }
+      function getArray(set: Map<CompanyTypes, Set<string>>) {
+        return Array.from(set.get(company) ?? []);
+      }
+      return [
+        company,
+        {
+          pages: getArray(pagesByCompany),
+          allowed: getArray(allowedByCompany).map(withResourceType),
+          blocked: getArray(blockedByCompany).map(withResourceType),
+        },
+      ];
+    }),
   );
   const infraDomains = Array.from(domainsFromNode);
   return { ...domainsRecord, infra: infraDomains };
