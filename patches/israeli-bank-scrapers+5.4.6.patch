@@ -32,7 +32,7 @@ index 9bb5d71..6f7762b 100644
      const validateUrl = `${this.servicesUrl}?reqName=ValidateIdData`;
      const validateRequest = {
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper-with-browser.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper-with-browser.js
-index 49895b5..4548510 100644
+index 49895b5..72cb938 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper-with-browser.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper-with-browser.js
 @@ -23,8 +23,8 @@ function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol"
@@ -54,7 +54,7 @@ index 49895b5..4548510 100644
        return;
      }
      const options = _objectSpread(_objectSpread({}, timeout === null ? null : {
-@@ -179,8 +180,9 @@ class BaseScraperWithBrowser extends _baseScraper.BaseScraper {
+@@ -179,10 +180,14 @@ class BaseScraperWithBrowser extends _baseScraper.BaseScraper {
      }), {}, {
        waitUntil
      });
@@ -64,4 +64,9 @@ index 49895b5..4548510 100644
 +    debug("Goto ended", response.status());
      // note: response will be null when navigating to same url while changing the hash part. the condition below will always accept null as valid result.
      if (response !== null && (response === undefined || response.status() !== OK_STATUS)) {
++      if (response.status() === 403) {
++        return;
++      }
        throw new Error(`Error while trying to navigate to url ${url}`);
+     }
+   }
