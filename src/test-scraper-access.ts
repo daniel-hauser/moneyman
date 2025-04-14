@@ -9,15 +9,22 @@ import {
 } from "./scraper/browser.js";
 import { sleep } from "./utils/utils.js";
 import { createLogger } from "./utils/logger.js";
+import { getExternalIp } from "./runnerMetadata.js";
 
 const logger = createLogger("test-scraper-access");
+
+logger("Starting tests");
+logger("Connecting from: ", await getExternalIp());
 
 process.env.DOMAIN_TRACKING_ENABLED = "1";
 process.env.FIREWALL_SETTINGS = [
   ...["amex", "isracard"].flatMap((c) =>
-    ["doubleclick.net", "googletagmanager.com"].map(
-      () => `${c} BLOCK doubleclick.net`,
-    ),
+    [
+      "doubleclick.net",
+      "googletagmanager.com",
+      "google.com",
+      "instagram.com",
+    ].map((d) => `${c} BLOCK ${d}`),
   ),
 ].join("|");
 
