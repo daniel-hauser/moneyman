@@ -1,5 +1,5 @@
 import { Page } from "puppeteer";
-import { createLogger } from "../utils/logger.js";
+import { createLogger, logToMetadataFile } from "../utils/logger.js";
 import { sleep } from "../utils/utils.js";
 
 const logger = createLogger("cloudflare-solver");
@@ -34,6 +34,9 @@ function* getMousePath(from: Point, to: Point): Generator<Point> {
 async function moveTo(page: Page, from: Point, to: Point): Promise<Point> {
   logger("Moving mouse from", from, "to", to);
   for (const [px, py] of getMousePath(from, to)) {
+    if (page.isClosed()) {
+      throw new Error("Page is closed");
+    }
     await page.mouse.move(px, py);
     if (Math.random() * 100 > 15) {
       await sleep(Math.random() * 500 + 100);
@@ -45,18 +48,25 @@ async function moveTo(page: Page, from: Point, to: Point): Promise<Point> {
 const containerLocation = { x: 506, y: 257 };
 const checkboxBox = { x: 522, y: 280, width: 20, height: 20 };
 
-async function solveVisible(
-  page: Page,
-  currentPosition: Point = [0, 0],
-): Promise<string> {
+export async function solveTurnstile(page: Page): Promise<string> {
   try {
+    const windowWidth = await page.evaluate(() => window.innerWidth);
+    const windowHeight = await page.evaluate(() => window.innerHeight);
+    logger("Window size", { windowWidth, windowHeight });
+    logToMetadataFile("Solving turnstile");
+
+    page.on("close", () => {
+      logToMetadataFile("Page closed");
+    });
+
+    let currentPosition: Point = [0, 0];
     currentPosition = await moveTo(page, currentPosition, [
       containerLocation.x + Math.random() * 12 + 5,
       containerLocation.y + Math.random() * 12 + 5,
     ]);
 
-    logger("Moving");
-    await sleep(1200);
+    logToMetadataFile("Mouse moved to random position");
+    await sleep(1500);
 
     const { x, y, width, height } = checkboxBox;
     currentPosition = await moveTo(page, currentPosition, [
@@ -65,25 +75,11 @@ async function solveVisible(
     ]);
 
     await page.mouse.click(...currentPosition);
-    logger("Clicked");
-    await page.waitForNavigation({ timeout: 5000 });
+    logToMetadataFile("Clicked on checkbox");
+    await page.waitForNavigation({ timeout: 60_000 });
     return "success";
   } catch (error) {
-    logger("solveVisible error", error);
-    return "failed to find the iframe";
+    logger("solveTurnstile error", error);
+    return "failed to solve: " + error;
   }
-}
-
-export async function solveTurnstile(page: Page): Promise<string> {
-  const windowWidth = await page.evaluate(() => window.innerWidth);
-  const windowHeight = await page.evaluate(() => window.innerHeight);
-  logger("Window size", { windowWidth, windowHeight });
-
-  logger("Moving mouse");
-  await moveTo(
-    page,
-    [windowWidth / 2, windowHeight / 2],
-    [Math.random() * windowWidth, Math.random() * windowHeight],
-  );
-  return solveVisible(page, [0, 0]);
 }

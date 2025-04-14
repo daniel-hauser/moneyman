@@ -1,28 +1,36 @@
 import debug from "debug";
 import assert from "node:assert";
 import { describe, after, test } from "node:test";
-import { CompanyTypes } from "israeli-bank-scrapers";
+import { CompanyTypes, createScraper } from "israeli-bank-scrapers";
+import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
 import {
   createBrowser,
   createSecureBrowserContext,
 } from "./scraper/browser.js";
 import { sleep } from "./utils/utils.js";
 import { createLogger } from "./utils/logger.js";
+import { getExternalIp } from "./runnerMetadata.js";
 
 const logger = createLogger("test-scraper-access");
 
 process.env.DOMAIN_TRACKING_ENABLED = "1";
 process.env.FIREWALL_SETTINGS = [
   ...["amex", "isracard"].flatMap((c) =>
-    ["doubleclick.net", "googletagmanager.com"].map(
-      () => `${c} BLOCK doubleclick.net`,
-    ),
+    [
+      "doubleclick.net",
+      "googletagmanager.com",
+      "google.com",
+      "instagram.com",
+    ].map((d) => `${c} BLOCK ${d}`),
   ),
 ].join("|");
 
 debug.enable(
-  "moneyman:browser,moneyman:test-scraper-access,moneyman:cloudflare-solver,moneyman:domain-rules",
+  "moneyman:browser,moneyman:test-scraper-access,moneyman:cloudflare-solver,moneyman:domain-rules,israeli-bank-scrapers:*",
 );
+
+logger("Starting tests");
+logger("Connecting from: ", await getExternalIp());
 
 type SiteTest = {
   url: string;
@@ -52,7 +60,7 @@ const sitesToCheck: Array<SiteTest> = [
   },
 ];
 
-describe("Scraper access tests", async () => {
+describe("Sites access tests", async () => {
   const browser = await createBrowser();
   after(() => browser.close());
 
@@ -94,6 +102,34 @@ describe("Scraper access tests", async () => {
           expectedText,
         );
       assert.ok(textFound, `Text should be found: ${expectedText}`);
+    });
+  }
+});
+
+describe("Scrapers access tests", async () => {
+  const browser = await createBrowser();
+  after(() => browser.close());
+
+  for (const companyId of [CompanyTypes.amex, CompanyTypes.isracard]) {
+    test(`Can start scraping ${companyId}`, async () => {
+      const scraper = createScraper({
+        startDate: new Date(),
+        companyId,
+        browserContext: await createSecureBrowserContext(browser, companyId),
+      });
+
+      const result = await scraper.scrape({
+        card6Digits: "123456",
+        id: "123456789",
+        password: "1234",
+      });
+
+      assert.equal(result.success, false, "Scraping should fail");
+      assert.equal(
+        result.errorType,
+        ScraperErrorTypes.InvalidPassword,
+        "Scraping should fail with invalid password",
+      );
     });
   }
 });
