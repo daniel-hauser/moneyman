@@ -3,18 +3,17 @@ import { createLogger, logToMetadataFile } from "../utils/logger.js";
 import { type BrowserContext, TargetType } from "puppeteer";
 import { ClientRequestInterceptor } from "@mswjs/interceptors/ClientRequest";
 import { DomainRuleManager } from "./domainRules.js";
-import { addToKeyedMap, addToKeyedSet } from "../utils/collections.js";
+import { addToKeyedSet } from "../utils/collections.js";
 
 const logger = createLogger("domain-security");
 
+type CompanyToSet = Map<CompanyTypes, Set<string>>;
+
 const domainsFromNode: Set<string> = new Set();
-const pagesByCompany: Map<CompanyTypes, Set<string>> = new Map();
-const blockedByCompany: Map<CompanyTypes, Set<string>> = new Map();
-const allowedByCompany: Map<CompanyTypes, Set<string>> = new Map();
-const resourceTypesByCompany: Map<
-  CompanyTypes,
-  Map<string, string>
-> = new Map();
+const pagesByCompany: CompanyToSet = new Map();
+const blockedByCompany: CompanyToSet = new Map();
+const allowedByCompany: CompanyToSet = new Map();
+const resourceTypesByCompany: Map<string, CompanyToSet> = new Map();
 
 export function monitorNodeConnections() {
   if (process.env.DOMAIN_TRACKING_ENABLED) {
@@ -71,10 +70,15 @@ export async function initDomainTracking(
                 return;
               }
 
-              addToKeyedMap(resourceTypesByCompany, companyId, [
-                reqKey,
-                request.resourceType(),
-              ]);
+              if (!resourceTypesByCompany.has(reqKey)) {
+                resourceTypesByCompany.set(reqKey, new Map());
+              }
+
+              addToKeyedSet(
+                resourceTypesByCompany.get(reqKey)!,
+                companyId,
+                resourceType,
+              );
 
               if (ignoreUrl(url.hostname) || !rules.isBlocked(url, companyId)) {
                 addToKeyedSet(allowedByCompany, companyId, reqKey);
@@ -130,11 +134,11 @@ export async function getUsedDomains(): Promise<
   logger(`Reporting used domains`, { allowedByCompany, blockedByCompany });
   const domainsRecord = Object.fromEntries(
     Array.from(allCompanies).map((company) => {
-      function withResourceType(key: string) {
-        return `${key} [${Array.from(resourceTypesByCompany.get(company)?.get(key) ?? []).sort()}]`;
-      }
       function getArray(set: Map<CompanyTypes, Set<string>>) {
         return Array.from(set.get(company) ?? []);
+      }
+      function withResourceType(key: string) {
+        return `${key} [${getArray(resourceTypesByCompany.get(key)!).sort()}]`;
       }
       return [
         company,

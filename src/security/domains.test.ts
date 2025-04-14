@@ -84,10 +84,18 @@ describe("domains", () => {
       );
 
       const mockRequestBar = mockHttpRequest("https://bar.com");
+      const mockRequestBar2 = mockHttpRequest("https://bar.com", {
+        method: "POST",
+      });
       const mockRequestBaz = mockHttpRequest("https://baz.com");
+      const mockRequestBaz2 = mockHttpRequest("https://baz.com", {
+        resourceType: "xhr",
+      });
       const requestCallback = request as (r: HTTPRequest) => void;
       requestCallback(mockRequestBar);
       requestCallback(mockRequestBaz);
+      requestCallback(mockRequestBaz2);
+      requestCallback(mockRequestBar2);
 
       expect(mockRequestBar.continue).toHaveBeenCalled();
       expect(mockRequestBaz.abort).toHaveBeenCalled();
@@ -108,7 +116,10 @@ describe("domains", () => {
   });
 });
 
-function mockHttpRequest(url: string): HTTPRequest {
+function mockHttpRequest(
+  url: string,
+  { method = "GET", resourceType = "document" } = {},
+): HTTPRequest {
   const req = mock<HTTPRequest>();
   req.url.mockReturnValue(url);
   req.continue.mockResolvedValue();
@@ -116,5 +127,7 @@ function mockHttpRequest(url: string): HTTPRequest {
   req.interceptResolutionState.mockReturnValue({
     action: InterceptResolutionAction.None,
   });
+  req.method.mockReturnValue(method);
+  req.resourceType.mockReturnValue(resourceType as any);
   return req;
 }
