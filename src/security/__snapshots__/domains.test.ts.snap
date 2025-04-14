@@ -5,10 +5,11 @@ exports[`domains initDomainTracking should set up page request listener for rele
   "infra": [],
   "max": {
     "allowed": [
-      "undefined(undefined) bar.com",
+      "GET bar.com [document]",
+      "POST bar.com [document]",
     ],
     "blocked": [
-      "undefined(undefined) baz.com",
+      "GET baz.com [document,xhr]",
     ],
     "pages": [
       "foo.com/",
