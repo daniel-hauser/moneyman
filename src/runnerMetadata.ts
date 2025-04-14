@@ -4,7 +4,7 @@ import { createLogger, metadataLogEntries } from "./utils/logger.js";
 
 const logger = createLogger("runner-metadata");
 
-async function getExternalIp(): Promise<{ ip: string }> {
+export async function getExternalIp(): Promise<{ ip: string }> {
   try {
     const res = await fetch(
       process.env.GET_IP_INFO_URL || "https://ipinfo.io/json",
