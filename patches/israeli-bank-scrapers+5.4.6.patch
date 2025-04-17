@@ -1,3 +1,39 @@
+diff --git a/node_modules/israeli-bank-scrapers/lib/helpers/fetch.js b/node_modules/israeli-bank-scrapers/lib/helpers/fetch.js
+index 3ff5ea4..2ef11ec 100644
+--- a/node_modules/israeli-bank-scrapers/lib/helpers/fetch.js
++++ b/node_modules/israeli-bank-scrapers/lib/helpers/fetch.js
+@@ -60,20 +60,17 @@ async function fetchGraphql(url, query, variables = {}, extraHeaders = {}) {
+   return result.data;
+ }
+ function fetchGetWithinPage(page, url) {
+-  return page.evaluate(innerUrl => {
+-    return new Promise((resolve, reject) => {
+-      fetch(innerUrl, {
+-        credentials: 'include'
+-      }).then(result => {
+-        if (result.status === 204) {
+-          resolve(null);
+-        } else {
+-          resolve(result.json());
+-        }
+-      }).catch(e => {
+-        reject(e);
+-      });
+-    });
++  return page.evaluate(async innerUrl => {
++    let result;
++    try {
++      result = await fetch(innerUrl, { credentials: 'include' });
++      if (result.status === 204) {
++        return null;
++      }
++      return result.json();
++    } catch (e) {
++      throw new Error(`fetchGetWithinPage error: ${e}, url: ${innerUrl}, stack: ${e?.stack}, status: ${result?.status}`);
++    }
+   }, url);
+ }
+ function fetchPostWithinPage(page, url, data, extraHeaders = {}) {
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
 index 9bb5d71..eca7d61 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
