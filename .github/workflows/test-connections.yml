@@ -1,0 +1,37 @@
+name: Test connections
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "patches/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "Dockerfile"
+jobs:
+  test-connections:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: moneyman:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run test-scraper-access script
+        run: docker run --rm moneyman:test npm run test:scraper-access

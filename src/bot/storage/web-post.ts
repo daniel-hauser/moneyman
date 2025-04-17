@@ -45,11 +45,10 @@ export class WebPostStorage implements TransactionStorage {
       throw new Error(`Failed to post transactions: ${response.statusText}`);
     }
 
-    const { added = nonPendingTxns.length, skipped = NaN } =
-      await response.json();
+    const res = (await response.json()) as Record<string, number>;
 
     const stats = createSaveStats("WebPostStorage", "web-post", txns);
-    stats.added = added;
+    stats.added = res.added ?? nonPendingTxns.length;
     stats.skipped += stats.pending;
 
     return stats;

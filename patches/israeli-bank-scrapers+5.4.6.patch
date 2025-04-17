@@ -1,0 +1,72 @@
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
+index 9bb5d71..eca7d61 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
+@@ -247,13 +247,26 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+     this.page.on('request', request => {
+       if (request.url().includes('detector-dom.min.js')) {
+         debug('force abort for request do download detector-dom.min.js resource');
+-        void request.abort();
++        void request.abort(undefined, 1000);
+       } else {
+-        void request.continue();
++        void request.continue(undefined, 10);
+       }
+     });
+     await (0, _browser.maskHeadlessUserAgent)(this.page);
++    debug("navigating to login page");
+     await this.navigateTo(`${this.baseUrl}/personalarea/Login`);
++    await new Promise(r => setTimeout(r, 4000));
++    try {
++      const initialPageTitle = await this.page.title();
++      debug("initial page title: ", initialPageTitle);
++      if (!initialPageTitle.includes('ישראכרט') && !initialPageTitle.includes('אמריקן אקספרס')) {
++        debug("waiting for page to load");
++        await this.page.waitForNavigation({ timeout: 60_000 });
++      }
++    } catch (error) {
++      debug("error while waiting for navigation: ", error);
++    }
++
+     this.emitProgress(_definitions.ScraperProgressTypes.LoggingIn);
+     const validateUrl = `${this.servicesUrl}?reqName=ValidateIdData`;
+     const validateRequest = {
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper-with-browser.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper-with-browser.js
+index 49895b5..72cb938 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper-with-browser.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper-with-browser.js
+@@ -23,8 +23,8 @@ function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol"
+ function _toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+ function _objectWithoutProperties(e, t) { if (null == e) return {}; var o, r, i = _objectWithoutPropertiesLoose(e, t); if (Object.getOwnPropertySymbols) { var n = Object.getOwnPropertySymbols(e); for (r = 0; r < n.length; r++) o = n[r], t.indexOf(o) >= 0 || {}.propertyIsEnumerable.call(e, o) && (i[o] = e[o]); } return i; }
+ function _objectWithoutPropertiesLoose(r, e) { if (null == r) return {}; var t = {}; for (var n in r) if ({}.hasOwnProperty.call(r, n)) { if (e.indexOf(n) >= 0) continue; t[n] = r[n]; } return t; }
+-const VIEWPORT_WIDTH = 1024;
+-const VIEWPORT_HEIGHT = 768;
++const VIEWPORT_WIDTH = 1920;
++const VIEWPORT_HEIGHT = 1080;
+ const OK_STATUS = 200;
+ const debug = (0, _debug.getDebug)('base-scraper-with-browser');
+ var LoginBaseResults = /*#__PURE__*/function (LoginBaseResults) {
+@@ -172,6 +172,7 @@ class BaseScraperWithBrowser extends _baseScraper.BaseScraper {
+   async navigateTo(url, page, timeout, waitUntil = 'load') {
+     const pageToUse = page || this.page;
+     if (!pageToUse) {
++      debug('page is not initialized, exit');
+       return;
+     }
+     const options = _objectSpread(_objectSpread({}, timeout === null ? null : {
+@@ -179,10 +180,14 @@ class BaseScraperWithBrowser extends _baseScraper.BaseScraper {
+     }), {}, {
+       waitUntil
+     });
++    debug("Goto", url, options);
+     const response = await pageToUse.goto(url, options);
+-
++    debug("Goto ended", response.status());
+     // note: response will be null when navigating to same url while changing the hash part. the condition below will always accept null as valid result.
+     if (response !== null && (response === undefined || response.status() !== OK_STATUS)) {
++      if (response.status() === 403) {
++        return;
++      }
+       throw new Error(`Error while trying to navigate to url ${url}`);
+     }
+   }

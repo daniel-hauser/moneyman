@@ -19,6 +19,10 @@ on:
         default: "1"
         required: false
         description: "Number of parallel scrapes to run"
+      containerTag:
+        default: "latest"
+        required: false
+        description: "Container tag to use (e.g., 'latest', 'pr-123' for PR #123)"
   schedule:
     # In Israel: [12:05, 00:05] or [13:05, 01:05] on DST
     - cron: "5 10,22 * * *"
@@ -32,8 +36,11 @@ jobs:
       - id: normalize-repository-name
         run: echo "repository=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
-      - name: Pull image
-        run: docker pull ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:latest
+      - id: set-container-image
+        run: echo "image=${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:${{ github.event.inputs.containerTag || 'latest' }}" >> $GITHUB_OUTPUT
+
+      - name: Pull container image
+        run: docker pull ${{ steps.set-container-image.outputs.image }}
 
       - name: Run scraper
         run: docker run --rm
@@ -64,7 +71,10 @@ jobs:
           -e TRANSACTION_HASH_TYPE
           -e WEB_POST_URL
           -e MAX_PARALLEL_SCRAPERS
-          ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:latest
+          -e DOMAIN_TRACKING_ENABLED
+          -e FIREWALL_SETTINGS
+          -e BLOCK_BY_DEFAULT
+          ${{ steps.set-container-image.outputs.image }}
         env:
           DEBUG: ""
           TZ: "Asia/Jerusalem"
@@ -93,3 +103,6 @@ jobs:
           TRANSACTION_HASH_TYPE: ${{ secrets.TRANSACTION_HASH_TYPE }}
           WEB_POST_URL: ${{ secrets.WEB_POST_URL }}
           MAX_PARALLEL_SCRAPERS: ${{ github.event.inputs.parallelScrapes || env.MAX_PARALLEL_SCRAPERS }}
+          DOMAIN_TRACKING_ENABLED: ${{ vars.DOMAIN_TRACKING_ENABLED }}
+          FIREWALL_SETTINGS: ${{ secrets.FIREWALL_SETTINGS }}
+          BLOCK_BY_DEFAULT: ${{ vars.BLOCK_BY_DEFAULT }}
