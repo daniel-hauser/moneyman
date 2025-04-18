@@ -44,10 +44,7 @@ async function runScraper(hooks: RunnerHooks) {
     logger("Scraping ended");
     await Promise.all([
       hooks.onResultsReady(results),
-      sendFailureScreenShots((photos) => {
-        logger("Sending failure screenshot", { photos });
-        return hooks.failureScreenshotsHandler(photos);
-      }),
+      sendFailureScreenShots(hooks.failureScreenshotsHandler),
     ]);
 
     await reportRunMetadata((metadata) => {
