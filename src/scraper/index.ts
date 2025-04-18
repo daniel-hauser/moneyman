@@ -53,6 +53,8 @@ export async function scrapeAccounts(
           companyId,
           futureMonthsToScrape: futureMonths,
           storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
+          navigationRetryCount: 3,
+          viewportSize: { width: 1920, height: 1080 },
         },
         async (message, append = false) => {
           status[i] = append ? `${status[i]} ${message}` : message;
