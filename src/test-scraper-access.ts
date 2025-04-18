@@ -7,6 +7,7 @@ import {
 } from "./scraper/browser.js";
 import { createLogger } from "./utils/logger.js";
 import { getExternalIp } from "./runnerMetadata.js";
+import { scraperOptions } from "./scraper/index.js";
 
 const logger = createLogger("test-scraper-access");
 
@@ -95,6 +96,7 @@ describe("Sites access tests", () => {
         companyId,
         startDate: new Date(),
         browserContext: await createSecureBrowserContext(browser, companyId),
+        ...scraperOptions,
       });
 
       const result = await scraper.scrape({
