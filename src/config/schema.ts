@@ -11,7 +11,6 @@ const ScraperConfig = z.object({
   accountsToScrape: z
     .string()
     .default("")
-    .transform((value) => value.split(","))
     .describe(
       "Comma separated list of providers to take from accountsJson. If empty, all accounts will be used",
     ),

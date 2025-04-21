@@ -17,18 +17,28 @@ import { createLogger } from "../../utils/logger.js";
 import { statsString } from "../saveStats.js";
 import { parallel } from "async";
 import { Timer } from "../../utils/Timer.js";
+import { parseConfig } from "../../config/parser.js";
 
 const baseLogger = createLogger("storage");
+const storageFromConfigName = {
+  localJson: LocalJsonStorage,
+  googleSheets: GoogleSheetsStorage,
+  azureDataExplorer: AzureDataExplorerStorage,
+  ynab: YNABStorage,
+  buxfer: BuxferStorage,
+  webPost: WebPostStorage,
+  telegram: TelegramStorage,
+} satisfies Record<
+  keyof typeof parsedConfig.storage,
+  new () => TransactionStorage
+>;
+const parsedConfig = parseConfig();
 
-export const storages = [
-  new LocalJsonStorage(),
-  new GoogleSheetsStorage(),
-  new AzureDataExplorerStorage(),
-  new YNABStorage(),
-  new BuxferStorage(),
-  new WebPostStorage(),
-  new TelegramStorage(),
-].filter((s) => s.canSave());
+// Create storage instances based on configuration
+export const storages = Object.entries(parsedConfig.storage)
+  .filter(([, config]) => config)
+  .map(([name]) => new storageFromConfigName[name]())
+  .filter((s) => s.canSave());
 
 export async function saveResults(results: Array<AccountScrapeResult>) {
   if (storages.length === 0) {

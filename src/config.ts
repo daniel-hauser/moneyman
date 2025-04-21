@@ -2,6 +2,7 @@ import "dotenv/config";
 import { subDays } from "date-fns";
 import { AccountConfig, ScraperConfig } from "./types.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
+import { parseConfig } from "./config/parser.js";
 
 export const systemName = "moneyman";
 const logger = createLogger("config");
@@ -9,53 +10,43 @@ const logger = createLogger("config");
 logger("Parsing config");
 logToPublicLog("Parsing config");
 
-const {
-  DAYS_BACK,
-  ACCOUNTS_TO_SCRAPE = "",
-  FUTURE_MONTHS = "",
-  MAX_PARALLEL_SCRAPERS = "",
-} = process.env;
+const config = parseConfig();
 
 logger("Env", {
   systemName,
   systemTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 });
 
-logger("env vars", {
-  DAYS_BACK,
-  ACCOUNTS_TO_SCRAPE,
-  FUTURE_MONTHS,
-  MAX_PARALLEL_SCRAPERS,
+logger("Config parsed", {
+  accountsCount: config.scraper.accounts.length,
+  storages: Object.keys(config.storage),
+  notifier: Object.keys(config.notifier),
 });
 
-function getAccounts(): Array<AccountConfig> {
-  function parseAccounts(accountsJson?: string): Array<AccountConfig> {
-    try {
-      const parsed = JSON.parse(accountsJson!);
-      if (Array.isArray(parsed)) {
-        // TODO: Add schema validations?
-        return parsed as Array<AccountConfig>;
-      }
-    } catch {}
+export const scraperConfig: ScraperConfig = {
+  accounts: getFilteredAccounts(config.scraper),
+  startDate: subDays(Date.now(), config.scraper.daysBack),
+  parallelScrapers: config.scraper.maxParallelScrapers,
+  futureMonthsToScrape: config.scraper.futureMonths,
+};
 
-    throw new TypeError("ACCOUNTS_JSON must be a valid array");
+/**
+ * Filters accounts based on accountsToScrape setting
+ */
+function getFilteredAccounts({
+  accounts,
+  accountsToScrape,
+}: (typeof config)["scraper"]): Array<AccountConfig> {
+  // If no account filters specified, return all accounts
+  if (
+    accountsToScrape.length === 0 ||
+    (accountsToScrape.length === 1 && accountsToScrape[0] === "")
+  ) {
+    return accounts;
   }
 
-  const allAccounts = parseAccounts(process.env.ACCOUNTS_JSON);
-  const accountsToScrape = ACCOUNTS_TO_SCRAPE.split(",")
-    .filter(Boolean)
-    .map((a) => a.trim());
-
-  return accountsToScrape.length == 0
-    ? allAccounts
-    : allAccounts.filter((account) =>
-        accountsToScrape.includes(account.companyId),
-      );
+  // Otherwise filter to only the specified accounts
+  return accounts.filter((account) =>
+    accountsToScrape.includes(account.companyId),
+  );
 }
-
-export const scraperConfig: ScraperConfig = {
-  accounts: getAccounts(),
-  startDate: subDays(Date.now(), Number(DAYS_BACK || 10)),
-  parallelScrapers: Number(MAX_PARALLEL_SCRAPERS) || 1,
-  futureMonthsToScrape: parseInt(FUTURE_MONTHS, 10),
-};

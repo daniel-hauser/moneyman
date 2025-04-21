@@ -2,7 +2,7 @@ import { z } from "zod";
 
 // Storage configuration schemas
 export const LocalJsonConfig = z.object({
-  enabled: z
+  enabled: z.coerce
     .boolean()
     .default(true)
     .describe("Whether to save transactions to a local JSON file"),
