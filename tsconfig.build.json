@@ -1,17 +1,14 @@
 {
-    "files": [],
-    "references": [
-        // {
-        //     "path": "./packages/bot"
-        // },
-        {
-            "path": "./packages/scraper"
-        },
-        // {
-        //     "path": "./packages/storage"
-        // },
-        {
-            "path": "."
-        }
-    ]
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/mono"
+    },
+    {
+      "path": "./packages/common"
+    },
+    {
+      "path": "./packages/scraper"
+    }
+  ]
 }

@@ -6,12 +6,11 @@
     "esModuleInterop": true,
     "moduleResolution": "Node",
     "target": "es2022",
-    "outDir": "dst",
     "module": "ESNext",
     "composite": true,
-    "declaration": true
-  },
-  "include": [
-    "src/**/*"
-  ]
+    "declaration": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  }
 }

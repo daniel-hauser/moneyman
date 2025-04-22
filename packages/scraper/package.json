@@ -1,13 +1,18 @@
 {
-    "name": "@moneyman/scraper",
-    "version": "1.0.0",
-    "type": "module",
-    "description": "Scraper package for moneyman",
-    "main": "lib/index.js",
-    "scripts": {
-        "build": "tsc",
-        "test": "jest"
-    },
-    "dependencies": {},
-    "devDependencies": {}
+  "name": "@moneyman/scraper",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Scraper package for moneyman",
+  "main": "src/index.ts",
+  "scripts": {},
+  "dependencies": {
+    "async": "^3.2.6",
+    "israeli-bank-scrapers": "^5.4.6",
+    "puppeteer": "^22.0.0",
+    "@mswjs/interceptors": "^0.38.4",
+    "@moneyman/common": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/async": "^3.2.24"
+  }
 }
