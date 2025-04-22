@@ -9,25 +9,25 @@ import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { sendDeprecationMessage } from "../notifier.js";
 import { createSaveStats } from "../saveStats.js";
 import { TableRow, tableRow } from "../transactionTableRow.js";
+import { GoogleSheetsConfigType } from "../../config/storage.schema.js";
 
 const logger = createLogger("GoogleSheetsStorage");
 
-const {
-  WORKSHEET_NAME,
-  GOOGLE_SHEET_ID = "",
-  GOOGLE_SERVICE_ACCOUNT_EMAIL,
-  GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
-  TRANSACTION_HASH_TYPE,
-} = process.env;
-
-const worksheetName = WORKSHEET_NAME || "_moneyman";
-
 export class GoogleSheetsStorage implements TransactionStorage {
+  private transactionHashType: string;
+
+  constructor(
+    private config: GoogleSheetsConfigType,
+    private globalConfig: { transactionHashType: string },
+  ) {
+    this.transactionHashType = globalConfig.transactionHashType;
+  }
+
   canSave() {
     return Boolean(
-      GOOGLE_SHEET_ID &&
-        GOOGLE_SERVICE_ACCOUNT_EMAIL &&
-        GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+      this.config.sheetId &&
+        this.config.serviceAccountEmail &&
+        this.config.serviceAccountPrivateKey,
     );
   }
 
@@ -38,9 +38,9 @@ export class GoogleSheetsStorage implements TransactionStorage {
     const [doc] = await Promise.all([this.getDoc(), onProgress("Getting doc")]);
 
     await onProgress("Getting sheet");
-    const sheet = doc.sheetsByTitle[worksheetName];
+    const sheet = doc.sheetsByTitle[this.config.worksheetName];
     if (!sheet) {
-      throw new Error(`Sheet ${worksheetName} not found`);
+      throw new Error(`Sheet ${this.config.worksheetName} not found`);
     }
 
     const [existingHashes] = await Promise.all([
@@ -48,15 +48,20 @@ export class GoogleSheetsStorage implements TransactionStorage {
       onProgress("Loading hashes"),
     ]);
 
-    const stats = createSaveStats("Google Sheets", worksheetName, txns, {
-      highlightedTransactions: {
-        Added: [] as Array<TransactionRow>,
+    const stats = createSaveStats(
+      "Google Sheets",
+      this.config.worksheetName,
+      txns,
+      {
+        highlightedTransactions: {
+          Added: [] as Array<TransactionRow>,
+        },
       },
-    });
+    );
 
     const rows: TableRow[] = [];
     for (let tx of txns) {
-      if (TRANSACTION_HASH_TYPE === "moneyman") {
+      if (this.transactionHashType === "moneyman") {
         // Use the new uniqueId as the unique identifier for the transactions if the hash type is moneyman
         if (existingHashes.has(tx.uniqueId)) {
           stats.existing++;
@@ -66,7 +71,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
       }
 
       if (existingHashes.has(tx.hash)) {
-        if (TRANSACTION_HASH_TYPE === "moneyman") {
+        if (this.transactionHashType === "moneyman") {
           logger(`Skipping, old hash ${tx.hash} is already in the sheet`);
         }
 
@@ -91,7 +96,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
     if (rows.length) {
       stats.added = rows.length;
       await Promise.all([onProgress("Saving"), sheet.addRows(rows)]);
-      if (TRANSACTION_HASH_TYPE !== "moneyman") {
+      if (this.transactionHashType !== "moneyman") {
         sendDeprecationMessage("hashFiledChange");
       }
     }
@@ -103,12 +108,12 @@ export class GoogleSheetsStorage implements TransactionStorage {
     const auth = new GoogleAuth({
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
       credentials: {
-        client_email: GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        private_key: GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+        client_email: this.config.serviceAccountEmail,
+        private_key: this.config.serviceAccountPrivateKey,
       },
     });
 
-    const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, auth);
+    const doc = new GoogleSpreadsheet(this.config.sheetId, auth);
     await doc.loadInfo();
     return doc;
   }

@@ -79,3 +79,15 @@ export const StorageConfig = z.object({
   azureDataExplorer: AzureDataExplorerConfig.optional(),
   telegram: TelegramStorageConfig.optional(),
 });
+
+// Export concrete TypeScript types derived from Zod schemas
+export type LocalJsonConfigType = z.infer<typeof LocalJsonConfig>;
+export type GoogleSheetsConfigType = z.infer<typeof GoogleSheetsConfig>;
+export type YnabConfigType = z.infer<typeof YnabConfig>;
+export type BuxferConfigType = z.infer<typeof BuxferConfig>;
+export type WebPostConfigType = z.infer<typeof WebPostConfig>;
+export type AzureDataExplorerConfigType = z.infer<
+  typeof AzureDataExplorerConfig
+>;
+export type TelegramStorageConfigType = z.infer<typeof TelegramStorageConfig>;
+export type StorageConfigType = z.infer<typeof StorageConfig>;

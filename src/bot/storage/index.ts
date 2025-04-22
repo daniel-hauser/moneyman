@@ -18,26 +18,36 @@ import { statsString } from "../saveStats.js";
 import { parallel } from "async";
 import { Timer } from "../../utils/Timer.js";
 import { parseConfig } from "../../config/parser.js";
+import { StorageConfigType } from "../../config/storage.schema.js";
 
 const baseLogger = createLogger("storage");
-const storageFromConfigName = {
-  localJson: LocalJsonStorage,
-  googleSheets: GoogleSheetsStorage,
-  azureDataExplorer: AzureDataExplorerStorage,
-  ynab: YNABStorage,
-  buxfer: BuxferStorage,
-  webPost: WebPostStorage,
-  telegram: TelegramStorage,
-} satisfies Record<
-  keyof typeof parsedConfig.storage,
-  new () => TransactionStorage
->;
 const parsedConfig = parseConfig();
+
+// Extract global configuration that storage classes need
+const globalConfig = {
+  transactionHashType: parsedConfig.scraper.transactionHashType,
+};
+
+// Define storage class constructors with their configuration types
+const storageFromConfigName = {
+  localJson: (config) => new LocalJsonStorage(config),
+  googleSheets: (config) => new GoogleSheetsStorage(config, globalConfig),
+  azureDataExplorer: (config) => new AzureDataExplorerStorage(config),
+  ynab: (config) => new YNABStorage(config, globalConfig),
+  buxfer: (config) => new BuxferStorage(config),
+  webPost: (config) => new WebPostStorage(config),
+  telegram: (config) => new TelegramStorage(config),
+} satisfies Record<
+  keyof StorageConfigType,
+  (config: any) => TransactionStorage
+>;
 
 // Create storage instances based on configuration
 export const storages = Object.entries(parsedConfig.storage)
   .filter(([, config]) => config)
-  .map(([name]) => new storageFromConfigName[name]())
+  .map(([name, config]) =>
+    storageFromConfigName[name as keyof typeof storageFromConfigName](config),
+  )
   .filter((s) => s.canSave());
 
 export async function saveResults(results: Array<AccountScrapeResult>) {

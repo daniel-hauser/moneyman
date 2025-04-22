@@ -3,15 +3,15 @@ import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { tableRow } from "../transactionTableRow.js";
 import { createSaveStats } from "../saveStats.js";
+import { WebPostConfigType } from "../../config/storage.schema.js";
 
 const logger = createLogger("WebPostStorage");
 
 export class WebPostStorage implements TransactionStorage {
-  private url = process.env.WEB_POST_URL || "";
-  private authorizationToken = process.env.WEB_POST_AUTHORIZATION_TOKEN || "";
+  constructor(private config: WebPostConfigType) {}
 
   canSave() {
-    return Boolean(this.url) && URL.canParse(this.url);
+    return Boolean(this.config?.url) && URL.canParse(this.config.url);
   }
 
   async saveTransactions(
@@ -24,15 +24,17 @@ export class WebPostStorage implements TransactionStorage {
       (txn) => txn.status !== TransactionStatuses.Pending,
     );
 
-    logger(`Posting ${nonPendingTxns.length} transactions to ${this.url}`);
+    logger(
+      `Posting ${nonPendingTxns.length} transactions to ${this.config.url}`,
+    );
 
     const [response] = await Promise.all([
-      fetch(this.url, {
+      fetch(this.config.url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(this.authorizationToken && {
-            Authorization: this.authorizationToken,
+          ...(this.config.authorizationToken && {
+            Authorization: this.config.authorizationToken,
           }),
         },
         body: JSON.stringify(nonPendingTxns.map((tx) => tableRow(tx))),
