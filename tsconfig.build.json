@@ -7,9 +7,9 @@
         {
             "path": "./packages/scraper"
         },
-        {
-            "path": "./packages/storage"
-        },
+        // {
+        //     "path": "./packages/storage"
+        // },
         {
             "path": "."
         }
