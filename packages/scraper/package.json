@@ -1,0 +1,13 @@
+{
+    "name": "@moneyman/scraper",
+    "version": "1.0.0",
+    "type": "module",
+    "description": "Scraper package for moneyman",
+    "main": "lib/index.js",
+    "scripts": {
+        "build": "tsc",
+        "test": "jest"
+    },
+    "dependencies": {},
+    "devDependencies": {}
+}

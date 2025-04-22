@@ -1,0 +1,17 @@
+{
+    "files": [],
+    "references": [
+        {
+            "path": "./packages/bot"
+        },
+        {
+            "path": "./packages/scraper"
+        },
+        {
+            "path": "./packages/storage"
+        },
+        {
+            "path": "."
+        }
+    ]
+}
