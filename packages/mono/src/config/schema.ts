@@ -2,6 +2,15 @@ import { z } from "zod";
 import { AccountsArray } from "./accounts.schema.ts";
 import { StorageConfig } from "./storage.schema.ts";
 
+export const JsonString = z.string().transform((json, ctx) => {
+  try {
+    return JSON.parse(json) as unknown;
+  } catch {
+    ctx.addIssue({ code: "custom", message: "Invalid JSON string" });
+    return undefined;
+  }
+});
+
 // Scraper configuration schema
 const ScraperConfig = z.object({
   // Account configuration

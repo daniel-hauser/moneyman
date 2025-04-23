@@ -1,7 +1,8 @@
 import type { z } from "zod";
-import { Config } from "./schema.ts";
+import { Config, JsonString } from "./schema.ts";
 import { createLogger } from "@moneyman/common";
 import { parseStorageConfig } from "./storage.parser.ts";
+import { AccountsArray } from "./accounts.schema.ts";
 
 const logger = createLogger("config:parser");
 
@@ -14,11 +15,12 @@ export function parseConfig(): z.infer<typeof Config> {
   // Try to parse from MONEYMAN_CONFIG first
   const moneymanConfig = process.env.MONEYMAN_CONFIG;
   if (moneymanConfig) {
-    try {
-      return Config.parse(JSON.parse(moneymanConfig));
-    } catch (error) {
-      logger("Error parsing MONEYMAN_CONFIG:", error);
+    const res = JsonString.pipe(Config).safeParse(moneymanConfig);
+    if (res.success) {
+      return res.data;
     }
+
+    logger("Error parsing MONEYMAN_CONFIG:", res.error);
   }
 
   logger("Falling back to legacy environment variables");
@@ -47,22 +49,8 @@ function parseLegacyScraperConfig() {
     TZ = "Asia/Jerusalem",
   } = process.env;
 
-  // Parse accounts from ACCOUNTS_JSON
-  function parseAccounts(): Array<unknown> {
-    try {
-      const parsed = JSON.parse(ACCOUNTS_JSON!);
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-    } catch (error) {
-      logger("Error parsing ACCOUNTS_JSON:", error);
-    }
-
-    throw new TypeError("ACCOUNTS_JSON must be a valid array");
-  }
-
   return {
-    accounts: parseAccounts(),
+    accounts: JsonString.pipe(AccountsArray).parse(ACCOUNTS_JSON),
     accountsToScrape: ACCOUNTS_TO_SCRAPE,
     daysBack: DAYS_BACK ? Number(DAYS_BACK) : 10,
     futureMonths: FUTURE_MONTHS ? Number(FUTURE_MONTHS) : 1,
