@@ -1,0 +1,529 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Config Schema should match snapshot for the full configuration schema 1`] = `
+{
+  "properties": {
+    "notifier": {
+      "properties": {
+        "telegram": {
+          "properties": {
+            "apiKey": {
+              "description": "Telegram bot API key for notifications",
+              "type": "string",
+            },
+            "chatId": {
+              "description": "Telegram chat ID to send notifications to",
+              "type": "string",
+            },
+          },
+          "required": [
+            "apiKey",
+            "chatId",
+          ],
+          "type": "object",
+        },
+      },
+      "required": [],
+      "type": "object",
+    },
+    "scraper": {
+      "properties": {
+        "accounts": {
+          "description": "array of accounts to scrape following the israeli-bank-scrapers schema",
+          "items": {
+            "anyOf": [
+              {
+                "properties": {
+                  "companyId": {
+                    "const": "hapoalim",
+                  },
+                  "password": {
+                    "description": "Password",
+                    "type": "string",
+                  },
+                  "userCode": {
+                    "description": "User code",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "companyId",
+                  "userCode",
+                  "password",
+                ],
+                "type": "object",
+              },
+              {
+                "properties": {
+                  "companyId": {
+                    "const": "leumi",
+                  },
+                  "password": {
+                    "description": "Password",
+                    "type": "string",
+                  },
+                  "username": {
+                    "description": "Username",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "companyId",
+                  "username",
+                  "password",
+                ],
+                "type": "object",
+              },
+              {
+                "properties": {
+                  "companyId": {
+                    "const": "visaCal",
+                  },
+                  "password": {
+                    "description": "Password",
+                    "type": "string",
+                  },
+                  "username": {
+                    "description": "Username",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "companyId",
+                  "username",
+                  "password",
+                ],
+                "type": "object",
+              },
+              {
+                "properties": {
+                  "card6Digits": {
+                    "description": "Last 6 digits of the card",
+                    "type": "string",
+                  },
+                  "companyId": {
+                    "const": "isracard",
+                  },
+                  "id": {
+                    "description": "ID number",
+                    "type": "string",
+                  },
+                  "password": {
+                    "description": "Password",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "companyId",
+                  "id",
+                  "card6Digits",
+                  "password",
+                ],
+                "type": "object",
+              },
+              {
+                "properties": {
+                  "card6Digits": {
+                    "description": "Last 6 digits of the card",
+                    "type": "string",
+                  },
+                  "companyId": {
+                    "const": "amex",
+                  },
+                  "id": {
+                    "description": "ID number",
+                    "type": "string",
+                  },
+                  "password": {
+                    "description": "Password",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "companyId",
+                  "id",
+                  "card6Digits",
+                  "password",
+                ],
+                "type": "object",
+              },
+              {
+                "properties": {
+                  "companyId": {
+                    "const": "max",
+                  },
+                  "password": {
+                    "description": "Password",
+                    "type": "string",
+                  },
+                  "username": {
+                    "description": "Username",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "companyId",
+                  "username",
+                  "password",
+                ],
+                "type": "object",
+              },
+              {
+                "properties": {
+                  "companyId": {
+                    "const": "discount",
+                  },
+                  "id": {
+                    "description": "ID number",
+                    "type": "string",
+                  },
+                  "num": {
+                    "type": "string",
+                  },
+                  "password": {
+                    "description": "Password",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "companyId",
+                  "id",
+                  "password",
+                ],
+                "type": "object",
+              },
+              {
+                "properties": {
+                  "companyId": {
+                    "const": "otsarHahayal",
+                  },
+                  "password": {
+                    "description": "Password",
+                    "type": "string",
+                  },
+                  "username": {
+                    "description": "Username",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "companyId",
+                  "username",
+                  "password",
+                ],
+                "type": "object",
+              },
+              {
+                "properties": {
+                  "companyId": {
+                    "const": "beinleumi",
+                  },
+                  "password": {
+                    "description": "Password",
+                    "type": "string",
+                  },
+                  "username": {
+                    "description": "Username",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "companyId",
+                  "username",
+                  "password",
+                ],
+                "type": "object",
+              },
+              {
+                "properties": {
+                  "companyId": {
+                    "const": "union",
+                  },
+                  "password": {
+                    "description": "Password",
+                    "type": "string",
+                  },
+                  "username": {
+                    "description": "Username",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "companyId",
+                  "username",
+                  "password",
+                ],
+                "type": "object",
+              },
+              {
+                "properties": {
+                  "companyId": {
+                    "const": "mizrahi",
+                  },
+                  "password": {
+                    "description": "Password",
+                    "type": "string",
+                  },
+                  "username": {
+                    "description": "Username",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "companyId",
+                  "username",
+                  "password",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "type": "array",
+        },
+        "accountsToScrape": {
+          "default": "",
+          "description": "Comma separated list of providers to take from accountsJson. If empty, all accounts will be used",
+          "type": "string",
+        },
+        "daysBack": {
+          "default": 10,
+          "description": "The amount of days back to scrape",
+          "type": "number",
+        },
+        "domainTrackingEnabled": {
+          "default": false,
+          "description": "Enable tracking of all domains accessed during scraping",
+          "type": "boolean",
+        },
+        "firewallSettings": {
+          "type": "string",
+        },
+        "futureMonths": {
+          "default": 1,
+          "description": "The amount of months that will be scrapped in the future, starting from the day calculated using daysBack",
+          "type": "number",
+        },
+        "hiddenDeprecations": {
+          "default": [],
+          "description": "List of deprecations to hide",
+          "items": {
+            "type": "string",
+          },
+          "type": "array",
+        },
+        "maxParallelScrapers": {
+          "default": 1,
+          "description": "The maximum number of parallel scrapers to run",
+          "type": "number",
+        },
+        "puppeteerExecutablePath": {
+          "type": "string",
+        },
+        "timezone": {
+          "default": "Asia/Jerusalem",
+          "description": "Timezone for the process - used for formatting timestamps",
+          "type": "string",
+        },
+        "transactionHashType": {
+          "default": "",
+          "description": "The hash type to use for the transaction hash",
+          "enum": [
+            "",
+            "moneyman",
+          ],
+        },
+      },
+      "required": [
+        "accounts",
+        "accountsToScrape",
+        "daysBack",
+        "futureMonths",
+        "timezone",
+        "maxParallelScrapers",
+        "transactionHashType",
+        "domainTrackingEnabled",
+        "hiddenDeprecations",
+      ],
+      "type": "object",
+    },
+    "storage": {
+      "properties": {
+        "azureDataExplorer": {
+          "properties": {
+            "appId": {
+              "description": "Azure application ID for authentication",
+              "type": "string",
+            },
+            "appKey": {
+              "description": "Azure application secret key for authentication",
+              "type": "string",
+            },
+            "databaseName": {
+              "description": "Azure Data Explorer database name",
+              "type": "string",
+            },
+            "ingestUri": {
+              "description": "Ingest URI of the Azure Data Explorer cluster",
+              "type": "string",
+            },
+            "ingestionMapping": {
+              "description": "Name of the JSON ingestion mapping in Azure Data Explorer",
+              "type": "string",
+            },
+            "tableName": {
+              "description": "Azure Data Explorer table name",
+              "type": "string",
+            },
+            "tenantId": {
+              "description": "Tenant ID of your Azure application",
+              "type": "string",
+            },
+          },
+          "required": [
+            "appId",
+            "appKey",
+            "tenantId",
+            "databaseName",
+            "tableName",
+            "ingestionMapping",
+            "ingestUri",
+          ],
+          "type": "object",
+        },
+        "buxfer": {
+          "properties": {
+            "accounts": {
+              "additionalProperties": {
+                "type": "string",
+              },
+              "description": "Mapping of account identifiers to Buxfer account UUIDs",
+              "propertyNames": {
+                "type": "string",
+              },
+              "type": "object",
+            },
+            "password": {
+              "description": "Buxfer user password for authentication",
+              "type": "string",
+            },
+            "username": {
+              "description": "Buxfer user name for authentication",
+              "type": "string",
+            },
+          },
+          "required": [
+            "username",
+            "password",
+            "accounts",
+          ],
+          "type": "object",
+        },
+        "googleSheets": {
+          "properties": {
+            "serviceAccountEmail": {
+              "description": "Google Service Account email for authentication",
+              "type": "string",
+            },
+            "serviceAccountPrivateKey": {
+              "description": "Google Service Account private key for authentication",
+              "type": "string",
+            },
+            "sheetId": {
+              "description": "Google Sheet ID where transactions will be stored",
+              "type": "string",
+            },
+            "worksheetName": {
+              "default": "_moneyman",
+              "description": "Name of the worksheet in Google Sheets",
+              "type": "string",
+            },
+          },
+          "required": [
+            "sheetId",
+            "serviceAccountEmail",
+            "serviceAccountPrivateKey",
+            "worksheetName",
+          ],
+          "type": "object",
+        },
+        "localJson": {
+          "properties": {
+            "enabled": {
+              "default": true,
+              "description": "Whether to save transactions to a local JSON file",
+              "type": "boolean",
+            },
+          },
+          "required": [
+            "enabled",
+          ],
+          "type": "object",
+        },
+        "telegram": {
+          "properties": {
+            "chatId": {
+              "description": "Telegram chat ID to send transactions to",
+              "type": "string",
+            },
+          },
+          "required": [
+            "chatId",
+          ],
+          "type": "object",
+        },
+        "webPost": {
+          "properties": {
+            "authorizationToken": {
+              "type": "string",
+            },
+            "url": {
+              "description": "URL to post transactions to",
+              "type": "string",
+            },
+          },
+          "required": [
+            "url",
+          ],
+          "type": "object",
+        },
+        "ynab": {
+          "properties": {
+            "accounts": {
+              "additionalProperties": {
+                "type": "string",
+              },
+              "description": "Mapping of account identifiers to YNAB account UUIDs",
+              "propertyNames": {
+                "type": "string",
+              },
+              "type": "object",
+            },
+            "budgetId": {
+              "description": "YNAB budget ID where transactions will be imported",
+              "type": "string",
+            },
+            "token": {
+              "description": "YNAB access token for authentication",
+              "type": "string",
+            },
+          },
+          "required": [
+            "token",
+            "budgetId",
+            "accounts",
+          ],
+          "type": "object",
+        },
+      },
+      "required": [],
+      "type": "object",
+    },
+  },
+  "required": [
+    "scraper",
+    "notifier",
+    "storage",
+  ],
+  "type": "object",
+}
+`;

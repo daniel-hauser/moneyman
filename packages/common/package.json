@@ -1,0 +1,10 @@
+{
+  "name": "@moneyman/common",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Shared utilities for moneyman",
+  "main": "src/index.ts",
+  "scripts": {},
+  "dependencies": {},
+  "devDependencies": {}
+}
