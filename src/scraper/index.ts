@@ -9,6 +9,11 @@ import { parallelLimit } from "async";
 
 const logger = createLogger("scraper");
 
+export const scraperOptions: Partial<ScraperOptions> = {
+  navigationRetryCount: 3,
+  viewportSize: { width: 1920, height: 1080 },
+};
+
 export async function scrapeAccounts(
   {
     accounts,
@@ -53,6 +58,7 @@ export async function scrapeAccounts(
           companyId,
           futureMonthsToScrape: futureMonths,
           storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
+          ...scraperOptions,
         },
         async (message, append = false) => {
           status[i] = append ? `${status[i]} ${message}` : message;

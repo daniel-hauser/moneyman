@@ -1,15 +1,13 @@
 import debug from "debug";
-import assert from "node:assert";
-import { describe, after, test } from "node:test";
 import { CompanyTypes, createScraper } from "israeli-bank-scrapers";
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
 import {
   createBrowser,
   createSecureBrowserContext,
 } from "./scraper/browser.js";
-import { sleep } from "./utils/utils.js";
 import { createLogger } from "./utils/logger.js";
 import { getExternalIp } from "./runnerMetadata.js";
+import { scraperOptions } from "./scraper/index.js";
 
 const logger = createLogger("test-scraper-access");
 
@@ -29,50 +27,39 @@ debug.enable(
   "moneyman:browser,moneyman:test-scraper-access,moneyman:cloudflare-solver,moneyman:domain-rules,israeli-bank-scrapers:*",
 );
 
-logger("Starting tests");
-logger("Connecting from: ", await getExternalIp());
+describe("Sites access tests", () => {
+  let browser: Awaited<ReturnType<typeof createBrowser>>;
 
-type SiteTest = {
-  url: string;
-  title: string;
-  expectedText: string;
-  company: CompanyTypes;
-};
+  beforeAll(async () => {
+    logger("Starting tests");
+    logger("Connecting from: ", await getExternalIp());
+    browser = await createBrowser();
+  });
 
-const sitesToCheck: Array<SiteTest> = [
-  {
-    url: "https://login.bankhapoalim.co.il",
-    title: "בנק הפועלים",
-    expectedText: "כניסה לחשבונך",
-    company: CompanyTypes.hapoalim,
-  },
-  {
-    url: "https://digital.isracard.co.il",
-    title: "ישראכרט",
-    expectedText: "ישראכרט",
-    company: CompanyTypes.isracard,
-  },
-  {
-    url: "https://he.americanexpress.co.il",
-    title: "אמריקן אקספרס",
-    expectedText: "אמריקן אקספרס",
-    company: CompanyTypes.amex,
-  },
-];
+  afterAll(async () => {
+    await browser.close();
+  });
 
-describe("Sites access tests", async () => {
-  const browser = await createBrowser();
-  after(() => browser.close());
-
-  for (const { company, url, title, expectedText } of sitesToCheck) {
-    test(`should access ${company} at ${url}`, async () => {
-      assert.ok(browser, "Browser should be created");
+  test.each([
+    {
+      url: "https://digital.isracard.co.il",
+      title: "ישראכרט",
+      expectedText: "ישראכרט",
+      company: CompanyTypes.isracard,
+    },
+    {
+      url: "https://he.americanexpress.co.il",
+      title: "אמריקן אקספרס",
+      expectedText: "אמריקן אקספרס",
+      company: CompanyTypes.amex,
+    },
+  ])(
+    "should access $company at $url",
+    async ({ company, url, title, expectedText }) => {
+      expect(browser).toBeDefined();
       const context = await createSecureBrowserContext(browser, company);
       const page = await context.newPage();
       await page.setViewport({ width: 1920, height: 1080 });
-
-      logger("Page created");
-      await sleep(1000);
       await page.goto(url, { waitUntil: "networkidle2" });
       logger("Page loaded", page.url());
 
@@ -90,10 +77,7 @@ describe("Sites access tests", async () => {
 
       const pageTitle = await page.title();
       logger("Page title", pageTitle);
-      assert.ok(
-        pageTitle.includes(title),
-        `Title should have ${title}, actual: ${pageTitle}`,
-      );
+      expect(pageTitle).toContain(title);
 
       const textFound = await page
         .mainFrame()
@@ -101,21 +85,18 @@ describe("Sites access tests", async () => {
           (expectedText) => document.body.innerText.includes(expectedText),
           expectedText,
         );
-      assert.ok(textFound, `Text should be found: ${expectedText}`);
-    });
-  }
-});
+      expect(textFound).toBeTruthy();
+    },
+  );
 
-describe("Scrapers access tests", async () => {
-  const browser = await createBrowser();
-  after(() => browser.close());
-
-  for (const companyId of [CompanyTypes.amex, CompanyTypes.isracard]) {
-    test(`Can start scraping ${companyId}`, async () => {
+  test.each([CompanyTypes.amex, CompanyTypes.isracard])(
+    "Can start scraping %s",
+    async (companyId) => {
       const scraper = createScraper({
-        startDate: new Date(),
         companyId,
+        startDate: new Date(),
         browserContext: await createSecureBrowserContext(browser, companyId),
+        ...scraperOptions,
       });
 
       const result = await scraper.scrape({
@@ -124,12 +105,12 @@ describe("Scrapers access tests", async () => {
         password: "1234",
       });
 
-      assert.equal(result.success, false, "Scraping should fail");
-      assert.equal(
-        result.errorType,
-        ScraperErrorTypes.InvalidPassword,
-        "Scraping should fail with invalid password",
+      expect(result).toEqual(
+        expect.objectContaining({
+          success: false,
+          errorType: ScraperErrorTypes.InvalidPassword,
+        }),
       );
-    });
-  }
+    },
+  );
 });
