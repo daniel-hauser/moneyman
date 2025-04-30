@@ -13,7 +13,7 @@ updates:
       development-dependencies:
         dependency-type: "development"
       kusto:
-        patterns: 
+        patterns:
           - "azure-kusto*"
       google:
         patterns:
