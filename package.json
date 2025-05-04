@@ -31,8 +31,8 @@
   "dependencies": {
     "@mswjs/interceptors": "^0.38.4",
     "async": "^3.2.6",
-    "azure-kusto-data": "^6.0.3",
-    "azure-kusto-ingest": "^6.0.3",
+    "azure-kusto-data": "^6.0.4",
+    "azure-kusto-ingest": "^6.0.4",
     "buxfer-ts-client": "^1.1.2",
     "date-fns": "^4.1.0",
     "debug": "^4.4.0",
