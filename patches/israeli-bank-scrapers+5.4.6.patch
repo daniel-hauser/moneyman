@@ -68,7 +68,7 @@ index 9bb5d71..eca7d61 100644
      const validateUrl = `${this.servicesUrl}?reqName=ValidateIdData`;
      const validateRequest = {
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper-with-browser.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper-with-browser.js
-index 49895b5..3b49c9e 100644
+index 49895b5..e36f36e 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper-with-browser.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper-with-browser.js
 @@ -23,9 +23,6 @@ function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol"
@@ -167,3 +167,17 @@ index 0757de1..8c1bf48 100644
  };
  export interface OutputDataOptions {
      /**
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/max.js b/node_modules/israeli-bank-scrapers/lib/scrapers/max.js
+index f2e1985..c1c648d 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/max.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/max.js
+@@ -278,6 +278,9 @@ class MaxScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+           await (0, _elementsInteractions.clickButton)(this.page, '#closePopup');
+         }
+         await (0, _elementsInteractions.clickButton)(this.page, '.personal-area > a.go-to-personal-area');
++        if (await (0, _elementsInteractions.elementPresentOnPage)(this.page, '.login-link#private')) {
++          await (0, _elementsInteractions.clickButton)(this.page, '.login-link#private');
++        }
+         await (0, _elementsInteractions.waitUntilElementFound)(this.page, '#login-password-link', true);
+         await (0, _elementsInteractions.clickButton)(this.page, '#login-password-link');
+         await (0, _elementsInteractions.waitUntilElementFound)(this.page, '#login-password.tab-pane.active app-user-login-form', true);
