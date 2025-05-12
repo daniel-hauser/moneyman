@@ -6,7 +6,7 @@ import * as os from "os";
 import * as path from "path";
 import { TransactionRow, TransactionStorage } from "../../types.js";
 import { createLogger } from "../../utils/logger.js";
-import { createSaveStats } from "../saveStats.js";
+import { createSaveStats, SaveStats } from "../saveStats.js";
 
 interface ActualTransaction {
   id?: string;
@@ -54,7 +54,7 @@ export class ActualBudgetStorage implements TransactionStorage {
   async saveTransactions(
     txns: Array<TransactionRow>,
     onProgress: (status: string) => Promise<void>,
-  ) {
+  ): Promise<SaveStats> {
     await Promise.all([onProgress("Initializing"), this.init()]);
 
     const stats = createSaveStats(
@@ -113,8 +113,12 @@ export class ActualBudgetStorage implements TransactionStorage {
           logger(
             `Errors importing transactions: ${JSON.stringify(importResponse.errors)}`,
           );
+          continue;
         }
 
+        logger(
+          `Imported ${importResponse.added?.length || 0} transactions for account "${accountName}"`,
+        );
         stats.added += importResponse.added?.length || 0;
         stats.existing += importResponse.updated?.length || 0;
       }

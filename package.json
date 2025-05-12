@@ -28,7 +28,7 @@
   },
   "homepage": "https://github.com/daniel-hauser/moneyman#readme",
   "dependencies": {
-    "@actual-app/api": "^25.3.1",
+    "@actual-app/api": "^25.5.0",
     "@mswjs/interceptors": "^0.38.0",
     "async": "^3.2.6",
     "azure-kusto-data": "^6.0.3",
