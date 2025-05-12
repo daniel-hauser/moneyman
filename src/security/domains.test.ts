@@ -1,12 +1,14 @@
 import { jest } from "@jest/globals";
 import { CompanyTypes } from "israeli-bank-scrapers";
-import { initDomainTracking, reportUsedDomains } from "./domains.js";
+import { initDomainTracking, getUsedDomains } from "./domains.js";
 import {
   BrowserContext,
   TargetType,
   Target,
   Page,
   HTTPRequest,
+  InterceptResolutionAction,
+  Frame,
 } from "puppeteer";
 import { mock } from "jest-mock-extended";
 
@@ -51,6 +53,10 @@ describe("domains", () => {
       page.url.mockReturnValue("https://foo.com");
       target.page.mockResolvedValue(page);
 
+      process.env.FIREWALL_SETTINGS = `
+      max ALLOW bar.com
+      max BLOCK baz.com
+      `;
       await initDomainTracking(browserContext, CompanyTypes.max);
 
       const targetCreatedCallback = browserContext.on.mock.calls[0][1] as (
@@ -58,21 +64,43 @@ describe("domains", () => {
       ) => Promise<void>;
       await targetCreatedCallback(target);
 
-      expect(page.on).toHaveBeenCalledWith("request", expect.any(Function));
+      expect(page.setRequestInterception).toHaveBeenCalledWith(true);
+      expect(page.on).toHaveBeenCalledTimes(2);
+      expect(page.on).toHaveBeenNthCalledWith(
+        1,
+        "framenavigated",
+        expect.any(Function),
+      );
+      expect(page.on).toHaveBeenNthCalledWith(
+        2,
+        "request",
+        expect.any(Function),
+      );
+      const [[, framenavigated], [, request]] = page.on.mock.calls;
+      const framenavigatedCallback = framenavigated as (f: Frame) => void;
 
-      const requestCallback = page.on.mock.calls[0][1] as (
-        request: HTTPRequest,
-      ) => void;
+      framenavigatedCallback(
+        mock<Frame>({ url: () => "https://bar.com/hello" }),
+      );
 
-      for (const url of ["https://baz.com", "https://bar.com"]) {
-        const mockRequest = mock<HTTPRequest>();
-        mockRequest.url.mockReturnValue(url);
-        requestCallback(mockRequest);
-      }
-
-      await reportUsedDomains(async (report) => {
-        expect(report).toMatchSnapshot();
+      const mockRequestBar = mockHttpRequest("https://bar.com");
+      const mockRequestBar2 = mockHttpRequest("https://bar.com", {
+        method: "POST",
       });
+      const mockRequestBaz = mockHttpRequest("https://baz.com");
+      const mockRequestBaz2 = mockHttpRequest("https://baz.com", {
+        resourceType: "xhr",
+      });
+      const requestCallback = request as (r: HTTPRequest) => void;
+      requestCallback(mockRequestBar);
+      requestCallback(mockRequestBaz);
+      requestCallback(mockRequestBaz2);
+      requestCallback(mockRequestBar2);
+
+      expect(mockRequestBar.continue).toHaveBeenCalled();
+      expect(mockRequestBaz.abort).toHaveBeenCalled();
+
+      await expect(getUsedDomains()).resolves.toMatchSnapshot();
     });
 
     it("should handle requests correctly", async () => {
@@ -87,3 +115,19 @@ describe("domains", () => {
     });
   });
 });
+
+function mockHttpRequest(
+  url: string,
+  { method = "GET", resourceType = "document" } = {},
+): HTTPRequest {
+  const req = mock<HTTPRequest>();
+  req.url.mockReturnValue(url);
+  req.continue.mockResolvedValue();
+  req.abort.mockResolvedValue();
+  req.interceptResolutionState.mockReturnValue({
+    action: InterceptResolutionAction.None,
+  });
+  req.method.mockReturnValue(method);
+  req.resourceType.mockReturnValue(resourceType as any);
+  return req;
+}

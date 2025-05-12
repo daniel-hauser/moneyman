@@ -16,6 +16,7 @@ import { LocalJsonStorage } from "./json.js";
 import { GoogleSheetsStorage } from "./sheets.js";
 import { transactionHash, transactionUniqueId } from "./utils.js";
 import { WebPostStorage } from "./web-post.js";
+import { TelegramStorage } from "./telegram.js";
 import { YNABStorage } from "./ynab.js";
 
 const baseLogger = createLogger("storage");
@@ -27,6 +28,7 @@ export const storages = [
   new YNABStorage(),
   new BuxferStorage(),
   new WebPostStorage(),
+  new TelegramStorage(),
   new ActualBudgetStorage(),
 ].filter((s) => s.canSave());
 

@@ -2,17 +2,17 @@
 
 exports[`domains initDomainTracking should set up page request listener for relevant target types 1`] = `
 {
-  "infra": {
-    "domains": [],
-    "pages": [],
-  },
+  "infra": [],
   "max": {
-    "domains": [
-      "baz.com",
-      "bar.com",
+    "allowed": [
+      "GET bar.com [document]",
+      "POST bar.com [document]",
+    ],
+    "blocked": [
+      "GET baz.com [document,xhr]",
     ],
     "pages": [
-      "https://foo.com",
+      "foo.com/",
     ],
   },
 }
