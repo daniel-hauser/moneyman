@@ -41,7 +41,7 @@
     "google-auth-library": "^9.15.1",
     "google-spreadsheet": "^4.1.4",
     "hash-it": "^6.0.0",
-    "israeli-bank-scrapers": "^5.4.7",
+    "israeli-bank-scrapers": "^6.0.0",
     "telegraf": "^4.16.3",
     "ynab": "^2.9.0"
   },
