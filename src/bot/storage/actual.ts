@@ -95,42 +95,51 @@ export class ActualBudgetStorage implements TransactionStorage {
     if (transactionsByActualAccountId.size > 0) {
       logger(`sending to Actual budget: "${ACTUAL_BUDGET_ID}"`);
 
-      for (const [
-        actualAccountId,
-        transactions,
-      ] of transactionsByActualAccountId) {
-        const accountName =
-          this.accountIdToNameMap.get(actualAccountId) || actualAccountId;
-        logger(
-          `Processing ${transactions.length} transactions for account "${accountName}"`,
-        );
-        const [importResponse] = await Promise.all([
-          actualApi.importTransactions(actualAccountId, transactions),
-          onProgress(`Sending transactions for account "${accountName}"`),
-        ]);
-
-        if (importResponse.errors?.length) {
+      try {
+        for (const [
+          actualAccountId,
+          transactions,
+        ] of transactionsByActualAccountId) {
+          const accountName =
+            this.accountIdToNameMap.get(actualAccountId) || actualAccountId;
           logger(
-            `Errors importing transactions: ${JSON.stringify(importResponse.errors)}`,
+            `Processing ${transactions.length} transactions for account "${accountName}"`,
           );
-          continue;
+          const [importResponse] = await Promise.all([
+            actualApi.importTransactions(actualAccountId, transactions).catch((error) => {
+              logger(`Error importing transactions for account "${accountName}": ${error.message}`);
+              return {
+                errors: [error.message],
+                added: 0,
+                updated: 0,
+              };
+            }),
+            onProgress(`Sending transactions for account "${accountName}"`),
+          ]);
+
+          if (importResponse.errors?.length) {
+            logger(
+              `Errors importing transactions: ${JSON.stringify(importResponse.errors)}`,
+            );
+            continue;
+          }
+
+          logger(
+            `Imported ${importResponse.added?.length || 0} transactions for account "${accountName}"`,
+          );
+          stats.added += importResponse.added?.length || 0;
+          stats.existing += importResponse.updated?.length || 0;
         }
 
-        logger(
-          `Imported ${importResponse.added?.length || 0} transactions for account "${accountName}"`,
-        );
-        stats.added += importResponse.added?.length || 0;
-        stats.existing += importResponse.updated?.length || 0;
-      }
+        logger("transactions sent to Actual successfully!");
 
-      logger("transactions sent to Actual successfully!");
-
-      if (TRANSACTION_HASH_TYPE !== "moneyman") {
-        logger("Warning: TRANSACTION_HASH_TYPE should be set to 'moneyman'");
+        if (TRANSACTION_HASH_TYPE !== "moneyman") {
+          logger("Warning: TRANSACTION_HASH_TYPE should be set to 'moneyman'");
+        }
+      } finally {
+        await actualApi.shutdown();
       }
     }
-
-    await actualApi.shutdown();
     return stats;
   }
 
