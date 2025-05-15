@@ -34,8 +34,7 @@ const ACTUAL_SERVER_URL = process.env.ACTUAL_SERVER_URL;
 const ACTUAL_PASSWORD = process.env.ACTUAL_PASSWORD;
 const ACTUAL_BUDGET_ID = process.env.ACTUAL_BUDGET_ID;
 const ACTUAL_ACCOUNTS = process.env.ACTUAL_ACCOUNTS;
-const TRANSACTION_HASH_TYPE =
-  process.env.ACTUAL_TRANSACTION_HASH_TYPE ?? "moneyman";
+const TRANSACTION_HASH_TYPE = process.env.TRANSACTION_HASH_TYPE ?? "moneyman";
 
 export class ActualBudgetStorage implements TransactionStorage {
   private bankToActualAccountMap: Map<string, string>;
@@ -106,14 +105,18 @@ export class ActualBudgetStorage implements TransactionStorage {
             `Processing ${transactions.length} transactions for account "${accountName}"`,
           );
           const [importResponse] = await Promise.all([
-            actualApi.importTransactions(actualAccountId, transactions).catch((error) => {
-              logger(`Error importing transactions for account "${accountName}": ${error.message}`);
-              return {
-                errors: [error.message],
-                added: 0,
-                updated: 0,
-              };
-            }),
+            actualApi
+              .importTransactions(actualAccountId, transactions)
+              .catch((error) => {
+                logger(
+                  `Error importing transactions for account "${accountName}": ${error.message}`,
+                );
+                return {
+                  errors: [error.message],
+                  added: 0,
+                  updated: 0,
+                };
+              }),
             onProgress(`Sending transactions for account "${accountName}"`),
           ]);
 
