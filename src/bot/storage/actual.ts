@@ -139,6 +139,10 @@ export class ActualBudgetStorage implements TransactionStorage {
         if (TRANSACTION_HASH_TYPE !== "moneyman") {
           logger("Warning: TRANSACTION_HASH_TYPE should be set to 'moneyman'");
         }
+      } catch (error) {
+        throw new Error(
+          `Failed to send transactions to Actual: ${error instanceof Error ? error.message : error}`,
+        );
       } finally {
         await actualApi.shutdown();
       }
@@ -151,49 +155,55 @@ export class ActualBudgetStorage implements TransactionStorage {
 
     logger("init");
 
-    const tempDir = path.join(os.tmpdir(), "moneyman-actual-data");
-    const dirExists = await fs.stat(tempDir).catch(() => false);
-    if (!dirExists) {
-      await fs.mkdir(tempDir, { recursive: true });
-    }
-
-    await actualApi.init({
-      dataDir: tempDir,
-      serverURL: ACTUAL_SERVER_URL,
-      password: ACTUAL_PASSWORD,
-    });
-
-    await actualApi.downloadBudget(ACTUAL_BUDGET_ID);
-
-    const actualAccounts = await actualApi.getAccounts();
-    const validActualAccountIds = new Set(actualAccounts.map((a) => a.id));
-    this.accountIdToNameMap = new Map(
-      actualAccounts.map((a) => [a.id, a.name]),
-    );
-
-    this.bankToActualAccountMap = this.parseActualAccounts(ACTUAL_ACCOUNTS!);
-
-    for (const [
-      bankAccountId,
-      actualAccountId,
-    ] of this.bankToActualAccountMap.entries()) {
-      if (!validActualAccountIds.has(actualAccountId)) {
-        const accountName =
-          this.accountIdToNameMap.get(actualAccountId) || actualAccountId;
-        logger(
-          `Warning: Actual Budget account "${accountName}" for bank account ${bankAccountId} does not exist`,
-        );
-        this.bankToActualAccountMap.delete(bankAccountId);
+    try {
+      const tempDir = path.join(os.tmpdir(), "moneyman-actual-data");
+      const dirExists = await fs.stat(tempDir).catch(() => false);
+      if (!dirExists) {
+        await fs.mkdir(tempDir, { recursive: true });
       }
-    }
 
-    if (this.bankToActualAccountMap.size === 0) {
+      await actualApi.init({
+        dataDir: tempDir,
+        serverURL: ACTUAL_SERVER_URL,
+        password: ACTUAL_PASSWORD,
+      });
+
+      await actualApi.downloadBudget(ACTUAL_BUDGET_ID);
+
+      const actualAccounts = await actualApi.getAccounts();
+      const validActualAccountIds = new Set(actualAccounts.map((a) => a.id));
+      this.accountIdToNameMap = new Map(
+        actualAccounts.map((a) => [a.id, a.name]),
+      );
+
+      this.bankToActualAccountMap = this.parseActualAccounts(ACTUAL_ACCOUNTS!);
+
+      for (const [
+        bankAccountId,
+        actualAccountId,
+      ] of this.bankToActualAccountMap.entries()) {
+        if (!validActualAccountIds.has(actualAccountId)) {
+          const accountName =
+            this.accountIdToNameMap.get(actualAccountId) || actualAccountId;
+          logger(
+            `Warning: Actual Budget account "${accountName}" for bank account ${bankAccountId} does not exist`,
+          );
+          this.bankToActualAccountMap.delete(bankAccountId);
+        }
+      }
+
+      if (this.bankToActualAccountMap.size === 0) {
+        throw new Error(
+          "No valid account mappings found. Please check ACTUAL_ACCOUNTS configuration.",
+        );
+      }
+
+      this.initialized = true;
+    } catch (error) {
       throw new Error(
-        "No valid account mappings found. Please check ACTUAL_ACCOUNTS configuration.",
+        `Failed to initialize Actual Budget: ${error instanceof Error ? error.message : error}`,
       );
     }
-
-    this.initialized = true;
   }
 
   private parseActualAccounts(accountsJSON: string): Map<string, string> {
