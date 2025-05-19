@@ -113,8 +113,8 @@ export class ActualBudgetStorage implements TransactionStorage {
                 );
                 return {
                   errors: [error.message],
-                  added: 0,
-                  updated: 0,
+                  added: [],
+                  updated: [],
                 };
               }),
             onProgress(`Sending transactions for account "${accountName}"`),
