@@ -12,6 +12,12 @@ updates:
     groups:
       development-dependencies:
         dependency-type: "development"
+      kusto:
+        patterns:
+          - "azure-kusto*"
+      google:
+        patterns:
+          - "google*"
 
   - package-ecosystem: "docker"
     directory: "/"
