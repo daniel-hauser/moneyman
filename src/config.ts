@@ -60,5 +60,6 @@ export const scraperConfig: ScraperConfig = {
   startDate: subDays(Date.now(), Number(DAYS_BACK || 10)),
   parallelScrapers: Number(MAX_PARALLEL_SCRAPERS) || 1,
   futureMonthsToScrape: parseInt(FUTURE_MONTHS, 10),
-  additionalTransactionInformation: ADDITIONAL_TRANSACTION_INFO_ENABLED.toLowerCase() === 'true',
+  additionalTransactionInformation:
+    ADDITIONAL_TRANSACTION_INFO_ENABLED.toLowerCase() === "true",
 };
