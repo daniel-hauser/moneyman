@@ -32,7 +32,7 @@ index 843eadb..15de334 100644
 +    } catch (e) {
 +      throw new Error(`fetchGetWithinPage error: ${e}, url: ${innerUrl}, stack: ${e?.stack}, status: ${result?.status}`);
 +    }
-+  });
++  }, url);
  }
  function fetchPostWithinPage(page, url, data, extraHeaders = {}) {
    return page.evaluate((innerUrl, innerData, innerExtraHeaders) => {
