@@ -2,7 +2,13 @@ import { saveResults, storages } from "./storage/index.js";
 import { AccountScrapeResult, Runner } from "../types.js";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
 import { getSummaryMessages } from "./messages.js";
-import { editMessage, send, sendError, sendPhoto } from "./notifier.js";
+import {
+  editMessage,
+  send,
+  sendError,
+  sendJSON,
+  sendPhotos,
+} from "./notifier.js";
 
 const logger = createLogger("bot");
 
@@ -32,8 +38,11 @@ export async function runWithStorage(runScraper: Runner) {
       await sendError(e, caller);
     },
     async onBeforeStart() {},
-    async failureScreenshotHandler(photoPath, caption) {
-      await sendPhoto(photoPath, caption);
+    async failureScreenshotsHandler(photos) {
+      await sendPhotos(photos);
+    },
+    async reportRunMetadata(metadata) {
+      await sendJSON(metadata, "run-metadata.txt");
     },
   });
 

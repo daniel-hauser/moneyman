@@ -5,6 +5,8 @@ import { createLogger } from "./utils/logger.js";
 import { RunnerHooks } from "./types.js";
 import { runWithStorage } from "./bot/index.js";
 import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
+import { monitorNodeConnections } from "./security/domains.js";
+import { reportRunMetadata } from "./runnerMetadata.js";
 
 const logger = createLogger("main");
 
@@ -12,9 +14,11 @@ process.on("uncaughtException", (err, origin) => {
   console.error("uncaughtException, sending error");
   sendError(`
 Caught exception: ${err}
+err.stack: ${err.stack}
 Exception origin: ${origin}`).catch((e) => { });
 });
 
+monitorNodeConnections();
 await run();
 
 // kill internal browsers if stuck
@@ -38,11 +42,14 @@ async function runScraper(hooks: RunnerHooks) {
       },
     );
     logger("Scraping ended");
-    await hooks.onResultsReady(results);
+    await Promise.all([
+      hooks.onResultsReady(results),
+      sendFailureScreenShots(hooks.failureScreenshotsHandler),
+    ]);
 
-    await sendFailureScreenShots((photoPath, caption) => {
-      logger("Sending failure screenshot", { photoPath, caption });
-      return hooks.failureScreenshotHandler(photoPath, caption);
+    await reportRunMetadata((metadata) => {
+      logger("Reporting run metadata", metadata);
+      return hooks.reportRunMetadata(metadata);
     });
   } catch (e) {
     logger("Error", e);

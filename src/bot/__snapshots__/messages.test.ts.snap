@@ -4,7 +4,6 @@ exports[`messages getSummaryMessages should not add empty groups 1`] = `
 [
   "📝 Storage (TheTable)
 	0 added
-	0 skipped (0 existing, 0 pending)
 	took 0.00s
 	-----
 	Group2:
@@ -16,7 +15,6 @@ exports[`messages getSummaryMessages should not add empty groups 2`] = `
 [
   "📝 Storage (TheTable)
 	0 added
-	0 skipped (0 existing, 0 pending)
 	took 0.00s",
 ]
 `;
@@ -40,11 +38,9 @@ exports[`messages getSummaryMessages should return a summary message 2`] = `
 [
   "📝 Storage 1 (TheTable)
 	1 added
-	0 skipped (0 existing, 0 pending)
 	took 350.00s",
   "📝 Storage 2 (TheTable)
 	7 added
-	0 skipped (0 existing, 3 pending)
 	took 350.00s
 	-----
 	Group1:
@@ -83,7 +79,6 @@ exports[`messages getSummaryMessages should return a summary message with instal
 [
   "📝 Storage 1 (TheTable)
 	2 added
-	0 skipped (0 existing, 0 pending)
 	took 0.00s
 	-----
 	SomeGroup:
@@ -104,6 +99,18 @@ Pending txns:
 
 exports[`messages getSummaryMessages should return a summary message with no results 2`] = `[]`;
 
+exports[`messages getSummaryMessages should support stats with skipped transactions 1`] = `
+[
+  "📝 Storage (TheTable)
+	1 added	2 skipped (1 existing, 1 pending)
+
+	took 0.00s
+	-----
+	Group1:
+		description1:	+10.00",
+]
+`;
+
 exports[`messages getSummaryMessages should support steps 1`] = `
 [
   "📝 Storage (TheTable)
@@ -112,7 +119,6 @@ exports[`messages getSummaryMessages should support steps 1`] = `
 	Step3, took 10.00s
 	Step4, took 100.46s
 	1 added
-	0 skipped (0 existing, 0 pending)
 	took 0.00s
 	-----
 	Group1:

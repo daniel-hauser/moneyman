@@ -77,8 +77,7 @@ export function statsString(
   const stepsString = steps.map((s) => `\t${s}`).join("\n");
   return `
 ${header}${stepsString ? "\n" + stepsString : ""}
-\t${stats.added} added
-\t${stats.skipped} skipped (${stats.existing} existing, ${stats.pending} pending)
+\t${stats.added} added${stats.skipped > 0 ? `\t${stats.skipped} skipped (${stats.existing} existing, ${stats.pending} pending)\n` : ""}
 \ttook ${(saveDurationMs / 1000).toFixed(2)}s
 ${highlightedTransactionsString(stats.highlightedTransactions, 1)}`.trim();
 }

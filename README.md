@@ -98,6 +98,50 @@ Example:
 | `HIDDEN_DEPRECATIONS`       | ''                 | A comma separated list of deprecations to hide                                                                                                |
 | `PUPPETEER_EXECUTABLE_PATH` | `undefined`        | An ExecutablePath for the scraper. if undefined defaults to system.                                                                           |
 | `MAX_PARALLEL_SCRAPERS`     | `1`                | The maximum number of parallel scrapers to run                                                                                                |
+| `DOMAIN_TRACKING_ENABLED`   | ''                 | Enable tracking of all domains accessed during scraping                                                                                       |
+
+### Domain Security
+
+Given the nature of the scraping process, it's important to keep track of the domains accessed during the scraping process and ensure we connect only to the domains we expect.
+
+#### Domain Tracking
+
+After enabling the domain tracking setting, the process will keep track of all domains accessed during the scraping process.
+When the scraping process is done, a message will be sent to the telegram chat with the list of domains accessed.
+
+#### Domain Whitelisting
+
+You can control which domains each scraper can access by configuring firewall rules. Each rule follows the format:
+
+```
+<companyId> <ALLOW|BLOCK> <domain>
+```
+
+Use the following env var to setup:
+| env variable name | description |
+| ----------------- | ----------- |
+| `FIREWALL_SETTINGS` | Multiline string with domain rules. Each line should follow the format: `<companyId> <ALLOW|BLOCK> <domain>` |
+| `BLOCK_BY_DEFAULT` | If truthy, all domains with no rule will be blocked by default. If falsy, all domains will be allowed by default |
+
+Example:
+
+```
+# Allow hapoalim to access these domains
+hapoalim ALLOW bankhapoalim.co.il
+# Block specific domain for visaCal
+visaCal BLOCK suspicious-domain.com
+```
+
+When a rule exists for a specific domain, the scraper will:
+
+- `ALLOW` - Allow the connection to proceed
+- `BLOCK` - Block the connection
+- If no rule exists for a domain, the default behavior is to allow the connection
+
+> [!IMPORTANT]
+> All rules apply only if there is at least one rule for the scraper. scrapers with no rules will allow all connections
+
+Rules support parent domain matching, so a rule for `example.com` will apply to `api.example.com` and `www.example.com` as well.
 
 ### Get notified in telegram
 
@@ -105,7 +149,7 @@ We use telegram to send you the update status.
 
 1. Create your bot following [this](https://core.telegram.org/bots#creating-a-new-bot)
 2. Open this url `https://api.telegram.org/bot<TELEGRAM_API_KEY>/getUpdates`
-3. Send a message to your bot and fnd the chat id
+3. Send a message to your bot and find the chat id
 
 Use the following env vars to setup:
 

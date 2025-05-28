@@ -1,5 +1,6 @@
 import { Telegraf, TelegramError } from "telegraf";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
+import type { ImageWithCaption } from "../types.js";
 
 const logger = createLogger("notifier");
 
@@ -35,6 +36,30 @@ export async function sendPhoto(photoPath: string, caption: string) {
     { source: photoPath },
     { caption, has_spoiler: true },
   );
+}
+
+export async function sendPhotos(photos: Array<ImageWithCaption>) {
+  logger(`Sending photos`, { photos });
+  if (photos.length === 0) {
+    return;
+  }
+  return await bot?.telegram.sendMediaGroup(
+    TELEGRAM_CHAT_ID,
+    photos.map(({ photoPath, caption }) => ({
+      type: "photo",
+      caption,
+      media: { source: photoPath },
+    })),
+  );
+}
+
+export async function sendJSON(json: {}, filename: string) {
+  logger(`Sending JSON`, { json, filename });
+  const buffer = Buffer.from(JSON.stringify(json, null, 2), "utf-8");
+  return await bot?.telegram.sendDocument(TELEGRAM_CHAT_ID, {
+    source: buffer,
+    filename,
+  });
 }
 
 export async function editMessage(
