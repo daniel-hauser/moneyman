@@ -20,6 +20,7 @@ export async function scrapeAccounts(
     startDate,
     futureMonthsToScrape,
     parallelScrapers,
+    additionalTransactionInformation,
   }: ScraperConfig,
   scrapeStatusChanged?: (
     status: Array<string>,
@@ -58,6 +59,7 @@ export async function scrapeAccounts(
           companyId,
           futureMonthsToScrape: futureMonths,
           storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
+          additionalTransactionInformation,
           ...scraperOptions,
         },
         async (message, append = false) => {
