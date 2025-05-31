@@ -83,7 +83,7 @@ export class MondayStorage implements TransactionStorage {
     const query = `
       query {
         boards(ids: ${boardId}) {
-          items_page (limit: 300, query_params:{rules: [{column_id: "date", compare_value: ["${pastDateString}","${futureDateString}"], operator:between}]operator:and}) {
+          items_page (limit: 500, query_params:{rules: [{column_id: "date", compare_value: ["${pastDateString}","${futureDateString}"], operator:between}]operator:and}) {
             items {
               id
               column_values {
@@ -203,6 +203,12 @@ export class MondayStorage implements TransactionStorage {
   }
   // Function to create an item on Monday.com
   private async createMondayItem(boardId: number, transaction: MondayTransaction): Promise<void> {
+    // First check if item exists
+    const itemExists = await this.checkItemExists(boardId, transaction.uniqueId);
+    if (itemExists) {
+      logger(`Item with uniqueId ${transaction.uniqueId} already exists, skipping creation`);
+      return;
+    }
 
     const itemName = escapeString(transaction.description);
     const columnValues = escapeString(this.getColumnValues(transaction));
@@ -238,6 +244,39 @@ export class MondayStorage implements TransactionStorage {
       }
     } catch (error) {
       console.error('Error:', error);
+    }
+  }
+
+  private async checkItemExists(boardId: number, uniqueId: string): Promise<boolean> {
+    const headers = {
+      'Authorization': MONDAY_TOKEN,
+      'Content-Type': 'application/json'
+    };
+
+    const query = `
+      query {
+  items_page_by_column_values (limit: 1, board_id: ${boardId}, columns: [{column_id: "text__1", column_values: ["${uniqueId}"]}]) {
+    cursor
+    items {
+      id
+      name
+    }
+  }
+}
+    `;
+
+    try {
+      const response = await axios.post(URL, { query }, { headers });
+
+      if (response.data.errors) {
+        console.error('Error checking item existence:', response.data.errors);
+        return false;
+      }
+
+      return response.data.data.items_page_by_column_values.items.length > 0;
+    } catch (error) {
+      console.error('Error checking item existence:', error);
+      return false;
     }
   }
 
