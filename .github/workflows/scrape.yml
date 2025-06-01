@@ -20,9 +20,9 @@ on:
         required: false
         description: "Number of parallel scrapes to run"
       additionalTransactionInformationEnabled:
-        description: 'Enable additional transaction information (true/false)'
+        description: "Enable additional transaction information (true/false)"
         required: false
-        default: 'false'
+        default: "false"
       containerTag:
         default: "latest"
         required: false
