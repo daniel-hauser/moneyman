@@ -14,6 +14,7 @@ const {
   ACCOUNTS_TO_SCRAPE = "",
   FUTURE_MONTHS = "",
   MAX_PARALLEL_SCRAPERS = "",
+  ADDITIONAL_TRANSACTION_INFO_ENABLED = "false",
 } = process.env;
 
 logger("Env", {
@@ -26,6 +27,7 @@ logger("env vars", {
   ACCOUNTS_TO_SCRAPE,
   FUTURE_MONTHS,
   MAX_PARALLEL_SCRAPERS,
+  ADDITIONAL_TRANSACTION_INFO_ENABLED,
 });
 
 function getAccounts(): Array<AccountConfig> {
@@ -58,4 +60,6 @@ export const scraperConfig: ScraperConfig = {
   startDate: subDays(Date.now(), Number(DAYS_BACK || 10)),
   parallelScrapers: Number(MAX_PARALLEL_SCRAPERS) || 1,
   futureMonthsToScrape: parseInt(FUTURE_MONTHS, 10),
+  additionalTransactionInformation:
+    ADDITIONAL_TRANSACTION_INFO_ENABLED.toLowerCase() === "true",
 };
