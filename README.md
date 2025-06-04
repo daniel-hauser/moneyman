@@ -88,17 +88,18 @@ Example:
 
 #### Other configurations
 
-| env variable name           | default            | description                                                                                                                                   |
-| --------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ACCOUNTS_TO_SCRAPE`        | `""`               | A comma separated list of providers to take from `ACCOUNTS_JSON`. if empty, all accounts will be used                                         |
-| `DAYS_BACK`                 | `10`               | The amount of days back to scrape                                                                                                             |
-| `TZ`                        | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                                                         |
-| `FUTURE_MONTHS`             | `1`                | The amount of months that will be scrapped in the future, starting from the day calculated using `DAYS_BACK`                                  |
-| `TRANSACTION_HASH_TYPE`     | ``                 | The hash type to use for the transaction hash. Can be `moneyman` or empty. The default will be changed to `moneyman` in the upcoming versions |
-| `HIDDEN_DEPRECATIONS`       | ''                 | A comma separated list of deprecations to hide                                                                                                |
-| `PUPPETEER_EXECUTABLE_PATH` | `undefined`        | An ExecutablePath for the scraper. if undefined defaults to system.                                                                           |
-| `MAX_PARALLEL_SCRAPERS`     | `1`                | The maximum number of parallel scrapers to run                                                                                                |
-| `DOMAIN_TRACKING_ENABLED`   | ''                 | Enable tracking of all domains accessed during scraping                                                                                       |
+| env variable name                     | default            | description                                                                                                                                                               |
+| ------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ACCOUNTS_TO_SCRAPE`                  | `""`               | A comma separated list of providers to take from `ACCOUNTS_JSON`. if empty, all accounts will be used                                                                     |
+| `DAYS_BACK`                           | `10`               | The amount of days back to scrape                                                                                                                                         |
+| `TZ`                                  | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                                                                                     |
+| `FUTURE_MONTHS`                       | `1`                | The amount of months that will be scrapped in the future, starting from the day calculated using `DAYS_BACK`                                                              |
+| `TRANSACTION_HASH_TYPE`               | ``                 | The hash type to use for the transaction hash. Can be `moneyman` or empty. The default will be changed to `moneyman` in the upcoming versions                             |
+| `ADDITIONAL_TRANSACTION_INFO_ENABLED` | `'false'`          | If set to `'true'`, enables the `additionalTransactionInformation` option in the underlying scraper, which may provide more detailed transaction data for some providers. |
+| `HIDDEN_DEPRECATIONS`                 | `''`               | A comma separated list of deprecations to hide                                                                                                                            |
+| `PUPPETEER_EXECUTABLE_PATH`           | `undefined`        | An ExecutablePath for the scraper. if undefined defaults to system.                                                                                                       |
+| `MAX_PARALLEL_SCRAPERS`               | `1`                | The maximum number of parallel scrapers to run                                                                                                                            |
+| `DOMAIN_TRACKING_ENABLED`             | `''`               | Enable tracking of all domains accessed during scraping                                                                                                                   |
 
 ### Domain Security
 
