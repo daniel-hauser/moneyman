@@ -48,14 +48,12 @@ export class BuxferStorage implements TransactionStorage {
       const isPending = tx.status === TransactionStatuses.Pending;
       // Ignore pending and only upload completed transactions
       if (isPending) {
-        stats.skipped++;
         continue;
       }
 
       const accountId = this.accountToBuxferAccount.get(tx.account);
       if (!accountId) {
         missingAccounts.add(tx.account);
-        stats.skipped++;
         continue;
       }
 
@@ -81,8 +79,6 @@ export class BuxferStorage implements TransactionStorage {
       logger("transactions sent to Buxfer successfully!");
       stats.added = resp.addedTransactionIds.length;
       stats.existing = resp.duplicatedTransactionIds.length;
-      stats.skipped += stats.existing;
-      stats.skipped += resp.ignoredTransactionIds.length;
     }
 
     if (missingAccounts.size > 0) {

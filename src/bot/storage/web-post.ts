@@ -49,7 +49,6 @@ export class WebPostStorage implements TransactionStorage {
 
     const stats = createSaveStats("WebPostStorage", "web-post", txns);
     stats.added = res.added ?? nonPendingTxns.length;
-    stats.skipped += stats.pending;
 
     return stats;
   }

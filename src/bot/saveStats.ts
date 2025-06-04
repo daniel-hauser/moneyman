@@ -25,10 +25,6 @@ export interface SaveStats {
    */
   pending: number;
   /**
-   * Transactions not added due to validation checks or the already exist
-   */
-  skipped: number;
-  /**
    * Transactions that already exists in store and don't required an update
    */
   existing: number;
@@ -36,6 +32,15 @@ export interface SaveStats {
    * Scrapped transactions that are charged in foreign currency (not ILS)
    */
   highlightedTransactions?: Record<string, Array<TransactionRow>>;
+}
+
+/**
+ * Calculate the number of skipped transactions (existing + pending)
+ * @param stats SaveStats object
+ * @returns Total number of skipped transactions
+ */
+export function getSkippedCount(stats: SaveStats): number {
+  return stats.existing + stats.pending;
 }
 
 /**
@@ -62,7 +67,6 @@ export function createSaveStats<TInit extends Partial<SaveStats>>(
     total,
     added: 0,
     pending,
-    skipped: 0,
     existing: 0,
     ...stats,
   };
@@ -75,9 +79,10 @@ export function statsString(
 ): string {
   const header = `📝 ${stats.name}${stats.table ? ` (${stats.table})` : ""}`;
   const stepsString = steps.map((s) => `\t${s}`).join("\n");
+  const skipped = getSkippedCount(stats);
   return `
 ${header}${stepsString ? "\n" + stepsString : ""}
-\t${stats.added} added${stats.skipped > 0 ? `\t${stats.skipped} skipped (${stats.existing} existing, ${stats.pending} pending)\n` : ""}
+\t${stats.added} added${skipped > 0 ? `\t${skipped} skipped (${stats.existing} existing, ${stats.pending} pending)\n` : ""}
 \ttook ${(saveDurationMs / 1000).toFixed(2)}s
 ${highlightedTransactionsString(stats.highlightedTransactions, 1)}`.trim();
 }

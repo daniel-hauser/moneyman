@@ -292,7 +292,6 @@ describe("messages", () => {
       const stats: Array<SaveStats> = [
         createSaveStats("Storage", "TheTable", [tx], {
           added: 1,
-          skipped: 2,
           existing: 1,
           pending: 1,
           highlightedTransactions: {

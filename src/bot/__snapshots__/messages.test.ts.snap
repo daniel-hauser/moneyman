@@ -40,7 +40,8 @@ exports[`messages getSummaryMessages should return a summary message 2`] = `
 	1 added
 	took 350.00s",
   "📝 Storage 2 (TheTable)
-	7 added
+	7 added	3 skipped (0 existing, 3 pending)
+
 	took 350.00s
 	-----
 	Group1:

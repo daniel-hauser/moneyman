@@ -60,7 +60,6 @@ export class GoogleSheetsStorage implements TransactionStorage {
         // Use the new uniqueId as the unique identifier for the transactions if the hash type is moneyman
         if (existingHashes.has(tx.uniqueId)) {
           stats.existing++;
-          stats.skipped++;
           continue;
         }
       }
@@ -73,14 +72,12 @@ export class GoogleSheetsStorage implements TransactionStorage {
         // To avoid double counting, skip if the new hash is already in the sheet
         if (!existingHashes.has(tx.uniqueId)) {
           stats.existing++;
-          stats.skipped++;
         }
 
         continue;
       }
 
       if (tx.status === TransactionStatuses.Pending) {
-        stats.skipped++;
         continue;
       }
 
