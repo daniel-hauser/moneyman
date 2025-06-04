@@ -29,18 +29,22 @@ export interface SaveStats {
    */
   existing: number;
   /**
+   * Transactions skipped for other reasons (missing accounts, ignored by API, etc.)
+   */
+  otherSkipped: number;
+  /**
    * Scrapped transactions that are charged in foreign currency (not ILS)
    */
   highlightedTransactions?: Record<string, Array<TransactionRow>>;
 }
 
 /**
- * Calculate the number of skipped transactions (existing + pending)
+ * Calculate the number of skipped transactions (existing + pending + otherSkipped)
  * @param stats SaveStats object
  * @returns Total number of skipped transactions
  */
 export function getSkippedCount(stats: SaveStats): number {
-  return stats.existing + stats.pending;
+  return stats.existing + stats.pending + stats.otherSkipped;
 }
 
 /**
@@ -68,6 +72,7 @@ export function createSaveStats<TInit extends Partial<SaveStats>>(
     added: 0,
     pending,
     existing: 0,
+    otherSkipped: 0,
     ...stats,
   };
 }

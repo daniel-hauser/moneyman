@@ -54,6 +54,7 @@ export class BuxferStorage implements TransactionStorage {
       const accountId = this.accountToBuxferAccount.get(tx.account);
       if (!accountId) {
         missingAccounts.add(tx.account);
+        stats.otherSkipped++;
         continue;
       }
 
@@ -79,6 +80,7 @@ export class BuxferStorage implements TransactionStorage {
       logger("transactions sent to Buxfer successfully!");
       stats.added = resp.addedTransactionIds.length;
       stats.existing = resp.duplicatedTransactionIds.length;
+      stats.otherSkipped += resp.ignoredTransactionIds.length;
     }
 
     if (missingAccounts.size > 0) {
