@@ -43,6 +43,7 @@ export type ScraperConfig = {
   futureMonthsToScrape: number;
   parallelScrapers: number;
   accounts: Array<AccountConfig>;
+  additionalTransactionInformation: boolean;
 };
 
 export type ImageWithCaption = {
