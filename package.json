@@ -33,7 +33,7 @@
     "async": "^3.2.6",
     "azure-kusto-data": "^7.0.0",
     "azure-kusto-ingest": "^7.0.0",
-    "buxfer-ts-client": "^1.1.2",
+    "buxfer-ts-client": "^1.1.3",
     "date-fns": "^4.1.0",
     "debug": "^4.4.1",
     "dotenv": "^16.5.0",
