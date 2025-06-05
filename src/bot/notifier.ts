@@ -20,13 +20,17 @@ if (bot) {
   logger(`Telegram chat ID: ${TELEGRAM_CHAT_ID}`);
 }
 
-export async function send(message: string) {
+export async function send(
+  message: string,
+  parseMode?: "MarkdownV2" | "HTML" | "Markdown",
+) {
   if (message.length > 4096) {
     send(`Next message is too long (${message.length} characters), truncating`);
-    return send(message.slice(0, 4096));
+    return send(message.slice(0, 4096), parseMode);
   }
   logger(message);
-  return await bot?.telegram.sendMessage(TELEGRAM_CHAT_ID, message);
+  const options = parseMode ? { parse_mode: parseMode } : undefined;
+  return await bot?.telegram.sendMessage(TELEGRAM_CHAT_ID, message, options);
 }
 
 export async function sendPhoto(photoPath: string, caption: string) {
@@ -65,6 +69,7 @@ export async function sendJSON(json: {}, filename: string) {
 export async function editMessage(
   message: number | undefined,
   newText: string,
+  parseMode?: "MarkdownV2" | "HTML" | "Markdown",
 ) {
   if (message !== undefined) {
     try {
@@ -74,11 +79,13 @@ export async function editMessage(
        * According to the docs, the limit is 30 messages per second so we should be safe with 250ms.
        */
       await new Promise((resolve) => setTimeout(resolve, 250));
+      const options = parseMode ? { parse_mode: parseMode } : undefined;
       await bot?.telegram.editMessageText(
         TELEGRAM_CHAT_ID,
         message,
         undefined,
         newText,
+        options,
       );
     } catch (e) {
       if (canIgnoreTelegramError(e)) {
