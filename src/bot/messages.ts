@@ -7,11 +7,14 @@ import { normalizeCurrency } from "../utils/currency.js";
 import { Timer } from "../utils/Timer.js";
 import { MarkdownV2 } from "@telegraf/entity/script/escapers.js";
 
-export function getSummaryMessages(results: Array<AccountScrapeResult>, useMarkdownV2 = false) {
+export function getSummaryMessages(
+  results: Array<AccountScrapeResult>,
+  useMarkdownV2 = false,
+) {
   const { pending, completed } = transactionsByStatus(results);
 
   let accountsSection = "";
-  
+
   if (useMarkdownV2) {
     // New logic for MarkdownV2 with expandable blocks
     const errorAccounts: string[] = [];
@@ -30,13 +33,15 @@ export function getSummaryMessages(results: Array<AccountScrapeResult>, useMarkd
         });
       }
     });
-    
+
     if (errorAccounts.length === 0 && successfulAccounts.length === 0) {
       // No accounts at all
       accountsSection = "Accounts updated:\n\t😶 None";
     } else if (errorAccounts.length === 0) {
       // Only successful accounts - use expandable block without duplication
-      const escapedAccounts = successfulAccounts.map(account => MarkdownV2(account)).join("\n");
+      const escapedAccounts = successfulAccounts
+        .map((account) => MarkdownV2(account))
+        .join("\n");
       accountsSection = `**>Accounts updated**\n${escapedAccounts}`;
     } else if (successfulAccounts.length === 0) {
       // Only error accounts
@@ -44,7 +49,9 @@ export function getSummaryMessages(results: Array<AccountScrapeResult>, useMarkd
     } else {
       // Mixed - show errors first, then successful in expandable block
       const errorSection = `Accounts updated:\n${errorAccounts.join("\n")}`;
-      const escapedAccounts = successfulAccounts.map(account => MarkdownV2(account)).join("\n");
+      const escapedAccounts = successfulAccounts
+        .map((account) => MarkdownV2(account))
+        .join("\n");
       accountsSection = `${errorSection}\n**>Successful Account Updates**\n${escapedAccounts}`;
     }
   } else {
@@ -64,8 +71,15 @@ export function getSummaryMessages(results: Array<AccountScrapeResult>, useMarkd
     accountsSection = `Accounts updated:\n${accountsSummary.join("\n") || "\t😶 None"}`;
   }
 
-  const transactionsSummary = transactionsString(pending, completed, useMarkdownV2);
-  const pendingSection = transactionList(pending, "\t", useMarkdownV2) || (useMarkdownV2 ? MarkdownV2("\t😶 None") : "\t😶 None");
+  const transactionsSummary = transactionsString(
+    pending,
+    completed,
+    results,
+    useMarkdownV2,
+  );
+  const pendingSection =
+    transactionList(pending, "\t", useMarkdownV2) ||
+    (useMarkdownV2 ? MarkdownV2("\t😶 None") : "\t😶 None");
 
   return `
 ${transactionsSummary}
@@ -80,12 +94,26 @@ ${pendingSection}
 function transactionsString(
   pending: Array<Transaction>,
   completed: Array<Transaction>,
+  results: Array<AccountScrapeResult>,
   useMarkdownV2 = false,
 ) {
   const total = pending.length + completed.length;
 
+  // Count total accounts from successful results
+  const totalAccounts = results.reduce((count, { result }) => {
+    if (result.success) {
+      return count + (result.accounts?.length || 0);
+    }
+    return count;
+  }, 0);
+
+  const accountText =
+    totalAccounts > 0
+      ? ` from ${totalAccounts} account${totalAccounts === 1 ? "" : "s"}`
+      : "";
+
   const summary = `
-${total} transactions scraped.
+${total} transactions scraped${accountText}.
 ${total > 0 ? `(${pending.length} pending, ${completed.length} completed)` : ""}
 ${foreignTransactionsSummary(completed)}
 `.trim();
@@ -140,7 +168,9 @@ export function transactionList(
   indent = "\t",
   useMarkdownV2 = false,
 ) {
-  const list = transactions.map((t) => `${indent}${transactionString(t)}`).join("\n");
+  const list = transactions
+    .map((t) => `${indent}${transactionString(t)}`)
+    .join("\n");
   return useMarkdownV2 ? MarkdownV2(list) : list;
 }
 

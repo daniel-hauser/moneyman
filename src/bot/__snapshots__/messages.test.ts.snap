@@ -20,7 +20,7 @@ exports[`messages getSummaryMessages should not add empty groups 2`] = `
 `;
 
 exports[`messages getSummaryMessages should return a summary message 1`] = `
-"8 transactions scraped.
+"8 transactions scraped from 2 accounts.
 (3 pending, 5 completed)
 From completed, 3 not originally in ILS and 1 not charged in ILS
 
@@ -49,7 +49,7 @@ exports[`messages getSummaryMessages should return a summary message 2`] = `
 `;
 
 exports[`messages getSummaryMessages should return a summary message with failed results 1`] = `
-"1 transactions scraped.
+"1 transactions scraped from 1 account.
 (0 pending, 1 completed)
 
 Accounts updated:
@@ -65,7 +65,7 @@ Pending txns:
 exports[`messages getSummaryMessages should return a summary message with failed results 2`] = `[]`;
 
 exports[`messages getSummaryMessages should return a summary message with installments 1`] = `
-"2 transactions scraped.
+"2 transactions scraped from 1 account.
 (0 pending, 2 completed)
 
 Accounts updated:
@@ -127,7 +127,7 @@ exports[`messages getSummaryMessages should support steps 1`] = `
 `;
 
 exports[`messages getSummaryMessages should use expandable block quotation for mixed success/error accounts (MarkdownV2) 1`] = `
-"8 transactions scraped\\.
+"8 transactions scraped from 2 accounts\\.
 \\(0 pending, 8 completed\\)
 
 Accounts updated:
@@ -142,7 +142,7 @@ Pending txns:
 `;
 
 exports[`messages getSummaryMessages should use expandable block quotation for successful accounts only (MarkdownV2) 1`] = `
-"3 transactions scraped\\.
+"3 transactions scraped from 2 accounts\\.
 \\(0 pending, 3 completed\\)
 
 **>Accounts updated**

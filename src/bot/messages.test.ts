@@ -316,7 +316,7 @@ describe("messages", () => {
                 txns: [transaction({})],
               },
               {
-                accountNumber: "account2", 
+                accountNumber: "account2",
                 txns: [transaction({}), transaction({})],
               },
             ],
@@ -345,7 +345,13 @@ describe("messages", () => {
             accounts: [
               {
                 accountNumber: "12345",
-                txns: [transaction({}), transaction({}), transaction({}), transaction({}), transaction({})],
+                txns: [
+                  transaction({}),
+                  transaction({}),
+                  transaction({}),
+                  transaction({}),
+                  transaction({}),
+                ],
               },
               {
                 accountNumber: "67890",
