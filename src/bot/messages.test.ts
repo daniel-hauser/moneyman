@@ -303,6 +303,62 @@ describe("messages", () => {
       const saveSummaries = stats.map((stats) => statsString(stats, 0));
       expect(saveSummaries).toMatchSnapshot();
     });
+
+    it("should use expandable block quotation for successful accounts only (MarkdownV2)", () => {
+      const results: Array<AccountScrapeResult> = [
+        {
+          companyId: CompanyTypes.max,
+          result: {
+            success: true,
+            accounts: [
+              {
+                accountNumber: "account1",
+                txns: [transaction({})],
+              },
+              {
+                accountNumber: "account2", 
+                txns: [transaction({}), transaction({})],
+              },
+            ],
+          },
+        },
+      ];
+
+      const summary = getSummaryMessages(results, true);
+      expect(summary).toMatchSnapshot();
+    });
+
+    it("should use expandable block quotation for mixed success/error accounts (MarkdownV2)", () => {
+      const results: Array<AccountScrapeResult> = [
+        {
+          companyId: CompanyTypes.max,
+          result: {
+            success: false,
+            errorType: ScraperErrorTypes.Generic,
+            errorMessage: "Connection failed",
+          },
+        },
+        {
+          companyId: CompanyTypes.hapoalim,
+          result: {
+            success: true,
+            accounts: [
+              {
+                accountNumber: "12345",
+                txns: [transaction({}), transaction({}), transaction({}), transaction({}), transaction({})],
+              },
+              {
+                accountNumber: "67890",
+                txns: [transaction({}), transaction({}), transaction({})],
+              },
+            ],
+          },
+        },
+      ];
+
+      const summary = getSummaryMessages(results, true);
+      expect(summary).toMatchSnapshot();
+    });
   });
 
   describe("saving", () => {

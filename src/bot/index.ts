@@ -31,7 +31,12 @@ export async function runWithStorage(runScraper: Runner) {
       );
     },
     async onResultsReady(results: AccountScrapeResult[]) {
-      await send(getSummaryMessages(results));
+      // Use MarkdownV2 whenever we have successful accounts to enable expandable blocks
+      const hasSuccessfulAccounts = results.some(({ result }) => result.success && result.accounts?.length);
+      const useMarkdownV2 = hasSuccessfulAccounts;
+      
+      const summaryMessage = getSummaryMessages(results, useMarkdownV2);
+      await send(summaryMessage, useMarkdownV2 ? "MarkdownV2" : undefined);
       await saveResults(results);
     },
     async onError(e: Error, caller: string = "unknown") {
