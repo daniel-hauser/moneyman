@@ -6,7 +6,13 @@ import {
   TransactionTypes,
 } from "israeli-bank-scrapers/lib/transactions.js";
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
-import { createSaveStats, SaveStats, statsString, getSkippedCount } from "./saveStats.js";
+import {
+  createSaveStats,
+  SaveStats,
+  statsString,
+  getSkippedCount,
+  skippedString,
+} from "./saveStats.js";
 import { Timer } from "../utils/Timer.js";
 
 describe("messages", () => {
@@ -334,7 +340,7 @@ describe("messages", () => {
         pending: 3,
         otherSkipped: 1,
       });
-      
+
       expect(getSkippedCount(stats)).toBe(6); // 2 + 3 + 1
     });
 
@@ -344,7 +350,7 @@ describe("messages", () => {
         pending: 0,
         otherSkipped: 0,
       });
-      
+
       expect(getSkippedCount(stats)).toBe(0);
     });
 
@@ -354,15 +360,91 @@ describe("messages", () => {
         pending: 0,
         otherSkipped: 5,
       });
-      
+
       expect(getSkippedCount(stats)).toBe(5);
+    });
+  });
+
+  describe("skippedString", () => {
+    it("should return empty string when no skipped transactions", () => {
+      const stats = createSaveStats("Test", "TheTable", [], {
+        existing: 0,
+        pending: 0,
+        otherSkipped: 0,
+      });
+
+      expect(skippedString(stats)).toBe("");
+    });
+
+    it("should format only pending transactions", () => {
+      const stats = createSaveStats("Test", "TheTable", [], {
+        existing: 0,
+        pending: 3,
+        otherSkipped: 0,
+      });
+
+      expect(skippedString(stats)).toBe("3 skipped (3 pending)");
+    });
+
+    it("should format only existing transactions", () => {
+      const stats = createSaveStats("Test", "TheTable", [], {
+        existing: 2,
+        pending: 0,
+        otherSkipped: 0,
+      });
+
+      expect(skippedString(stats)).toBe("2 skipped (2 existing)");
+    });
+
+    it("should format only other skipped transactions", () => {
+      const stats = createSaveStats("Test", "TheTable", [], {
+        existing: 0,
+        pending: 0,
+        otherSkipped: 1,
+      });
+
+      expect(skippedString(stats)).toBe("1 skipped (1 other)");
+    });
+
+    it("should format existing and pending transactions", () => {
+      const stats = createSaveStats("Test", "TheTable", [], {
+        existing: 1,
+        pending: 1,
+        otherSkipped: 0,
+      });
+
+      expect(skippedString(stats)).toBe("2 skipped (1 existing, 1 pending)");
+    });
+
+    it("should format all three types of skipped transactions", () => {
+      const stats = createSaveStats("Test", "TheTable", [], {
+        existing: 1,
+        pending: 1,
+        otherSkipped: 2,
+      });
+
+      expect(skippedString(stats)).toBe(
+        "4 skipped (1 existing, 1 pending, 2 other)",
+      );
+    });
+
+    it("should format with multiple of each type", () => {
+      const stats = createSaveStats("Test", "TheTable", [], {
+        existing: 5,
+        pending: 3,
+        otherSkipped: 7,
+      });
+
+      expect(skippedString(stats)).toBe(
+        "15 skipped (5 existing, 3 pending, 7 other)",
+      );
     });
   });
 
   describe("createSaveStats", () => {
     it("should initialize otherSkipped to 0 by default", () => {
       const stats = createSaveStats("Test", "TheTable", []);
-      
+
       expect(stats.otherSkipped).toBe(0);
       expect(stats.existing).toBe(0);
       expect(stats.pending).toBe(0);
@@ -373,7 +455,7 @@ describe("messages", () => {
       const stats = createSaveStats("Test", "TheTable", [], {
         otherSkipped: 3,
       });
-      
+
       expect(stats.otherSkipped).toBe(3);
       expect(getSkippedCount(stats)).toBe(3);
     });

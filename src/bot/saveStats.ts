@@ -48,6 +48,26 @@ export function getSkippedCount(stats: SaveStats): number {
 }
 
 /**
+ * Generate skipped transactions string with breakdown
+ * @param stats SaveStats object
+ * @returns Formatted string for skipped transactions or empty string if none
+ */
+export function skippedString(stats: SaveStats): string {
+  const skipped = getSkippedCount(stats);
+
+  if (skipped === 0) {
+    return "";
+  }
+
+  const parts: string[] = [];
+  if (stats.existing > 0) parts.push(`${stats.existing} existing`);
+  if (stats.pending > 0) parts.push(`${stats.pending} pending`);
+  if (stats.otherSkipped > 0) parts.push(`${stats.otherSkipped} other`);
+
+  return `${skipped} skipped (${parts.join(", ")})`;
+}
+
+/**
  * Create a new SaveStats object with the given name, table and transactions
  * @param name Store name
  * @param table Store elements to be updated (Accounts, budgets, etc ...)
@@ -84,17 +104,10 @@ export function statsString(
 ): string {
   const header = `📝 ${stats.name}${stats.table ? ` (${stats.table})` : ""}`;
   const stepsString = steps.map((s) => `\t${s}`).join("\n");
-  const skipped = getSkippedCount(stats);
-  
-  let skippedBreakdown = "";
-  if (skipped > 0) {
-    const parts: string[] = [];
-    if (stats.existing > 0) parts.push(`${stats.existing} existing`);
-    if (stats.pending > 0) parts.push(`${stats.pending} pending`);
-    if (stats.otherSkipped > 0) parts.push(`${stats.otherSkipped} other`);
-    skippedBreakdown = `\t${skipped} skipped (${parts.join(", ")})\n`;
-  }
-  
+  const skippedInfo = skippedString(stats);
+
+  const skippedBreakdown = skippedInfo ? `\t${skippedInfo}\n` : "";
+
   return `
 ${header}${stepsString ? "\n" + stepsString : ""}
 \t${stats.added} added${skippedBreakdown}
