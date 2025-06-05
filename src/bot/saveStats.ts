@@ -25,17 +25,46 @@ export interface SaveStats {
    */
   pending: number;
   /**
-   * Transactions not added due to validation checks or the already exist
-   */
-  skipped: number;
-  /**
    * Transactions that already exists in store and don't required an update
    */
   existing: number;
   /**
+   * Transactions skipped for other reasons (missing accounts, ignored by API, etc.)
+   */
+  otherSkipped: number;
+  /**
    * Scrapped transactions that are charged in foreign currency (not ILS)
    */
   highlightedTransactions?: Record<string, Array<TransactionRow>>;
+}
+
+/**
+ * Calculate the number of skipped transactions (existing + pending + otherSkipped)
+ * @param stats SaveStats object
+ * @returns Total number of skipped transactions
+ */
+export function getSkippedCount(stats: SaveStats): number {
+  return stats.existing + stats.pending + stats.otherSkipped;
+}
+
+/**
+ * Generate skipped transactions string with breakdown
+ * @param stats SaveStats object
+ * @returns Formatted string for skipped transactions or empty string if none
+ */
+export function skippedString(stats: SaveStats): string {
+  const skipped = getSkippedCount(stats);
+
+  if (skipped === 0) {
+    return "";
+  }
+
+  const parts: string[] = [];
+  if (stats.existing > 0) parts.push(`${stats.existing} existing`);
+  if (stats.pending > 0) parts.push(`${stats.pending} pending`);
+  if (stats.otherSkipped > 0) parts.push(`${stats.otherSkipped} other`);
+
+  return `${skipped} skipped (${parts.join(", ")})`;
 }
 
 /**
@@ -62,8 +91,8 @@ export function createSaveStats<TInit extends Partial<SaveStats>>(
     total,
     added: 0,
     pending,
-    skipped: 0,
     existing: 0,
+    otherSkipped: 0,
     ...stats,
   };
 }
@@ -75,9 +104,13 @@ export function statsString(
 ): string {
   const header = `📝 ${stats.name}${stats.table ? ` (${stats.table})` : ""}`;
   const stepsString = steps.map((s) => `\t${s}`).join("\n");
+  const skippedInfo = skippedString(stats);
+
+  const skippedBreakdown = skippedInfo ? `\t${skippedInfo}\n` : "";
+
   return `
 ${header}${stepsString ? "\n" + stepsString : ""}
-\t${stats.added} added${stats.skipped > 0 ? `\t${stats.skipped} skipped (${stats.existing} existing, ${stats.pending} pending)\n` : ""}
+\t${stats.added} added${skippedBreakdown}
 \ttook ${(saveDurationMs / 1000).toFixed(2)}s
 ${highlightedTransactionsString(stats.highlightedTransactions, 1)}`.trim();
 }

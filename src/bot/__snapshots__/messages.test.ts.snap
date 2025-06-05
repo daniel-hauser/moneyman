@@ -40,7 +40,8 @@ exports[`messages getSummaryMessages should return a summary message 2`] = `
 	1 added
 	took 350.00s",
   "📝 Storage 2 (TheTable)
-	7 added
+	7 added	3 skipped (3 pending)
+
 	took 350.00s
 	-----
 	Group1:
@@ -98,6 +99,18 @@ Pending txns:
 `;
 
 exports[`messages getSummaryMessages should return a summary message with no results 2`] = `[]`;
+
+exports[`messages getSummaryMessages should support stats with otherSkipped transactions 1`] = `
+[
+  "📝 Storage (TheTable)
+	1 added	4 skipped (1 existing, 1 pending, 2 other)
+
+	took 0.00s
+	-----
+	Group1:
+		description1:	+10.00",
+]
+`;
 
 exports[`messages getSummaryMessages should support stats with skipped transactions 1`] = `
 [

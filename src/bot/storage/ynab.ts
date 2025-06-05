@@ -58,14 +58,16 @@ export class YNABStorage implements TransactionStorage {
       // YNAB doesn't support future transactions. Will result in 400 Bad Request
       const isDateInFuture = this.isDateInFuture(tx.date);
       if (isPending || isDateInFuture) {
-        stats.skipped++;
+        if (isDateInFuture) {
+          stats.otherSkipped++;
+        }
         continue;
       }
 
       const accountId = this.accountToYnabAccount.get(tx.account);
       if (!accountId) {
         missingAccounts.add(tx.account);
-        stats.skipped++;
+        stats.otherSkipped++;
         continue;
       }
 
@@ -88,7 +90,6 @@ export class YNABStorage implements TransactionStorage {
       logger("transactions sent to YNAB successfully!");
       stats.added = resp.data.transactions?.length ?? 0;
       stats.existing = resp.data.duplicate_import_ids?.length ?? 0;
-      stats.skipped += stats.existing;
 
       if (TRANSACTION_HASH_TYPE !== "moneyman") {
         sendDeprecationMessage("hashFiledChange");
