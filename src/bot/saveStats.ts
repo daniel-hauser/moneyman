@@ -85,9 +85,19 @@ export function statsString(
   const header = `📝 ${stats.name}${stats.table ? ` (${stats.table})` : ""}`;
   const stepsString = steps.map((s) => `\t${s}`).join("\n");
   const skipped = getSkippedCount(stats);
+  
+  let skippedBreakdown = "";
+  if (skipped > 0) {
+    const parts: string[] = [];
+    if (stats.existing > 0) parts.push(`${stats.existing} existing`);
+    if (stats.pending > 0) parts.push(`${stats.pending} pending`);
+    if (stats.otherSkipped > 0) parts.push(`${stats.otherSkipped} other`);
+    skippedBreakdown = `\t${skipped} skipped (${parts.join(", ")})\n`;
+  }
+  
   return `
 ${header}${stepsString ? "\n" + stepsString : ""}
-\t${stats.added} added${skipped > 0 ? `\t${skipped} skipped (${stats.existing} existing, ${stats.pending} pending)\n` : ""}
+\t${stats.added} added${skippedBreakdown}
 \ttook ${(saveDurationMs / 1000).toFixed(2)}s
 ${highlightedTransactionsString(stats.highlightedTransactions, 1)}`.trim();
 }
