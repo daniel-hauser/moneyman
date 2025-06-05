@@ -62,36 +62,36 @@ export class ActualBudgetStorage implements TransactionStorage {
       txns,
     );
 
-    const transactionsByActualAccountId = new Map<
-      string,
-      ActualTransaction[]
-    >();
-
-    for (let tx of txns) {
-      const isPending = tx.status === TransactionStatuses.Pending;
-      if (isPending) {
-        stats.skipped++;
-        continue;
-      }
-
-      const actualAccountId = this.bankToActualAccountMap.get(tx.account);
-      if (!actualAccountId) {
-        stats.skipped++;
-        continue;
-      }
-
-      const actualTx = this.convertTransactionToActualFormat(
-        tx,
-        actualAccountId,
-      );
-
-      if (!transactionsByActualAccountId.has(actualAccountId)) {
-        transactionsByActualAccountId.set(actualAccountId, []);
-      }
-      transactionsByActualAccountId.get(actualAccountId)!.push(actualTx);
-    }
-
     try {
+      const transactionsByActualAccountId = new Map<
+        string,
+        ActualTransaction[]
+      >();
+
+      for (let tx of txns) {
+        const isPending = tx.status === TransactionStatuses.Pending;
+        if (isPending) {
+          stats.skipped++;
+          continue;
+        }
+
+        const actualAccountId = this.bankToActualAccountMap.get(tx.account);
+        if (!actualAccountId) {
+          stats.skipped++;
+          continue;
+        }
+
+        const actualTx = this.convertTransactionToActualFormat(
+          tx,
+          actualAccountId,
+        );
+
+        if (!transactionsByActualAccountId.has(actualAccountId)) {
+          transactionsByActualAccountId.set(actualAccountId, []);
+        }
+        transactionsByActualAccountId.get(actualAccountId)!.push(actualTx);
+      }
+
       if (transactionsByActualAccountId.size > 0) {
         await this.sendTransactionsToActual(
           transactionsByActualAccountId,
@@ -99,8 +99,6 @@ export class ActualBudgetStorage implements TransactionStorage {
           onProgress,
         );
       }
-    } catch (error) {
-      throw error;
     } finally {
       await actualApi.shutdown();
     }
