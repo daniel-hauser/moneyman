@@ -31,7 +31,7 @@ export async function runWithStorage(runScraper: Runner) {
       );
     },
     async onResultsReady(results: AccountScrapeResult[]) {
-      await send(getSummaryMessages(results), "MarkdownV2");
+      await send(getSummaryMessages(results));
       await saveResults(results);
     },
     async onError(e: Error, caller: string = "unknown") {

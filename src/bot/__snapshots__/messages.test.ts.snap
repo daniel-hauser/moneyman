@@ -25,7 +25,6 @@ exports[`messages getSummaryMessages should return a summary message 1`] = `
 From completed, 3 not originally in ILS and 1 not charged in ILS
 
 Accounts updated:
-**>Successful Account Updates
 	✔️ [max] account1: 1
 	✔️ [max] account2: 7
 
@@ -57,7 +56,6 @@ Accounts updated:
 	❌ [max] GENERIC
 		Some error message
 	❌ [hapoalim] CHANGE_PASSWORD
-**>Successful Account Updates
 	✔️ [hapoalim] account1: 1
 
 Pending txns:
@@ -71,7 +69,6 @@ exports[`messages getSummaryMessages should return a summary message with instal
 (0 pending, 2 completed)
 
 Accounts updated:
-**>Successful Account Updates
 	✔️ [max] account1: 2
 
 Pending txns:

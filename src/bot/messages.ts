@@ -7,51 +7,25 @@ import { normalizeCurrency } from "../utils/currency.js";
 import { Timer } from "../utils/Timer.js";
 
 export function getSummaryMessages(results: Array<AccountScrapeResult>) {
-  const errorAccounts: string[] = [];
-  const successAccounts: string[] = [];
-
-  results.forEach(({ result, companyId }) => {
+  const accountsSummary = results.flatMap(({ result, companyId }) => {
     if (!result.success) {
-      errorAccounts.push(
-        `\t❌ [${companyId}] ${result.errorType || ""}${
-          result.errorMessage ? `\n\t\t${result.errorMessage}` : ""
-        }`,
-      );
-    } else {
-      result.accounts?.forEach((account) => {
-        successAccounts.push(
-          `\t✔️ [${companyId}] ${account.accountNumber}: ${account.txns.length}`,
-        );
-      });
+      return `\t❌ [${companyId}] ${result.errorType}${
+        result.errorMessage ? `\n\t\t${result.errorMessage}` : ""
+      }`;
     }
+    return result.accounts?.map(
+      (account) =>
+        `\t✔️ [${companyId}] ${account.accountNumber}: ${account.txns.length}`,
+    );
   });
 
   const { pending, completed } = transactionsByStatus(results);
-
-  let accountsSection = "";
-
-  if (errorAccounts.length === 0 && successAccounts.length === 0) {
-    accountsSection = "\t😶 None";
-  } else {
-    // Show error accounts first (outside expandable block)
-    if (errorAccounts.length > 0) {
-      accountsSection += errorAccounts.join("\n");
-      if (successAccounts.length > 0) {
-        accountsSection += "\n";
-      }
-    }
-
-    // Put successful accounts in expandable block quotation if there are any
-    if (successAccounts.length > 0) {
-      accountsSection += `**>Successful Account Updates\n${successAccounts.join("\n")}`;
-    }
-  }
 
   return `
 ${transactionsString(pending, completed)}
 
 Accounts updated:
-${accountsSection}
+${accountsSummary.join("\n") || "\t😶 None"}
 
 Pending txns:
 ${transactionList(pending) || "\t😶 None"}

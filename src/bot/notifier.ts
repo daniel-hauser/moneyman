@@ -1,29 +1,6 @@
 import { Telegraf, TelegramError } from "telegraf";
-import { escapers } from "@telegraf/entity";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
 import type { ImageWithCaption } from "../types.js";
-
-/**
- * Escapes content for MarkdownV2 while preserving intentional formatting like **>
- */
-export function escapeMessageForMarkdownV2(message: string): string {
-  // Split the message into lines to handle formatting carefully
-  const lines = message.split("\n");
-
-  return lines
-    .map((line) => {
-      // Check if this line starts with **> (expandable block quotation)
-      const expandableBlockMatch = line.match(/^(\*\*>)(.*)$/);
-      if (expandableBlockMatch) {
-        // Preserve the **> syntax but escape the rest
-        return `\\*\\*>${escapers.MarkdownV2(expandableBlockMatch[2])}`;
-      }
-
-      // For all other lines, escape the entire content using official escaper
-      return escapers.MarkdownV2(line);
-    })
-    .join("\n");
-}
 
 const logger = createLogger("notifier");
 
@@ -43,27 +20,13 @@ if (bot) {
   logger(`Telegram chat ID: ${TELEGRAM_CHAT_ID}`);
 }
 
-export async function send(
-  message: string,
-  parseMode?: "MarkdownV2" | "HTML" | "Markdown",
-) {
-  // Escape message content for MarkdownV2 format
-  const finalMessage =
-    parseMode === "MarkdownV2" ? escapeMessageForMarkdownV2(message) : message;
-
-  if (finalMessage.length > 4096) {
-    send(
-      `Next message is too long (${finalMessage.length} characters), truncating`,
-    );
-    return send(finalMessage.slice(0, 4096), parseMode);
+export async function send(message: string) {
+  if (message.length > 4096) {
+    send(`Next message is too long (${message.length} characters), truncating`);
+    return send(message.slice(0, 4096));
   }
-  logger(finalMessage);
-  const options = parseMode ? { parse_mode: parseMode } : undefined;
-  return await bot?.telegram.sendMessage(
-    TELEGRAM_CHAT_ID,
-    finalMessage,
-    options,
-  );
+  logger(message);
+  return await bot?.telegram.sendMessage(TELEGRAM_CHAT_ID, message);
 }
 
 export async function sendPhoto(photoPath: string, caption: string) {
@@ -102,7 +65,6 @@ export async function sendJSON(json: {}, filename: string) {
 export async function editMessage(
   message: number | undefined,
   newText: string,
-  parseMode?: "MarkdownV2" | "HTML" | "Markdown",
 ) {
   if (message !== undefined) {
     try {
@@ -112,20 +74,11 @@ export async function editMessage(
        * According to the docs, the limit is 30 messages per second so we should be safe with 250ms.
        */
       await new Promise((resolve) => setTimeout(resolve, 250));
-
-      // Escape message content for MarkdownV2 format
-      const finalText =
-        parseMode === "MarkdownV2"
-          ? escapeMessageForMarkdownV2(newText)
-          : newText;
-
-      const options = parseMode ? { parse_mode: parseMode } : undefined;
       await bot?.telegram.editMessageText(
         TELEGRAM_CHAT_ID,
         message,
         undefined,
-        finalText,
-        options,
+        newText,
       );
     } catch (e) {
       if (canIgnoreTelegramError(e)) {
