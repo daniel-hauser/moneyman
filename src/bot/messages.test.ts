@@ -6,7 +6,7 @@ import {
   TransactionTypes,
 } from "israeli-bank-scrapers/lib/transactions.js";
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
-import { createSaveStats, SaveStats, statsString } from "./saveStats.js";
+import { createSaveStats, SaveStats, statsString, getSkippedCount } from "./saveStats.js";
 import { Timer } from "../utils/Timer.js";
 
 describe("messages", () => {
@@ -301,6 +301,81 @@ describe("messages", () => {
       ];
       const saveSummaries = stats.map((stats) => statsString(stats, 0));
       expect(saveSummaries).toMatchSnapshot();
+    });
+
+    it("should support stats with otherSkipped transactions", () => {
+      const tx = {
+        ...transaction({}),
+        hash: "hash1",
+        uniqueId: "uniqueId1",
+        account: "account1",
+        companyId: CompanyTypes.max,
+      };
+      const stats: Array<SaveStats> = [
+        createSaveStats("Storage", "TheTable", [tx], {
+          added: 1,
+          existing: 1,
+          pending: 1,
+          otherSkipped: 2,
+          highlightedTransactions: {
+            Group1: [tx],
+          },
+        }),
+      ];
+      const saveSummaries = stats.map((stats) => statsString(stats, 0));
+      expect(saveSummaries).toMatchSnapshot();
+    });
+  });
+
+  describe("getSkippedCount", () => {
+    it("should calculate skipped count including existing, pending, and otherSkipped", () => {
+      const stats = createSaveStats("Test", "TheTable", [], {
+        existing: 2,
+        pending: 3,
+        otherSkipped: 1,
+      });
+      
+      expect(getSkippedCount(stats)).toBe(6); // 2 + 3 + 1
+    });
+
+    it("should handle zero values", () => {
+      const stats = createSaveStats("Test", "TheTable", [], {
+        existing: 0,
+        pending: 0,
+        otherSkipped: 0,
+      });
+      
+      expect(getSkippedCount(stats)).toBe(0);
+    });
+
+    it("should handle when only otherSkipped has value", () => {
+      const stats = createSaveStats("Test", "TheTable", [], {
+        existing: 0,
+        pending: 0,
+        otherSkipped: 5,
+      });
+      
+      expect(getSkippedCount(stats)).toBe(5);
+    });
+  });
+
+  describe("createSaveStats", () => {
+    it("should initialize otherSkipped to 0 by default", () => {
+      const stats = createSaveStats("Test", "TheTable", []);
+      
+      expect(stats.otherSkipped).toBe(0);
+      expect(stats.existing).toBe(0);
+      expect(stats.pending).toBe(0);
+      expect(getSkippedCount(stats)).toBe(0);
+    });
+
+    it("should allow overriding otherSkipped value", () => {
+      const stats = createSaveStats("Test", "TheTable", [], {
+        otherSkipped: 3,
+      });
+      
+      expect(stats.otherSkipped).toBe(3);
+      expect(getSkippedCount(stats)).toBe(3);
     });
   });
 
