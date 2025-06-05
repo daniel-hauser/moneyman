@@ -13,7 +13,7 @@ export function getSummaryMessages(results: Array<AccountScrapeResult>) {
   results.forEach(({ result, companyId }) => {
     if (!result.success) {
       errorAccounts.push(
-        `\t❌ [${companyId}] ${result.errorType}${
+        `\t❌ [${companyId}] ${result.errorType || ""}${
           result.errorMessage ? `\n\t\t${result.errorMessage}` : ""
         }`,
       );
