@@ -40,21 +40,16 @@ function getAccountsSummary(results: Array<AccountScrapeResult>): string {
     return "Accounts updated:\n\t😶 None";
   } else if (errorAccounts.length === 0) {
     // Only successful accounts - use expandable block without duplication
-    return blockquote("Accounts updated", successfulAccounts, true);
+    return blockquote("Accounts updated", successfulAccounts);
   } else if (successfulAccounts.length === 0) {
     // Only error accounts - use expandable block
-    return blockquote("Accounts updated", errorAccounts, true);
+    return blockquote("Accounts updated", errorAccounts);
   } else {
     // Mixed - show both in separate blocks (applying comment suggestion)
-    const failedBlock = blockquote(
-      "Failed Account Updates",
-      errorAccounts,
-      false,
-    );
+    const failedBlock = blockquote("Failed Account Updates", errorAccounts);
     const successBlock = blockquote(
       "Successful Account Updates",
       successfulAccounts,
-      false,
     );
     return `${failedBlock}\n\n${successBlock}`;
   }
@@ -65,7 +60,7 @@ function getPendingTransactionsSummary(pending: Array<Transaction>): string {
     return "";
   } else {
     const pendingContent = transactionList(pending, "\t");
-    return blockquote("Pending txns", [pendingContent], true);
+    return blockquote("Pending txns", [pendingContent]);
   }
 }
 
