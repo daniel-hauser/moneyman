@@ -5,30 +5,36 @@ import {
 import { AccountScrapeResult, Transaction } from "../types.js";
 import { normalizeCurrency } from "../utils/currency.js";
 import { Timer } from "../utils/Timer.js";
-import { MarkdownV2 } from "@telegraf/entity/script/escapers.js";
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
 
 export function getSummaryMessages(
   results: Array<AccountScrapeResult>,
-  useMarkdownV2 = false,
+  useExpandableBlocks = false,
 ) {
   const { pending, completed } = transactionsByStatus(results);
 
   let accountsSection = "";
 
-  if (useMarkdownV2) {
-    // New logic for MarkdownV2 with expandable blocks
+  if (useExpandableBlocks) {
+    // New logic for HTML with expandable blocks
     const errorAccounts: string[] = [];
     const successfulAccounts: string[] = [];
 
     results.forEach(({ result, companyId }) => {
       if (!result.success) {
         const errorMessage = `\t❌ [${companyId}] ${result.errorType}${
-          result.errorMessage ? `\n\t\t${result.errorMessage}` : ""
+          result.errorMessage ? `\n\t\t${escapeHtml(result.errorMessage)}` : ""
         }`;
         errorAccounts.push(errorMessage);
       } else {
         result.accounts?.forEach((account) => {
-          const successMessage = `\t✔️ [${companyId}] ${account.accountNumber}: ${account.txns.length}`;
+          const successMessage = `\t✔️ [${companyId}] ${escapeHtml(account.accountNumber)}: ${account.txns.length}`;
           successfulAccounts.push(successMessage);
         });
       }
@@ -39,20 +45,16 @@ export function getSummaryMessages(
       accountsSection = "Accounts updated:\n\t😶 None";
     } else if (errorAccounts.length === 0) {
       // Only successful accounts - use expandable block without duplication
-      const escapedAccounts = successfulAccounts
-        .map((account) => MarkdownV2(account))
-        .join("\n");
-      accountsSection = `**>Accounts updated**\n${escapedAccounts}`;
+      const accountsContent = successfulAccounts.join("\n");
+      accountsSection = `<blockquote expandable="">Accounts updated\n${accountsContent}</blockquote>`;
     } else if (successfulAccounts.length === 0) {
       // Only error accounts
       accountsSection = `Accounts updated:\n${errorAccounts.join("\n")}`;
     } else {
       // Mixed - show errors first, then successful in expandable block
       const errorSection = `Accounts updated:\n${errorAccounts.join("\n")}`;
-      const escapedAccounts = successfulAccounts
-        .map((account) => MarkdownV2(account))
-        .join("\n");
-      accountsSection = `${errorSection}\n**>Successful Account Updates**\n${escapedAccounts}`;
+      const accountsContent = successfulAccounts.join("\n");
+      accountsSection = `${errorSection}\n<blockquote expandable="">Successful Account Updates\n${accountsContent}</blockquote>`;
     }
   } else {
     // Original logic for backward compatibility
@@ -75,11 +77,11 @@ export function getSummaryMessages(
     pending,
     completed,
     results,
-    useMarkdownV2,
+    useExpandableBlocks,
   );
   const pendingSection =
-    transactionList(pending, "\t", useMarkdownV2) ||
-    (useMarkdownV2 ? MarkdownV2("\t😶 None") : "\t😶 None");
+    transactionList(pending, "\t", useExpandableBlocks) ||
+    (useExpandableBlocks ? escapeHtml("\t😶 None") : "\t😶 None");
 
   return `
 ${transactionsSummary}
@@ -95,7 +97,7 @@ function transactionsString(
   pending: Array<Transaction>,
   completed: Array<Transaction>,
   results: Array<AccountScrapeResult>,
-  useMarkdownV2 = false,
+  useExpandableBlocks = false,
 ) {
   const total = pending.length + completed.length;
 
@@ -118,7 +120,7 @@ ${total > 0 ? `(${pending.length} pending, ${completed.length} completed)` : ""}
 ${foreignTransactionsSummary(completed)}
 `.trim();
 
-  return useMarkdownV2 ? MarkdownV2(summary) : summary;
+  return useExpandableBlocks ? escapeHtml(summary) : summary;
 }
 
 function foreignTransactionsSummary(completed: Array<Transaction>) {
@@ -166,12 +168,12 @@ function transactionString(t: Transaction) {
 export function transactionList(
   transactions: Array<Transaction>,
   indent = "\t",
-  useMarkdownV2 = false,
+  useExpandableBlocks = false,
 ) {
   const list = transactions
     .map((t) => `${indent}${transactionString(t)}`)
     .join("\n");
-  return useMarkdownV2 ? MarkdownV2(list) : list;
+  return useExpandableBlocks ? escapeHtml(list) : list;
 }
 
 export function saving(storage: string, steps: Array<Timer> = []) {
