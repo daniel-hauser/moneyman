@@ -7,13 +7,9 @@ import { normalizeCurrency } from "../utils/currency.js";
 import { Timer } from "../utils/Timer.js";
 import { escapers } from "@telegraf/entity";
 
-function blockquote(
-  title: string,
-  lines: string[],
-  expandable = false,
-): string {
+function blockquote(title: string, lines: string[], expandable = true): string {
   const content = lines.join("\n");
-  const expandableAttr = expandable ? ' expandable=""' : "";
+  const expandableAttr = expandable ? " expandable" : "";
   return `<blockquote${expandableAttr}>${title}\n${content}</blockquote>`;
 }
 
@@ -50,10 +46,15 @@ function getAccountsSummary(results: Array<AccountScrapeResult>): string {
     return blockquote("Accounts updated", errorAccounts, true);
   } else {
     // Mixed - show both in separate blocks (applying comment suggestion)
-    const failedBlock = blockquote("Failed Account Updates", errorAccounts);
+    const failedBlock = blockquote(
+      "Failed Account Updates",
+      errorAccounts,
+      false,
+    );
     const successBlock = blockquote(
       "Successful Account Updates",
       successfulAccounts,
+      false,
     );
     return `${failedBlock}\n\n${successBlock}`;
   }
