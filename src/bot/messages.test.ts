@@ -14,6 +14,7 @@ import {
   skippedString,
 } from "./saveStats.js";
 import { Timer } from "../utils/Timer.js";
+import { transaction } from "../utils/tests.js";
 
 describe("messages", () => {
   describe("getSummaryMessages", () => {
@@ -557,17 +558,3 @@ describe("messages", () => {
   });
 });
 
-export function transaction(t: Partial<Transaction>): Transaction {
-  return {
-    type: TransactionTypes.Normal,
-    date: new Date().toISOString(),
-    processedDate: new Date().toISOString(),
-    description: "description1",
-    originalAmount: 10,
-    originalCurrency: "ILS",
-    chargedCurrency: "ILS",
-    chargedAmount: t.status === TransactionStatuses.Pending ? 0 : 10,
-    status: TransactionStatuses.Completed,
-    ...t,
-  };
-}
