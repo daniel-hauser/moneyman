@@ -14,6 +14,7 @@ import {
   skippedString,
 } from "./saveStats.js";
 import { Timer } from "../utils/Timer.js";
+import { transaction } from "../utils/tests.js";
 
 describe("messages", () => {
   describe("getSummaryMessages", () => {
@@ -309,6 +310,68 @@ describe("messages", () => {
       expect(saveSummaries).toMatchSnapshot();
     });
 
+    it("should use expandable block quotation for successful accounts only (HTML)", () => {
+      const results: Array<AccountScrapeResult> = [
+        {
+          companyId: CompanyTypes.max,
+          result: {
+            success: true,
+            accounts: [
+              {
+                accountNumber: "account1",
+                txns: [transaction({})],
+              },
+              {
+                accountNumber: "account2",
+                txns: [transaction({}), transaction({})],
+              },
+            ],
+          },
+        },
+      ];
+
+      const summary = getSummaryMessages(results);
+      expect(summary).toMatchSnapshot();
+    });
+
+    it("should use expandable block quotation for mixed success/error accounts (HTML)", () => {
+      const results: Array<AccountScrapeResult> = [
+        {
+          companyId: CompanyTypes.max,
+          result: {
+            success: false,
+            errorType: ScraperErrorTypes.Generic,
+            errorMessage: "Connection failed",
+          },
+        },
+        {
+          companyId: CompanyTypes.hapoalim,
+          result: {
+            success: true,
+            accounts: [
+              {
+                accountNumber: "12345",
+                txns: [
+                  transaction({}),
+                  transaction({}),
+                  transaction({}),
+                  transaction({}),
+                  transaction({}),
+                ],
+              },
+              {
+                accountNumber: "67890",
+                txns: [transaction({}), transaction({}), transaction({})],
+              },
+            ],
+          },
+        },
+      ];
+
+      const summary = getSummaryMessages(results);
+      expect(summary).toMatchSnapshot();
+    });
+
     it("should support stats with otherSkipped transactions", () => {
       const tx = {
         ...transaction({}),
@@ -494,18 +557,3 @@ describe("messages", () => {
     });
   });
 });
-
-export function transaction(t: Partial<Transaction>): Transaction {
-  return {
-    type: TransactionTypes.Normal,
-    date: new Date().toISOString(),
-    processedDate: new Date().toISOString(),
-    description: "description1",
-    originalAmount: 10,
-    originalCurrency: "ILS",
-    chargedCurrency: "ILS",
-    chargedAmount: t.status === TransactionStatuses.Pending ? 0 : 10,
-    status: TransactionStatuses.Completed,
-    ...t,
-  };
-}

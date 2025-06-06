@@ -31,7 +31,8 @@ export async function runWithStorage(runScraper: Runner) {
       );
     },
     async onResultsReady(results: AccountScrapeResult[]) {
-      await send(getSummaryMessages(results));
+      const summaryMessage = getSummaryMessages(results);
+      await send(summaryMessage, "HTML");
       await saveResults(results);
     },
     async onError(e: Error, caller: string = "unknown") {
