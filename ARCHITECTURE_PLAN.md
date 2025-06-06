@@ -33,7 +33,13 @@ This document outlines the architecture plan for separating the scraping process
 │ • Scraping Only │                │ • Storage Ops   │
 │ • User: scraper │                │ • Notifications │
 │ • UID: 1001     │                │ • User: storage │
-└─────────────────┘                │ • UID: 1002     │
+│                 │                │ • UID: 1002     │
+│ node_modules:   │                │ node_modules:   │
+│ • israeli-bank- │                │ • googleapis    │
+│   scrapers      │                │ • ynab          │
+│ • puppeteer     │                │ • @azure/*      │
+│ • zeromq        │                │ • telegram-api  │
+└─────────────────┘                │ • zeromq        │
         │                          └─────────────────┘
         │                                    │
         ▼                                    ▼
@@ -59,7 +65,11 @@ This document outlines the architecture plan for separating the scraping process
 - Send metadata and failure screenshots
 
 **Dependencies:**
-- Minimal - only scraping-related packages
+- **Completely separate node_modules**: Only scraping-related packages installed
+  - `israeli-bank-scrapers` and its dependencies
+  - `zeromq` for communication
+  - Minimal Node.js runtime dependencies
+  - **NO** external service API libraries (Google APIs, YNAB SDK, Azure SDK, etc.)
 - ZeroMQ for communication
 - Bank scraping libraries
 
@@ -67,6 +77,7 @@ This document outlines the architecture plan for separating the scraping process
 - Runs as `scraper` user (UID 1001)
 - Only has access to bank credentials
 - No access to external service API keys
+- **Dependency isolation**: Cannot access external service libraries even if compromised
 - Can be network-restricted to only bank domains
 
 ### 2. Storage Service
@@ -80,7 +91,13 @@ This document outlines the architecture plan for separating the scraping process
 - Process metadata and screenshots
 
 **Dependencies:**
-- All existing storage service dependencies
+- **Completely separate node_modules**: Only external service API libraries
+  - Google APIs SDK for Sheets integration
+  - YNAB SDK for budget integration
+  - Azure SDK for blob storage
+  - Telegram Bot API libraries
+  - `zeromq` for communication
+  - **NO** bank scraping libraries or related dependencies
 - ZeroMQ for communication
 - External service API libraries
 
@@ -88,6 +105,7 @@ This document outlines the architecture plan for separating the scraping process
 - Runs as `storage` user (UID 1002)
 - Only has access to external service API keys
 - No access to bank credentials
+- **Dependency isolation**: Cannot access bank scraping libraries even if compromised
 - Can be network-restricted from bank domains
 
 ### 3. Communication Layer
@@ -136,6 +154,95 @@ interface ScraperMessage {
 3. Ensure all existing functionality works in both modes
 4. Add comprehensive testing for both modes
 
+## Dependencies and Package Separation
+
+### Key Security Feature: Isolated node_modules
+
+The separated architecture implements **complete dependency isolation** between services, ensuring that:
+
+- **Scraper Service** only has access to scraping-related packages
+- **Storage Service** only has access to external API packages  
+- **No cross-service dependency access** even if one service is compromised
+
+### Scraper Service Dependencies (`scraper-service/package.json`)
+
+```json
+{
+  "name": "moneyman-scraper",
+  "dependencies": {
+    "israeli-bank-scrapers": "^1.x.x",
+    "zeromq": "^6.x.x",
+    "puppeteer": "^21.x.x"
+  }
+}
+```
+
+**Explicitly excludes:**
+- `@google-cloud/storage`
+- `googleapis` 
+- `ynab`
+- `@azure/storage-blob`
+- `node-telegram-bot-api`
+- Any external service SDK
+
+### Storage Service Dependencies (`storage-service/package.json`)
+
+```json
+{
+  "name": "moneyman-storage", 
+  "dependencies": {
+    "googleapis": "^128.x.x",
+    "ynab": "^1.x.x", 
+    "@azure/storage-blob": "^12.x.x",
+    "node-telegram-bot-api": "^0.x.x",
+    "zeromq": "^6.x.x"
+  }
+}
+```
+
+**Explicitly excludes:**
+- `israeli-bank-scrapers`
+- `puppeteer`
+- Any bank scraping related libraries
+
+### Implementation Strategy
+
+1. **Separate package.json files**: Each service has its own dependency manifest
+2. **Multi-stage Docker builds**: Each service container only contains its required dependencies
+3. **Build-time separation**: Dependencies installed independently for each service
+4. **Runtime isolation**: Services cannot access each other's node_modules
+
+### Docker Implementation
+
+```dockerfile
+# Dockerfile.separated
+FROM node:18-alpine AS scraper-deps
+WORKDIR /app/scraper-service
+COPY scraper-service/package*.json ./
+RUN npm ci --production
+
+FROM node:18-alpine AS storage-deps  
+WORKDIR /app/storage-service
+COPY storage-service/package*.json ./
+RUN npm ci --production
+
+# Scraper service with only scraper dependencies
+FROM node:18-alpine AS scraper
+RUN adduser -D -u 1001 scraper
+COPY --from=scraper-deps /app/scraper-service/node_modules ./node_modules
+COPY scraper-service/ ./
+USER scraper
+CMD ["node", "index.js"]
+
+# Storage service with only storage dependencies
+FROM node:18-alpine AS storage
+RUN adduser -D -u 1002 storage  
+COPY --from=storage-deps /app/storage-service/node_modules ./node_modules
+COPY storage-service/ ./
+USER storage
+CMD ["node", "index.js"]
+```
+
 ## File Structure
 
 ```
@@ -145,12 +252,16 @@ moneyman/
 │   ├── bot/storage/               # Storage logic (used by storage service)
 │   └── ...
 ├── scraper-service/
-│   └── index.ts                   # Minimal scraper process
+│   ├── index.ts                   # Minimal scraper process
+│   ├── package.json               # Only scraper dependencies
+│   └── node_modules/              # Isolated scraper dependencies
 ├── storage-service/
-│   └── index.ts                   # Storage and notification process
+│   ├── index.ts                   # Storage and notification process
+│   ├── package.json               # Only storage dependencies  
+│   └── node_modules/              # Isolated storage dependencies
 ├── Dockerfile.separated           # Multi-stage build for separated mode
 ├── docker-entrypoint-separated.sh # Entry point for separated containers
-└── package.json                   # Add ZeroMQ dependency
+└── package.json                   # Root package (dev dependencies only)
 ```
 
 ## Configuration
@@ -182,10 +293,13 @@ npm run start:scraper  # Terminal 2
 ## Security Benefits
 
 1. **Credential Isolation**: Bank passwords only accessible to scraper process
-2. **Minimal Attack Surface**: Each service has minimal dependencies
-3. **Process Separation**: Different users prevent cross-contamination
-4. **Network Controls**: Can restrict scraper from external APIs and vice versa
-5. **Principle of Least Privilege**: Each service only has access to what it needs
+2. **Dependency Isolation**: Complete separation of node_modules packages
+   - Scraper: Only has bank scraping libraries, cannot access external service APIs
+   - Storage: Only has external service libraries, cannot access bank scraping code
+3. **Minimal Attack Surface**: Each service has minimal dependencies
+4. **Process Separation**: Different users prevent cross-contamination
+5. **Network Controls**: Can restrict scraper from external APIs and vice versa
+6. **Principle of Least Privilege**: Each service only has access to what it needs
 
 ## Backward Compatibility
 
@@ -204,8 +318,33 @@ npm run start:scraper  # Terminal 2
 
 ## Dependencies
 
-### New Dependencies
-- `zeromq`: For inter-process communication
+### Root Package Dependencies (Development Only)
+- `typescript`: For building both services
+- `jest`: For testing
+- `@types/*`: TypeScript definitions
+- `concurrently`: For running services in development
+
+### Service-Specific Dependencies
+
+#### Scraper Service Only
+- `israeli-bank-scrapers`: Bank scraping functionality
+- `puppeteer`: Browser automation
+- `zeromq`: Inter-service communication
+
+#### Storage Service Only  
+- `googleapis`: Google Sheets integration
+- `ynab`: YNAB API integration
+- `@azure/storage-blob`: Azure blob storage
+- `node-telegram-bot-api`: Telegram notifications
+- `zeromq`: Inter-service communication
+
+### Dependency Isolation Benefits
+
+1. **Reduced Attack Surface**: Each service only has dependencies it actually uses
+2. **Faster Installation**: Smaller dependency trees per service
+3. **Better Security Auditing**: Can audit each service's dependencies separately
+4. **Easier Maintenance**: Update external API libraries without affecting scraper
+5. **Compliance**: Clear separation for security audits and compliance requirements
 
 ### Package.json Scripts
 - `start:scraper`: Start scraper service
