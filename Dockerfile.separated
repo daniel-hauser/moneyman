@@ -1,0 +1,43 @@
+FROM ghcr.io/puppeteer/puppeteer
+
+# Install zeromq system dependencies
+USER root
+RUN apt-get update && apt-get install -y \
+    libzmq3-dev \
+    pkg-config \
+    iptables \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create users for scraper and storage
+RUN useradd -m -u 1001 scraper
+RUN useradd -m -u 1002 storage
+
+WORKDIR /app
+
+# Copy and install dependencies
+COPY tsconfig.json .
+COPY package.json .
+COPY package-lock.json .
+COPY jest.scraper-access.config.js .
+COPY ./patches ./patches
+RUN npm ci
+
+# Copy source code and build
+COPY ./src ./src
+COPY ./scraper-service ./scraper-service
+COPY ./storage-service ./storage-service
+COPY ./index.ts ./index.ts
+RUN npm run build
+
+# Set ownership
+RUN chown -R scraper:scraper /app
+RUN chown -R storage:storage /app
+
+# Copy startup script
+COPY docker-entrypoint-separated.sh /docker-entrypoint-separated.sh
+RUN chmod +x /docker-entrypoint-separated.sh
+
+# Default to separated mode, but can be overridden
+ENV SEPARATED_MODE=true
+
+CMD ["/docker-entrypoint-separated.sh"]
