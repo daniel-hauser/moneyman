@@ -58,10 +58,7 @@ exports[`messages getSummaryMessages should return a summary message with failed
 		Some error message
 	❌ [hapoalim] CHANGE_PASSWORD</blockquote>
 <blockquote expandable="">Successful Account Updates
-	✔️ [hapoalim] account1: 1</blockquote>
-
-<blockquote expandable="">Pending txns
-	😶 None</blockquote>"
+	✔️ [hapoalim] account1: 1</blockquote>"
 `;
 
 exports[`messages getSummaryMessages should return a summary message with failed results 2`] = `[]`;
@@ -71,10 +68,7 @@ exports[`messages getSummaryMessages should return a summary message with instal
 (0 pending, 2 completed)
 
 <blockquote expandable="">Accounts updated
-	✔️ [max] account1: 2</blockquote>
-
-<blockquote expandable="">Pending txns
-	😶 None</blockquote>"
+	✔️ [max] account1: 2</blockquote>"
 `;
 
 exports[`messages getSummaryMessages should return a summary message with installments 2`] = `
@@ -93,10 +87,7 @@ exports[`messages getSummaryMessages should return a summary message with no res
 "0 transactions scraped.
 
 Accounts updated:
-	😶 None
-
-<blockquote expandable="">Pending txns
-	😶 None</blockquote>"
+	😶 None"
 `;
 
 exports[`messages getSummaryMessages should return a summary message with no results 2`] = `[]`;
@@ -149,10 +140,7 @@ exports[`messages getSummaryMessages should use expandable block quotation for m
 		Connection failed</blockquote>
 <blockquote expandable="">Successful Account Updates
 	✔️ [hapoalim] 12345: 5
-	✔️ [hapoalim] 67890: 3</blockquote>
-
-<blockquote expandable="">Pending txns
-	😶 None</blockquote>"
+	✔️ [hapoalim] 67890: 3</blockquote>"
 `;
 
 exports[`messages getSummaryMessages should use expandable block quotation for successful accounts only (HTML) 1`] = `
@@ -161,10 +149,7 @@ exports[`messages getSummaryMessages should use expandable block quotation for s
 
 <blockquote expandable="">Accounts updated
 	✔️ [max] account1: 1
-	✔️ [max] account2: 2</blockquote>
-
-<blockquote expandable="">Pending txns
-	😶 None</blockquote>"
+	✔️ [max] account2: 2</blockquote>"
 `;
 
 exports[`messages saving should return a saving message 1`] = `"📝 Storage Saving..."`;

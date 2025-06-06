@@ -5,31 +5,29 @@ import {
 import { AccountScrapeResult, Transaction } from "../types.js";
 import { normalizeCurrency } from "../utils/currency.js";
 import { Timer } from "../utils/Timer.js";
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
+import { escapers } from "@telegraf/entity";
 
 function getAccountsSummary(results: Array<AccountScrapeResult>): string {
-  const successfulAccounts: string[] = [];
-  const errorAccounts: string[] = [];
+  const successfulAccounts = results
+    .filter(({ result }) => result.success)
+    .flatMap(({ result, companyId }) =>
+      result.accounts?.map(
+        (account) =>
+          `\t✔️ [${companyId}] ${escapers.HTML(account.accountNumber)}: ${account.txns.length}`,
+      ),
+    )
+    .filter((account): account is string => account !== undefined);
 
-  results.forEach(({ result, companyId }) => {
-    if (!result.success) {
-      const errorMessage = `\t❌ [${companyId}] ${result.errorType}${
-        result.errorMessage ? `\n\t\t${escapeHtml(result.errorMessage)}` : ""
-      }`;
-      errorAccounts.push(errorMessage);
-    } else {
-      result.accounts?.forEach((account) => {
-        const successMessage = `\t✔️ [${companyId}] ${escapeHtml(account.accountNumber)}: ${account.txns.length}`;
-        successfulAccounts.push(successMessage);
-      });
-    }
-  });
+  const errorAccounts = results
+    .filter(({ result }) => !result.success)
+    .map(
+      ({ result, companyId }) =>
+        `\t❌ [${companyId}] ${result.errorType}${
+          result.errorMessage
+            ? `\n\t\t${escapers.HTML(result.errorMessage)}`
+            : ""
+        }`,
+    );
 
   if (errorAccounts.length === 0 && successfulAccounts.length === 0) {
     // No accounts at all
@@ -52,7 +50,7 @@ function getAccountsSummary(results: Array<AccountScrapeResult>): string {
 
 function getPendingTransactionsSummary(pending: Array<Transaction>): string {
   if (pending.length === 0) {
-    return `<blockquote expandable="">Pending txns\n\t😶 None</blockquote>`;
+    return "";
   } else {
     const pendingContent = transactionList(pending, "\t");
     return `<blockquote expandable="">Pending txns\n${pendingContent}</blockquote>`;
@@ -67,13 +65,12 @@ export function getSummaryMessages(results: Array<AccountScrapeResult>) {
   const transactionsSummary = transactionsString(pending, completed, results);
   const pendingSection = getPendingTransactionsSummary(pending);
 
-  return `
-${transactionsSummary}
+  const sections = [transactionsSummary, accountsSection];
+  if (pendingSection) {
+    sections.push(pendingSection);
+  }
 
-${accountsSection}
-
-${pendingSection}
-`.trim();
+  return sections.join("\n\n").trim();
 }
 
 function transactionsString(
@@ -102,7 +99,7 @@ ${total > 0 ? `(${pending.length} pending, ${completed.length} completed)` : ""}
 ${foreignTransactionsSummary(completed)}
 `.trim();
 
-  return escapeHtml(summary);
+  return escapers.HTML(summary);
 }
 
 function foreignTransactionsSummary(completed: Array<Transaction>) {
@@ -154,7 +151,7 @@ export function transactionList(
   const list = transactions
     .map((t) => `${indent}${transactionString(t)}`)
     .join("\n");
-  return escapeHtml(list);
+  return escapers.HTML(list);
 }
 
 export function saving(storage: string, steps: Array<Timer> = []) {
