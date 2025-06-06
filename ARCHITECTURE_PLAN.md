@@ -6,16 +6,16 @@ This document outlines the architecture plan for separating the scraping process
 
 ## Current Architecture
 
-```
-┌─────────────────────────────────────────┐
-│         MoneyMan (Single Process)      │
-├─────────────────────────────────────────┤
-│ • Bank Credentials                      │
-│ • Scraping Logic                        │
-│ • Storage Services (Sheets, YNAB, etc) │
-│ • External API Keys                     │
-│ • Telegram Notifications               │
-└─────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph "MoneyMan (Single Process)"
+        A[Bank Credentials]
+        B[Scraping Logic]
+        C[Storage Services]
+        D[External API Keys]
+        E[Telegram Notifications]
+        F[All Dependencies Mixed]
+    end
 ```
 
 **Security Issues:**
@@ -25,31 +25,33 @@ This document outlines the architecture plan for separating the scraping process
 
 ## Proposed Separated Architecture
 
-```
-┌─────────────────┐    ZeroMQ     ┌─────────────────┐
-│ Scraper Service │◄──────────────┤ Storage Service │
-├─────────────────┤    (Push/Pull) ├─────────────────┤
-│ • Bank Creds    │                │ • API Keys      │
-│ • Scraping Only │                │ • Storage Ops   │
-│ • User: scraper │                │ • Notifications │
-│ • UID: 1001     │                │ • User: storage │
-│                 │                │ • UID: 1002     │
-│ node_modules:   │                │ node_modules:   │
-│ • israeli-bank- │                │ • googleapis    │
-│   scrapers      │                │ • ynab          │
-│ • puppeteer     │                │ • @azure/*      │
-│ • zeromq        │                │ • telegram-api  │
-└─────────────────┘                │ • zeromq        │
-        │                          └─────────────────┘
-        │                                    │
-        ▼                                    ▼
-┌─────────────────┐                ┌─────────────────┐
-│   Bank Sites    │                │ External APIs   │
-│                 │                │ • Google Sheets │
-└─────────────────┘                │ • YNAB          │
-                                   │ • Azure         │
-                                   │ • Telegram      │
-                                   └─────────────────┘
+```mermaid
+graph TB
+    subgraph "Single Docker Container"
+        subgraph "Scraper Process (UID: 1001)"
+            S[Scraper Service]
+            SC[Bank Credentials]
+            SM[node_modules:<br/>• israeli-bank-scrapers<br/>• puppeteer<br/>• zeromq]
+        end
+        
+        subgraph "Storage Process (UID: 1002)"  
+            T[Storage Service]
+            TC[API Keys]
+            TM[node_modules:<br/>• googleapis<br/>• ynab<br/>• @azure/*<br/>• telegram-api<br/>• zeromq]
+        end
+        
+        subgraph "Orchestrator Process (UID: 1003)"
+            O[Orchestrator Service]
+            OC[Logging & Coordination]
+            OM[node_modules:<br/>• zeromq<br/>• winston<br/>• minimal deps]
+        end
+        
+        S -->|IPC ZeroMQ| O
+        O -->|IPC ZeroMQ| T
+    end
+    
+    S --> BS[Bank Sites]
+    T --> EA[External APIs:<br/>Google Sheets<br/>YNAB<br/>Azure<br/>Telegram]
 ```
 
 ## Components
@@ -59,7 +61,7 @@ This document outlines the architecture plan for separating the scraping process
 **Location:** `scraper-service/index.ts`
 **Responsibilities:**
 - Execute bank account scraping using existing scraper logic
-- Send results via ZeroMQ to storage service
+- Send results via ZeroMQ to orchestrator service
 - Handle scraping errors and send error messages
 - Send status updates during scraping process
 - Send metadata and failure screenshots
@@ -81,12 +83,11 @@ This document outlines the architecture plan for separating the scraping process
 - Can be network-restricted to only bank domains
 
 ### 2. Storage Service
-**Purpose:** Handles all external storage and notification operations
+**Purpose:** Handles all external storage operations
 **Location:** `storage-service/index.ts`
 **Responsibilities:**
-- Receive scraping results from scraper service via ZeroMQ
+- Receive processed results from orchestrator service via ZeroMQ
 - Save results to configured storage services (Google Sheets, YNAB, etc.)
-- Send Telegram notifications
 - Handle error notifications
 - Process metadata and screenshots
 
@@ -95,7 +96,6 @@ This document outlines the architecture plan for separating the scraping process
   - Google APIs SDK for Sheets integration
   - YNAB SDK for budget integration
   - Azure SDK for blob storage
-  - Telegram Bot API libraries
   - `zeromq` for communication
   - **NO** bank scraping libraries or related dependencies
 - ZeroMQ for communication
@@ -108,14 +108,44 @@ This document outlines the architecture plan for separating the scraping process
 - **Dependency isolation**: Cannot access bank scraping libraries even if compromised
 - Can be network-restricted from bank domains
 
-### 3. Communication Layer
-**Protocol:** ZeroMQ Push/Pull pattern
-**Endpoint:** `tcp://127.0.0.1:5555` (configurable)
+### 3. Orchestrator Service
+**Purpose:** Coordinates communication and handles notifications
+**Location:** `orchestrator-service/index.ts`
+**Responsibilities:**
+- Coordinate scraping workflow
+- Handle Telegram notifications and logging
+- Route messages between scraper and storage services
+- Manage error handling and recovery
+- Process control and lifecycle management
+
+**Dependencies:**
+- **Minimal separate node_modules**: Only coordination libraries
+  - `zeromq` for communication
+  - `winston` or similar for logging
+  - Telegram Bot API libraries
+  - **NO** bank scraping or external storage libraries
+
+**Security:**
+- Runs as `orchestrator` user (UID 1003)
+- Has access to notification credentials only
+- No access to bank credentials or storage API keys
+- **Dependency isolation**: Cannot access scraping or storage libraries
+
+### 4. Communication Layer
+**Protocol:** ZeroMQ with IPC transport (Unix domain sockets)
+**Endpoints:** 
+- `ipc:///tmp/scraper-orchestrator.sock` 
+- `ipc:///tmp/orchestrator-storage.sock`
 **Message Format:** JSON with typed interfaces
 
 ```typescript
 interface ScraperMessage {
   type: 'results' | 'error' | 'status' | 'metadata' | 'screenshots' | 'finished';
+  data: any;
+}
+
+interface OrchestratorMessage {
+  type: 'store_results' | 'notify' | 'log' | 'error';
   data: any;
 }
 ```
@@ -127,6 +157,9 @@ interface ScraperMessage {
 - `metadata`: Run metadata
 - `screenshots`: Failure screenshots
 - `finished`: Indicates scraping completion
+- `store_results`: Processed data ready for storage
+- `notify`: Notification requests
+- `log`: Logging messages
 
 ## Implementation Strategy
 
@@ -161,8 +194,10 @@ interface ScraperMessage {
 The separated architecture implements **complete dependency isolation** between services, ensuring that:
 
 - **Scraper Service** only has access to scraping-related packages
-- **Storage Service** only has access to external API packages  
+- **Storage Service** only has access to external API packages
+- **Orchestrator Service** only has access to coordination and notification packages
 - **No cross-service dependency access** even if one service is compromised
+- **Shared Types Only**: Services only share TypeScript type definitions, no runtime code
 
 ### Scraper Service Dependencies (`scraper-service/package.json`)
 
@@ -194,7 +229,6 @@ The separated architecture implements **complete dependency isolation** between 
     "googleapis": "^128.x.x",
     "ynab": "^1.x.x", 
     "@azure/storage-blob": "^12.x.x",
-    "node-telegram-bot-api": "^0.x.x",
     "zeromq": "^6.x.x"
   }
 }
@@ -202,8 +236,44 @@ The separated architecture implements **complete dependency isolation** between 
 
 **Explicitly excludes:**
 - `israeli-bank-scrapers`
-- `puppeteer`
+- `puppeteer` 
+- `node-telegram-bot-api` (moved to orchestrator)
 - Any bank scraping related libraries
+
+### Orchestrator Service Dependencies (`orchestrator-service/package.json`)
+
+```json
+{
+  "name": "moneyman-orchestrator",
+  "dependencies": {
+    "zeromq": "^6.x.x",
+    "winston": "^3.x.x",
+    "node-telegram-bot-api": "^0.x.x"
+  }
+}
+```
+
+**Explicitly excludes:**
+- `israeli-bank-scrapers`
+- External storage service libraries
+- `puppeteer`
+
+### Shared Types Package (`shared-types/package.json`)
+
+```json
+{
+  "name": "moneyman-shared-types",
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.x.x"
+  }
+}
+```
+
+**Contains only:**
+- TypeScript interface definitions
+- No runtime dependencies
+- No implementation code
 
 ### Implementation Strategy
 
@@ -215,52 +285,91 @@ The separated architecture implements **complete dependency isolation** between 
 ### Docker Implementation
 
 ```dockerfile
-# Dockerfile.separated
-FROM node:18-alpine AS scraper-deps
-WORKDIR /app/scraper-service
-COPY scraper-service/package*.json ./
-RUN npm ci --production
+# Dockerfile.separated - Single Container with Multiple Processes
+FROM ghcr.io/puppeteer/puppeteer:21.0.0 AS base
 
-FROM node:18-alpine AS storage-deps  
-WORKDIR /app/storage-service
-COPY storage-service/package*.json ./
-RUN npm ci --production
+# Create users with specific UIDs  
+USER root
+RUN groupadd -g 1001 scraper && useradd -u 1001 -g scraper -s /bin/bash scraper
+RUN groupadd -g 1002 storage && useradd -u 1002 -g storage -s /bin/bash storage
+RUN groupadd -g 1003 orchestrator && useradd -u 1003 -g orchestrator -s /bin/bash orchestrator
 
-# Scraper service with only scraper dependencies
-FROM node:18-alpine AS scraper
-RUN adduser -D -u 1001 scraper
-COPY --from=scraper-deps /app/scraper-service/node_modules ./node_modules
-COPY scraper-service/ ./
+# Create separate directories for each service
+WORKDIR /app
+RUN mkdir -p scraper-service storage-service orchestrator-service shared-types
+RUN chown scraper:scraper scraper-service
+RUN chown storage:storage storage-service  
+RUN chown orchestrator:orchestrator orchestrator-service
+
+# Install dependencies for each service separately
+COPY scraper-service/package*.json ./scraper-service/
+COPY storage-service/package*.json ./storage-service/
+COPY orchestrator-service/package*.json ./orchestrator-service/
+COPY shared-types/package*.json ./shared-types/
+
+# Install scraper dependencies as scraper user
 USER scraper
-CMD ["node", "index.js"]
+WORKDIR /app/scraper-service
+RUN npm ci --production
 
-# Storage service with only storage dependencies
-FROM node:18-alpine AS storage
-RUN adduser -D -u 1002 storage  
-COPY --from=storage-deps /app/storage-service/node_modules ./node_modules
-COPY storage-service/ ./
+# Install storage dependencies as storage user  
 USER storage
-CMD ["node", "index.js"]
+WORKDIR /app/storage-service
+RUN npm ci --production
+
+# Install orchestrator dependencies as orchestrator user
+USER orchestrator
+WORKDIR /app/orchestrator-service
+RUN npm ci --production
+
+# Install shared types
+USER root
+WORKDIR /app/shared-types
+RUN npm ci --production
+
+# Copy source code
+WORKDIR /app
+COPY --chown=scraper:scraper scraper-service/ ./scraper-service/
+COPY --chown=storage:storage storage-service/ ./storage-service/
+COPY --chown=orchestrator:orchestrator orchestrator-service/ ./orchestrator-service/
+COPY --chown=root:root shared-types/ ./shared-types/
+
+# Create IPC socket directory
+RUN mkdir -p /tmp/moneyman-ipc
+RUN chmod 777 /tmp/moneyman-ipc
+
+# Entry point script to start all processes
+COPY docker-entrypoint-separated.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
 ```
 
 ## File Structure
 
 ```
 moneyman/
-├── src/                           # Existing unified code
-│   ├── scraper/                   # Scraping logic (used by scraper service)
-│   ├── bot/storage/               # Storage logic (used by storage service)
+├── src/                           # Existing unified code  
+│   ├── scraper/                   # Scraping logic (types only shared)
+│   ├── bot/storage/               # Storage logic (types only shared)
 │   └── ...
 ├── scraper-service/
 │   ├── index.ts                   # Minimal scraper process
 │   ├── package.json               # Only scraper dependencies
 │   └── node_modules/              # Isolated scraper dependencies
 ├── storage-service/
-│   ├── index.ts                   # Storage and notification process
+│   ├── index.ts                   # Storage process
 │   ├── package.json               # Only storage dependencies  
 │   └── node_modules/              # Isolated storage dependencies
-├── Dockerfile.separated           # Multi-stage build for separated mode
-├── docker-entrypoint-separated.sh # Entry point for separated containers
+├── orchestrator-service/
+│   ├── index.ts                   # Orchestrator process
+│   ├── package.json               # Only orchestration dependencies
+│   └── node_modules/              # Isolated orchestrator dependencies
+├── shared-types/
+│   ├── index.ts                   # Shared TypeScript interfaces only
+│   └── package.json               # Types only (no runtime dependencies)
+├── Dockerfile.separated           # Single container with separated processes
+├── docker-entrypoint-separated.sh # Entry point for separated container
 └── package.json                   # Root package (dev dependencies only)
 ```
 
@@ -268,7 +377,8 @@ moneyman/
 
 ### Environment Variables
 - `SEPARATED_MODE`: Enable separated mode (default: false)
-- `STORAGE_ENDPOINT`: ZeroMQ endpoint (default: tcp://127.0.0.1:5555)
+
+**Note:** IPC transport eliminates the need for configurable endpoints as Unix domain sockets provide secure, fast inter-process communication within the same container.
 
 ### Usage Modes
 
@@ -281,13 +391,14 @@ docker run moneyman
 
 #### Separated Mode (Enhanced Security)
 ```bash
-# Docker
+# Single Docker container with separated processes
 docker build -f Dockerfile.separated -t moneyman-separated .
 docker run -e SEPARATED_MODE=true moneyman-separated
 
 # Manual (for development/testing)
-npm run start:storage  # Terminal 1
-npm run start:scraper  # Terminal 2
+npm run start:orchestrator  # Terminal 1  
+npm run start:storage       # Terminal 2
+npm run start:scraper       # Terminal 3
 ```
 
 ## Security Benefits
@@ -296,10 +407,12 @@ npm run start:scraper  # Terminal 2
 2. **Dependency Isolation**: Complete separation of node_modules packages
    - Scraper: Only has bank scraping libraries, cannot access external service APIs
    - Storage: Only has external service libraries, cannot access bank scraping code
+   - Orchestrator: Only has coordination libraries, cannot access sensitive operations
 3. **Minimal Attack Surface**: Each service has minimal dependencies
 4. **Process Separation**: Different users prevent cross-contamination
 5. **Network Controls**: Can restrict scraper from external APIs and vice versa
 6. **Principle of Least Privilege**: Each service only has access to what it needs
+7. **Shared Types Only**: Services share only TypeScript interfaces, no runtime code
 
 ## Backward Compatibility
 
@@ -335,7 +448,11 @@ npm run start:scraper  # Terminal 2
 - `googleapis`: Google Sheets integration
 - `ynab`: YNAB API integration
 - `@azure/storage-blob`: Azure blob storage
+- `zeromq`: Inter-service communication
+
+#### Orchestrator Service Only
 - `node-telegram-bot-api`: Telegram notifications
+- `winston`: Logging
 - `zeromq`: Inter-service communication
 
 ### Dependency Isolation Benefits
@@ -415,13 +532,12 @@ ENTRYPOINT ["/entrypoint.sh"]
 #!/bin/bash
 # setup-container-security.sh
 
-# Get container PIDs and network namespaces
-SCRAPER_PID=$(docker inspect --format '{{.State.Pid}}' scraper-container)
-STORAGE_PID=$(docker inspect --format '{{.State.Pid}}' storage-container)
+# Get container PID and network namespace
+CONTAINER_PID=$(docker inspect --format '{{.State.Pid}}' moneyman-separated-container)
 
-# Enter scraper container network namespace and apply rules
-nsenter -t $SCRAPER_PID -n iptables -A OUTPUT -m owner --uid-owner 1001 -j SCRAPER_RULES
-nsenter -t $SCRAPER_PID -n iptables -N SCRAPER_RULES
+# Enter container network namespace and apply rules
+nsenter -t $CONTAINER_PID -n iptables -A OUTPUT -m owner --uid-owner 1001 -j SCRAPER_RULES
+nsenter -t $CONTAINER_PID -n iptables -N SCRAPER_RULES
 
 # Allow scraper to access only banking domains
 BANK_DOMAINS=(
@@ -439,19 +555,19 @@ for domain in "${BANK_DOMAINS[@]}"; do
     # Resolve domain to IP (simplified - in production use DNS monitoring)
     IPS=$(dig +short "$domain" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$')
     for ip in $IPS; do
-        nsenter -t $SCRAPER_PID -n iptables -A SCRAPER_RULES -d "$ip" -j ACCEPT
+        nsenter -t $CONTAINER_PID -n iptables -A SCRAPER_RULES -d "$ip" -j ACCEPT
     done
 done
 
-# Allow localhost for ZeroMQ communication
-nsenter -t $SCRAPER_PID -n iptables -A SCRAPER_RULES -d 127.0.0.1 -j ACCEPT
+# Allow localhost for IPC communication
+nsenter -t $CONTAINER_PID -n iptables -A SCRAPER_RULES -d 127.0.0.1 -j ACCEPT
 
-# Block all other outbound traffic for scraper
-nsenter -t $SCRAPER_PID -n iptables -A SCRAPER_RULES -j DROP
+# Block all other outbound traffic for scraper (allow-list approach)
+nsenter -t $CONTAINER_PID -n iptables -A SCRAPER_RULES -j DROP
 
 # Enter storage container network namespace and apply rules  
-nsenter -t $STORAGE_PID -n iptables -A OUTPUT -m owner --uid-owner 1002 -j STORAGE_RULES
-nsenter -t $STORAGE_PID -n iptables -N STORAGE_RULES
+nsenter -t $CONTAINER_PID -n iptables -A OUTPUT -m owner --uid-owner 1002 -j STORAGE_RULES
+nsenter -t $CONTAINER_PID -n iptables -N STORAGE_RULES
 
 # Allow storage to access external service domains
 EXTERNAL_DOMAINS=(
@@ -473,23 +589,28 @@ for domain in "${EXTERNAL_DOMAINS[@]}"; do
     fi
     
     for ip in $IPS; do
-        nsenter -t $STORAGE_PID -n iptables -A STORAGE_RULES -d "$ip" -j ACCEPT
+        nsenter -t $CONTAINER_PID -n iptables -A STORAGE_RULES -d "$ip" -j ACCEPT
     done
 done
 
-# Allow localhost for ZeroMQ communication
-nsenter -t $STORAGE_PID -n iptables -A STORAGE_RULES -d 127.0.0.1 -j ACCEPT
+# Allow localhost for IPC communication
+nsenter -t $CONTAINER_PID -n iptables -A STORAGE_RULES -d 127.0.0.1 -j ACCEPT
 
-# Block banking domains from storage service
-for domain in "${BANK_DOMAINS[@]}"; do
-    IPS=$(dig +short "$domain" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$')
-    for ip in $IPS; do
-        nsenter -t $STORAGE_PID -n iptables -A STORAGE_RULES -d "$ip" -j DROP
-    done
-done
+# Default deny for storage (allow-list approach) 
+nsenter -t $CONTAINER_PID -n iptables -A STORAGE_RULES -j DROP
 
-# Allow other outbound traffic for storage (can be more restrictive)
-nsenter -t $STORAGE_PID -n iptables -A STORAGE_RULES -j ACCEPT
+# Configure orchestrator service rules
+nsenter -t $CONTAINER_PID -n iptables -A OUTPUT -m owner --uid-owner 1003 -j ORCHESTRATOR_RULES
+nsenter -t $CONTAINER_PID -n iptables -N ORCHESTRATOR_RULES
+
+# Allow orchestrator to access Telegram API only
+nsenter -t $CONTAINER_PID -n iptables -A ORCHESTRATOR_RULES -d $(dig +short api.telegram.org) -j ACCEPT
+
+# Allow localhost for IPC communication
+nsenter -t $CONTAINER_PID -n iptables -A ORCHESTRATOR_RULES -d 127.0.0.1 -j ACCEPT
+
+# Default deny for orchestrator
+nsenter -t $CONTAINER_PID -n iptables -A ORCHESTRATOR_RULES -j DROP
 
 echo "Network security rules applied successfully"
 ```
@@ -514,10 +635,10 @@ network_security:
     - "max.co.il"
     - "isracard.co.il"
     # Infrastructure
-    - "127.0.0.1"  # ZeroMQ communication
+    - "127.0.0.1"  # IPC communication
     
   storage_allowed_domains:
-    # External Services
+    # External Services  
     - "sheets.googleapis.com"
     - "www.googleapis.com"
     - "api.youneedabudget.com"
@@ -526,15 +647,7 @@ network_security:
     - "*.blob.core.windows.net"
     - "login.microsoftonline.com"
     # Infrastructure  
-    - "127.0.0.1"  # ZeroMQ communication
-    
-  storage_blocked_domains:
-    # Block banking domains from storage
-    - "*.co.il"  # Block all Israeli domains as precaution
-    - "otsar-hahayal.co.il"
-    - "bankhapoalim.co.il"
-    - "mizrahi-tefahot.co.il"
-    - "bankleumi.co.il"
+    - "127.0.0.1"  # IPC communication
 ```
 
 ## Build and Test Scripts for Separated Mode
@@ -558,16 +671,9 @@ npm run build
 echo "Building unified Docker image..."
 docker build -t moneyman:latest .
 
-# Build separated Docker image
+# Build separated Docker image (single container)
 echo "Building separated Docker image..."
 docker build -f Dockerfile.separated -t moneyman:separated .
-
-# Build individual service images
-echo "Building scraper service image..."
-docker build -f Dockerfile.separated --target scraper -t moneyman:scraper .
-
-echo "Building storage service image..."
-docker build -f Dockerfile.separated --target storage -t moneyman:storage .
 
 echo "✅ Build completed successfully!"
 ```
@@ -653,8 +759,7 @@ run_security_tests() {
     
     # Test user separation
     echo "Testing Docker user separation..."
-    docker run --rm moneyman:scraper id
-    docker run --rm moneyman:storage id
+    docker run --rm moneyman:separated id  # Will show different users for different processes
     
     # Test network isolation (requires privileged mode)
     if [[ "$EUID" -eq 0 ]]; then
@@ -746,37 +851,21 @@ echo "✅ Development tests passed!"
 ### Docker Compose for Easy Testing
 
 ```yaml
-# docker-compose.test.yml
+# docker-compose.test.yml  
 version: '3.8'
 
 services:
-  scraper-test:
+  moneyman-separated-test:
     build:
       context: .
       dockerfile: Dockerfile.separated
-      target: scraper
     environment:
       - NODE_ENV=test
       - SEPARATED_MODE=true
-      - STORAGE_ENDPOINT=tcp://storage-test:5555
-    depends_on:
-      - storage-test
     volumes:
       - ./test-data:/app/test-data:ro
-    networks:
-      - test-network
-
-  storage-test:
-    build:
-      context: .
-      dockerfile: Dockerfile.separated  
-      target: storage
-    environment:
-      - NODE_ENV=test
-      - SEPARATED_MODE=true
-      - STORAGE_ENDPOINT=tcp://0.0.0.0:5555
-    ports:
-      - "5555:5555"
+      - /tmp/moneyman-ipc:/tmp/moneyman-ipc
+    privileged: true  # Required for process management and user switching
     networks:
       - test-network
       
@@ -809,9 +898,10 @@ networks:
     "test:security": "./scripts/test.sh security",
     
     "start:scraper": "node scraper-service/index.js",
-    "start:storage": "node storage-service/index.js", 
-    "start:separated": "concurrently \"npm run start:storage\" \"npm run start:scraper\"",
-    "start:dev:separated": "concurrently \"npm run start:storage\" \"npm run start:scraper\" --kill-others-on-fail"
+    "start:storage": "node storage-service/index.js",
+    "start:orchestrator": "node orchestrator-service/index.js", 
+    "start:separated": "concurrently \"npm run start:orchestrator\" \"npm run start:storage\" \"npm run start:scraper\"",
+    "start:dev:separated": "concurrently \"npm run start:orchestrator\" \"npm run start:storage\" \"npm run start:scraper\" --kill-others-on-fail"
   }
 }
 ```
