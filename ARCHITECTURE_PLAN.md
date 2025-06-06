@@ -395,16 +395,72 @@ npm start
 docker run moneyman
 ```
 
-#### Separated Mode (Enhanced Security)
+#### Separated Mode (Enhanced Security) with MONEYMAN_CONFIG
+
+**1. Create Configuration JSON:**
 ```bash
-# Single Docker container with separated processes
+# Create config.json with your complete configuration
+cat > config.json << 'EOF'
+{
+  "accounts": [
+    {
+      "companyId": "hapoalim",
+      "userCode": "AB1234",
+      "password": "your-password"
+    }
+  ],
+  "storage": {
+    "googleSheets": {
+      "serviceAccountPrivateKey": "-----BEGIN PRIVATE KEY-----...",
+      "serviceAccountEmail": "service@project.iam.gserviceaccount.com",
+      "sheetId": "your-sheet-id",
+      "worksheetName": "_moneyman"
+    }
+  },
+  "options": {
+    "scraping": {
+      "daysBack": 10,
+      "timezone": "Asia/Jerusalem"
+    },
+    "notifications": {
+      "telegram": {
+        "apiKey": "your-telegram-api-key",
+        "chatId": "your-chat-id"
+      }
+    },
+    "logging": {
+      "debug": "moneyman:*",
+      "separatedMode": true
+    }
+  }
+}
+EOF
+```
+
+**2. Run with Single Configuration Variable:**
+```bash
+# Docker (Recommended)
 docker build -f Dockerfile.separated -t moneyman-separated .
-docker run -e SEPARATED_MODE=true moneyman-separated
+export MONEYMAN_CONFIG="$(cat config.json)"
+docker run -e MONEYMAN_CONFIG moneyman-separated
 
 # Manual (for development/testing)
+export MONEYMAN_CONFIG="$(cat config.json)"
 npm run start:orchestrator  # Terminal 1  
 npm run start:storage       # Terminal 2
 npm run start:scraper       # Terminal 3
+
+# One-liner for Docker
+docker run -e MONEYMAN_CONFIG="$(cat config.json)" moneyman-separated
+```
+
+**3. Security Verification:**
+```bash
+# The container entry point automatically:
+# 1. Parses and validates the JSON configuration with Zod
+# 2. Distributes only relevant configuration to each service
+# 3. Removes the original MONEYMAN_CONFIG from the environment
+# 4. Each service validates it cannot access sensitive data from other services
 ```
 
 ## Security Benefits
@@ -414,119 +470,400 @@ npm run start:scraper       # Terminal 3
    - Scraper: Only has bank scraping libraries, cannot access external service APIs
    - Storage: Only has external service libraries, cannot access bank scraping code
    - Orchestrator: Only has coordination libraries, cannot access sensitive operations
-3. **Environment Variable Isolation**: Each service only receives environment variables it needs
-4. **Minimal Attack Surface**: Each service has minimal dependencies
-5. **Process Separation**: Different users prevent cross-contamination
-6. **Network Controls**: Can restrict scraper from external APIs and vice versa
-7. **Principle of Least Privilege**: Each service only has access to what it needs
-8. **Shared Types Only**: Services share only TypeScript interfaces, no runtime code
+3. **Configuration Isolation**: Single JSON config parsed and distributed securely
+   - Each service receives only its required configuration subset
+   - Original MONEYMAN_CONFIG removed from environment after parsing
+   - Services cannot access configuration from other services
+4. **Zod Validation**: Early failing with comprehensive type-safe validation
+   - Configuration errors caught before services start
+   - Type safety ensures configuration integrity
+   - Structured validation with clear error messages
+5. **Minimal Attack Surface**: Each service has minimal dependencies and configuration
+6. **Process Separation**: Different users prevent cross-contamination
+7. **Network Controls**: Can restrict scraper from external APIs and vice versa
+8. **Principle of Least Privilege**: Each service only has access to what it needs
+9. **Shared Types Only**: Services share only TypeScript interfaces, no runtime code
 
-## Environment Variable Security Model
+## Configuration Security Model with MONEYMAN_CONFIG
 
-A critical security feature of the separated architecture is **environment variable isolation**. Each service only receives the environment variables it needs to operate, preventing credential leakage between processes.
+A critical security feature of the separated architecture is **configuration isolation** using a single JSON configuration environment variable. The container entry point parses the configuration and distributes only the relevant sections to each service, with comprehensive validation using Zod.
 
-### Environment Variable Distribution
+### Configuration Distribution Architecture
 
 ```mermaid
 graph TB
     subgraph "Container Runtime"
-        ENV[All Environment Variables]
+        MC[MONEYMAN_CONFIG<br/>JSON Configuration]
+        
+        subgraph "Entry Point Parser"
+            EP[Entry Point Script]
+            ZV[Zod Validation]
+            CD[Configuration Distributor]
+        end
         
         subgraph "Scraper Process (UID: 1001)"
-            SE[Scraper Environment:<br/>• ACCOUNTS_JSON<br/>• ACCOUNTS_TO_SCRAPE<br/>• DAYS_BACK<br/>• FUTURE_MONTHS<br/>• PUPPETEER_EXECUTABLE_PATH<br/>• MAX_PARALLEL_SCRAPERS<br/>• FIREWALL_SETTINGS<br/>• BLOCK_BY_DEFAULT<br/>• DOMAIN_TRACKING_ENABLED<br/>• TRANSACTION_HASH_TYPE<br/>• ADDITIONAL_TRANSACTION_INFO_ENABLED<br/>• HIDDEN_DEPRECATIONS<br/>• TZ<br/>• DEBUG]
+            SC[Scraper Config:<br/>• accounts[]<br/>• scraping options<br/>• domain security<br/>• debugging]
         end
         
         subgraph "Storage Process (UID: 1002)"
-            STE[Storage Environment:<br/>• GOOGLE_SERVICE_ACCOUNT_*<br/>• GOOGLE_SHEET_ID<br/>• WORKSHEET_NAME<br/>• YNAB_TOKEN<br/>• YNAB_BUDGET_ID<br/>• YNAB_ACCOUNTS<br/>• AZURE_APP_*<br/>• ADE_*<br/>• BUXFER_USER_NAME<br/>• BUXFER_PASSWORD<br/>• BUXFER_ACCOUNTS<br/>• LOCAL_JSON_STORAGE<br/>• WEB_POST_URL<br/>• WEB_POST_AUTHORIZATION_TOKEN<br/>• TZ<br/>• DEBUG]
+            STC[Storage Config:<br/>• storage providers<br/>• API credentials<br/>• export settings<br/>• debugging]
         end
         
         subgraph "Orchestrator Process (UID: 1003)"
-            OE[Orchestrator Environment:<br/>• TELEGRAM_API_KEY<br/>• TELEGRAM_CHAT_ID<br/>• TZ<br/>• DEBUG<br/>• SEPARATED_MODE]
+            OC[Orchestrator Config:<br/>• telegram settings<br/>• logging options<br/>• coordination settings<br/>• debugging]
         end
         
-        ENV -->|Filter & Distribute| SE
-        ENV -->|Filter & Distribute| STE  
-        ENV -->|Filter & Distribute| OE
+        MC --> EP
+        EP --> ZV
+        ZV --> CD
+        CD -->|accounts + options.scraping| SC
+        CD -->|storage + options.export| STC
+        CD -->|notifications + options.logging| OC
     end
 ```
 
-### Scraper Service Environment Variables
+### MONEYMAN_CONFIG JSON Structure
 
-**Allowed Environment Variables:**
-- `ACCOUNTS_JSON` - Bank account credentials (JSON array)
-- `ACCOUNTS_TO_SCRAPE` - Comma-separated list of providers to scrape
-- `DAYS_BACK` - Number of days back to scrape (default: 10)
-- `FUTURE_MONTHS` - Number of future months to scrape (default: 1)
-- `TZ` - Timezone setting (default: 'Asia/Jerusalem')
-- `TRANSACTION_HASH_TYPE` - Hash type for transaction IDs
-- `ADDITIONAL_TRANSACTION_INFO_ENABLED` - Enable detailed transaction info
-- `HIDDEN_DEPRECATIONS` - Comma-separated list of deprecations to hide
-- `PUPPETEER_EXECUTABLE_PATH` - Custom Puppeteer executable path
-- `MAX_PARALLEL_SCRAPERS` - Maximum parallel scrapers (default: 1)
-- `DOMAIN_TRACKING_ENABLED` - Enable domain access tracking
-- `FIREWALL_SETTINGS` - Domain firewall rules (multiline string)
-- `BLOCK_BY_DEFAULT` - Default domain blocking behavior
-- `DEBUG` - Debug logging namespace
+The complete configuration is provided as a single JSON environment variable:
 
-**Explicitly Blocked Environment Variables:**
-- Any Google API credentials (`GOOGLE_SERVICE_ACCOUNT_*`, `GOOGLE_SHEET_ID`)
-- Any YNAB credentials (`YNAB_TOKEN`, `YNAB_BUDGET_ID`, `YNAB_ACCOUNTS`)
-- Any Azure credentials (`AZURE_APP_*`, `ADE_*`)
-- Any Buxfer credentials (`BUXFER_USER_NAME`, `BUXFER_PASSWORD`)
-- Any Telegram credentials (`TELEGRAM_API_KEY`, `TELEGRAM_CHAT_ID`)
-- Any web export credentials (`WEB_POST_*`)
-- Any storage settings (`LOCAL_JSON_STORAGE`)
+```json
+{
+  "accounts": [
+    {
+      "companyId": "hapoalim",
+      "userCode": "AB1234", 
+      "password": "p@ssword"
+    },
+    {
+      "companyId": "visaCal",
+      "username": "Ploni Almoni",
+      "password": "p@ssword"
+    }
+  ],
+  "storage": {
+    "googleSheets": {
+      "serviceAccountPrivateKey": "-----BEGIN PRIVATE KEY-----...",
+      "serviceAccountEmail": "service@project.iam.gserviceaccount.com",
+      "sheetId": "1ABC123...",
+      "worksheetName": "_moneyman"
+    },
+    "ynab": {
+      "token": "abc123...",
+      "budgetId": "12345...",
+      "accounts": {
+        "5897": "ba2dd3a9-b7d4-46d6-8413-8327203e2b82"
+      }
+    },
+    "azure": {
+      "appId": "12345...",
+      "appKey": "secret...",
+      "tenantId": "tenant...",
+      "databaseName": "moneyman",
+      "tableName": "transactions",
+      "ingestionMapping": "transaction_mapping",
+      "ingestUri": "https://cluster.region.kusto.windows.net"
+    },
+    "buxfer": {
+      "userName": "user@example.com",
+      "password": "password123",
+      "accounts": {
+        "5897": "123456"
+      }
+    },
+    "localJson": {
+      "enabled": true
+    },
+    "webPost": {
+      "url": "https://api.example.com/transactions",
+      "authorizationToken": "Bearer token123"
+    }
+  },
+  "options": {
+    "scraping": {
+      "accountsToScrape": ["hapoalim", "visaCal"],
+      "daysBack": 10,
+      "futureMonths": 1,
+      "timezone": "Asia/Jerusalem",
+      "transactionHashType": "moneyman",
+      "additionalTransactionInfo": false,
+      "hiddenDeprecations": ["some-deprecation"],
+      "puppeteerExecutablePath": "/usr/bin/chromium",
+      "maxParallelScrapers": 1,
+      "domainTracking": true
+    },
+    "security": {
+      "firewallSettings": "hapoalim ALLOW bankhapoalim.co.il\nvisaCal BLOCK suspicious-domain.com",
+      "blockByDefault": false
+    },
+    "notifications": {
+      "telegram": {
+        "apiKey": "123456:ABC-DEF...",
+        "chatId": "-123456789"
+      }
+    },
+    "logging": {
+      "debug": "moneyman:*",
+      "separatedMode": true
+    }
+  }
+}
+```
 
-### Storage Service Environment Variables
+### Configuration Distribution by Service
 
-**Allowed Environment Variables:**
-- `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` - Google service account private key
-- `GOOGLE_SERVICE_ACCOUNT_EMAIL` - Google service account email
-- `GOOGLE_SHEET_ID` - Target Google Sheet ID
-- `WORKSHEET_NAME` - Target worksheet name
-- `YNAB_TOKEN` - YNAB API access token
-- `YNAB_BUDGET_ID` - YNAB budget ID
-- `YNAB_ACCOUNTS` - Account mapping JSON for YNAB
-- `AZURE_APP_ID` - Azure application ID
-- `AZURE_APP_KEY` - Azure application secret key
-- `AZURE_TENANT_ID` - Azure tenant ID
-- `ADE_DATABASE_NAME` - Azure Data Explorer database name
-- `ADE_TABLE_NAME` - Azure Data Explorer table name
-- `ADE_INGESTION_MAPPING` - Azure Data Explorer ingestion mapping
-- `ADE_INGEST_URI` - Azure Data Explorer ingest URI
-- `BUXFER_USER_NAME` - Buxfer username
-- `BUXFER_PASSWORD` - Buxfer password
-- `BUXFER_ACCOUNTS` - Account mapping JSON for Buxfer
-- `LOCAL_JSON_STORAGE` - Enable local JSON file storage
-- `WEB_POST_URL` - Web endpoint URL for POST requests
-- `WEB_POST_AUTHORIZATION_TOKEN` - Authorization token for web POST
-- `TZ` - Timezone setting
-- `DEBUG` - Debug logging namespace
+#### Scraper Service Configuration
 
-**Explicitly Blocked Environment Variables:**
-- Bank credentials (`ACCOUNTS_JSON`, `ACCOUNTS_TO_SCRAPE`)
-- Scraping configuration (`DAYS_BACK`, `FUTURE_MONTHS`, `PUPPETEER_*`)
-- Domain security (`FIREWALL_SETTINGS`, `BLOCK_BY_DEFAULT`, `DOMAIN_TRACKING_ENABLED`)
-- Telegram credentials (`TELEGRAM_API_KEY`, `TELEGRAM_CHAT_ID`)
+**Receives Configuration Subset:**
+```json
+{
+  "accounts": [
+    { "companyId": "hapoalim", "userCode": "AB1234", "password": "p@ssword" }
+  ],
+  "options": {
+    "scraping": {
+      "accountsToScrape": ["hapoalim"],
+      "daysBack": 10,
+      "futureMonths": 1,
+      "timezone": "Asia/Jerusalem",
+      "transactionHashType": "moneyman",
+      "additionalTransactionInfo": false,
+      "hiddenDeprecations": ["some-deprecation"],
+      "puppeteerExecutablePath": "/usr/bin/chromium",
+      "maxParallelScrapers": 1,
+      "domainTracking": true
+    },
+    "security": {
+      "firewallSettings": "hapoalim ALLOW bankhapoalim.co.il",
+      "blockByDefault": false
+    },
+    "logging": {
+      "debug": "moneyman:*"
+    }
+  }
+}
+```
 
-### Orchestrator Service Environment Variables
+**Security Guarantees:**
+- **NO access to storage credentials** (Google, YNAB, Azure, Buxfer)
+- **NO access to notification credentials** (Telegram)
+- **NO access to web export settings**
+- **Cannot read original MONEYMAN_CONFIG** environment variable
 
-**Allowed Environment Variables:**
-- `TELEGRAM_API_KEY` - Telegram bot API key
-- `TELEGRAM_CHAT_ID` - Telegram chat ID for notifications
-- `SEPARATED_MODE` - Enable separated mode flag
-- `TZ` - Timezone setting
-- `DEBUG` - Debug logging namespace
+#### Storage Service Configuration
 
-**Explicitly Blocked Environment Variables:**
-- Bank credentials (`ACCOUNTS_JSON`)
-- External service credentials (Google, YNAB, Azure, Buxfer)
-- Scraping configuration (`DAYS_BACK`, `FUTURE_MONTHS`, etc.)
-- Storage configuration (`LOCAL_JSON_STORAGE`, `WEB_POST_*`)
+**Receives Configuration Subset:**
+```json
+{
+  "storage": {
+    "googleSheets": {
+      "serviceAccountPrivateKey": "-----BEGIN PRIVATE KEY-----...",
+      "serviceAccountEmail": "service@project.iam.gserviceaccount.com",
+      "sheetId": "1ABC123...",
+      "worksheetName": "_moneyman"
+    },
+    "ynab": {
+      "token": "abc123...",
+      "budgetId": "12345...",
+      "accounts": { "5897": "ba2dd3a9-b7d4-46d6-8413-8327203e2b82" }
+    }
+  },
+  "options": {
+    "logging": {
+      "debug": "moneyman:*",
+      "timezone": "Asia/Jerusalem"
+    }
+  }
+}
+```
+
+**Security Guarantees:**
+- **NO access to bank credentials** (accounts array)
+- **NO access to scraping configuration**
+- **NO access to notification credentials** (Telegram)
+- **Cannot read original MONEYMAN_CONFIG** environment variable
+
+#### Orchestrator Service Configuration
+
+**Receives Configuration Subset:**
+```json
+{
+  "options": {
+    "notifications": {
+      "telegram": {
+        "apiKey": "123456:ABC-DEF...",
+        "chatId": "-123456789"
+      }
+    },
+    "logging": {
+      "debug": "moneyman:*",
+      "separatedMode": true,
+      "timezone": "Asia/Jerusalem"
+    }
+  }
+}
+```
+
+**Security Guarantees:**
+- **NO access to bank credentials** (accounts array)
+- **NO access to storage credentials** (Google, YNAB, Azure, Buxfer)
+- **NO access to scraping configuration**
+- **Cannot read original MONEYMAN_CONFIG** environment variable
+
+### Zod Validation Schemas
+
+The architecture uses **Zod 4** for comprehensive configuration validation with early failing to catch configuration errors before services start.
+
+#### Complete Configuration Schema
+
+```typescript
+// shared-types/config-schema.ts
+import { z } from 'zod';
+
+// Account configuration schema
+const AccountSchema = z.object({
+  companyId: z.string().min(1, 'Company ID is required'),
+  userCode: z.string().optional(),
+  username: z.string().optional(), 
+  password: z.string().min(1, 'Password is required'),
+}).refine(
+  (data) => data.userCode || data.username,
+  { message: 'Either userCode or username is required' }
+);
+
+// Storage provider schemas
+const GoogleSheetsSchema = z.object({
+  serviceAccountPrivateKey: z.string().min(1, 'Google private key is required'),
+  serviceAccountEmail: z.string().email('Invalid Google service account email'),
+  sheetId: z.string().min(1, 'Google Sheet ID is required'),
+  worksheetName: z.string().min(1, 'Worksheet name is required'),
+});
+
+const YnabSchema = z.object({
+  token: z.string().min(1, 'YNAB token is required'),
+  budgetId: z.string().min(1, 'YNAB budget ID is required'),
+  accounts: z.record(z.string(), z.string()),
+});
+
+const AzureSchema = z.object({
+  appId: z.string().min(1, 'Azure app ID is required'),
+  appKey: z.string().min(1, 'Azure app key is required'),
+  tenantId: z.string().min(1, 'Azure tenant ID is required'),
+  databaseName: z.string().min(1, 'Database name is required'),
+  tableName: z.string().min(1, 'Table name is required'),
+  ingestionMapping: z.string().min(1, 'Ingestion mapping is required'),
+  ingestUri: z.string().url('Invalid ingest URI'),
+});
+
+const BuxferSchema = z.object({
+  userName: z.string().min(1, 'Buxfer username is required'),
+  password: z.string().min(1, 'Buxfer password is required'),
+  accounts: z.record(z.string(), z.string()),
+});
+
+const WebPostSchema = z.object({
+  url: z.string().url('Invalid web post URL'),
+  authorizationToken: z.string().min(1, 'Authorization token is required'),
+});
+
+// Storage configuration schema
+const StorageSchema = z.object({
+  googleSheets: GoogleSheetsSchema.optional(),
+  ynab: YnabSchema.optional(),
+  azure: AzureSchema.optional(),
+  buxfer: BuxferSchema.optional(),
+  localJson: z.object({ enabled: z.boolean() }).optional(),
+  webPost: WebPostSchema.optional(),
+}).refine(
+  (data) => Object.values(data).some(Boolean),
+  { message: 'At least one storage provider must be configured' }
+);
+
+// Options schemas
+const ScrapingOptionsSchema = z.object({
+  accountsToScrape: z.array(z.string()).optional(),
+  daysBack: z.number().min(1).max(365).default(10),
+  futureMonths: z.number().min(0).max(12).default(1),
+  timezone: z.string().default('Asia/Jerusalem'),
+  transactionHashType: z.enum(['', 'moneyman']).default(''),
+  additionalTransactionInfo: z.boolean().default(false),
+  hiddenDeprecations: z.array(z.string()).default([]),
+  puppeteerExecutablePath: z.string().optional(),
+  maxParallelScrapers: z.number().min(1).max(10).default(1),
+  domainTracking: z.boolean().default(false),
+});
+
+const SecurityOptionsSchema = z.object({
+  firewallSettings: z.string().optional(),
+  blockByDefault: z.boolean().default(false),
+});
+
+const NotificationOptionsSchema = z.object({
+  telegram: z.object({
+    apiKey: z.string().min(1, 'Telegram API key is required'),
+    chatId: z.string().min(1, 'Telegram chat ID is required'),
+  }).optional(),
+});
+
+const LoggingOptionsSchema = z.object({
+  debug: z.string().default(''),
+  separatedMode: z.boolean().default(true),
+  timezone: z.string().default('Asia/Jerusalem'),
+});
+
+// Complete configuration schema
+export const MoneymanConfigSchema = z.object({
+  accounts: z.array(AccountSchema).min(1, 'At least one account is required'),
+  storage: StorageSchema,
+  options: z.object({
+    scraping: ScrapingOptionsSchema,
+    security: SecurityOptionsSchema,
+    notifications: NotificationOptionsSchema,
+    logging: LoggingOptionsSchema,
+  }),
+});
+
+export type MoneymanConfig = z.infer<typeof MoneymanConfigSchema>;
+```
+
+#### Service-Specific Configuration Schemas
+
+```typescript
+// Scraper service configuration schema
+export const ScraperConfigSchema = z.object({
+  accounts: z.array(AccountSchema),
+  options: z.object({
+    scraping: ScrapingOptionsSchema,
+    security: SecurityOptionsSchema,
+    logging: LoggingOptionsSchema.pick({ debug: true }),
+  }),
+});
+
+export type ScraperConfig = z.infer<typeof ScraperConfigSchema>;
+
+// Storage service configuration schema
+export const StorageConfigSchema = z.object({
+  storage: StorageSchema,
+  options: z.object({
+    logging: LoggingOptionsSchema.pick({ debug: true, timezone: true }),
+  }),
+});
+
+export type StorageConfig = z.infer<typeof StorageConfigSchema>;
+
+// Orchestrator service configuration schema
+export const OrchestratorConfigSchema = z.object({
+  options: z.object({
+    notifications: NotificationOptionsSchema,
+    logging: LoggingOptionsSchema,
+  }),
+});
+
+export type OrchestratorConfig = z.infer<typeof OrchestratorConfigSchema>;
+```
 
 ### Implementation Strategy
 
-#### Docker Entrypoint Script with Environment Filtering
+#### Docker Entrypoint Script with Configuration Parsing
 
 ```bash
 #!/bin/bash
@@ -534,181 +871,411 @@ graph TB
 
 set -e
 
-# Function to filter environment variables for each service
-filter_scraper_env() {
-    env | grep -E '^(ACCOUNTS_JSON|ACCOUNTS_TO_SCRAPE|DAYS_BACK|FUTURE_MONTHS|TZ|TRANSACTION_HASH_TYPE|ADDITIONAL_TRANSACTION_INFO_ENABLED|HIDDEN_DEPRECATIONS|PUPPETEER_EXECUTABLE_PATH|MAX_PARALLEL_SCRAPERS|DOMAIN_TRACKING_ENABLED|FIREWALL_SETTINGS|BLOCK_BY_DEFAULT|DEBUG)=' > /tmp/scraper.env || true
+# Validate MONEYMAN_CONFIG is provided
+if [[ -z "${MONEYMAN_CONFIG}" ]]; then
+    echo "ERROR: MONEYMAN_CONFIG environment variable is required"
+    exit 1
+fi
+
+# Create configuration parser using Node.js
+cat > /tmp/config-parser.js << 'EOF'
+const fs = require('fs');
+
+// Parse and validate MONEYMAN_CONFIG
+let config;
+try {
+    config = JSON.parse(process.env.MONEYMAN_CONFIG);
+} catch (error) {
+    console.error('ERROR: Invalid JSON in MONEYMAN_CONFIG:', error.message);
+    process.exit(1);
 }
 
-filter_storage_env() {
-    env | grep -E '^(GOOGLE_SERVICE_ACCOUNT_|GOOGLE_SHEET_ID|WORKSHEET_NAME|YNAB_|AZURE_|ADE_|BUXFER_|LOCAL_JSON_STORAGE|WEB_POST_|TZ|DEBUG)=' > /tmp/storage.env || true
-}
+// Extract service-specific configurations
+const scraperConfig = {
+    accounts: config.accounts,
+    options: {
+        scraping: config.options.scraping,
+        security: config.options.security,
+        logging: { debug: config.options.logging.debug }
+    }
+};
 
-filter_orchestrator_env() {
-    env | grep -E '^(TELEGRAM_API_KEY|TELEGRAM_CHAT_ID|SEPARATED_MODE|TZ|DEBUG)=' > /tmp/orchestrator.env || true
-}
+const storageConfig = {
+    storage: config.storage,
+    options: {
+        logging: {
+            debug: config.options.logging.debug,
+            timezone: config.options.logging.timezone
+        }
+    }
+};
 
-# Create filtered environment files
-filter_scraper_env
-filter_storage_env  
-filter_orchestrator_env
+const orchestratorConfig = {
+    options: {
+        notifications: config.options.notifications,
+        logging: config.options.logging
+    }
+};
 
-# Set secure permissions
-chmod 600 /tmp/scraper.env
-chmod 600 /tmp/storage.env
-chmod 600 /tmp/orchestrator.env
+// Write service configurations to files
+fs.writeFileSync('/tmp/scraper-config.json', JSON.stringify(scraperConfig, null, 2));
+fs.writeFileSync('/tmp/storage-config.json', JSON.stringify(storageConfig, null, 2));
+fs.writeFileSync('/tmp/orchestrator-config.json', JSON.stringify(orchestratorConfig, null, 2));
 
-# Change ownership of environment files
-chown scraper:scraper /tmp/scraper.env
-chown storage:storage /tmp/storage.env
-chown orchestrator:orchestrator /tmp/orchestrator.env
+console.log('Configuration parsed and distributed successfully');
+EOF
 
-# Start services with filtered environments
+# Parse configuration
+node /tmp/config-parser.js
+
+# Verify configuration files were created
+if [[ ! -f "/tmp/scraper-config.json" || ! -f "/tmp/storage-config.json" || ! -f "/tmp/orchestrator-config.json" ]]; then
+    echo "ERROR: Failed to create configuration files"
+    exit 1
+fi
+
+# Set secure permissions on configuration files
+chmod 600 /tmp/scraper-config.json
+chmod 600 /tmp/storage-config.json
+chmod 600 /tmp/orchestrator-config.json
+
+# Change ownership of configuration files
+chown scraper:scraper /tmp/scraper-config.json
+chown storage:storage /tmp/storage-config.json
+chown orchestrator:orchestrator /tmp/orchestrator-config.json
+
+# Clear the original MONEYMAN_CONFIG from environment
+unset MONEYMAN_CONFIG
+
+# Start services with their specific configurations
 echo "Starting orchestrator service..."
-su orchestrator -c "cd /app/orchestrator-service && env -i $(cat /tmp/orchestrator.env) node index.js" &
+su orchestrator -c "cd /app/orchestrator-service && MONEYMAN_SERVICE_CONFIG=/tmp/orchestrator-config.json node index.js" &
 
 echo "Starting storage service..."  
-su storage -c "cd /app/storage-service && env -i $(cat /tmp/storage.env) node index.js" &
+su storage -c "cd /app/storage-service && MONEYMAN_SERVICE_CONFIG=/tmp/storage-config.json node index.js" &
 
 echo "Starting scraper service..."
-su scraper -c "cd /app/scraper-service && env -i $(cat /tmp/scraper.env) node index.js" &
+su scraper -c "cd /app/scraper-service && MONEYMAN_SERVICE_CONFIG=/tmp/scraper-config.json node index.js" &
 
 # Wait for all services
 wait
 ```
 
-#### Process-Level Environment Isolation
+#### Configuration Loading in Services
+
+Each service loads its configuration subset using a secure configuration loader:
 
 ```typescript
-// orchestrator-service/env-filter.ts
-interface OrchestratorEnvironment {
-  TELEGRAM_API_KEY?: string;
-  TELEGRAM_CHAT_ID?: string;
-  SEPARATED_MODE?: string;
-  TZ?: string;
-  DEBUG?: string;
+// shared-types/config-loader.ts
+import { readFileSync } from 'fs';
+import { ScraperConfigSchema, StorageConfigSchema, OrchestratorConfigSchema } from './config-schema.js';
+
+export function loadScraperConfig(): ScraperConfig {
+    const configPath = process.env.MONEYMAN_SERVICE_CONFIG;
+    if (!configPath) {
+        throw new Error('MONEYMAN_SERVICE_CONFIG environment variable is required');
+    }
+    
+    // Verify original MONEYMAN_CONFIG is not accessible
+    if (process.env.MONEYMAN_CONFIG) {
+        throw new Error('Security violation: Original MONEYMAN_CONFIG should not be accessible');
+    }
+    
+    try {
+        const configText = readFileSync(configPath, 'utf-8');
+        const config = JSON.parse(configText);
+        
+        // Validate configuration with Zod
+        return ScraperConfigSchema.parse(config);
+    } catch (error) {
+        throw new Error(`Failed to load scraper configuration: ${error.message}`);
+    }
 }
 
-export function getOrchestratorEnv(): OrchestratorEnvironment {
-  const allowedKeys = [
-    'TELEGRAM_API_KEY',
-    'TELEGRAM_CHAT_ID', 
-    'SEPARATED_MODE',
-    'TZ',
-    'DEBUG'
-  ];
-  
-  const filteredEnv: OrchestratorEnvironment = {};
-  
-  for (const key of allowedKeys) {
-    if (process.env[key]) {
-      filteredEnv[key as keyof OrchestratorEnvironment] = process.env[key];
+export function loadStorageConfig(): StorageConfig {
+    const configPath = process.env.MONEYMAN_SERVICE_CONFIG;
+    if (!configPath) {
+        throw new Error('MONEYMAN_SERVICE_CONFIG environment variable is required');
     }
-  }
-  
-  // Verify no sensitive variables are accessible
-  const sensitiveKeys = ['ACCOUNTS_JSON', 'GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY', 'YNAB_TOKEN'];
-  for (const key of sensitiveKeys) {
-    if (process.env[key]) {
-      throw new Error(`Security violation: Orchestrator has access to sensitive variable ${key}`);
+    
+    // Verify original MONEYMAN_CONFIG is not accessible
+    if (process.env.MONEYMAN_CONFIG) {
+        throw new Error('Security violation: Original MONEYMAN_CONFIG should not be accessible');
     }
-  }
-  
-  return filteredEnv;
+    
+    try {
+        const configText = readFileSync(configPath, 'utf-8');
+        const config = JSON.parse(configText);
+        
+        // Validate configuration with Zod
+        return StorageConfigSchema.parse(config);
+    } catch (error) {
+        throw new Error(`Failed to load storage configuration: ${error.message}`);
+    }
+}
+
+export function loadOrchestratorConfig(): OrchestratorConfig {
+    const configPath = process.env.MONEYMAN_SERVICE_CONFIG;
+    if (!configPath) {
+        throw new Error('MONEYMAN_SERVICE_CONFIG environment variable is required');
+    }
+    
+    // Verify original MONEYMAN_CONFIG is not accessible
+    if (process.env.MONEYMAN_CONFIG) {
+        throw new Error('Security violation: Original MONEYMAN_CONFIG should not be accessible');
+    }
+    
+    try {
+        const configText = readFileSync(configPath, 'utf-8');
+        const config = JSON.parse(configText);
+        
+        // Validate configuration with Zod
+        return OrchestratorConfigSchema.parse(config);
+    } catch (error) {
+        throw new Error(`Failed to load orchestrator configuration: ${error.message}`);
+    }
 }
 ```
 
 ### Security Validation
 
-#### Environment Variable Access Auditing
+#### Configuration Access Auditing
 
 ```typescript
-// shared-types/env-audit.ts
-export interface EnvironmentAudit {
+// shared-types/config-audit.ts
+export interface ConfigurationAudit {
   service: 'scraper' | 'storage' | 'orchestrator';
-  allowedVariables: string[];
-  blockedVariables: string[];
+  configurationReceived: string[];
+  sensitiveDataBlocked: string[];
   violations: string[];
 }
 
-export function auditEnvironmentAccess(
-  service: 'scraper' | 'storage' | 'orchestrator'
-): EnvironmentAudit {
-  const configs = {
-    scraper: {
-      allowed: [
-        'ACCOUNTS_JSON', 'ACCOUNTS_TO_SCRAPE', 'DAYS_BACK', 
-        'FUTURE_MONTHS', 'TZ', 'TRANSACTION_HASH_TYPE',
-        'ADDITIONAL_TRANSACTION_INFO_ENABLED', 'HIDDEN_DEPRECATIONS',
-        'PUPPETEER_EXECUTABLE_PATH', 'MAX_PARALLEL_SCRAPERS',
-        'DOMAIN_TRACKING_ENABLED', 'FIREWALL_SETTINGS', 
-        'BLOCK_BY_DEFAULT', 'DEBUG'
-      ],
-      blocked: [
-        'GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY', 'GOOGLE_SERVICE_ACCOUNT_EMAIL',
-        'YNAB_TOKEN', 'YNAB_BUDGET_ID', 'AZURE_APP_ID', 'AZURE_APP_KEY',
-        'TELEGRAM_API_KEY', 'TELEGRAM_CHAT_ID', 'BUXFER_USER_NAME'
-      ]
-    },
-    storage: {
-      allowed: [
-        'GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY', 'GOOGLE_SERVICE_ACCOUNT_EMAIL',
-        'GOOGLE_SHEET_ID', 'WORKSHEET_NAME', 'YNAB_TOKEN', 'YNAB_BUDGET_ID',
-        'YNAB_ACCOUNTS', 'AZURE_APP_ID', 'AZURE_APP_KEY', 'AZURE_TENANT_ID',
-        'ADE_DATABASE_NAME', 'ADE_TABLE_NAME', 'ADE_INGESTION_MAPPING',
-        'ADE_INGEST_URI', 'BUXFER_USER_NAME', 'BUXFER_PASSWORD',
-        'BUXFER_ACCOUNTS', 'LOCAL_JSON_STORAGE', 'WEB_POST_URL',
-        'WEB_POST_AUTHORIZATION_TOKEN', 'TZ', 'DEBUG'
-      ],
-      blocked: [
-        'ACCOUNTS_JSON', 'ACCOUNTS_TO_SCRAPE', 'DAYS_BACK',
-        'PUPPETEER_EXECUTABLE_PATH', 'FIREWALL_SETTINGS',
-        'TELEGRAM_API_KEY', 'TELEGRAM_CHAT_ID'
-      ]
-    },
-    orchestrator: {
-      allowed: [
-        'TELEGRAM_API_KEY', 'TELEGRAM_CHAT_ID', 'SEPARATED_MODE', 'TZ', 'DEBUG'
-      ],
-      blocked: [
-        'ACCOUNTS_JSON', 'GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY',
-        'YNAB_TOKEN', 'AZURE_APP_KEY', 'BUXFER_PASSWORD'
-      ]
-    }
-  };
-  
-  const config = configs[service];
+export function auditConfigurationAccess(
+  service: 'scraper' | 'storage' | 'orchestrator',
+  config: any
+): ConfigurationAudit {
   const violations: string[] = [];
   
-  // Check for blocked variables
-  for (const blockedVar of config.blocked) {
-    if (process.env[blockedVar]) {
-      violations.push(`Blocked variable ${blockedVar} is accessible`);
-    }
+  // Check for MONEYMAN_CONFIG environment variable access
+  if (process.env.MONEYMAN_CONFIG) {
+    violations.push('Security violation: Original MONEYMAN_CONFIG is accessible');
+  }
+  
+  // Service-specific auditing
+  switch (service) {
+    case 'scraper':
+      return auditScraperConfig(config, violations);
+    case 'storage':
+      return auditStorageConfig(config, violations);
+    case 'orchestrator':
+      return auditOrchestratorConfig(config, violations);
+  }
+}
+
+function auditScraperConfig(config: any, violations: string[]): ConfigurationAudit {
+  const received: string[] = [];
+  const blocked: string[] = [];
+  
+  // Check what configuration is received
+  if (config.accounts) received.push('accounts');
+  if (config.options?.scraping) received.push('scraping options');
+  if (config.options?.security) received.push('security options');
+  
+  // Check for blocked sensitive data
+  if (config.storage) {
+    violations.push('Scraper has access to storage credentials');
+    blocked.push('storage credentials');
+  }
+  if (config.options?.notifications) {
+    violations.push('Scraper has access to notification credentials');
+    blocked.push('notification credentials');
   }
   
   return {
-    service,
-    allowedVariables: config.allowed,
-    blockedVariables: config.blocked,
+    service: 'scraper',
+    configurationReceived: received,
+    sensitiveDataBlocked: blocked,
+    violations
+  };
+}
+
+function auditStorageConfig(config: any, violations: string[]): ConfigurationAudit {
+  const received: string[] = [];
+  const blocked: string[] = [];
+  
+  // Check what configuration is received
+  if (config.storage) received.push('storage providers');
+  if (config.options?.logging) received.push('logging options');
+  
+  // Check for blocked sensitive data
+  if (config.accounts) {
+    violations.push('Storage service has access to bank credentials');
+    blocked.push('bank credentials');
+  }
+  if (config.options?.scraping) {
+    violations.push('Storage service has access to scraping configuration');
+    blocked.push('scraping configuration');
+  }
+  if (config.options?.notifications) {
+    violations.push('Storage service has access to notification credentials');
+    blocked.push('notification credentials');
+  }
+  
+  return {
+    service: 'storage',
+    configurationReceived: received,
+    sensitiveDataBlocked: blocked,
+    violations
+  };
+}
+
+function auditOrchestratorConfig(config: any, violations: string[]): ConfigurationAudit {
+  const received: string[] = [];
+  const blocked: string[] = [];
+  
+  // Check what configuration is received
+  if (config.options?.notifications) received.push('notification settings');
+  if (config.options?.logging) received.push('logging settings');
+  
+  // Check for blocked sensitive data
+  if (config.accounts) {
+    violations.push('Orchestrator has access to bank credentials');
+    blocked.push('bank credentials');
+  }
+  if (config.storage) {
+    violations.push('Orchestrator has access to storage credentials');
+    blocked.push('storage credentials');
+  }
+  if (config.options?.scraping) {
+    violations.push('Orchestrator has access to scraping configuration');
+    blocked.push('scraping configuration');
+  }
+  
+  return {
+    service: 'orchestrator',
+    configurationReceived: received,
+    sensitiveDataBlocked: blocked,
     violations
   };
 }
 ```
 
+#### Runtime Security Checks
+
+```typescript
+// shared-types/security-checks.ts
+export class SecurityValidator {
+  static validateEnvironment(service: 'scraper' | 'storage' | 'orchestrator'): void {
+    // Ensure original configuration is not accessible
+    if (process.env.MONEYMAN_CONFIG) {
+      throw new Error(`Security violation: ${service} service has access to MONEYMAN_CONFIG`);
+    }
+    
+    // Ensure service config is properly isolated
+    if (!process.env.MONEYMAN_SERVICE_CONFIG) {
+      throw new Error(`Security violation: ${service} service missing MONEYMAN_SERVICE_CONFIG`);
+    }
+    
+    // Additional service-specific checks
+    switch (service) {
+      case 'scraper':
+        this.validateScraperEnvironment();
+        break;
+      case 'storage':
+        this.validateStorageEnvironment();
+        break;
+      case 'orchestrator':
+        this.validateOrchestratorEnvironment();
+        break;
+    }
+  }
+  
+  private static validateScraperEnvironment(): void {
+    // Ensure no external service environment variables are present
+    const blockedVars = [
+      'GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY',
+      'YNAB_TOKEN', 
+      'AZURE_APP_KEY',
+      'TELEGRAM_API_KEY'
+    ];
+    
+    for (const varName of blockedVars) {
+      if (process.env[varName]) {
+        throw new Error(`Security violation: Scraper has access to ${varName}`);
+      }
+    }
+  }
+  
+  private static validateStorageEnvironment(): void {
+    // Ensure no bank credentials are present
+    const blockedVars = ['ACCOUNTS_JSON', 'BANK_PASSWORD'];
+    
+    for (const varName of blockedVars) {
+      if (process.env[varName]) {
+        throw new Error(`Security violation: Storage service has access to ${varName}`);
+      }
+    }
+  }
+  
+  private static validateOrchestratorEnvironment(): void {
+    // Ensure no sensitive credentials are present
+    const blockedVars = [
+      'ACCOUNTS_JSON',
+      'GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY', 
+      'YNAB_TOKEN',
+      'AZURE_APP_KEY'
+    ];
+    
+    for (const varName of blockedVars) {
+      if (process.env[varName]) {
+        throw new Error(`Security violation: Orchestrator has access to ${varName}`);
+      }
+    }
+  }
+}
+```
+
 ## Backward Compatibility
 
-- Unified mode remains default behavior
-- All existing functionality preserved
-- No breaking changes to existing APIs
-- Same Docker image can run both modes
+- **Unified mode remains default behavior**: Existing users continue using original approach
+- **All existing functionality preserved**: No breaking changes to current features
+- **Environment variable support**: Original individual environment variables still work in unified mode
+- **Gradual migration**: Users can migrate to MONEYMAN_CONFIG when ready
+- **Same Docker image**: Can run both modes with different entry points
+- **Configuration conversion**: Tool provided to convert from individual env vars to MONEYMAN_CONFIG
+
+### Migration Path
+
+**1. Current users (individual environment variables):**
+```bash
+# Continues to work as before
+docker run -e ACCOUNTS_JSON='[...]' -e GOOGLE_SHEET_ID='...' moneyman
+```
+
+**2. New users (MONEYMAN_CONFIG):**
+```bash
+# Enhanced security with single configuration
+docker run -e MONEYMAN_CONFIG='{"accounts":[...],"storage":{...}}' moneyman-separated
+```
+
+**3. Migration tool:**
+```bash
+# Convert existing environment variables to MONEYMAN_CONFIG format
+npm run convert-config
+```
 
 ## Testing Strategy
 
-1. All existing tests must pass in unified mode
-2. Add tests for ZeroMQ communication
-3. Add integration tests for separated mode
-4. Test error handling across service boundaries
-5. Verify security isolation works as expected
+1. **Unified mode compatibility**: All existing tests must pass in unified mode
+2. **Configuration validation**: Test Zod schemas with valid and invalid configurations
+3. **Configuration distribution**: Verify each service receives only its subset
+4. **Security isolation**: Test that services cannot access sensitive configuration from other services
+5. **ZeroMQ communication**: Add tests for inter-service message passing
+6. **Integration tests**: Test separated mode end-to-end functionality
+7. **Error handling**: Test configuration parsing errors and service boundary errors
+8. **Environment security**: Verify MONEYMAN_CONFIG is properly removed from service environments
+9. **Service startup validation**: Test that services fail fast with invalid configurations
+10. **Migration testing**: Test conversion from individual env vars to MONEYMAN_CONFIG
 
 ## Dependencies
 
@@ -718,23 +1285,46 @@ export function auditEnvironmentAccess(
 - `@types/*`: TypeScript definitions
 - `concurrently`: For running services in development
 
+### Shared Dependencies (All Services)
+- `zod@^4.0.0`: Configuration validation and type safety
+  - Used for validating MONEYMAN_CONFIG JSON structure
+  - Provides early failing with comprehensive error messages
+  - Ensures type safety across configuration distribution
+
 ### Service-Specific Dependencies
 
 #### Scraper Service Only
 - `israeli-bank-scrapers`: Bank scraping functionality
 - `puppeteer`: Browser automation
 - `zeromq`: Inter-service communication
+- `zod`: Configuration validation
 
 #### Storage Service Only  
 - `googleapis`: Google Sheets integration
 - `ynab`: YNAB API integration
 - `@azure/storage-blob`: Azure blob storage
 - `zeromq`: Inter-service communication
+- `zod`: Configuration validation
 
 #### Orchestrator Service Only
 - `node-telegram-bot-api`: Telegram notifications
 - `winston`: Logging
 - `zeromq`: Inter-service communication
+- `zod`: Configuration validation
+
+### Implementation Requirements
+
+When implementing this architecture, the following dependencies must be added:
+
+```bash
+# Add Zod 4 to main package.json
+npm install zod@^4.0.0
+
+# Add Zod 4 to each service package.json as well
+cd scraper-service && npm install zod@^4.0.0
+cd ../storage-service && npm install zod@^4.0.0  
+cd ../orchestrator-service && npm install zod@^4.0.0
+```
 
 ### Dependency Isolation Benefits
 
@@ -743,11 +1333,14 @@ export function auditEnvironmentAccess(
 3. **Better Security Auditing**: Can audit each service's dependencies separately
 4. **Easier Maintenance**: Update external API libraries without affecting scraper
 5. **Compliance**: Clear separation for security audits and compliance requirements
+6. **Configuration Type Safety**: Zod validation ensures configuration integrity across all services
+7. **Early Error Detection**: Configuration errors caught before any service starts
 
 ### Package.json Scripts
 - `start:scraper`: Start scraper service
 - `start:storage`: Start storage service
-- `start:separated`: Start both services (development)
+- `start:orchestrator`: Start orchestrator service
+- `start:separated`: Start all services in separated mode (development)
 
 ## Rollout Plan
 
