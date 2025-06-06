@@ -28,10 +28,10 @@ From completed, 3 not originally in ILS and 1 not charged in ILS
 	✔️ [max] account1: 1
 	✔️ [max] account2: 7</blockquote>
 
-Pending txns:
+<blockquote expandable="">Pending txns
 	description1:	+20.00
 	description1:	+20.00 USD
-	description1:	-20.00"
+	description1:	-20.00</blockquote>"
 `;
 
 exports[`messages getSummaryMessages should return a summary message 2`] = `
@@ -53,15 +53,15 @@ exports[`messages getSummaryMessages should return a summary message with failed
 "1 transactions scraped from 1 account.
 (0 pending, 1 completed)
 
-Accounts updated:
+<blockquote expandable="">Failed Account Updates
 	❌ [max] GENERIC
 		Some error message
-	❌ [hapoalim] CHANGE_PASSWORD
+	❌ [hapoalim] CHANGE_PASSWORD</blockquote>
 <blockquote expandable="">Successful Account Updates
 	✔️ [hapoalim] account1: 1</blockquote>
 
-Pending txns:
-	😶 None"
+<blockquote expandable="">Pending txns
+	😶 None</blockquote>"
 `;
 
 exports[`messages getSummaryMessages should return a summary message with failed results 2`] = `[]`;
@@ -73,8 +73,8 @@ exports[`messages getSummaryMessages should return a summary message with instal
 <blockquote expandable="">Accounts updated
 	✔️ [max] account1: 2</blockquote>
 
-Pending txns:
-	😶 None"
+<blockquote expandable="">Pending txns
+	😶 None</blockquote>"
 `;
 
 exports[`messages getSummaryMessages should return a summary message with installments 2`] = `
@@ -95,8 +95,8 @@ exports[`messages getSummaryMessages should return a summary message with no res
 Accounts updated:
 	😶 None
 
-Pending txns:
-	😶 None"
+<blockquote expandable="">Pending txns
+	😶 None</blockquote>"
 `;
 
 exports[`messages getSummaryMessages should return a summary message with no results 2`] = `[]`;
@@ -144,15 +144,15 @@ exports[`messages getSummaryMessages should use expandable block quotation for m
 "8 transactions scraped from 2 accounts.
 (0 pending, 8 completed)
 
-Accounts updated:
+<blockquote expandable="">Failed Account Updates
 	❌ [max] GENERIC
-		Connection failed
+		Connection failed</blockquote>
 <blockquote expandable="">Successful Account Updates
 	✔️ [hapoalim] 12345: 5
 	✔️ [hapoalim] 67890: 3</blockquote>
 
-Pending txns:
-	😶 None"
+<blockquote expandable="">Pending txns
+	😶 None</blockquote>"
 `;
 
 exports[`messages getSummaryMessages should use expandable block quotation for successful accounts only (HTML) 1`] = `
@@ -163,8 +163,8 @@ exports[`messages getSummaryMessages should use expandable block quotation for s
 	✔️ [max] account1: 1
 	✔️ [max] account2: 2</blockquote>
 
-Pending txns:
-	😶 None"
+<blockquote expandable="">Pending txns
+	😶 None</blockquote>"
 `;
 
 exports[`messages saving should return a saving message 1`] = `"📝 Storage Saving..."`;

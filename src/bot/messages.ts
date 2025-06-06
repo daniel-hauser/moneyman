@@ -39,13 +39,23 @@ function getAccountsSummary(results: Array<AccountScrapeResult>): string {
     const accountsContent = successfulAccounts.join("\n");
     return `<blockquote expandable="">Accounts updated\n${accountsContent}</blockquote>`;
   } else if (successfulAccounts.length === 0) {
-    // Only error accounts
-    return `Accounts updated:\n${errorAccounts.join("\n")}`;
+    // Only error accounts - use expandable block
+    const errorContent = errorAccounts.join("\n");
+    return `<blockquote expandable="">Accounts updated\n${errorContent}</blockquote>`;
   } else {
-    // Mixed - show errors first, then successful in expandable block
-    const errorSection = `Accounts updated:\n${errorAccounts.join("\n")}`;
+    // Mixed - show both in separate expandable blocks
+    const errorContent = errorAccounts.join("\n");
     const accountsContent = successfulAccounts.join("\n");
-    return `${errorSection}\n<blockquote expandable="">Successful Account Updates\n${accountsContent}</blockquote>`;
+    return `<blockquote expandable="">Failed Account Updates\n${errorContent}</blockquote>\n<blockquote expandable="">Successful Account Updates\n${accountsContent}</blockquote>`;
+  }
+}
+
+function getPendingTransactionsSummary(pending: Array<Transaction>): string {
+  if (pending.length === 0) {
+    return `<blockquote expandable="">Pending txns\n\t😶 None</blockquote>`;
+  } else {
+    const pendingContent = transactionList(pending, "\t");
+    return `<blockquote expandable="">Pending txns\n${pendingContent}</blockquote>`;
   }
 }
 
@@ -55,15 +65,13 @@ export function getSummaryMessages(results: Array<AccountScrapeResult>) {
   const accountsSection = getAccountsSummary(results);
 
   const transactionsSummary = transactionsString(pending, completed, results);
-  const pendingSection =
-    transactionList(pending, "\t") || escapeHtml("\t😶 None");
+  const pendingSection = getPendingTransactionsSummary(pending);
 
   return `
 ${transactionsSummary}
 
 ${accountsSection}
 
-Pending txns:
 ${pendingSection}
 `.trim();
 }
