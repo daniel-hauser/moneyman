@@ -10,8 +10,6 @@
   "scripts": {
     "act": "go run github.com/nektos/act@latest",
     "start": "node dst/index.js",
-    "start:scraper": "node dst/scraper-service/index.js",
-    "start:storage": "SEPARATED_MODE=true node dst/index.js",
     "start:container": "docker compose up",
     "postinstall": "patch-package",
     "build": "tsc",
@@ -45,8 +43,7 @@
     "hash-it": "^6.0.0",
     "israeli-bank-scrapers": "^6.1.3",
     "telegraf": "^4.16.3",
-    "ynab": "^2.9.0",
-    "zeromq": "^6.0.0-beta.20"
+    "ynab": "^2.9.0"
   },
   "devDependencies": {
     "@types/async": "^3.2.24",
