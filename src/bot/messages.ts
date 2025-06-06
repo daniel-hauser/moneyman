@@ -60,17 +60,12 @@ function getPendingTransactionsSummary(pending: Array<Transaction>): string {
 export function getSummaryMessages(results: Array<AccountScrapeResult>) {
   const { pending, completed } = transactionsByStatus(results);
 
-  const accountsSection = getAccountsSummary(results);
-
-  const transactionsSummary = transactionsString(pending, completed, results);
-  const pendingSection = getPendingTransactionsSummary(pending);
-
-  const sections = [transactionsSummary, accountsSection];
-  if (pendingSection) {
-    sections.push(pendingSection);
-  }
-
-  return sections.join("\n\n").trim();
+  const sections = [
+    transactionsString(pending, completed, results),
+    getAccountsSummary(results),
+    getPendingTransactionsSummary(pending),
+  ];
+  return sections.filter(Boolean).join("\n\n").trim();
 }
 
 function transactionsString(
