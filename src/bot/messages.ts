@@ -7,6 +7,16 @@ import { normalizeCurrency } from "../utils/currency.js";
 import { Timer } from "../utils/Timer.js";
 import { escapers } from "@telegraf/entity";
 
+function blockquote(
+  title: string,
+  lines: string[],
+  expandable = false,
+): string {
+  const content = lines.join("\n");
+  const expandableAttr = expandable ? ' expandable=""' : "";
+  return `<blockquote${expandableAttr}>${title}\n${content}</blockquote>`;
+}
+
 function getAccountsSummary(results: Array<AccountScrapeResult>): string {
   const successfulAccounts = results
     .filter(({ result }) => result.success)
@@ -34,17 +44,18 @@ function getAccountsSummary(results: Array<AccountScrapeResult>): string {
     return "Accounts updated:\n\t😶 None";
   } else if (errorAccounts.length === 0) {
     // Only successful accounts - use expandable block without duplication
-    const accountsContent = successfulAccounts.join("\n");
-    return `<blockquote expandable="">Accounts updated\n${accountsContent}</blockquote>`;
+    return blockquote("Accounts updated", successfulAccounts, true);
   } else if (successfulAccounts.length === 0) {
     // Only error accounts - use expandable block
-    const errorContent = errorAccounts.join("\n");
-    return `<blockquote expandable="">Accounts updated\n${errorContent}</blockquote>`;
+    return blockquote("Accounts updated", errorAccounts, true);
   } else {
-    // Mixed - show both in separate expandable blocks
-    const errorContent = errorAccounts.join("\n");
-    const accountsContent = successfulAccounts.join("\n");
-    return `<blockquote expandable="">Failed Account Updates\n${errorContent}</blockquote>\n<blockquote expandable="">Successful Account Updates\n${accountsContent}</blockquote>`;
+    // Mixed - show both in separate blocks (applying comment suggestion)
+    const failedBlock = blockquote("Failed Account Updates", errorAccounts);
+    const successBlock = blockquote(
+      "Successful Account Updates",
+      successfulAccounts,
+    );
+    return `${failedBlock}\n\n${successBlock}`;
   }
 }
 
@@ -53,7 +64,7 @@ function getPendingTransactionsSummary(pending: Array<Transaction>): string {
     return "";
   } else {
     const pendingContent = transactionList(pending, "\t");
-    return `<blockquote expandable="">Pending txns\n${pendingContent}</blockquote>`;
+    return blockquote("Pending txns", [pendingContent], true);
   }
 }
 
