@@ -20,7 +20,7 @@ if (bot) {
   logger(`Telegram chat ID: ${TELEGRAM_CHAT_ID}`);
 }
 
-export async function send(message: string, parseMode?: "MarkdownV2") {
+export async function send(message: string, parseMode?: "HTML") {
   if (message.length > 4096) {
     send(`Next message is too long (${message.length} characters), truncating`);
     return send(message.slice(0, 4096));
@@ -67,7 +67,7 @@ export async function sendJSON(json: {}, filename: string) {
 export async function editMessage(
   message: number | undefined,
   newText: string,
-  parseMode?: "MarkdownV2",
+  parseMode?: "HTML",
 ) {
   if (message !== undefined) {
     try {

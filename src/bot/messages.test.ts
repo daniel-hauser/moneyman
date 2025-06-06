@@ -309,7 +309,7 @@ describe("messages", () => {
       expect(saveSummaries).toMatchSnapshot();
     });
 
-    it("should use expandable block quotation for successful accounts only (MarkdownV2)", () => {
+    it("should use expandable block quotation for successful accounts only (HTML)", () => {
       const results: Array<AccountScrapeResult> = [
         {
           companyId: CompanyTypes.max,
@@ -333,7 +333,7 @@ describe("messages", () => {
       expect(summary).toMatchSnapshot();
     });
 
-    it("should use expandable block quotation for mixed success/error accounts (MarkdownV2)", () => {
+    it("should use expandable block quotation for mixed success/error accounts (HTML)", () => {
       const results: Array<AccountScrapeResult> = [
         {
           companyId: CompanyTypes.max,

@@ -31,14 +31,14 @@ export async function runWithStorage(runScraper: Runner) {
       );
     },
     async onResultsReady(results: AccountScrapeResult[]) {
-      // Use MarkdownV2 whenever we have successful accounts to enable expandable blocks
+      // Use HTML expandable blocks whenever we have successful accounts
       const hasSuccessfulAccounts = results.some(
         ({ result }) => result.success && result.accounts?.length,
       );
-      const useMarkdownV2 = hasSuccessfulAccounts;
+      const useExpandableBlocks = hasSuccessfulAccounts;
 
-      const summaryMessage = getSummaryMessages(results, useMarkdownV2);
-      await send(summaryMessage, useMarkdownV2 ? "MarkdownV2" : undefined);
+      const summaryMessage = getSummaryMessages(results, useExpandableBlocks);
+      await send(summaryMessage, useExpandableBlocks ? "HTML" : undefined);
       await saveResults(results);
     },
     async onError(e: Error, caller: string = "unknown") {
