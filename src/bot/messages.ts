@@ -13,75 +13,50 @@ function escapeHtml(text: string): string {
     .replace(/>/g, "&gt;");
 }
 
-export function getSummaryMessages(
-  results: Array<AccountScrapeResult>,
-  useExpandableBlocks = false,
-) {
+function getAccountsSummary(results: Array<AccountScrapeResult>): string {
+  const successfulAccounts: string[] = [];
+  const errorAccounts: string[] = [];
+
+  results.forEach(({ result, companyId }) => {
+    if (!result.success) {
+      const errorMessage = `\t❌ [${companyId}] ${result.errorType}${
+        result.errorMessage ? `\n\t\t${escapeHtml(result.errorMessage)}` : ""
+      }`;
+      errorAccounts.push(errorMessage);
+    } else {
+      result.accounts?.forEach((account) => {
+        const successMessage = `\t✔️ [${companyId}] ${escapeHtml(account.accountNumber)}: ${account.txns.length}`;
+        successfulAccounts.push(successMessage);
+      });
+    }
+  });
+
+  if (errorAccounts.length === 0 && successfulAccounts.length === 0) {
+    // No accounts at all
+    return "Accounts updated:\n\t😶 None";
+  } else if (errorAccounts.length === 0) {
+    // Only successful accounts - use expandable block without duplication
+    const accountsContent = successfulAccounts.join("\n");
+    return `<blockquote expandable="">Accounts updated\n${accountsContent}</blockquote>`;
+  } else if (successfulAccounts.length === 0) {
+    // Only error accounts
+    return `Accounts updated:\n${errorAccounts.join("\n")}`;
+  } else {
+    // Mixed - show errors first, then successful in expandable block
+    const errorSection = `Accounts updated:\n${errorAccounts.join("\n")}`;
+    const accountsContent = successfulAccounts.join("\n");
+    return `${errorSection}\n<blockquote expandable="">Successful Account Updates\n${accountsContent}</blockquote>`;
+  }
+}
+
+export function getSummaryMessages(results: Array<AccountScrapeResult>) {
   const { pending, completed } = transactionsByStatus(results);
 
-  let accountsSection = "";
+  const accountsSection = getAccountsSummary(results);
 
-  if (useExpandableBlocks) {
-    // New logic for HTML with expandable blocks
-    const errorAccounts: string[] = [];
-    const successfulAccounts: string[] = [];
-
-    results.forEach(({ result, companyId }) => {
-      if (!result.success) {
-        const errorMessage = `\t❌ [${companyId}] ${result.errorType}${
-          result.errorMessage ? `\n\t\t${escapeHtml(result.errorMessage)}` : ""
-        }`;
-        errorAccounts.push(errorMessage);
-      } else {
-        result.accounts?.forEach((account) => {
-          const successMessage = `\t✔️ [${companyId}] ${escapeHtml(account.accountNumber)}: ${account.txns.length}`;
-          successfulAccounts.push(successMessage);
-        });
-      }
-    });
-
-    if (errorAccounts.length === 0 && successfulAccounts.length === 0) {
-      // No accounts at all
-      accountsSection = "Accounts updated:\n\t😶 None";
-    } else if (errorAccounts.length === 0) {
-      // Only successful accounts - use expandable block without duplication
-      const accountsContent = successfulAccounts.join("\n");
-      accountsSection = `<blockquote expandable="">Accounts updated\n${accountsContent}</blockquote>`;
-    } else if (successfulAccounts.length === 0) {
-      // Only error accounts
-      accountsSection = `Accounts updated:\n${errorAccounts.join("\n")}`;
-    } else {
-      // Mixed - show errors first, then successful in expandable block
-      const errorSection = `Accounts updated:\n${errorAccounts.join("\n")}`;
-      const accountsContent = successfulAccounts.join("\n");
-      accountsSection = `${errorSection}\n<blockquote expandable="">Successful Account Updates\n${accountsContent}</blockquote>`;
-    }
-  } else {
-    // Original logic for backward compatibility
-    const accountsSummary = results.flatMap(({ result, companyId }) => {
-      if (!result.success) {
-        return `\t❌ [${companyId}] ${result.errorType}${
-          result.errorMessage ? `\n\t\t${result.errorMessage}` : ""
-        }`;
-      }
-      return result.accounts?.map(
-        (account) =>
-          `\t✔️ [${companyId}] ${account.accountNumber}: ${account.txns.length}`,
-      );
-    });
-
-    accountsSection = `Accounts updated:\n${accountsSummary.join("\n") || "\t😶 None"}`;
-  }
-
-  const transactionsSummary = transactionsString(
-    pending,
-    completed,
-    results,
-    useExpandableBlocks,
-  );
+  const transactionsSummary = transactionsString(pending, completed, results);
   const pendingSection =
-    transactionList(pending, "\t", useExpandableBlocks) ||
-    (useExpandableBlocks ? escapeHtml("\t😶 None") : "\t😶 None");
+    transactionList(pending, "\t") || escapeHtml("\t😶 None");
 
   return `
 ${transactionsSummary}
@@ -97,7 +72,6 @@ function transactionsString(
   pending: Array<Transaction>,
   completed: Array<Transaction>,
   results: Array<AccountScrapeResult>,
-  useExpandableBlocks = false,
 ) {
   const total = pending.length + completed.length;
 
@@ -120,7 +94,7 @@ ${total > 0 ? `(${pending.length} pending, ${completed.length} completed)` : ""}
 ${foreignTransactionsSummary(completed)}
 `.trim();
 
-  return useExpandableBlocks ? escapeHtml(summary) : summary;
+  return escapeHtml(summary);
 }
 
 function foreignTransactionsSummary(completed: Array<Transaction>) {
@@ -168,12 +142,11 @@ function transactionString(t: Transaction) {
 export function transactionList(
   transactions: Array<Transaction>,
   indent = "\t",
-  useExpandableBlocks = false,
 ) {
   const list = transactions
     .map((t) => `${indent}${transactionString(t)}`)
     .join("\n");
-  return useExpandableBlocks ? escapeHtml(list) : list;
+  return escapeHtml(list);
 }
 
 export function saving(storage: string, steps: Array<Timer> = []) {

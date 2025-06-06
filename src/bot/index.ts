@@ -31,14 +31,8 @@ export async function runWithStorage(runScraper: Runner) {
       );
     },
     async onResultsReady(results: AccountScrapeResult[]) {
-      // Use HTML expandable blocks whenever we have successful accounts
-      const hasSuccessfulAccounts = results.some(
-        ({ result }) => result.success && result.accounts?.length,
-      );
-      const useExpandableBlocks = hasSuccessfulAccounts;
-
-      const summaryMessage = getSummaryMessages(results, useExpandableBlocks);
-      await send(summaryMessage, useExpandableBlocks ? "HTML" : undefined);
+      const summaryMessage = getSummaryMessages(results);
+      await send(summaryMessage, "HTML");
       await saveResults(results);
     },
     async onError(e: Error, caller: string = "unknown") {

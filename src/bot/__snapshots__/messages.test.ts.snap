@@ -24,9 +24,9 @@ exports[`messages getSummaryMessages should return a summary message 1`] = `
 (3 pending, 5 completed)
 From completed, 3 not originally in ILS and 1 not charged in ILS
 
-Accounts updated:
+<blockquote expandable="">Accounts updated
 	✔️ [max] account1: 1
-	✔️ [max] account2: 7
+	✔️ [max] account2: 7</blockquote>
 
 Pending txns:
 	description1:	+20.00
@@ -57,7 +57,8 @@ Accounts updated:
 	❌ [max] GENERIC
 		Some error message
 	❌ [hapoalim] CHANGE_PASSWORD
-	✔️ [hapoalim] account1: 1
+<blockquote expandable="">Successful Account Updates
+	✔️ [hapoalim] account1: 1</blockquote>
 
 Pending txns:
 	😶 None"
@@ -69,8 +70,8 @@ exports[`messages getSummaryMessages should return a summary message with instal
 "2 transactions scraped from 1 account.
 (0 pending, 2 completed)
 
-Accounts updated:
-	✔️ [max] account1: 2
+<blockquote expandable="">Accounts updated
+	✔️ [max] account1: 2</blockquote>
 
 Pending txns:
 	😶 None"

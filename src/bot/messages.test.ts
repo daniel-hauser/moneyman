@@ -330,7 +330,7 @@ describe("messages", () => {
         },
       ];
 
-      const summary = getSummaryMessages(results, true);
+      const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
     });
 
@@ -368,7 +368,7 @@ describe("messages", () => {
         },
       ];
 
-      const summary = getSummaryMessages(results, true);
+      const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
     });
 
