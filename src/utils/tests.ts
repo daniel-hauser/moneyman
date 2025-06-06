@@ -1,4 +1,7 @@
-import { TransactionStatuses, TransactionTypes } from "israeli-bank-scrapers/lib/transactions.js";
+import {
+  TransactionStatuses,
+  TransactionTypes,
+} from "israeli-bank-scrapers/lib/transactions.js";
 import { Transaction } from "../types.js";
 
 export function transaction(t: Partial<Transaction>): Transaction {
