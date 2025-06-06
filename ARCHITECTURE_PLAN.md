@@ -77,9 +77,10 @@ graph TB
 
 **Security:**
 - Runs as `scraper` user (UID 1001)
-- Only has access to bank credentials
+- Only has access to bank credentials and scraping configuration
 - No access to external service API keys
 - **Dependency isolation**: Cannot access external service libraries even if compromised
+- **Environment variable isolation**: Only receives scraping-related environment variables
 - Can be network-restricted to only bank domains
 
 ### 2. Storage Service
@@ -103,9 +104,10 @@ graph TB
 
 **Security:**
 - Runs as `storage` user (UID 1002)
-- Only has access to external service API keys
+- Only has access to external service API keys and storage configuration
 - No access to bank credentials
 - **Dependency isolation**: Cannot access bank scraping libraries even if compromised
+- **Environment variable isolation**: Only receives external service API credentials
 - Can be network-restricted from bank domains
 
 ### 3. Orchestrator Service
@@ -127,9 +129,10 @@ graph TB
 
 **Security:**
 - Runs as `orchestrator` user (UID 1003)
-- Has access to notification credentials only
+- Has access to notification credentials and coordination configuration only
 - No access to bank credentials or storage API keys
 - **Dependency isolation**: Cannot access scraping or storage libraries
+- **Environment variable isolation**: Only receives notification and logging credentials
 
 ### 4. Communication Layer
 **Protocol:** ZeroMQ with IPC transport (Unix domain sockets)
@@ -294,12 +297,9 @@ RUN groupadd -g 1001 scraper && useradd -u 1001 -g scraper -s /bin/bash scraper
 RUN groupadd -g 1002 storage && useradd -u 1002 -g storage -s /bin/bash storage
 RUN groupadd -g 1003 orchestrator && useradd -u 1003 -g orchestrator -s /bin/bash orchestrator
 
-# Create separate directories for each service
+# Create separate directories for each service with proper ownership
 WORKDIR /app
 RUN mkdir -p scraper-service storage-service orchestrator-service shared-types
-RUN chown scraper:scraper scraper-service
-RUN chown storage:storage storage-service  
-RUN chown orchestrator:orchestrator orchestrator-service
 
 # Install dependencies for each service separately
 COPY scraper-service/package*.json ./scraper-service/
@@ -327,7 +327,7 @@ USER root
 WORKDIR /app/shared-types
 RUN npm ci --production
 
-# Copy source code
+# Copy source code with proper ownership
 WORKDIR /app
 COPY --chown=scraper:scraper scraper-service/ ./scraper-service/
 COPY --chown=storage:storage storage-service/ ./storage-service/
@@ -338,7 +338,7 @@ COPY --chown=root:root shared-types/ ./shared-types/
 RUN mkdir -p /tmp/moneyman-ipc
 RUN chmod 777 /tmp/moneyman-ipc
 
-# Entry point script to start all processes
+# Entry point script to start all processes with environment filtering
 COPY docker-entrypoint-separated.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
@@ -378,6 +378,12 @@ moneyman/
 ### Environment Variables
 - `SEPARATED_MODE`: Enable separated mode (default: false)
 
+**Environment Variable Security:**
+Each service receives only the environment variables it needs through runtime filtering:
+- **Scraper Service**: Only bank credentials and scraping configuration
+- **Storage Service**: Only external service API credentials and storage configuration  
+- **Orchestrator Service**: Only notification credentials and coordination settings
+
 **Note:** IPC transport eliminates the need for configurable endpoints as Unix domain sockets provide secure, fast inter-process communication within the same container.
 
 ### Usage Modes
@@ -408,11 +414,286 @@ npm run start:scraper       # Terminal 3
    - Scraper: Only has bank scraping libraries, cannot access external service APIs
    - Storage: Only has external service libraries, cannot access bank scraping code
    - Orchestrator: Only has coordination libraries, cannot access sensitive operations
-3. **Minimal Attack Surface**: Each service has minimal dependencies
-4. **Process Separation**: Different users prevent cross-contamination
-5. **Network Controls**: Can restrict scraper from external APIs and vice versa
-6. **Principle of Least Privilege**: Each service only has access to what it needs
-7. **Shared Types Only**: Services share only TypeScript interfaces, no runtime code
+3. **Environment Variable Isolation**: Each service only receives environment variables it needs
+4. **Minimal Attack Surface**: Each service has minimal dependencies
+5. **Process Separation**: Different users prevent cross-contamination
+6. **Network Controls**: Can restrict scraper from external APIs and vice versa
+7. **Principle of Least Privilege**: Each service only has access to what it needs
+8. **Shared Types Only**: Services share only TypeScript interfaces, no runtime code
+
+## Environment Variable Security Model
+
+A critical security feature of the separated architecture is **environment variable isolation**. Each service only receives the environment variables it needs to operate, preventing credential leakage between processes.
+
+### Environment Variable Distribution
+
+```mermaid
+graph TB
+    subgraph "Container Runtime"
+        ENV[All Environment Variables]
+        
+        subgraph "Scraper Process (UID: 1001)"
+            SE[Scraper Environment:<br/>• ACCOUNTS_JSON<br/>• ACCOUNTS_TO_SCRAPE<br/>• DAYS_BACK<br/>• FUTURE_MONTHS<br/>• PUPPETEER_EXECUTABLE_PATH<br/>• MAX_PARALLEL_SCRAPERS<br/>• FIREWALL_SETTINGS<br/>• BLOCK_BY_DEFAULT<br/>• DOMAIN_TRACKING_ENABLED<br/>• TRANSACTION_HASH_TYPE<br/>• ADDITIONAL_TRANSACTION_INFO_ENABLED<br/>• HIDDEN_DEPRECATIONS<br/>• TZ<br/>• DEBUG]
+        end
+        
+        subgraph "Storage Process (UID: 1002)"
+            STE[Storage Environment:<br/>• GOOGLE_SERVICE_ACCOUNT_*<br/>• GOOGLE_SHEET_ID<br/>• WORKSHEET_NAME<br/>• YNAB_TOKEN<br/>• YNAB_BUDGET_ID<br/>• YNAB_ACCOUNTS<br/>• AZURE_APP_*<br/>• ADE_*<br/>• BUXFER_USER_NAME<br/>• BUXFER_PASSWORD<br/>• BUXFER_ACCOUNTS<br/>• LOCAL_JSON_STORAGE<br/>• WEB_POST_URL<br/>• WEB_POST_AUTHORIZATION_TOKEN<br/>• TZ<br/>• DEBUG]
+        end
+        
+        subgraph "Orchestrator Process (UID: 1003)"
+            OE[Orchestrator Environment:<br/>• TELEGRAM_API_KEY<br/>• TELEGRAM_CHAT_ID<br/>• TZ<br/>• DEBUG<br/>• SEPARATED_MODE]
+        end
+        
+        ENV -->|Filter & Distribute| SE
+        ENV -->|Filter & Distribute| STE  
+        ENV -->|Filter & Distribute| OE
+    end
+```
+
+### Scraper Service Environment Variables
+
+**Allowed Environment Variables:**
+- `ACCOUNTS_JSON` - Bank account credentials (JSON array)
+- `ACCOUNTS_TO_SCRAPE` - Comma-separated list of providers to scrape
+- `DAYS_BACK` - Number of days back to scrape (default: 10)
+- `FUTURE_MONTHS` - Number of future months to scrape (default: 1)
+- `TZ` - Timezone setting (default: 'Asia/Jerusalem')
+- `TRANSACTION_HASH_TYPE` - Hash type for transaction IDs
+- `ADDITIONAL_TRANSACTION_INFO_ENABLED` - Enable detailed transaction info
+- `HIDDEN_DEPRECATIONS` - Comma-separated list of deprecations to hide
+- `PUPPETEER_EXECUTABLE_PATH` - Custom Puppeteer executable path
+- `MAX_PARALLEL_SCRAPERS` - Maximum parallel scrapers (default: 1)
+- `DOMAIN_TRACKING_ENABLED` - Enable domain access tracking
+- `FIREWALL_SETTINGS` - Domain firewall rules (multiline string)
+- `BLOCK_BY_DEFAULT` - Default domain blocking behavior
+- `DEBUG` - Debug logging namespace
+
+**Explicitly Blocked Environment Variables:**
+- Any Google API credentials (`GOOGLE_SERVICE_ACCOUNT_*`, `GOOGLE_SHEET_ID`)
+- Any YNAB credentials (`YNAB_TOKEN`, `YNAB_BUDGET_ID`, `YNAB_ACCOUNTS`)
+- Any Azure credentials (`AZURE_APP_*`, `ADE_*`)
+- Any Buxfer credentials (`BUXFER_USER_NAME`, `BUXFER_PASSWORD`)
+- Any Telegram credentials (`TELEGRAM_API_KEY`, `TELEGRAM_CHAT_ID`)
+- Any web export credentials (`WEB_POST_*`)
+- Any storage settings (`LOCAL_JSON_STORAGE`)
+
+### Storage Service Environment Variables
+
+**Allowed Environment Variables:**
+- `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` - Google service account private key
+- `GOOGLE_SERVICE_ACCOUNT_EMAIL` - Google service account email
+- `GOOGLE_SHEET_ID` - Target Google Sheet ID
+- `WORKSHEET_NAME` - Target worksheet name
+- `YNAB_TOKEN` - YNAB API access token
+- `YNAB_BUDGET_ID` - YNAB budget ID
+- `YNAB_ACCOUNTS` - Account mapping JSON for YNAB
+- `AZURE_APP_ID` - Azure application ID
+- `AZURE_APP_KEY` - Azure application secret key
+- `AZURE_TENANT_ID` - Azure tenant ID
+- `ADE_DATABASE_NAME` - Azure Data Explorer database name
+- `ADE_TABLE_NAME` - Azure Data Explorer table name
+- `ADE_INGESTION_MAPPING` - Azure Data Explorer ingestion mapping
+- `ADE_INGEST_URI` - Azure Data Explorer ingest URI
+- `BUXFER_USER_NAME` - Buxfer username
+- `BUXFER_PASSWORD` - Buxfer password
+- `BUXFER_ACCOUNTS` - Account mapping JSON for Buxfer
+- `LOCAL_JSON_STORAGE` - Enable local JSON file storage
+- `WEB_POST_URL` - Web endpoint URL for POST requests
+- `WEB_POST_AUTHORIZATION_TOKEN` - Authorization token for web POST
+- `TZ` - Timezone setting
+- `DEBUG` - Debug logging namespace
+
+**Explicitly Blocked Environment Variables:**
+- Bank credentials (`ACCOUNTS_JSON`, `ACCOUNTS_TO_SCRAPE`)
+- Scraping configuration (`DAYS_BACK`, `FUTURE_MONTHS`, `PUPPETEER_*`)
+- Domain security (`FIREWALL_SETTINGS`, `BLOCK_BY_DEFAULT`, `DOMAIN_TRACKING_ENABLED`)
+- Telegram credentials (`TELEGRAM_API_KEY`, `TELEGRAM_CHAT_ID`)
+
+### Orchestrator Service Environment Variables
+
+**Allowed Environment Variables:**
+- `TELEGRAM_API_KEY` - Telegram bot API key
+- `TELEGRAM_CHAT_ID` - Telegram chat ID for notifications
+- `SEPARATED_MODE` - Enable separated mode flag
+- `TZ` - Timezone setting
+- `DEBUG` - Debug logging namespace
+
+**Explicitly Blocked Environment Variables:**
+- Bank credentials (`ACCOUNTS_JSON`)
+- External service credentials (Google, YNAB, Azure, Buxfer)
+- Scraping configuration (`DAYS_BACK`, `FUTURE_MONTHS`, etc.)
+- Storage configuration (`LOCAL_JSON_STORAGE`, `WEB_POST_*`)
+
+### Implementation Strategy
+
+#### Docker Entrypoint Script with Environment Filtering
+
+```bash
+#!/bin/bash
+# docker-entrypoint-separated.sh
+
+set -e
+
+# Function to filter environment variables for each service
+filter_scraper_env() {
+    env | grep -E '^(ACCOUNTS_JSON|ACCOUNTS_TO_SCRAPE|DAYS_BACK|FUTURE_MONTHS|TZ|TRANSACTION_HASH_TYPE|ADDITIONAL_TRANSACTION_INFO_ENABLED|HIDDEN_DEPRECATIONS|PUPPETEER_EXECUTABLE_PATH|MAX_PARALLEL_SCRAPERS|DOMAIN_TRACKING_ENABLED|FIREWALL_SETTINGS|BLOCK_BY_DEFAULT|DEBUG)=' > /tmp/scraper.env || true
+}
+
+filter_storage_env() {
+    env | grep -E '^(GOOGLE_SERVICE_ACCOUNT_|GOOGLE_SHEET_ID|WORKSHEET_NAME|YNAB_|AZURE_|ADE_|BUXFER_|LOCAL_JSON_STORAGE|WEB_POST_|TZ|DEBUG)=' > /tmp/storage.env || true
+}
+
+filter_orchestrator_env() {
+    env | grep -E '^(TELEGRAM_API_KEY|TELEGRAM_CHAT_ID|SEPARATED_MODE|TZ|DEBUG)=' > /tmp/orchestrator.env || true
+}
+
+# Create filtered environment files
+filter_scraper_env
+filter_storage_env  
+filter_orchestrator_env
+
+# Set secure permissions
+chmod 600 /tmp/scraper.env
+chmod 600 /tmp/storage.env
+chmod 600 /tmp/orchestrator.env
+
+# Change ownership of environment files
+chown scraper:scraper /tmp/scraper.env
+chown storage:storage /tmp/storage.env
+chown orchestrator:orchestrator /tmp/orchestrator.env
+
+# Start services with filtered environments
+echo "Starting orchestrator service..."
+su orchestrator -c "cd /app/orchestrator-service && env -i $(cat /tmp/orchestrator.env) node index.js" &
+
+echo "Starting storage service..."  
+su storage -c "cd /app/storage-service && env -i $(cat /tmp/storage.env) node index.js" &
+
+echo "Starting scraper service..."
+su scraper -c "cd /app/scraper-service && env -i $(cat /tmp/scraper.env) node index.js" &
+
+# Wait for all services
+wait
+```
+
+#### Process-Level Environment Isolation
+
+```typescript
+// orchestrator-service/env-filter.ts
+interface OrchestratorEnvironment {
+  TELEGRAM_API_KEY?: string;
+  TELEGRAM_CHAT_ID?: string;
+  SEPARATED_MODE?: string;
+  TZ?: string;
+  DEBUG?: string;
+}
+
+export function getOrchestratorEnv(): OrchestratorEnvironment {
+  const allowedKeys = [
+    'TELEGRAM_API_KEY',
+    'TELEGRAM_CHAT_ID', 
+    'SEPARATED_MODE',
+    'TZ',
+    'DEBUG'
+  ];
+  
+  const filteredEnv: OrchestratorEnvironment = {};
+  
+  for (const key of allowedKeys) {
+    if (process.env[key]) {
+      filteredEnv[key as keyof OrchestratorEnvironment] = process.env[key];
+    }
+  }
+  
+  // Verify no sensitive variables are accessible
+  const sensitiveKeys = ['ACCOUNTS_JSON', 'GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY', 'YNAB_TOKEN'];
+  for (const key of sensitiveKeys) {
+    if (process.env[key]) {
+      throw new Error(`Security violation: Orchestrator has access to sensitive variable ${key}`);
+    }
+  }
+  
+  return filteredEnv;
+}
+```
+
+### Security Validation
+
+#### Environment Variable Access Auditing
+
+```typescript
+// shared-types/env-audit.ts
+export interface EnvironmentAudit {
+  service: 'scraper' | 'storage' | 'orchestrator';
+  allowedVariables: string[];
+  blockedVariables: string[];
+  violations: string[];
+}
+
+export function auditEnvironmentAccess(
+  service: 'scraper' | 'storage' | 'orchestrator'
+): EnvironmentAudit {
+  const configs = {
+    scraper: {
+      allowed: [
+        'ACCOUNTS_JSON', 'ACCOUNTS_TO_SCRAPE', 'DAYS_BACK', 
+        'FUTURE_MONTHS', 'TZ', 'TRANSACTION_HASH_TYPE',
+        'ADDITIONAL_TRANSACTION_INFO_ENABLED', 'HIDDEN_DEPRECATIONS',
+        'PUPPETEER_EXECUTABLE_PATH', 'MAX_PARALLEL_SCRAPERS',
+        'DOMAIN_TRACKING_ENABLED', 'FIREWALL_SETTINGS', 
+        'BLOCK_BY_DEFAULT', 'DEBUG'
+      ],
+      blocked: [
+        'GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY', 'GOOGLE_SERVICE_ACCOUNT_EMAIL',
+        'YNAB_TOKEN', 'YNAB_BUDGET_ID', 'AZURE_APP_ID', 'AZURE_APP_KEY',
+        'TELEGRAM_API_KEY', 'TELEGRAM_CHAT_ID', 'BUXFER_USER_NAME'
+      ]
+    },
+    storage: {
+      allowed: [
+        'GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY', 'GOOGLE_SERVICE_ACCOUNT_EMAIL',
+        'GOOGLE_SHEET_ID', 'WORKSHEET_NAME', 'YNAB_TOKEN', 'YNAB_BUDGET_ID',
+        'YNAB_ACCOUNTS', 'AZURE_APP_ID', 'AZURE_APP_KEY', 'AZURE_TENANT_ID',
+        'ADE_DATABASE_NAME', 'ADE_TABLE_NAME', 'ADE_INGESTION_MAPPING',
+        'ADE_INGEST_URI', 'BUXFER_USER_NAME', 'BUXFER_PASSWORD',
+        'BUXFER_ACCOUNTS', 'LOCAL_JSON_STORAGE', 'WEB_POST_URL',
+        'WEB_POST_AUTHORIZATION_TOKEN', 'TZ', 'DEBUG'
+      ],
+      blocked: [
+        'ACCOUNTS_JSON', 'ACCOUNTS_TO_SCRAPE', 'DAYS_BACK',
+        'PUPPETEER_EXECUTABLE_PATH', 'FIREWALL_SETTINGS',
+        'TELEGRAM_API_KEY', 'TELEGRAM_CHAT_ID'
+      ]
+    },
+    orchestrator: {
+      allowed: [
+        'TELEGRAM_API_KEY', 'TELEGRAM_CHAT_ID', 'SEPARATED_MODE', 'TZ', 'DEBUG'
+      ],
+      blocked: [
+        'ACCOUNTS_JSON', 'GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY',
+        'YNAB_TOKEN', 'AZURE_APP_KEY', 'BUXFER_PASSWORD'
+      ]
+    }
+  };
+  
+  const config = configs[service];
+  const violations: string[] = [];
+  
+  // Check for blocked variables
+  for (const blockedVar of config.blocked) {
+    if (process.env[blockedVar]) {
+      violations.push(`Blocked variable ${blockedVar} is accessible`);
+    }
+  }
+  
+  return {
+    service,
+    allowedVariables: config.allowed,
+    blockedVariables: config.blocked,
+    violations
+  };
+}
+```
 
 ## Backward Compatibility
 
