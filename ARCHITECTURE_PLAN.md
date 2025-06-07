@@ -184,11 +184,11 @@ interface OrchestratorMessage {
 3. Add network restrictions capability (iptables rules)
 4. Document security configuration options
 
-### Phase 4: Backward Compatibility
-1. Maintain unified mode as default
-2. Add `SEPARATED_MODE` environment variable
-3. Ensure all existing functionality works in both modes
-4. Add comprehensive testing for both modes
+### Phase 4: Environment Variable Conversion
+1. Support existing environment variables by converting them to MONEYMAN_CONFIG
+2. Provide clear migration path from individual env vars to JSON config
+3. Validate that all README environment variables are properly mapped
+4. Add comprehensive testing for environment variable conversion
 
 ## Dependencies and Package Separation
 
@@ -349,7 +349,7 @@ ENTRYPOINT ["/entrypoint.sh"]
 
 ```
 moneyman/
-├── src/                           # Existing unified code  
+├── src/                           # Existing source code  
 │   ├── scraper/                   # Scraping logic (types only shared)
 │   ├── bot/storage/               # Storage logic (types only shared)
 │   └── ...
@@ -386,16 +386,9 @@ Each service receives only the environment variables it needs through runtime fi
 
 **Note:** IPC transport eliminates the need for configurable endpoints as Unix domain sockets provide secure, fast inter-process communication within the same container.
 
-### Usage Modes
+### Usage
 
-#### Unified Mode (Default - Backward Compatible)
-```bash
-npm start
-# or
-docker run moneyman
-```
-
-#### Separated Mode (Enhanced Security) with MONEYMAN_CONFIG
+**Separated Mode with MONEYMAN_CONFIG:**
 
 **1. Create Configuration JSON:**
 ```bash
@@ -440,9 +433,9 @@ EOF
 **2. Run with Single Configuration Variable:**
 ```bash
 # Docker (Recommended)
-docker build -f Dockerfile.separated -t moneyman-separated .
+docker build -f Dockerfile.separated -t moneyman .
 export MONEYMAN_CONFIG="$(cat config.json)"
-docker run -e MONEYMAN_CONFIG moneyman-separated
+docker run -e MONEYMAN_CONFIG moneyman
 
 # Manual (for development/testing)
 export MONEYMAN_CONFIG="$(cat config.json)"
@@ -451,7 +444,7 @@ npm run start:storage       # Terminal 2
 npm run start:scraper       # Terminal 3
 
 # One-liner for Docker
-docker run -e MONEYMAN_CONFIG="$(cat config.json)" moneyman-separated
+docker run -e MONEYMAN_CONFIG="$(cat config.json)" moneyman
 ```
 
 **3. Security Verification:**
@@ -483,6 +476,78 @@ docker run -e MONEYMAN_CONFIG="$(cat config.json)" moneyman-separated
 7. **Network Controls**: Can restrict scraper from external APIs and vice versa
 8. **Principle of Least Privilege**: Each service only has access to what it needs
 9. **Shared Types Only**: Services share only TypeScript interfaces, no runtime code
+10. **Logging Security**: Strict stdout controls prevent credential leakage in public logs
+
+### Logging Security
+  
+**Critical Security Requirement**: Unless `DEBUG` environment variable is set, stdout MUST NOT contain any sensitive information because GitHub Actions logs are public.
+
+**Sensitive Information Includes:**
+- Bank credentials (usernames, passwords, user codes)  
+- Account numbers and identifiers
+- Transaction details (amounts, descriptions, references)
+- API keys and tokens (Google, YNAB, Azure, Telegram, etc.)
+- Personal identifiable information (names, addresses)
+- Any configuration values that could be used for authentication
+
+**Implementation:**
+```typescript
+// shared-types/secure-logger.ts
+export class SecureLogger {
+  private static isDebugMode = process.env.DEBUG !== undefined;
+  
+  static info(message: string, data?: any): void {
+    if (SecureLogger.isDebugMode) {
+      console.log(message, data);
+    } else {
+      // Only log non-sensitive operational messages
+      console.log(SecureLogger.sanitizeMessage(message));
+    }
+  }
+  
+  static error(message: string, error?: any): void {
+    if (SecureLogger.isDebugMode) {
+      console.error(message, error);
+    } else {
+      // Log error type but not sensitive details
+      console.error(SecureLogger.sanitizeError(message, error));
+    }
+  }
+  
+  private static sanitizeMessage(message: string): string {
+    // Remove any potential sensitive data patterns
+    return message
+      .replace(/password[^\\s]*/gi, 'password=***')
+      .replace(/token[^\\s]*/gi, 'token=***')
+      .replace(/key[^\\s]*/gi, 'key=***')
+      .replace(/\\d{4,}/g, '***'); // Remove potential account numbers
+  }
+  
+  private static sanitizeError(message: string, error: any): string {
+    // Return only error type and sanitized message
+    const errorType = error?.constructor?.name || 'Unknown';
+    return `${SecureLogger.sanitizeMessage(message)} (${errorType})`;
+  }
+}
+```
+
+**Usage in Services:**
+```typescript
+// Instead of console.log
+SecureLogger.info('Scraping completed for account', accountInfo);
+
+// Instead of console.error  
+SecureLogger.error('Authentication failed', error);
+```
+
+**Service Startup Messages (Safe for Public Logs):**
+- ✅ "Service starting..."
+- ✅ "Configuration loaded successfully"  
+- ✅ "ZeroMQ connection established"
+- ✅ "Scraping process completed"
+- ❌ "Loaded accounts: [list]"
+- ❌ "Using Google Sheets token: abc123..."
+- ❌ "Authentication error for user: username123"
 
 ## Configuration Security Model with MONEYMAN_CONFIG
 
@@ -606,6 +671,123 @@ The complete configuration is provided as a single JSON environment variable:
       "separatedMode": true
     }
   }
+}
+```
+
+### Environment Variable Conversion (Backward Compatibility)
+
+For existing deployments using individual environment variables, the container entry point automatically converts them to MONEYMAN_CONFIG format:
+
+```typescript
+// Entry point script automatically converts existing env vars to MONEYMAN_CONFIG
+function convertEnvVarsToConfig(): any {
+  const config: any = {
+    accounts: [],
+    storage: {},
+    options: {
+      scraping: {},
+      security: {},
+      notifications: {},
+      logging: {}
+    }
+  };
+
+  // Convert account configuration
+  if (process.env.ACCOUNTS_JSON) {
+    try {
+      config.accounts = JSON.parse(process.env.ACCOUNTS_JSON);
+    } catch (error) {
+      throw new Error('Invalid ACCOUNTS_JSON format');
+    }
+  }
+
+  // Convert scraping options
+  if (process.env.ACCOUNTS_TO_SCRAPE) config.options.scraping.accountsToScrape = process.env.ACCOUNTS_TO_SCRAPE.split(',');
+  if (process.env.DAYS_BACK) config.options.scraping.daysBack = parseInt(process.env.DAYS_BACK);
+  if (process.env.TZ) config.options.scraping.timezone = process.env.TZ;
+  if (process.env.FUTURE_MONTHS) config.options.scraping.futureMonths = parseInt(process.env.FUTURE_MONTHS);
+  if (process.env.TRANSACTION_HASH_TYPE) config.options.scraping.transactionHashType = process.env.TRANSACTION_HASH_TYPE;
+  if (process.env.ADDITIONAL_TRANSACTION_INFO_ENABLED) config.options.scraping.additionalTransactionInfo = process.env.ADDITIONAL_TRANSACTION_INFO_ENABLED === 'true';
+  if (process.env.HIDDEN_DEPRECATIONS) config.options.scraping.hiddenDeprecations = process.env.HIDDEN_DEPRECATIONS === 'true';
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) config.options.scraping.puppeteerExecutablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+  if (process.env.MAX_PARALLEL_SCRAPERS) config.options.scraping.maxParallelScrapers = parseInt(process.env.MAX_PARALLEL_SCRAPERS);
+  if (process.env.DOMAIN_TRACKING_ENABLED) config.options.scraping.domainTracking = process.env.DOMAIN_TRACKING_ENABLED === 'true';
+
+  // Convert security options  
+  if (process.env.FIREWALL_SETTINGS) config.options.security.firewallSettings = process.env.FIREWALL_SETTINGS;
+  if (process.env.BLOCK_BY_DEFAULT) config.options.security.blockByDefault = process.env.BLOCK_BY_DEFAULT === 'true';
+
+  // Convert Google Sheets storage
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
+    config.storage.googleSheets = {
+      serviceAccountPrivateKey: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+      serviceAccountEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      sheetId: process.env.GOOGLE_SHEET_ID,
+      worksheetName: process.env.WORKSHEET_NAME || '_moneyman'
+    };
+  }
+
+  // Convert YNAB storage
+  if (process.env.YNAB_TOKEN) {
+    config.storage.ynab = {
+      token: process.env.YNAB_TOKEN,
+      budgetId: process.env.YNAB_BUDGET_ID,
+      accounts: process.env.YNAB_ACCOUNTS ? JSON.parse(process.env.YNAB_ACCOUNTS) : {}
+    };
+  }
+
+  // Convert Azure storage
+  if (process.env.AZURE_APP_ID) {
+    config.storage.azure = {
+      appId: process.env.AZURE_APP_ID,
+      appKey: process.env.AZURE_APP_KEY,
+      tenantId: process.env.AZURE_TENANT_ID,
+      databaseName: process.env.ADE_DATABASE_NAME,
+      tableName: process.env.ADE_TABLE_NAME,
+      ingestionMapping: process.env.ADE_INGESTION_MAPPING,
+      ingestUri: process.env.ADE_INGEST_URI
+    };
+  }
+
+  // Convert Buxfer storage
+  if (process.env.BUXFER_USER_NAME) {
+    config.storage.buxfer = {
+      userName: process.env.BUXFER_USER_NAME,
+      password: process.env.BUXFER_PASSWORD,
+      accounts: process.env.BUXFER_ACCOUNTS ? JSON.parse(process.env.BUXFER_ACCOUNTS) : {}
+    };
+  }
+
+  // Convert other storage options
+  if (process.env.LOCAL_JSON_STORAGE) config.storage.localJson = { enabled: process.env.LOCAL_JSON_STORAGE === 'true' };
+  if (process.env.WEB_POST_URL) {
+    config.storage.webPost = {
+      url: process.env.WEB_POST_URL,
+      authorizationToken: process.env.WEB_POST_AUTHORIZATION_TOKEN
+    };
+  }
+
+  // Convert notification options
+  if (process.env.TELEGRAM_API_KEY) {
+    config.options.notifications.telegram = {
+      apiKey: process.env.TELEGRAM_API_KEY,
+      chatId: process.env.TELEGRAM_CHAT_ID
+    };
+  }
+
+  // Convert logging options
+  if (process.env.DEBUG) config.options.logging.debug = process.env.DEBUG;
+
+  return config;
+}
+
+// In entry point: Use MONEYMAN_CONFIG if available, otherwise convert env vars
+let config;
+if (process.env.MONEYMAN_CONFIG) {
+  config = JSON.parse(process.env.MONEYMAN_CONFIG);
+} else {
+  console.error('Converting individual environment variables to MONEYMAN_CONFIG format...');
+  config = convertEnvVarsToConfig();
 }
 ```
 
@@ -960,45 +1142,29 @@ const orchestratorConfig = {
     }
 };
 
-// Write service configurations to files
-fs.writeFileSync('/tmp/scraper-config.json', JSON.stringify(scraperConfig, null, 2));
-fs.writeFileSync('/tmp/storage-config.json', JSON.stringify(storageConfig, null, 2));
-fs.writeFileSync('/tmp/orchestrator-config.json', JSON.stringify(orchestratorConfig, null, 2));
+// Convert configurations to JSON strings and output as shell variables
+console.log(`scraperConfigStr='${JSON.stringify(scraperConfig)}'`);
+console.log(`storageConfigStr='${JSON.stringify(storageConfig)}'`);
+console.log(`orchestratorConfigStr='${JSON.stringify(orchestratorConfig)}'`);
 
-console.log('Configuration parsed and distributed successfully');
+console.error('Configuration parsed and distributed successfully');
 EOF
 
-# Parse configuration
-node /tmp/config-parser.js
-
-# Verify configuration files were created
-if [[ ! -f "/tmp/scraper-config.json" || ! -f "/tmp/storage-config.json" || ! -f "/tmp/orchestrator-config.json" ]]; then
-    echo "ERROR: Failed to create configuration files"
-    exit 1
-fi
-
-# Set secure permissions on configuration files
-chmod 600 /tmp/scraper-config.json
-chmod 600 /tmp/storage-config.json
-chmod 600 /tmp/orchestrator-config.json
-
-# Change ownership of configuration files
-chown scraper:scraper /tmp/scraper-config.json
-chown storage:storage /tmp/storage-config.json
-chown orchestrator:orchestrator /tmp/orchestrator-config.json
+# Parse configuration and export config strings
+eval $(node /tmp/config-parser.js)
 
 # Clear the original MONEYMAN_CONFIG from environment
 unset MONEYMAN_CONFIG
 
-# Start services with their specific configurations
+# Start services with their specific configurations passed as environment variables
 echo "Starting orchestrator service..."
-su orchestrator -c "cd /app/orchestrator-service && MONEYMAN_SERVICE_CONFIG=/tmp/orchestrator-config.json node index.js" &
+su orchestrator -c "cd /app/orchestrator-service && MONEYMAN_SERVICE_CONFIG='$orchestratorConfigStr' node index.js" &
 
 echo "Starting storage service..."  
-su storage -c "cd /app/storage-service && MONEYMAN_SERVICE_CONFIG=/tmp/storage-config.json node index.js" &
+su storage -c "cd /app/storage-service && MONEYMAN_SERVICE_CONFIG='$storageConfigStr' node index.js" &
 
 echo "Starting scraper service..."
-su scraper -c "cd /app/scraper-service && MONEYMAN_SERVICE_CONFIG=/tmp/scraper-config.json node index.js" &
+su scraper -c "cd /app/scraper-service && MONEYMAN_SERVICE_CONFIG='$scraperConfigStr' node index.js" &
 
 # Wait for all services
 wait
@@ -1010,12 +1176,11 @@ Each service loads its configuration subset using a secure configuration loader:
 
 ```typescript
 // shared-types/config-loader.ts
-import { readFileSync } from 'fs';
 import { ScraperConfigSchema, StorageConfigSchema, OrchestratorConfigSchema } from './config-schema.js';
 
 export function loadScraperConfig(): ScraperConfig {
-    const configPath = process.env.MONEYMAN_SERVICE_CONFIG;
-    if (!configPath) {
+    const configJson = process.env.MONEYMAN_SERVICE_CONFIG;
+    if (!configJson) {
         throw new Error('MONEYMAN_SERVICE_CONFIG environment variable is required');
     }
     
@@ -1025,8 +1190,7 @@ export function loadScraperConfig(): ScraperConfig {
     }
     
     try {
-        const configText = readFileSync(configPath, 'utf-8');
-        const config = JSON.parse(configText);
+        const config = JSON.parse(configJson);
         
         // Validate configuration with Zod
         return ScraperConfigSchema.parse(config);
@@ -1036,8 +1200,8 @@ export function loadScraperConfig(): ScraperConfig {
 }
 
 export function loadStorageConfig(): StorageConfig {
-    const configPath = process.env.MONEYMAN_SERVICE_CONFIG;
-    if (!configPath) {
+    const configJson = process.env.MONEYMAN_SERVICE_CONFIG;
+    if (!configJson) {
         throw new Error('MONEYMAN_SERVICE_CONFIG environment variable is required');
     }
     
@@ -1047,8 +1211,7 @@ export function loadStorageConfig(): StorageConfig {
     }
     
     try {
-        const configText = readFileSync(configPath, 'utf-8');
-        const config = JSON.parse(configText);
+        const config = JSON.parse(configJson);
         
         // Validate configuration with Zod
         return StorageConfigSchema.parse(config);
@@ -1058,8 +1221,8 @@ export function loadStorageConfig(): StorageConfig {
 }
 
 export function loadOrchestratorConfig(): OrchestratorConfig {
-    const configPath = process.env.MONEYMAN_SERVICE_CONFIG;
-    if (!configPath) {
+    const configJson = process.env.MONEYMAN_SERVICE_CONFIG;
+    if (!configJson) {
         throw new Error('MONEYMAN_SERVICE_CONFIG environment variable is required');
     }
     
@@ -1069,8 +1232,7 @@ export function loadOrchestratorConfig(): OrchestratorConfig {
     }
     
     try {
-        const configText = readFileSync(configPath, 'utf-8');
-        const config = JSON.parse(configText);
+        const config = JSON.parse(configJson);
         
         // Validate configuration with Zod
         return OrchestratorConfigSchema.parse(config);
@@ -1278,52 +1440,23 @@ export class SecurityValidator {
 }
 ```
 
-## Backward Compatibility
-
-- **Unified mode remains default behavior**: Existing users continue using original approach
-- **All existing functionality preserved**: No breaking changes to current features
-- **Environment variable support**: Original individual environment variables still work in unified mode
-- **Gradual migration**: Users can migrate to MONEYMAN_CONFIG when ready
-- **Same Docker image**: Can run both modes with different entry points
-- **Configuration conversion**: Tool provided to convert from individual env vars to MONEYMAN_CONFIG
-
-### Migration Path
-
-**1. Current users (individual environment variables):**
-```bash
-# Continues to work as before
-docker run -e ACCOUNTS_JSON='[...]' -e GOOGLE_SHEET_ID='...' moneyman
-```
-
-**2. New users (MONEYMAN_CONFIG):**
-```bash
-# Enhanced security with single configuration
-docker run -e MONEYMAN_CONFIG='{"accounts":[...],"storage":{...}}' moneyman-separated
-```
-
-**3. Migration tool:**
-```bash
-# Convert existing environment variables to MONEYMAN_CONFIG format
-npm run convert-config
-```
-
 ## GitHub Actions Compatibility
 
 ### Current Workflows Analysis
 
-The separated architecture is designed to be **fully backward compatible** with existing GitHub Actions workflows:
+The separated architecture is designed with GitHub Actions workflows compatibility:
 
-#### Existing Workflows That Continue to Work:
-1. **build.yml** ✅ - Builds unified Docker image (default behavior)
-2. **pr-build.yml** ✅ - CI/CD pipeline continues to work
-3. **test-connections.yml** ✅ - Connection tests work in unified mode
-4. **scrape.yml** ✅ - Existing scraping workflow continues to work
+#### Existing Workflows That Work:
+1. **build.yml** ✅ - Builds Docker image using Dockerfile.separated
+2. **pr-build.yml** ✅ - CI/CD pipeline with environment variable conversion
+3. **test-connections.yml** ✅ - Connection tests work with MONEYMAN_CONFIG
+4. **scrape.yml** ✅ - Scraping workflow with automatic env var conversion
 
-#### Required Changes for Separated Mode Support:
+#### Required Changes for Enhanced Separated Mode Support:
 
-**1. Enhanced build.yml for Separated Mode:**
+**1. Enhanced build.yml for Separated Architecture:**
 ```yaml
-# .github/workflows/build.yml - Additional job
+# .github/workflows/build.yml - Updated to use separated mode only
   build-separated-image:
     runs-on: ubuntu-latest
     permissions:
@@ -1339,12 +1472,12 @@ The separated architecture is designed to be **fully backward compatible** with 
           context: .
           file: Dockerfile.separated
           push: true
-          tags: ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:separated
+          tags: ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:latest
 ```
 
-**2. Enhanced pr-build.yml for Testing Both Modes:**
+**2. Enhanced pr-build.yml for Testing Separated Mode:**
 ```yaml
-# .github/workflows/pr-build.yml - Additional test job
+# .github/workflows/pr-build.yml - Updated test job
   test-separated:
     runs-on: ubuntu-latest
     needs: test
@@ -1366,7 +1499,7 @@ jobs:
   scrape:
     runs-on: ubuntu-latest
     steps:
-      - name: Run moneyman (unified mode - default)
+      - name: Run moneyman (separated mode)
         if: ${{ vars.SEPARATED_MODE != 'true' }}
         run: docker run --rm --env-file .env ghcr.io/daniel-hauser/moneyman:latest
         
@@ -1377,25 +1510,20 @@ jobs:
           ${{ secrets.MONEYMAN_CONFIG }}
           EOF
           )"
-          docker run --rm -e MONEYMAN_CONFIG ghcr.io/daniel-hauser/moneyman:separated
+          docker run --rm -e MONEYMAN_CONFIG ghcr.io/daniel-hauser/moneyman:latest
 ```
 
 #### Migration Strategy for GitHub Actions:
 
-**Phase 1: Backward Compatibility (Immediate)**
-- All existing workflows continue working unchanged
-- Users keep using individual environment variables
-- Default behavior remains unified mode
+**Implementation Approach:**
+- All workflows use separated mode with environment variable conversion
+- Existing deployments automatically get their individual env vars converted to MONEYMAN_CONFIG
+- No breaking changes - all existing environment variables continue to work
 
-**Phase 2: Enhanced Security Option (Optional)**
-- Users can opt-in to separated mode by:
-  1. Setting repository variable `SEPARATED_MODE=true` 
-  2. Creating `MONEYMAN_CONFIG` secret with JSON configuration
-  3. Workflows automatically detect and use appropriate mode
-
-**Phase 3: Security Best Practices (Future)**
-- Documentation encourages separated mode for new users
-- Migration tool helps convert individual secrets to `MONEYMAN_CONFIG`
+**Workflow Updates:**
+1. **Automatic conversion**: Entry point converts individual env vars to MONEYMAN_CONFIG format
+2. **Validation**: CI validates both individual env vars and MONEYMAN_CONFIG format  
+3. **Security**: Enhanced logging controls prevent sensitive data in public logs
 
 ### Validation Scripts for CI/CD
 
@@ -1419,7 +1547,7 @@ if [[ -n "$MONEYMAN_CONFIG" ]]; then
         }
     "
 else
-    echo "Using individual environment variables (unified mode)"
+    echo "Converting individual environment variables to MONEYMAN_CONFIG format..."
 fi
 ```
 
@@ -1448,7 +1576,7 @@ fi
 echo "✅ Security audit completed"
 ```
 
-1. **Unified mode compatibility**: All existing tests must pass in unified mode
+1. **Separated mode functionality**: All existing tests must pass in separated mode with environment variable conversion
 2. **Configuration validation**: Test Zod schemas with valid and invalid configurations
 3. **Configuration distribution**: Verify each service receives only its subset
 4. **Security isolation**: Test that services cannot access sensitive configuration from other services
@@ -1542,7 +1670,7 @@ echo "✅ Security audit completed"
 - ✅ Clear justification for each new dependency
 
 **3. Complete npm Scripts:**
-- ✅ All build scripts (unified, separated, development)
+- ✅ All build scripts (separated, development)
 - ✅ Comprehensive test scripts (unit, integration, security, separated)
 - ✅ Linting and validation scripts
 - ✅ Service management scripts
@@ -1566,7 +1694,7 @@ echo "✅ Security audit completed"
 - ✅ Complete security model with dependency isolation
 - ✅ Comprehensive configuration management
 - ✅ Detailed implementation strategy
-- ✅ Migration path and backward compatibility
+- ✅ Environment variable conversion for existing deployments
 - ✅ Testing and validation strategy
 - ✅ GitHub Actions integration plan
 - ✅ Code quality and verification standards
@@ -1586,12 +1714,12 @@ echo "✅ Security audit completed"
 - Single Docker container with multiple processes for operational simplicity
 - IPC communication via Unix domain sockets for performance and security
 - Zod validation for type-safe configuration management
-- Complete backward compatibility with existing deployments
+- Environment variable conversion for seamless deployment updates
 - Comprehensive testing and validation pipeline
 
-**Migration Strategy**:
-- Phase 1: Implement with unified mode as default (backward compatible)
-- Phase 2: Optional separated mode for enhanced security
+**Implementation Strategy**:
+- Phase 1: Implement separated architecture with environment variable conversion
+- Phase 2: Enhanced security controls and logging
 - Phase 3: Encourage migration to MONEYMAN_CONFIG approach
 
 **Quality Assurance**:
@@ -1604,11 +1732,11 @@ The architecture is **ready for implementation** and provides a robust foundatio
 
 ## Rollout Plan
 
-1. Implement separated architecture with backward compatibility
-2. Test thoroughly in both modes
-3. Deploy with separated mode disabled by default
-4. Gradually enable separated mode for security-conscious users
-5. Consider making separated mode default in future major version
+1. Implement separated architecture with environment variable conversion
+2. Test thoroughly with existing environment variables
+3. Deploy as single mode with enhanced security
+4. Validate logging security and credential isolation
+5. Monitor performance and security metrics
 
 ## Docker Implementation with User Separation
 
@@ -1667,7 +1795,7 @@ ENTRYPOINT ["/entrypoint.sh"]
 # setup-container-security.sh
 
 # Get container PID and network namespace
-CONTAINER_PID=$(docker inspect --format '{{.State.Pid}}' moneyman-separated-container)
+CONTAINER_PID=$(docker inspect --format '{{.State.Pid}}' moneyman-container)
 
 # Enter container network namespace and apply rules
 nsenter -t $CONTAINER_PID -n iptables -A OUTPUT -m owner --uid-owner 1001 -j SCRAPER_RULES
@@ -1808,7 +1936,7 @@ network_security:
     "build": "tsc",
     "build:watch": "tsc --watch", 
     "build:docker": "./scripts/build.sh",
-    "build:separated": "docker build -f Dockerfile.separated -t moneyman:separated .",
+    "build:separated": "docker build -f Dockerfile.separated -t moneyman .",
     "build:dev": "./scripts/build-dev.sh",
     
     "lint": "prettier --check .",
@@ -1927,13 +2055,9 @@ echo "🏗️  Building MoneyMan with separated architecture..."
 echo "Compiling TypeScript..."
 npm run build
 
-# Build unified Docker image (backward compatibility)
-echo "Building unified Docker image..."
-docker build -t moneyman:latest .
-
-# Build separated Docker image (single container)
+# Build Docker image
 echo "Building separated Docker image..."
-docker build -f Dockerfile.separated -t moneyman:separated .
+docker build -f Dockerfile.separated -t moneyman:latest .
 
 echo "✅ Build completed successfully!"
 ```
@@ -2014,7 +2138,7 @@ run_security_tests() {
     
     # Test user separation
     echo "Testing Docker user separation..."
-    docker run --rm moneyman:separated id  # Will show different users for different processes
+    docker run --rm moneyman id  # Will show different users for different processes
     
     # Test network isolation (requires privileged mode)
     if [[ "$EUID" -eq 0 ]]; then
@@ -2032,8 +2156,8 @@ run_security_tests() {
 run_docker_tests() {
     echo "🐳 Testing Docker configurations..."
     
-    # Test unified mode
-    echo "Testing unified Docker mode..."
+    # Test separated mode
+    echo "Testing separated Docker mode..."
     docker run --rm -e NODE_ENV=test moneyman:latest npm test
     
     # Test separated mode
@@ -2110,7 +2234,7 @@ echo "✅ Development tests passed!"
 version: '3.8'
 
 services:
-  moneyman-separated-test:
+  moneyman-test:
     build:
       context: .
       dockerfile: Dockerfile.separated
@@ -2131,11 +2255,11 @@ networks:
 
 ## Rollout Plan
 
-1. Implement separated architecture with backward compatibility
-2. Test thoroughly in both modes
-3. Deploy with separated mode disabled by default
-4. Gradually enable separated mode for security-conscious users
-5. Consider making separated mode default in future major version
+1. Implement separated architecture with environment variable conversion
+2. Test thoroughly with existing environment variables
+3. Deploy as single mode with enhanced security
+4. Validate logging security and credential isolation
+5. Monitor performance and security metrics
 
 ## Future Enhancements
 
