@@ -179,22 +179,19 @@ jobs:
 
             ### 📦 Download & Load Instructions (Local Testing)
 
-            1. **Download the artifact**: Go to the [Actions tab](https://github.com/${owner}/${repository}/actions/runs/${runId}) and download \`docker-image-pr-${prNumber}\`
-            2. **Extract**: \`unzip docker-image-pr-${prNumber}.zip\`
-            3. **Load image**: \`docker load < image.tar\`
-            4. **Verify**: \`docker images | grep ${owner}/${repository}\`
+            **Bash (one-liner):**
+            \`\`\`bash
+            gh run download ${runId} -n docker-image-pr-${prNumber} && unzip docker-image-pr-${prNumber}.zip && docker load < image.tar
+            \`\`\`
+
+            **PowerShell (one-liner):**
+            \`\`\`powershell
+            gh run download ${runId} -n docker-image-pr-${prNumber}; Expand-Archive docker-image-pr-${prNumber}.zip -Force; docker load -i image.tar
+            \`\`\`
 
             The image will be tagged as: \`ghcr.io/${owner}/${repository}:pr-${prNumber}\`
 
-            ### 🔧 Test with Scrape Action (Maintainers)
-
-            Maintainers can test this PR's changes using the **[Scrape with PR Image](https://github.com/${owner}/${repository}/actions/workflows/scrape-pr.yml)** workflow:
-
-            1. Go to the workflow and click "Run workflow"
-            2. Enter:
-               - **PR Number**: \`${prNumber}\`
-               - **Run ID**: \`${runId}\`
-               - Configure other scrape parameters as needed
+            > **Note**: Requires [GitHub CLI](https://cli.github.com/) to be installed and authenticated.
 
             ### 🚀 After Merge
 
