@@ -30,11 +30,13 @@ interface ActualTransaction {
 
 const logger = createLogger("ActualBudgetStorage");
 
-const ACTUAL_SERVER_URL = process.env.ACTUAL_SERVER_URL;
-const ACTUAL_PASSWORD = process.env.ACTUAL_PASSWORD;
-const ACTUAL_BUDGET_ID = process.env.ACTUAL_BUDGET_ID;
-const ACTUAL_ACCOUNTS = process.env.ACTUAL_ACCOUNTS;
-const TRANSACTION_HASH_TYPE = process.env.TRANSACTION_HASH_TYPE ?? "moneyman";
+const {
+  ACTUAL_SERVER_URL,
+  ACTUAL_PASSWORD,
+  ACTUAL_BUDGET_ID,
+  ACTUAL_ACCOUNTS,
+  TRANSACTION_HASH_TYPE =  "moneyman",
+} = process.env;
 
 export class ActualBudgetStorage implements TransactionStorage {
   private bankToActualAccountMap: Map<string, string>;
