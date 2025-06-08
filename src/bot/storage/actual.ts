@@ -39,7 +39,6 @@ const TRANSACTION_HASH_TYPE = process.env.TRANSACTION_HASH_TYPE ?? "moneyman";
 export class ActualBudgetStorage implements TransactionStorage {
   private bankToActualAccountMap: Map<string, string>;
   private accountIdToNameMap: Map<string, string>;
-  private initialized: boolean = false;
 
   canSave() {
     return Boolean(
@@ -164,8 +163,6 @@ export class ActualBudgetStorage implements TransactionStorage {
   }
 
   private async init() {
-    if (this.initialized) return;
-
     logger("init");
 
     try {
@@ -210,8 +207,6 @@ export class ActualBudgetStorage implements TransactionStorage {
           "No valid account mappings found. Please check ACTUAL_ACCOUNTS configuration.",
         );
       }
-
-      this.initialized = true;
     } catch (error) {
       throw new Error(
         `Failed to initialize Actual Budget: ${error instanceof Error ? error.message : error}`,
