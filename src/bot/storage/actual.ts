@@ -71,13 +71,12 @@ export class ActualBudgetStorage implements TransactionStorage {
       for (let tx of txns) {
         const isPending = tx.status === TransactionStatuses.Pending;
         if (isPending) {
-          stats.skipped++;
           continue;
         }
 
         const actualAccountId = this.bankToActualAccountMap.get(tx.account);
         if (!actualAccountId) {
-          stats.skipped++;
+          stats.otherSkipped++;
           continue;
         }
 
