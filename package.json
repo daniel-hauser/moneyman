@@ -31,6 +31,7 @@
   "dependencies": {
     "@actual-app/api": "^25.5.0",
     "@mswjs/interceptors": "^0.38.7",
+    "@telegraf/entity": "^0.6.0",
     "async": "^3.2.6",
     "azure-kusto-data": "^7.0.0",
     "azure-kusto-ingest": "^7.0.0",

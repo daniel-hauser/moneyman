@@ -20,13 +20,15 @@ if (bot) {
   logger(`Telegram chat ID: ${TELEGRAM_CHAT_ID}`);
 }
 
-export async function send(message: string) {
+export async function send(message: string, parseMode?: "HTML") {
   if (message.length > 4096) {
     send(`Next message is too long (${message.length} characters), truncating`);
     return send(message.slice(0, 4096));
   }
   logger(message);
-  return await bot?.telegram.sendMessage(TELEGRAM_CHAT_ID, message);
+  return await bot?.telegram.sendMessage(TELEGRAM_CHAT_ID, message, {
+    parse_mode: parseMode,
+  });
 }
 
 export async function sendPhoto(photoPath: string, caption: string) {
@@ -65,6 +67,7 @@ export async function sendJSON(json: {}, filename: string) {
 export async function editMessage(
   message: number | undefined,
   newText: string,
+  parseMode?: "HTML",
 ) {
   if (message !== undefined) {
     try {
@@ -79,6 +82,9 @@ export async function editMessage(
         message,
         undefined,
         newText,
+        {
+          parse_mode: parseMode,
+        },
       );
     } catch (e) {
       if (canIgnoreTelegramError(e)) {
