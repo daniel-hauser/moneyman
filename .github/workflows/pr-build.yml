@@ -68,6 +68,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      pull-requests: write
 
     steps:
       - name: Checkout repository
@@ -130,10 +131,54 @@ jobs:
           retention-days: 7
 
       - name: External PR notice
-        if: steps.pr-check.outputs.is_external == 'true'  
+        if: steps.pr-check.outputs.is_external == 'true'
         run: |
           echo "ℹ️ This PR is from an external contributor."
           echo "✅ Docker image was built successfully and saved as artifact."
           echo "📦 Download the artifact 'docker-image-pr-${{ github.event.pull_request.number }}' to get the image."
           echo "🔧 Load it with: docker load < image.tar"
           echo "🔄 The image will be built and pushed to registry when the PR is merged."
+
+      - name: Comment on PR with artifact instructions
+        if: steps.pr-check.outputs.is_external == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const repository = context.repo.repo.toLowerCase();
+            const owner = context.repo.owner.toLowerCase();
+            const runId = context.runId;
+
+            const comment = `## 🐳 Docker Image Available as Artifact
+
+            Your PR Docker image has been built and is available for download!
+
+            ### 📦 Download & Load Instructions (Local Testing)
+
+            1. **Download the artifact**: Go to the [Actions tab](https://github.com/${owner}/${repository}/actions/runs/${runId}) and download \`docker-image-pr-${prNumber}\`
+            2. **Extract**: \`unzip docker-image-pr-${prNumber}.zip\`
+            3. **Load image**: \`docker load < image.tar\`
+            4. **Verify**: \`docker images | grep ${owner}/${repository}\`
+
+            The image will be tagged as: \`ghcr.io/${owner}/${repository}:pr-${prNumber}\`
+
+            ### 🔧 Test with Scrape Action (Maintainers)
+
+            Maintainers can test this PR's changes using the **[Scrape with PR Image](https://github.com/${owner}/${repository}/actions/workflows/scrape-pr.yml)** workflow:
+
+            1. Go to the workflow and click "Run workflow"
+            2. Enter:
+               - **PR Number**: \`${prNumber}\`
+               - **Run ID**: \`${runId}\`
+               - Configure other scrape parameters as needed
+
+            ### 🚀 After Merge
+
+            The image will be automatically built and pushed to the registry when this PR is merged, making it available for the regular scrape workflow.`;
+
+            github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
