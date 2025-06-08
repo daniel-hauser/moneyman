@@ -119,11 +119,21 @@ jobs:
           push: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=docker,dest=/tmp/image.tar
+
+      - name: Upload Docker image as artifact (external PR)
+        if: steps.pr-check.outputs.is_external == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-pr-${{ github.event.pull_request.number }}
+          path: /tmp/image.tar
+          retention-days: 7
 
       - name: External PR notice
         if: steps.pr-check.outputs.is_external == 'true'  
         run: |
           echo "ℹ️ This PR is from an external contributor."
-          echo "✅ Docker image was built successfully to validate the build process."
-          echo "⚠️ Image was not pushed to registry due to security restrictions."
-          echo "🔄 The image will be built and pushed when the PR is merged."
+          echo "✅ Docker image was built successfully and saved as artifact."
+          echo "📦 Download the artifact 'docker-image-pr-${{ github.event.pull_request.number }}' to get the image."
+          echo "🔧 Load it with: docker load < image.tar"
+          echo "🔄 The image will be built and pushed to registry when the PR is merged."
