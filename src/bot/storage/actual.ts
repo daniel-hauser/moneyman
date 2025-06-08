@@ -35,7 +35,7 @@ const {
   ACTUAL_PASSWORD,
   ACTUAL_BUDGET_ID,
   ACTUAL_ACCOUNTS,
-  TRANSACTION_HASH_TYPE =  "moneyman",
+  TRANSACTION_HASH_TYPE = "moneyman",
 } = process.env;
 
 export class ActualBudgetStorage implements TransactionStorage {
