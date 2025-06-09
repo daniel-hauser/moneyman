@@ -59,13 +59,11 @@ describe("GoogleSheetsStorage", () => {
 
     // Create mocks with jest-mock-extended
     mockDoc = mock<GoogleSpreadsheet>();
-    mockSheet = mock<GoogleSpreadsheetWorksheet>();
+    mockSheet = mock<GoogleSpreadsheetWorksheet>({
+      headerValues: ["date", "amount", "description", "hash"],
+    });
 
     // Setup default mock implementations
-    Object.defineProperty(mockSheet, "headerValues", {
-      value: ["date", "amount", "description", "hash"],
-      writable: true,
-    });
     mockSheet.getCellsInRange.mockResolvedValue([[]]);
     mockSheet.addRows.mockResolvedValue([]);
     mockSheet.loadHeaderRow.mockResolvedValue(undefined);
