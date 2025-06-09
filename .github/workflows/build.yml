@@ -14,7 +14,6 @@ on:
       - "Dockerfile"
       - "docker-compose.yml"
       - ".github/workflows/build.yml"
-      - ".github/workflows/pr-build.yml"
   workflow_dispatch:
 
 concurrency:
