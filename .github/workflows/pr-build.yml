@@ -173,12 +173,32 @@ jobs:
 
             ✅ Status: Passed (no build required)`;
 
-            github.rest.issues.createComment({
-              issue_number: prNumber,
+            // Find existing comment about Docker build to update instead of creating new one
+            const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: comment
+              issue_number: prNumber
             });
+
+            const existingComment = comments.data.find(c => 
+              c.body.includes('📦 **Docker Image Build Skipped**')
+            );
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: prNumber,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
 
       - name: Checkout repository
         if: needs.prepare.outputs.build_needed == 'true'
@@ -225,12 +245,33 @@ jobs:
 
             🔗 [View on GitHub Container Registry](${ghcrUrl})`;
 
-            github.rest.issues.createComment({
-              issue_number: prNumber,
+            // Find existing comment about Docker image to update instead of creating new one
+            const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: comment
+              issue_number: prNumber
             });
+
+            const existingComment = comments.data.find(c => 
+              c.body.includes('🐳 Docker image built and pushed:') && 
+              c.body.includes(`pr-${prNumber}`)
+            );
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: prNumber,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
 
   build_image_external:
     runs-on: ubuntu-latest
@@ -255,12 +296,32 @@ jobs:
 
             ✅ Status: Passed (no build required)`;
 
-            github.rest.issues.createComment({
-              issue_number: prNumber,
+            // Find existing comment about Docker build to update instead of creating new one
+            const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: comment
+              issue_number: prNumber
             });
+
+            const existingComment = comments.data.find(c => 
+              c.body.includes('📦 **Docker Image Build Skipped**')
+            );
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: prNumber,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
 
       - name: Checkout repository
         if: needs.prepare.outputs.build_needed == 'true'
@@ -335,9 +396,29 @@ jobs:
 
             The image will be automatically built and pushed to the registry when this PR is merged, making it available for the regular scrape workflow.`;
 
-            github.rest.issues.createComment({
-              issue_number: prNumber,
+            // Find existing comment about Docker artifact to update instead of creating new one
+            const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: comment
+              issue_number: prNumber
             });
+
+            const existingComment = comments.data.find(c => 
+              c.body.includes('## 🐳 Docker Image Available as Artifact')
+            );
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: prNumber,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }

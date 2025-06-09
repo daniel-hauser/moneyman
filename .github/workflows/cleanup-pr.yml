@@ -89,3 +89,72 @@ jobs:
         run: |
           echo "ℹ️ This PR was from an external contributor."
           echo "✅ No Docker image cleanup needed (image was never pushed)."
+          echo "🧹 Will clean up artifacts if any exist."
+
+      - name: Clean up artifacts for external PRs
+        if: steps.pr-check.outputs.is_external == 'true'
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const artifactName = `docker-image-pr-${prNumber}`;
+
+            try {
+              // Get all artifacts for the repository
+              const artifacts = await github.rest.actions.listArtifactsForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 100
+              });
+              
+              // Find artifacts matching our PR pattern
+              const prArtifacts = artifacts.data.artifacts.filter(artifact => 
+                artifact.name === artifactName
+              );
+              
+              if (prArtifacts.length > 0) {
+                console.log(`Found ${prArtifacts.length} artifact(s) to clean up for PR ${prNumber}`);
+                
+                // Delete each matching artifact
+                for (const artifact of prArtifacts) {
+                  await github.rest.actions.deleteArtifact({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    artifact_id: artifact.id
+                  });
+                  console.log(`Deleted artifact ${artifact.name} (ID: ${artifact.id})`);
+                }
+                
+                // Update the original artifact comment if it exists
+                const comments = await github.rest.issues.listComments({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber
+                });
+                
+                const artifactComment = comments.data.find(comment =>
+                  comment.body.includes('## 🐳 Docker Image Available as Artifact')
+                );
+                
+                if (artifactComment) {
+                  const updatedBody = `~~${artifactComment.body}~~
+                  
+                  🗑️ **Artifacts cleaned up** from repository`;
+                  
+                  await github.rest.issues.updateComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    comment_id: artifactComment.id,
+                    body: updatedBody
+                  });
+                  
+                  console.log('Updated original artifact comment with cleanup status');
+                }
+              } else {
+                console.log(`No artifacts found for PR ${prNumber} - cleanup not needed`);
+              }
+            } catch (error) {
+              console.log('Error during artifact cleanup:', error);
+              // Don't fail the workflow if artifact cleanup fails
+            }
