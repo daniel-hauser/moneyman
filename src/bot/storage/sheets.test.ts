@@ -13,7 +13,9 @@ import { transaction } from "../../utils/tests.js";
 import type { TransactionRow } from "../../types.js";
 
 // Mock the google-spreadsheet module
-jest.mock("google-spreadsheet");
+jest.mock("google-spreadsheet", () => ({
+  GoogleSpreadsheet: jest.fn(),
+}));
 jest.mock("google-auth-library");
 
 // Mock logger
@@ -41,9 +43,11 @@ jest.mock("../transactionTableRow.js", () => ({
 describe("GoogleSheetsStorage", () => {
   let storage: GoogleSheetsStorage;
   // Create mocks as const with jest-mock-extended
-  const mockDoc = mock<GoogleSpreadsheet>();
   const mockSheet = mock<GoogleSpreadsheetWorksheet>({
     headerValues: ["date", "amount", "description", "hash"],
+  });
+  const mockDoc = mock<GoogleSpreadsheet>({
+    sheetsByTitle: { _moneyman: mockSheet },
   });
 
   // Helper to create a TransactionRow using existing test utility
@@ -66,12 +70,8 @@ describe("GoogleSheetsStorage", () => {
     mockSheet.loadHeaderRow.mockResolvedValue(undefined);
     mockDoc.loadInfo.mockResolvedValue(undefined);
 
-    // Setup sheet by title
-    (mockDoc as any).sheetsByTitle = { _moneyman: mockSheet };
-
-    (GoogleSpreadsheet as unknown as jest.Mock).mockImplementation(
-      () => mockDoc,
-    );
+    // Setup GoogleSpreadsheet constructor to return our mock
+    (GoogleSpreadsheet as unknown as jest.Mock).mockImplementation(() => mockDoc);
   });
 
   afterEach(() => {
