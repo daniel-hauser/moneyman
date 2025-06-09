@@ -62,7 +62,7 @@ describe("GoogleSheetsStorage", () => {
     mockSheet = mock<GoogleSpreadsheetWorksheet>();
 
     // Setup default mock implementations
-    Object.defineProperty(mockSheet, 'headerValues', {
+    Object.defineProperty(mockSheet, "headerValues", {
       value: ["date", "amount", "description", "hash"],
       writable: true,
     });
@@ -95,7 +95,7 @@ describe("GoogleSheetsStorage", () => {
           return Promise.reject(
             new Error(
               "Google API error - [503] The service is currently unavailable",
-            )
+            ),
           );
         }
         return Promise.resolve(undefined);
@@ -120,7 +120,7 @@ describe("GoogleSheetsStorage", () => {
           return Promise.reject(
             new Error(
               "Google API error - [503] The service is currently unavailable",
-            )
+            ),
           );
         }
         return Promise.resolve([]);
@@ -144,7 +144,7 @@ describe("GoogleSheetsStorage", () => {
           return Promise.reject(
             new Error(
               "Google API error - [503] The service is currently unavailable",
-            )
+            ),
           );
         }
         return Promise.resolve(undefined);
@@ -169,7 +169,7 @@ describe("GoogleSheetsStorage", () => {
           return Promise.reject(
             new Error(
               "Google API error - [503] The service is currently unavailable",
-            )
+            ),
           );
         }
         return Promise.resolve([[]]);
