@@ -15,10 +15,10 @@ This app requires some technical skills, if you prefer a GUI app you can use [Ca
 **Important:**
 The current implementation assumes that you run the code on secure and trusted computers.
 
-**It’s a bad idea**
+**It's a bad idea**
 to put all your financial data and passwords in one place, especially with more than read-only access.
 
-By using moneyman, you acknowledge that you are taking full responsibility for the code quality and will use it only after you review the code and validate that it’s secure.
+By using moneyman, you acknowledge that you are taking full responsibility for the code quality and will use it only after you review the code and validate that it's secure.
 
 **Please use a proper secret management solution to save and pass the environment variables**
 
@@ -315,3 +315,29 @@ Example:
   "5897": "123456"
 }
 ```
+
+### Export to [Actual Budget](https://actualbudget.org/)
+
+Export transactions directly to your Actual Budget server.
+
+Use the following env vars to setup:
+| env variable name | description |
+| ------------------------------------ | ------------------------------------------------------------- |
+| `ACTUAL_SERVER_URL` | The URL of your Actual Budget server |
+| `ACTUAL_PASSWORD` | The password for your Actual Budget server |
+| `ACTUAL_BUDGET_ID` | The ID of the budget where you want to import the data |
+| `ACTUAL_ACCOUNTS` | A key-value list to correlate each account with the Actual Budget account ID |
+
+#### ACTUAL_ACCOUNTS
+
+A `JSON` key-value pair structure representing a mapping between two identifiers. The `key` represents the account ID as understood by moneyman (from web scraping the financial institutions) and the `value` is the account ID from your Actual Budget server.
+
+Example:
+
+```json
+{
+  "5897": "actual-account-id-123"
+}
+```
+
+**Note:** Pending transactions will be skipped during import.
