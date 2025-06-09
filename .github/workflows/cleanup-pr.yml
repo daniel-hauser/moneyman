@@ -52,29 +52,29 @@ jobs:
                 repo: context.repo.repo,
                 issue_number: prNumber
               });
-              
+
               // Find the comment about Docker image being built
-              const imageComment = comments.data.find(comment => 
+              const imageComment = comments.data.find(comment =>
                 comment.body.includes('🐳 Docker image built and pushed:') &&
                 comment.body.includes(imageName)
               );
-              
+
               if (imageComment) {
-                const deletionStatus = '${{ steps.delete-image.outcome }}' === 'success' ? 
-                  '🗑️ **Image deleted** from registry' : 
+                const deletionStatus = '${{ steps.delete-image.outcome }}' === 'success' ?
+                  '🗑️ **Image deleted** from registry' :
                   '⚠️ **Image cleanup attempted** (may not have existed)';
-                
+
                 const updatedBody = `~~${imageComment.body}~~
 
             ${deletionStatus}`;
-                
+
                 await github.rest.issues.updateComment({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   comment_id: imageComment.id,
                   body: updatedBody
                 });
-                
+
                 console.log('Updated original image comment with deletion status');
               } else {
                 console.log('Original image comment not found - may not have been created or PR only contained non-build files');
