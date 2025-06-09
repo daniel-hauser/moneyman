@@ -30,7 +30,7 @@ const worksheetName = WORKSHEET_NAME || "_moneyman";
 const retryOptions = {
   times: 3,
   interval: function (retryCount: number) {
-    return 1000 * Math.pow(2, retryCount - 1); // exponential backoff: 1s, 2s, 4s
+    return 100 * Math.pow(2, retryCount - 1); // exponential backoff: 100ms, 200ms, 400ms
   },
   errorFilter: function (err: any) {
     // Check if it's a retryable 503 error
@@ -44,26 +44,6 @@ const retryOptions = {
     );
   },
 };
-
-/**
- * Helper function to promisify async.retry for promise-based operations
- */
-function retryAsync<T>(operation: () => Promise<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    retry(
-      retryOptions,
-      (callback: any) => {
-        operation()
-          .then((result) => callback(null, result))
-          .catch((err) => callback(err));
-      },
-      (err: any, result: T) => {
-        if (err) reject(err);
-        else resolve(result);
-      },
-    );
-  });
-}
 
 export class GoogleSheetsStorage implements TransactionStorage {
   canSave() {
@@ -132,7 +112,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
       stats.added = rows.length;
       await Promise.all([
         onProgress("Saving"),
-        retryAsync(() => sheet.addRows(rows)),
+        retry(retryOptions, () => sheet.addRows(rows)),
       ]);
       if (TRANSACTION_HASH_TYPE !== "moneyman") {
         sendDeprecationMessage("hashFiledChange");
@@ -152,7 +132,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
     });
 
     const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, auth);
-    await retryAsync(() => doc.loadInfo());
+    await retry(retryOptions, () => doc.loadInfo());
     return doc;
   }
 
@@ -160,7 +140,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
    * Load hashes from the "hash" column, assuming the first row is a header row
    */
   private async loadHashes(sheet: GoogleSpreadsheetWorksheet) {
-    await retryAsync(() => sheet.loadHeaderRow());
+    await retry(retryOptions, () => sheet.loadHeaderRow());
 
     const hashColumnNumber = sheet.headerValues.indexOf("hash");
     if (hashColumnNumber === -1) {
@@ -174,7 +154,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
     const columnLetter = String.fromCharCode(65 + hashColumnNumber);
     const range = `${columnLetter}2:${columnLetter}`;
 
-    const columns = await retryAsync(() =>
+    const columns = await retry(retryOptions, () =>
       sheet.getCellsInRange(range, {
         majorDimension: "COLUMNS",
       }),
