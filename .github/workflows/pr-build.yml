@@ -13,7 +13,8 @@ on:
       - ".prettierrc.js"
       - "Dockerfile"
       - "docker-compose.yml"
-      - ".github/workflows/verify-build.yml"
+      - ".github/workflows/pr-build.yml"
+  workflow_dispatch:
 
 jobs:
   lint:
@@ -61,20 +62,43 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-  build_image:
+  prepare:
     runs-on: ubuntu-latest
     needs: test
+
+    outputs:
+      repository: ${{ steps.normalize-repository-name.outputs.repository }}
+      is_external: ${{ steps.pr-check.outputs.is_external }}
+
+    steps:
+      - name: Normalize repository name
+        id: normalize-repository-name
+        run: echo "repository=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Check if PR is from external contributor
+        id: pr-check
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}" ]; then
+            echo "is_external=false" >> $GITHUB_OUTPUT
+            echo "PR is from the same repository (internal)"
+          else
+            echo "is_external=true" >> $GITHUB_OUTPUT
+            echo "PR is from a fork (external contributor)"
+          fi
+
+  build_image_internal:
+    runs-on: ubuntu-latest
+    needs: prepare
+    if: needs.prepare.outputs.is_external == 'false'
 
     permissions:
       contents: read
       packages: write
+      pull-requests: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - id: normalize-repository-name
-        run: echo "repository=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Log in to the Container registry
         uses: docker/login-action@v3
@@ -87,13 +111,119 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ steps.normalize-repository-name.outputs.repository }}
+          images: ghcr.io/${{ needs.prepare.outputs.repository }}
+          tags: type=ref,event=pr
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Comment on PR with image information
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const repository = context.repo.repo.toLowerCase();
+            const owner = context.repo.owner.toLowerCase();
+            const imageTag = `pr-${prNumber}`;
+            const imageName = `ghcr.io/${owner}/${repository}:${imageTag}`;
+            const ghcrUrl = `https://github.com/${owner}/${repository}/pkgs/container/${repository}`;
+
+            const comment = `🐳 Docker image built and pushed: \`${imageName}\`
+
+            🔗 [View on GitHub Container Registry](${ghcrUrl})`;
+
+            github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  build_image_external:
+    runs-on: ubuntu-latest
+    needs: prepare
+    if: needs.prepare.outputs.is_external == 'true'
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract Docker metadata for PR
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ needs.prepare.outputs.repository }}
           tags: type=ref,event=pr
 
       - name: Build Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
+          push: false
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels  }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=docker,dest=/tmp/image.tar
+
+      - name: Upload Docker image as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-pr-${{ github.event.pull_request.number }}
+          path: /tmp/image.tar
+          retention-days: 7
+
+      - name: External PR notice
+        run: |
+          echo "ℹ️ This PR is from an external contributor."
+          echo "✅ Docker image was built successfully and saved as artifact."
+          echo "📦 Download the artifact 'docker-image-pr-${{ github.event.pull_request.number }}' to get the image."
+          echo "🔧 Load it with: docker load < image.tar"
+          echo "🔄 The image will be built and pushed to registry when the PR is merged."
+
+      - name: Comment on PR with artifact instructions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const repository = context.repo.repo.toLowerCase();
+            const owner = context.repo.owner.toLowerCase();
+            const runId = context.runId;
+
+            const comment = `## 🐳 Docker Image Available as Artifact
+
+            Your PR Docker image has been built and is available for download!
+
+            ### 📦 Download & Load Instructions (Local Testing)
+
+            **Bash (one-liner):**
+            \`\`\`bash
+            gh run download ${runId} -n docker-image-pr-${prNumber} && unzip docker-image-pr-${prNumber}.zip && docker load < image.tar
+            \`\`\`
+
+            **PowerShell (one-liner):**
+            \`\`\`powershell
+            gh run download ${runId} -n docker-image-pr-${prNumber}; Expand-Archive docker-image-pr-${prNumber}.zip -Force; docker load -i image.tar
+            \`\`\`
+
+            The image will be tagged as: \`ghcr.io/${owner}/${repository}:pr-${prNumber}\`
+
+            > **Note**: Requires [GitHub CLI](https://cli.github.com/) to be installed and authenticated.
+
+            ### 🚀 After Merge
+
+            The image will be automatically built and pushed to the registry when this PR is merged, making it available for the regular scrape workflow.`;
+
+            github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
