@@ -9,8 +9,27 @@ jobs:
     name: Delete image from ghcr.io
     runs-on: ubuntu-latest
     steps:
-      - uses: chipkent/action-cleanup-package@v1.0.3
+      - name: Check if PR was from external contributor
+        id: pr-check
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}" ]; then
+            echo "is_external=false" >> $GITHUB_OUTPUT
+            echo "PR was from the same repository (internal) - image cleanup needed"
+          else
+            echo "is_external=true" >> $GITHUB_OUTPUT
+            echo "PR was from a fork (external contributor) - no image to cleanup"
+          fi
+
+      - name: Delete Docker image
+        if: steps.pr-check.outputs.is_external == 'false'
+        uses: chipkent/action-cleanup-package@v1.0.3
         with:
           package-name: ${{ github.event.repository.name }}
           tag: pr-${{ github.event.pull_request.number }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: External PR cleanup notice
+        if: steps.pr-check.outputs.is_external == 'true'
+        run: |
+          echo "ℹ️ This PR was from an external contributor."
+          echo "✅ No Docker image cleanup needed (image was never pushed)."
