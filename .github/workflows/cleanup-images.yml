@@ -36,6 +36,9 @@ jobs:
               
               for (const pkg of packages.data) {
                 const tags = pkg.metadata?.container?.tags || [];
+                const createdAt = new Date(pkg.created_at);
+                const threeMonthsAgo = new Date();
+                threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
                 
                 // Skip if no tags
                 if (tags.length === 0) {
@@ -44,15 +47,24 @@ jobs:
                 }
                 
                 // Check if any tag matches our keep patterns
-                const shouldKeep = tags.some(tag => 
+                const hasKeepTags = tags.some(tag => 
                   tag === 'latest' || 
                   tag.startsWith('pr-') || 
                   tag.startsWith('sha-')
                 );
                 
+                // Keep the package if it has keep tags AND is less than 3 months old
+                const shouldKeep = hasKeepTags && createdAt > threeMonthsAgo;
+                
                 if (shouldKeep) {
-                  console.log(`Keeping package ${pkg.id} with tags: ${tags.join(', ')}`);
+                  console.log(`Keeping package ${pkg.id} with tags: ${tags.join(', ')} (created: ${createdAt.toISOString()})`);
                   continue;
+                }
+                
+                if (hasKeepTags && createdAt <= threeMonthsAgo) {
+                  console.log(`Deleting old package ${pkg.id} with tags: ${tags.join(', ')} (created: ${createdAt.toISOString()}, older than 3 months)`);
+                } else {
+                  console.log(`Deleting untagged package ${pkg.id} with tags: ${tags.join(', ')}`);
                 }
                 
                 // Delete the package version
@@ -92,6 +104,9 @@ jobs:
                   
                   for (const pkg of packages.data) {
                     const tags = pkg.metadata?.container?.tags || [];
+                    const createdAt = new Date(pkg.created_at);
+                    const threeMonthsAgo = new Date();
+                    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
                     
                     // Skip if no tags
                     if (tags.length === 0) {
@@ -100,15 +115,24 @@ jobs:
                     }
                     
                     // Check if any tag matches our keep patterns
-                    const shouldKeep = tags.some(tag => 
+                    const hasKeepTags = tags.some(tag => 
                       tag === 'latest' || 
                       tag.startsWith('pr-') || 
                       tag.startsWith('sha-')
                     );
                     
+                    // Keep the package if it has keep tags AND is less than 3 months old
+                    const shouldKeep = hasKeepTags && createdAt > threeMonthsAgo;
+                    
                     if (shouldKeep) {
-                      console.log(`Keeping package ${pkg.id} with tags: ${tags.join(', ')}`);
+                      console.log(`Keeping package ${pkg.id} with tags: ${tags.join(', ')} (created: ${createdAt.toISOString()})`);
                       continue;
+                    }
+                    
+                    if (hasKeepTags && createdAt <= threeMonthsAgo) {
+                      console.log(`Deleting old package ${pkg.id} with tags: ${tags.join(', ')} (created: ${createdAt.toISOString()}, older than 3 months)`);
+                    } else {
+                      console.log(`Deleting untagged package ${pkg.id} with tags: ${tags.join(', ')}`);
                     }
                     
                     // Delete the package version
