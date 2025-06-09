@@ -33,7 +33,7 @@ on:
     - cron: "5 10,22 * * *"
 env:
   REGISTRY: ghcr.io
-  MAX_PARALLEL_SCRAPERS: 3
+  MAX_PARALLEL_SCRAPERS: 8
 jobs:
   scrape:
     runs-on: ubuntu-latest
