@@ -64,9 +64,9 @@ jobs:
                   '🗑️ **Image deleted** from registry' :
                   '⚠️ **Image cleanup attempted** (may not have existed)';
 
-                const updatedBody = `~~${imageComment.body}~~
-
-            ${deletionStatus}`;
+                // Extract just the first line (image info) for strikethrough, exclude the link
+                const firstLine = imageComment.body.split('\n')[0];
+                const updatedBody = `~~${firstLine}~~\n\n${deletionStatus}`;
 
                 await github.rest.issues.updateComment({
                   owner: context.repo.owner,
@@ -138,9 +138,9 @@ jobs:
                 );
                 
                 if (artifactComment) {
-                  const updatedBody = `~~${artifactComment.body}~~
-                  
-                  🗑️ **Artifacts cleaned up** from repository`;
+                  // Extract just the header for strikethrough, exclude the rest
+                  const headerLine = '## 🐳 Docker Image Available as Artifact';
+                  const updatedBody = `~~${headerLine}~~\n\n🗑️ **Artifacts cleaned up** from repository`;
                   
                   await github.rest.issues.updateComment({
                     owner: context.repo.owner,
