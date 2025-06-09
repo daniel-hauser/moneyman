@@ -40,9 +40,23 @@ jobs:
                 const threeMonthsAgo = new Date();
                 threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
                 
-                // Skip if no tags
+                // Delete if no tags (untagged packages should be removed)
                 if (tags.length === 0) {
-                  console.log(`Package ${pkg.id} has no tags, skipping`);
+                  console.log(`Deleting untagged package ${pkg.id} (created: ${createdAt.toISOString()})`);
+                  
+                  try {
+                    await github.rest.packages.deletePackageVersionForOrg({
+                      package_type: 'container',
+                      package_name: repo,
+                      org: owner,
+                      package_version_id: pkg.id
+                    });
+                    
+                    console.log(`Deleted untagged package ${pkg.id}`);
+                    deletedCount++;
+                  } catch (deleteError) {
+                    console.log(`Failed to delete untagged package ${pkg.id}:`, deleteError.message);
+                  }
                   continue;
                 }
                 
@@ -64,7 +78,7 @@ jobs:
                 if (hasKeepTags && createdAt <= threeMonthsAgo) {
                   console.log(`Deleting old package ${pkg.id} with tags: ${tags.join(', ')} (created: ${createdAt.toISOString()}, older than 3 months)`);
                 } else {
-                  console.log(`Deleting untagged package ${pkg.id} with tags: ${tags.join(', ')}`);
+                  console.log(`Deleting package ${pkg.id} with non-keep tags: ${tags.join(', ')}`);
                 }
                 
                 // Delete the package version
@@ -108,9 +122,23 @@ jobs:
                     const threeMonthsAgo = new Date();
                     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
                     
-                    // Skip if no tags
+                    // Delete if no tags (untagged packages should be removed)
                     if (tags.length === 0) {
-                      console.log(`Package ${pkg.id} has no tags, skipping`);
+                      console.log(`Deleting untagged package ${pkg.id} (created: ${createdAt.toISOString()})`);
+                      
+                      try {
+                        await github.rest.packages.deletePackageVersionForUser({
+                          package_type: 'container',
+                          package_name: repo,
+                          username: owner,
+                          package_version_id: pkg.id
+                        });
+                        
+                        console.log(`Deleted untagged package ${pkg.id}`);
+                        deletedCount++;
+                      } catch (deleteError) {
+                        console.log(`Failed to delete untagged package ${pkg.id}:`, deleteError.message);
+                      }
                       continue;
                     }
                     
@@ -132,7 +160,7 @@ jobs:
                     if (hasKeepTags && createdAt <= threeMonthsAgo) {
                       console.log(`Deleting old package ${pkg.id} with tags: ${tags.join(', ')} (created: ${createdAt.toISOString()}, older than 3 months)`);
                     } else {
-                      console.log(`Deleting untagged package ${pkg.id} with tags: ${tags.join(', ')}`);
+                      console.log(`Deleting package ${pkg.id} with non-keep tags: ${tags.join(', ')}`);
                     }
                     
                     // Delete the package version
