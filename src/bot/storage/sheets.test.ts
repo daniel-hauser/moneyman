@@ -40,8 +40,12 @@ jest.mock("../transactionTableRow.js", () => ({
 
 describe("GoogleSheetsStorage", () => {
   let storage: GoogleSheetsStorage;
-  let mockDoc: MockProxy<GoogleSpreadsheet>;
-  let mockSheet: MockProxy<GoogleSpreadsheetWorksheet>;
+  
+  // Create mocks as const with jest-mock-extended
+  const mockDoc = mock<GoogleSpreadsheet>();
+  const mockSheet = mock<GoogleSpreadsheetWorksheet>({
+    headerValues: ["date", "amount", "description", "hash"],
+  });
 
   // Helper to create a TransactionRow using existing test utility
   const createMockTransactionRow = (): TransactionRow => ({
@@ -56,12 +60,6 @@ describe("GoogleSheetsStorage", () => {
 
   beforeEach(() => {
     storage = new GoogleSheetsStorage();
-
-    // Create mocks with jest-mock-extended
-    mockDoc = mock<GoogleSpreadsheet>();
-    mockSheet = mock<GoogleSpreadsheetWorksheet>({
-      headerValues: ["date", "amount", "description", "hash"],
-    });
 
     // Setup default mock implementations
     mockSheet.getCellsInRange.mockResolvedValue([[]]);
