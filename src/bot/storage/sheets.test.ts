@@ -40,7 +40,6 @@ jest.mock("../transactionTableRow.js", () => ({
 
 describe("GoogleSheetsStorage", () => {
   let storage: GoogleSheetsStorage;
-  
   // Create mocks as const with jest-mock-extended
   const mockDoc = mock<GoogleSpreadsheet>();
   const mockSheet = mock<GoogleSpreadsheetWorksheet>({
