@@ -132,29 +132,10 @@ jobs:
             const imageTag = `pr-${prNumber}`;
             const imageName = `ghcr.io/${owner}/${repository}:${imageTag}`;
             const ghcrUrl = `https://github.com/${owner}/${repository}/pkgs/container/${repository}`;
-            const scrapeUrl = `https://github.com/${owner}/${repository}/actions/workflows/scrape.yml?tab=inputs&containerTag=${imageTag}`;
 
-            const comment = `## 🐳 Docker Image Successfully Pushed
+            const comment = `🐳 Docker image built and pushed: \`${imageName}\`
 
-            Your PR Docker image has been built and pushed to GitHub Container Registry!
-
-            ### 📦 Image Details
-
-            **Image:** \`${imageName}\`
-
-            🔗 **[View on GitHub Container Registry](${ghcrUrl})**
-
-            ### 🚀 Ready to Scrape
-
-            🔗 **[Run Scrape Action with this image](${scrapeUrl})**
-
-            The scrape action is pre-configured to use your PR image (\`${imageTag}\`). Just click the link above and hit "Run workflow" to test your changes!
-
-            ### 🐳 Pull Image Locally
-
-            \`\`\`bash
-            docker pull ${imageName}
-            \`\`\``;
+            🔗 [View on GitHub Container Registry](${ghcrUrl})`;
 
             github.rest.issues.createComment({
               issue_number: prNumber,
