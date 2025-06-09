@@ -3,22 +3,67 @@ name: PR Pipeline
 on:
   pull_request:
     branches: [main]
-    paths:
-      - "src/**"
-      - "patches/**"
-      - "package.json"
-      - "package-lock.json"
-      - "tsconfig.json"
-      - ".eslintrc.js"
-      - ".prettierrc.js"
-      - "Dockerfile"
-      - "docker-compose.yml"
-      - ".github/workflows/pr-build.yml"
   workflow_dispatch:
 
 jobs:
+  # Check if build-relevant files were changed
+  check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      build-needed: ${{ steps.check.outputs.build-needed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for build-relevant changes
+        id: check
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "build-needed=true" >> $GITHUB_OUTPUT
+            echo "Build triggered manually"
+            exit 0
+          fi
+
+          # Get the list of changed files
+          changed_files=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
+          echo "Changed files:"
+          echo "$changed_files"
+
+          # Check if any build-relevant files were changed
+          build_relevant_patterns=(
+            "src/"
+            "patches/"
+            "package.json"
+            "package-lock.json"
+            "tsconfig.json"
+            ".eslintrc.js"
+            ".prettierrc.js"
+            "Dockerfile"
+            "docker-compose.yml"
+            ".github/workflows/pr-build.yml"
+          )
+
+          build_needed=false
+          for pattern in "${build_relevant_patterns[@]}"; do
+            if echo "$changed_files" | grep -q "^$pattern"; then
+              build_needed=true
+              echo "Found build-relevant changes in: $pattern"
+              break
+            fi
+          done
+
+          echo "build-needed=$build_needed" >> $GITHUB_OUTPUT
+          if [[ "$build_needed" == "true" ]]; then
+            echo "Build is needed"
+          else
+            echo "No build-relevant files changed - build will be skipped"
+          fi
+
   lint:
     runs-on: ubuntu-latest
+    needs: check-changes
+    if: needs.check-changes.outputs.build-needed == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -30,7 +75,8 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    needs: lint
+    needs: [check-changes, lint]
+    if: needs.check-changes.outputs.build-needed == 'true'
 
     strategy:
       matrix:
@@ -48,27 +94,44 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [check-changes, test]
+    if: always() && needs.check-changes.result == 'success'
     strategy:
       matrix:
         node-version: [20, latest]
 
     steps:
+      - name: Skip build - no relevant changes
+        if: needs.check-changes.outputs.build-needed == 'false'
+        run: |
+          echo "✅ Build skipped - no code changes detected"
+          echo "This PR only contains non-build files (documentation, etc.)"
+
       - uses: actions/checkout@v4
+        if: needs.check-changes.outputs.build-needed == 'true'
       - uses: actions/setup-node@v4
+        if: needs.check-changes.outputs.build-needed == 'true'
         with:
           node-version: latest
           cache: "npm"
       - run: npm ci
+        if: needs.check-changes.outputs.build-needed == 'true'
       - run: npm run build
+        if: needs.check-changes.outputs.build-needed == 'true'
+
+      - name: Build completed
+        if: needs.check-changes.outputs.build-needed == 'true'
+        run: echo "✅ Build completed successfully"
 
   prepare:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [check-changes, test]
+    if: always() && needs.check-changes.result == 'success'
 
     outputs:
       repository: ${{ steps.normalize-repository-name.outputs.repository }}
       is_external: ${{ steps.pr-check.outputs.is_external }}
+      build_needed: ${{ needs.check-changes.outputs.build-needed }}
 
     steps:
       - name: Normalize repository name
@@ -97,10 +160,32 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Comment - No image build needed
+        if: needs.prepare.outputs.build_needed == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+
+            const comment = `📦 **Docker Image Build Skipped**
+
+            No Docker image was built for this PR because it only contains changes to documentation or other non-code files.
+
+            ✅ Status: Passed (no build required)`;
+
+            github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
       - name: Checkout repository
+        if: needs.prepare.outputs.build_needed == 'true'
         uses: actions/checkout@v4
 
       - name: Log in to the Container registry
+        if: needs.prepare.outputs.build_needed == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -108,6 +193,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract Docker metadata for PR
+        if: needs.prepare.outputs.build_needed == 'true'
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -115,6 +201,7 @@ jobs:
           tags: type=ref,event=pr
 
       - name: Build and push Docker image
+        if: needs.prepare.outputs.build_needed == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -123,6 +210,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: Comment on PR with image information
+        if: needs.prepare.outputs.build_needed == 'true'
         uses: actions/github-script@v7
         with:
           script: |
@@ -154,10 +242,32 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Comment - No image build needed
+        if: needs.prepare.outputs.build_needed == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+
+            const comment = `📦 **Docker Image Build Skipped**
+
+            No Docker image was built for this PR because it only contains changes to documentation or other non-code files.
+
+            ✅ Status: Passed (no build required)`;
+
+            github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
       - name: Checkout repository
+        if: needs.prepare.outputs.build_needed == 'true'
         uses: actions/checkout@v4
 
       - name: Extract Docker metadata for PR
+        if: needs.prepare.outputs.build_needed == 'true'
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -165,6 +275,7 @@ jobs:
           tags: type=ref,event=pr
 
       - name: Build Docker image
+        if: needs.prepare.outputs.build_needed == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -174,6 +285,7 @@ jobs:
           outputs: type=docker,dest=/tmp/image.tar
 
       - name: Upload Docker image as artifact
+        if: needs.prepare.outputs.build_needed == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: docker-image-pr-${{ github.event.pull_request.number }}
@@ -181,6 +293,7 @@ jobs:
           retention-days: 7
 
       - name: External PR notice
+        if: needs.prepare.outputs.build_needed == 'true'
         run: |
           echo "ℹ️ This PR is from an external contributor."
           echo "✅ Docker image was built successfully and saved as artifact."
@@ -189,6 +302,7 @@ jobs:
           echo "🔄 The image will be built and pushed to registry when the PR is merged."
 
       - name: Comment on PR with artifact instructions
+        if: needs.prepare.outputs.build_needed == 'true'
         uses: actions/github-script@v7
         with:
           script: |
