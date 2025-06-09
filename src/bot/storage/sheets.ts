@@ -22,6 +22,54 @@ const {
 
 const worksheetName = WORKSHEET_NAME || "_moneyman";
 
+/**
+ * Retry function for Google API operations with exponential backoff
+ * Handles transient errors like 503 "Service is currently unavailable"
+ */
+async function retryGoogleApiOperation<T>(
+  operation: () => Promise<T>,
+  operationName: string,
+  maxRetries = 3,
+  baseDelayMs = 1000,
+): Promise<T> {
+  let lastError: Error | undefined;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error as Error;
+
+      // Check if it's a retryable error (503 or other transient errors)
+      const isRetryable =
+        error &&
+        ((error as any).status === 503 ||
+          (error as any).code === 503 ||
+          (error as any).message?.includes("503") ||
+          (error as any).message?.includes("currently unavailable") ||
+          (error as any).message?.includes("temporarily unavailable") ||
+          (error as any).message?.includes("Service Unavailable"));
+
+      if (!isRetryable || attempt === maxRetries) {
+        throw error;
+      }
+
+      const delayMs = baseDelayMs * Math.pow(2, attempt - 1);
+      logger(
+        `${operationName} failed (attempt ${attempt}/${maxRetries}), retrying in ${delayMs}ms: ${error.message}`,
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  // This should never be reached, but TypeScript needs it
+  throw (
+    lastError ||
+    new Error(`${operationName} failed after ${maxRetries} attempts`)
+  );
+}
+
 export class GoogleSheetsStorage implements TransactionStorage {
   canSave() {
     return Boolean(
@@ -87,7 +135,10 @@ export class GoogleSheetsStorage implements TransactionStorage {
 
     if (rows.length) {
       stats.added = rows.length;
-      await Promise.all([onProgress("Saving"), sheet.addRows(rows)]);
+      await Promise.all([
+        onProgress("Saving"),
+        retryGoogleApiOperation(() => sheet.addRows(rows), "sheet.addRows"),
+      ]);
       if (TRANSACTION_HASH_TYPE !== "moneyman") {
         sendDeprecationMessage("hashFiledChange");
       }
@@ -106,7 +157,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
     });
 
     const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, auth);
-    await doc.loadInfo();
+    await retryGoogleApiOperation(() => doc.loadInfo(), "doc.loadInfo");
     return doc;
   }
 
@@ -114,7 +165,11 @@ export class GoogleSheetsStorage implements TransactionStorage {
    * Load hashes from the "hash" column, assuming the first row is a header row
    */
   private async loadHashes(sheet: GoogleSpreadsheetWorksheet) {
-    await sheet.loadHeaderRow();
+    await retryGoogleApiOperation(
+      () => sheet.loadHeaderRow(),
+      "sheet.loadHeaderRow",
+    );
+
     const hashColumnNumber = sheet.headerValues.indexOf("hash");
     if (hashColumnNumber === -1) {
       throw new Error("Hash column not found");
@@ -127,9 +182,13 @@ export class GoogleSheetsStorage implements TransactionStorage {
     const columnLetter = String.fromCharCode(65 + hashColumnNumber);
     const range = `${columnLetter}2:${columnLetter}`;
 
-    const columns = await sheet.getCellsInRange(range, {
-      majorDimension: "COLUMNS",
-    });
+    const columns = await retryGoogleApiOperation(
+      () =>
+        sheet.getCellsInRange(range, {
+          majorDimension: "COLUMNS",
+        }),
+      "sheet.getCellsInRange",
+    );
 
     if (Array.isArray(columns)) {
       return new Set(columns[0] as string[]);
