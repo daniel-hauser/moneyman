@@ -8,6 +8,9 @@ import {
   TransactionTypes,
 } from "israeli-bank-scrapers/lib/transactions.js";
 import { CompanyTypes } from "israeli-bank-scrapers";
+import { mock, MockProxy, mockClear } from "jest-mock-extended";
+import { transaction } from "../../utils/tests.js";
+import type { TransactionRow } from "../../types.js";
 
 // Mock the google-spreadsheet module
 jest.mock("google-spreadsheet");
@@ -37,52 +40,39 @@ jest.mock("../transactionTableRow.js", () => ({
 
 describe("GoogleSheetsStorage", () => {
   let storage: GoogleSheetsStorage;
-  let mockDoc: any;
-  let mockSheet: any;
+  let mockDoc: MockProxy<GoogleSpreadsheet>;
+  let mockSheet: MockProxy<GoogleSpreadsheetWorksheet>;
 
-  // Helper to create a valid transaction row
-  const createMockTransaction = () => ({
+  // Helper to create a TransactionRow using existing test utility
+  const createMockTransactionRow = (): TransactionRow => ({
+    ...transaction({
+      status: TransactionStatuses.Completed,
+    }),
     account: "test-account",
     companyId: CompanyTypes.hapoalim,
-    type: TransactionTypes.Normal,
-    date: "2023-01-01",
-    processedDate: "2023-01-01",
-    originalAmount: -100,
-    originalCurrency: "ILS",
-    chargedAmount: -100,
-    chargedCurrency: "ILS",
-    description: "Test transaction",
-    memo: "Test memo",
-    category: "Test category",
-    status: TransactionStatuses.Completed,
-    uniqueId: "test-unique-id",
     hash: "test-hash",
-    identifier: "test-identifier",
+    uniqueId: "test-unique-id",
   });
 
   beforeEach(() => {
     storage = new GoogleSheetsStorage();
 
-    // Create mocks with proper structure
-    mockDoc = {
-      loadInfo: jest.fn(),
-      sheetsByTitle: {},
-    };
-
-    mockSheet = {
-      loadHeaderRow: jest.fn(),
-      headerValues: ["date", "amount", "description", "hash"],
-      getCellsInRange: jest.fn(),
-      addRows: jest.fn(),
-    };
-
-    mockDoc.sheetsByTitle._moneyman = mockSheet;
+    // Create mocks with jest-mock-extended
+    mockDoc = mock<GoogleSpreadsheet>();
+    mockSheet = mock<GoogleSpreadsheetWorksheet>();
 
     // Setup default mock implementations
+    Object.defineProperty(mockSheet, 'headerValues', {
+      value: ["date", "amount", "description", "hash"],
+      writable: true,
+    });
     mockSheet.getCellsInRange.mockResolvedValue([[]]);
     mockSheet.addRows.mockResolvedValue([]);
     mockSheet.loadHeaderRow.mockResolvedValue(undefined);
     mockDoc.loadInfo.mockResolvedValue(undefined);
+
+    // Setup sheet by title
+    (mockDoc as any).sheetsByTitle = { _moneyman: mockSheet };
 
     (GoogleSpreadsheet as unknown as jest.Mock).mockImplementation(
       () => mockDoc,
@@ -91,23 +81,25 @@ describe("GoogleSheetsStorage", () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    mockClear(mockDoc);
+    mockClear(mockSheet);
   });
 
   describe("retry logic for Google API operations", () => {
     it("should retry doc.loadInfo on 503 error", async () => {
       // Mock loadInfo to fail twice with 503, then succeed
-      mockDoc.loadInfo
-        .mockRejectedValueOnce(
-          new Error(
-            "Google API error - [503] The service is currently unavailable",
-          ),
-        )
-        .mockRejectedValueOnce(
-          new Error(
-            "Google API error - [503] The service is currently unavailable",
-          ),
-        )
-        .mockResolvedValueOnce(undefined);
+      let callCount = 0;
+      mockDoc.loadInfo.mockImplementation(() => {
+        callCount++;
+        if (callCount <= 2) {
+          return Promise.reject(
+            new Error(
+              "Google API error - [503] The service is currently unavailable",
+            )
+          );
+        }
+        return Promise.resolve(undefined);
+      });
 
       // This should succeed after retries
       const doc = await (storage as any).getDoc();
@@ -121,20 +113,20 @@ describe("GoogleSheetsStorage", () => {
       mockSheet.loadHeaderRow.mockResolvedValue(undefined);
 
       // Mock addRows to fail twice with 503, then succeed
-      mockSheet.addRows
-        .mockRejectedValueOnce(
-          new Error(
-            "Google API error - [503] The service is currently unavailable",
-          ),
-        )
-        .mockRejectedValueOnce(
-          new Error(
-            "Google API error - [503] The service is currently unavailable",
-          ),
-        )
-        .mockResolvedValueOnce([]);
+      let callCount = 0;
+      mockSheet.addRows.mockImplementation(() => {
+        callCount++;
+        if (callCount <= 2) {
+          return Promise.reject(
+            new Error(
+              "Google API error - [503] The service is currently unavailable",
+            )
+          );
+        }
+        return Promise.resolve([]);
+      });
 
-      const mockTxn = createMockTransaction();
+      const mockTxn = createMockTransactionRow();
 
       await storage.saveTransactions([mockTxn], async () => {});
 
@@ -145,20 +137,20 @@ describe("GoogleSheetsStorage", () => {
       mockDoc.loadInfo.mockResolvedValue(undefined);
 
       // Mock loadHeaderRow to fail twice with 503, then succeed
-      mockSheet.loadHeaderRow
-        .mockRejectedValueOnce(
-          new Error(
-            "Google API error - [503] The service is currently unavailable",
-          ),
-        )
-        .mockRejectedValueOnce(
-          new Error(
-            "Google API error - [503] The service is currently unavailable",
-          ),
-        )
-        .mockResolvedValueOnce(undefined);
+      let callCount = 0;
+      mockSheet.loadHeaderRow.mockImplementation(() => {
+        callCount++;
+        if (callCount <= 2) {
+          return Promise.reject(
+            new Error(
+              "Google API error - [503] The service is currently unavailable",
+            )
+          );
+        }
+        return Promise.resolve(undefined);
+      });
 
-      const mockTxn = createMockTransaction();
+      const mockTxn = createMockTransactionRow();
 
       await storage.saveTransactions([mockTxn], async () => {});
 
@@ -170,20 +162,20 @@ describe("GoogleSheetsStorage", () => {
       mockSheet.loadHeaderRow.mockResolvedValue(undefined);
 
       // Mock getCellsInRange to fail twice with 503, then succeed
-      mockSheet.getCellsInRange
-        .mockRejectedValueOnce(
-          new Error(
-            "Google API error - [503] The service is currently unavailable",
-          ),
-        )
-        .mockRejectedValueOnce(
-          new Error(
-            "Google API error - [503] The service is currently unavailable",
-          ),
-        )
-        .mockResolvedValueOnce([[]]);
+      let callCount = 0;
+      mockSheet.getCellsInRange.mockImplementation(() => {
+        callCount++;
+        if (callCount <= 2) {
+          return Promise.reject(
+            new Error(
+              "Google API error - [503] The service is currently unavailable",
+            )
+          );
+        }
+        return Promise.resolve([[]]);
+      });
 
-      const mockTxn = createMockTransaction();
+      const mockTxn = createMockTransactionRow();
 
       await storage.saveTransactions([mockTxn], async () => {});
 
@@ -223,9 +215,14 @@ describe("GoogleSheetsStorage", () => {
       ];
 
       for (const errorMessage of errorMessages) {
-        mockDoc.loadInfo
-          .mockRejectedValueOnce(new Error(errorMessage))
-          .mockResolvedValueOnce(undefined);
+        let callCount = 0;
+        mockDoc.loadInfo.mockImplementation(() => {
+          callCount++;
+          if (callCount === 1) {
+            return Promise.reject(new Error(errorMessage));
+          }
+          return Promise.resolve(undefined);
+        });
 
         await (storage as any).getDoc();
 
