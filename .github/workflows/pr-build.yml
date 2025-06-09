@@ -13,7 +13,9 @@ on:
       - ".prettierrc.js"
       - "Dockerfile"
       - "docker-compose.yml"
-      - ".github/workflows/verify-build.yml"
+      - ".github/workflows/pr-build.yml"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
 
 jobs:
   lint:
