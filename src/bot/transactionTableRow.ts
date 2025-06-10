@@ -49,13 +49,8 @@ export function tableRow(tx: TransactionRow): TableRow {
       normalizeCurrency(tx.originalCurrency),
   };
 
-  // Read the environment variable each time to support testing
-  const { RAW_TRANSACTION_DATA_DISABLED = "false" } = process.env;
-
   return {
     ...baseRow,
-    ...(RAW_TRANSACTION_DATA_DISABLED === "true"
-      ? {}
-      : { raw: JSON.stringify(tx) }),
+    ...(TableHeaders.includes("raw") ? { raw: JSON.stringify(tx) } : {}),
   };
 }
