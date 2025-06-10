@@ -13,7 +13,9 @@ jest.mock("../config.js", () => ({
 }));
 
 // Helper to create a TransactionRow using existing test utility
-const createMockTransactionRow = (overrides: Partial<TransactionRow> = {}): TransactionRow => ({
+const createMockTransactionRow = (
+  overrides: Partial<TransactionRow> = {},
+): TransactionRow => ({
   ...transaction({
     status: TransactionStatuses.Completed,
   }),

@@ -54,6 +54,8 @@ export function tableRow(tx: TransactionRow): TableRow {
 
   return {
     ...baseRow,
-    ...(RAW_TRANSACTION_DATA_DISABLED === "true" ? {} : { raw: JSON.stringify(tx) }),
+    ...(RAW_TRANSACTION_DATA_DISABLED === "true"
+      ? {}
+      : { raw: JSON.stringify(tx) }),
   };
 }
