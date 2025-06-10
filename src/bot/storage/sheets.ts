@@ -114,7 +114,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
     if (rows.length) {
       stats.added = rows.length;
       await Promise.all([
-        onProgress("Saving"),
+        onProgress(`Saving ${rows.length} rows`),
         retry(retryOptions, async () => sheet.addRows(rows)),
       ]);
       if (TRANSACTION_HASH_TYPE !== "moneyman") {
