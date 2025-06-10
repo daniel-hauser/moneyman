@@ -167,6 +167,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
       return new Set(columns[0] as string[]);
     }
 
-    throw new Error("loadHashesBetter: getCellsInRange returned non-array");
+    // Return empty set for sheets with only headers (no data rows)
+    return new Set<string>();
   }
 }
