@@ -180,7 +180,7 @@ jobs:
               issue_number: prNumber
             });
 
-            const existingComment = comments.data.find(c => 
+            const existingComment = comments.data.find(c =>
               c.body.includes('📦 **Docker Image Build Skipped**')
             );
 
@@ -229,9 +229,21 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
+      - name: Get image size
+        if: needs.prepare.outputs.build_needed == 'true'
+        id: image-size
+        run: |
+          IMAGE_TAG="${{ steps.meta.outputs.tags }}"
+          # Get image size in human-readable format
+          IMAGE_SIZE=$(docker images --format "{{.Size}}" "$IMAGE_TAG")
+          echo "size=$IMAGE_SIZE" >> $GITHUB_OUTPUT
+          echo "Image size: $IMAGE_SIZE"
+
       - name: Comment on PR with image information
         if: needs.prepare.outputs.build_needed == 'true'
         uses: actions/github-script@v7
+        env:
+          IMAGE_SIZE: ${{ steps.image-size.outputs.size }}
         with:
           script: |
             const prNumber = context.payload.pull_request.number;
@@ -241,8 +253,11 @@ jobs:
             const imageName = `ghcr.io/${owner}/${repository}:${imageTag}`;
             const ghcrUrl = `https://github.com/${owner}/${repository}/pkgs/container/${repository}`;
 
+            const imageSize = process.env.IMAGE_SIZE || 'Unknown';
+
             const comment = `🐳 Docker image built and pushed: \`${imageName}\`
 
+            📏 **Size**: ${imageSize}
             🔗 [View on GitHub Container Registry](${ghcrUrl})`;
 
             // Find existing comment about Docker image to update instead of creating new one
@@ -252,8 +267,8 @@ jobs:
               issue_number: prNumber
             });
 
-            const existingComment = comments.data.find(c => 
-              c.body.includes('🐳 Docker image built and pushed:') && 
+            const existingComment = comments.data.find(c =>
+              c.body.includes('🐳 Docker image built and pushed:') &&
               c.body.includes(`pr-${prNumber}`)
             );
 
@@ -303,7 +318,7 @@ jobs:
               issue_number: prNumber
             });
 
-            const existingComment = comments.data.find(c => 
+            const existingComment = comments.data.find(c =>
               c.body.includes('📦 **Docker Image Build Skipped**')
             );
 
@@ -345,6 +360,25 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=docker,dest=/tmp/image.tar
 
+      - name: Get image and artifact sizes
+        if: needs.prepare.outputs.build_needed == 'true'
+        id: image-size
+        run: |
+          # Load the image to inspect it
+          docker load < /tmp/image.tar
+          IMAGE_TAG="${{ steps.meta.outputs.tags }}"
+
+          # Get image size in human-readable format
+          IMAGE_SIZE=$(docker images --format "{{.Size}}" "$IMAGE_TAG")
+          echo "image_size=$IMAGE_SIZE" >> $GITHUB_OUTPUT
+
+          # Get tar file size
+          TAR_SIZE=$(ls -lh /tmp/image.tar | awk '{print $5}')
+          echo "tar_size=$TAR_SIZE" >> $GITHUB_OUTPUT
+
+          echo "Image size: $IMAGE_SIZE"
+          echo "Tar file size: $TAR_SIZE"
+
       - name: Upload Docker image as artifact
         if: needs.prepare.outputs.build_needed == 'true'
         uses: actions/upload-artifact@v4
@@ -365,6 +399,9 @@ jobs:
       - name: Comment on PR with artifact instructions
         if: needs.prepare.outputs.build_needed == 'true'
         uses: actions/github-script@v7
+        env:
+          IMAGE_SIZE: ${{ steps.image-size.outputs.image_size }}
+          TAR_SIZE: ${{ steps.image-size.outputs.tar_size }}
         with:
           script: |
             const prNumber = context.payload.pull_request.number;
@@ -372,9 +409,14 @@ jobs:
             const owner = context.repo.owner.toLowerCase();
             const runId = context.runId;
 
+            const imageSize = process.env.IMAGE_SIZE || 'Unknown';
+            const tarSize = process.env.TAR_SIZE || 'Unknown';
+
             const comment = `## 🐳 Docker Image Available as Artifact
 
             Your PR Docker image has been built and is available for download!
+
+            📏 **Image Size**: ${imageSize} (Download size: ${tarSize})
 
             ### 📦 Download & Load Instructions (Local Testing)
 
@@ -403,7 +445,7 @@ jobs:
               issue_number: prNumber
             });
 
-            const existingComment = comments.data.find(c => 
+            const existingComment = comments.data.find(c =>
               c.body.includes('## 🐳 Docker Image Available as Artifact')
             );
 
