@@ -50,15 +50,10 @@ export function tableRow(tx: TransactionRow): TableRow {
   };
 
   // Read the environment variable each time to support testing
-  const { RAW_TRANSACTION_DATA_ENABLED = "true" } = process.env;
+  const { RAW_TRANSACTION_DATA_DISABLED = "false" } = process.env;
 
-  // Add raw JSON field if enabled
-  if (RAW_TRANSACTION_DATA_ENABLED === "true") {
-    return {
-      ...baseRow,
-      raw: JSON.stringify(tx),
-    };
-  }
-
-  return baseRow;
+  return {
+    ...baseRow,
+    ...(RAW_TRANSACTION_DATA_DISABLED === "true" ? {} : { raw: JSON.stringify(tx) }),
+  };
 }

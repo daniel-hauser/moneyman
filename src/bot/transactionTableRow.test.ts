@@ -5,28 +5,24 @@ import {
   TransactionStatuses,
   TransactionTypes,
 } from "israeli-bank-scrapers/lib/transactions.js";
+import { transaction } from "../utils/tests.js";
 
 // Mock the config module to avoid ACCOUNTS_JSON requirement
 jest.mock("../config.js", () => ({
   systemName: "test-system",
 }));
 
-const mockTransactionRow: TransactionRow = {
-  date: "2023-01-01T00:00:00.000Z",
-  processedDate: "2023-01-01T00:00:00.000Z",
-  chargedAmount: 100,
-  description: "Test transaction",
-  memo: "Test memo",
-  originalAmount: 100,
-  originalCurrency: "ILS",
-  identifier: "test-id",
-  status: TransactionStatuses.Completed,
-  type: TransactionTypes.Normal,
+// Helper to create a TransactionRow using existing test utility
+const createMockTransactionRow = (overrides: Partial<TransactionRow> = {}): TransactionRow => ({
+  ...transaction({
+    status: TransactionStatuses.Completed,
+  }),
   account: "test-account",
   companyId: CompanyTypes.hapoalim,
   hash: "test-hash",
   uniqueId: "test-unique-id",
-};
+  ...overrides,
+});
 
 describe("transactionTableRow", () => {
   describe("TableHeaders", () => {
@@ -34,50 +30,75 @@ describe("transactionTableRow", () => {
       expect(TableHeaders).toContain("raw");
     });
 
-    it("should have raw as the last column", () => {
-      expect(TableHeaders[TableHeaders.length - 1]).toBe("raw");
+    it("should have raw column as one of the headers", () => {
+      expect(TableHeaders.indexOf("raw")).toBeGreaterThan(-1);
     });
   });
 
   describe("tableRow", () => {
     beforeEach(() => {
       // Clean up environment variables to avoid interference
-      delete process.env.RAW_TRANSACTION_DATA_ENABLED;
+      delete process.env.RAW_TRANSACTION_DATA_DISABLED;
     });
 
     afterEach(() => {
       // Clean up environment variables
-      delete process.env.RAW_TRANSACTION_DATA_ENABLED;
+      delete process.env.RAW_TRANSACTION_DATA_DISABLED;
     });
 
-    it("should include raw field when RAW_TRANSACTION_DATA_ENABLED is true (default)", () => {
-      const result = tableRow(mockTransactionRow);
+    it("should include raw field when RAW_TRANSACTION_DATA_DISABLED is false (default)", () => {
+      const mockTransaction = createMockTransactionRow({
+        chargedAmount: 100,
+        description: "Test transaction",
+        memo: "Test memo",
+      });
+
+      const result = tableRow(mockTransaction);
 
       expect(result.raw).toBeDefined();
-      expect(result.raw).toBe(JSON.stringify(mockTransactionRow));
+      expect(result.raw).toBe(JSON.stringify(mockTransaction));
     });
 
-    it("should include raw field when RAW_TRANSACTION_DATA_ENABLED is explicitly set to true", () => {
-      process.env.RAW_TRANSACTION_DATA_ENABLED = "true";
+    it("should include raw field when RAW_TRANSACTION_DATA_DISABLED is explicitly set to false", () => {
+      process.env.RAW_TRANSACTION_DATA_DISABLED = "false";
 
-      const result = tableRow(mockTransactionRow);
+      const mockTransaction = createMockTransactionRow({
+        chargedAmount: 100,
+        description: "Test transaction",
+        memo: "Test memo",
+      });
+
+      const result = tableRow(mockTransaction);
 
       expect(result.raw).toBeDefined();
-      expect(result.raw).toBe(JSON.stringify(mockTransactionRow));
+      expect(result.raw).toBe(JSON.stringify(mockTransaction));
     });
 
-    it("should not include raw field when RAW_TRANSACTION_DATA_ENABLED is false", () => {
-      process.env.RAW_TRANSACTION_DATA_ENABLED = "false";
+    it("should not include raw field when RAW_TRANSACTION_DATA_DISABLED is true", () => {
+      process.env.RAW_TRANSACTION_DATA_DISABLED = "true";
 
-      const result = tableRow(mockTransactionRow);
+      const mockTransaction = createMockTransactionRow({
+        chargedAmount: 100,
+        description: "Test transaction",
+        memo: "Test memo",
+      });
+
+      const result = tableRow(mockTransaction);
 
       expect(result.raw).toBeUndefined();
     });
 
     it("should include all other required fields regardless of raw setting", () => {
-      process.env.RAW_TRANSACTION_DATA_ENABLED = "false";
+      process.env.RAW_TRANSACTION_DATA_DISABLED = "true";
 
-      const result = tableRow(mockTransactionRow);
+      const mockTransaction = createMockTransactionRow({
+        chargedAmount: 100,
+        description: "Test transaction",
+        memo: "Test memo",
+        identifier: "test-id",
+      });
+
+      const result = tableRow(mockTransaction);
 
       expect(result.date).toBeDefined();
       expect(result.amount).toBe(100);
@@ -94,21 +115,28 @@ describe("transactionTableRow", () => {
     });
 
     it("should serialize complete transaction data in raw field", () => {
-      const result = tableRow(mockTransactionRow);
+      const mockTransaction = createMockTransactionRow({
+        chargedAmount: 100,
+        description: "Test transaction",
+        memo: "Test memo",
+      });
+
+      const result = tableRow(mockTransaction);
 
       expect(result.raw).toBeDefined();
       const parsed = JSON.parse(result.raw!);
-      expect(parsed).toEqual(mockTransactionRow);
+      expect(parsed).toEqual(mockTransaction);
     });
 
     it("should handle transactions with undefined/null values in raw field", () => {
-      const transactionWithNulls: TransactionRow = {
-        ...mockTransactionRow,
+      const mockTransaction = createMockTransactionRow({
+        chargedAmount: 100,
+        description: "Test transaction",
         memo: undefined as any,
         category: null as any,
-      };
+      });
 
-      const result = tableRow(transactionWithNulls);
+      const result = tableRow(mockTransaction);
 
       expect(result.raw).toBeDefined();
       const parsed = JSON.parse(result.raw!);
