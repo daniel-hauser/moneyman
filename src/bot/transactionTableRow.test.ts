@@ -27,14 +27,33 @@ const createMockTransactionRow = (
 });
 
 describe("transactionTableRow", () => {
-  describe("TableHeaders", () => {
-    it("should include raw column", () => {
-      expect(TableHeaders).toContain("raw");
-    });
-  });
-
   describe("tableRow", () => {
-    it("should include raw field when raw column is present in TableHeaders", () => {
+    it("should include raw field when includeRaw is true", () => {
+      const mockTransaction = createMockTransactionRow({
+        chargedAmount: 100,
+        description: "Test transaction",
+        memo: "Test memo",
+      });
+
+      const result = tableRow(mockTransaction, true);
+
+      expect(result.raw).toBeDefined();
+      expect(result.raw).toBe(JSON.stringify(mockTransaction));
+    });
+
+    it("should not include raw field when includeRaw is false", () => {
+      const mockTransaction = createMockTransactionRow({
+        chargedAmount: 100,
+        description: "Test transaction",
+        memo: "Test memo",
+      });
+
+      const result = tableRow(mockTransaction, false);
+
+      expect(result.raw).toBeUndefined();
+    });
+
+    it("should not include raw field by default (when includeRaw is not specified)", () => {
       const mockTransaction = createMockTransactionRow({
         chargedAmount: 100,
         description: "Test transaction",
@@ -43,8 +62,7 @@ describe("transactionTableRow", () => {
 
       const result = tableRow(mockTransaction);
 
-      expect(result.raw).toBeDefined();
-      expect(result.raw).toBe(JSON.stringify(mockTransaction));
+      expect(result.raw).toBeUndefined();
     });
 
     it("should include all other required fields", () => {
@@ -71,21 +89,21 @@ describe("transactionTableRow", () => {
       expect(result.chargedCurrency).toBeDefined();
     });
 
-    it("should serialize complete transaction data in raw field", () => {
+    it("should serialize complete transaction data in raw field when includeRaw is true", () => {
       const mockTransaction = createMockTransactionRow({
         chargedAmount: 100,
         description: "Test transaction",
         memo: "Test memo",
       });
 
-      const result = tableRow(mockTransaction);
+      const result = tableRow(mockTransaction, true);
 
       expect(result.raw).toBeDefined();
       const parsed = JSON.parse(result.raw!);
       expect(parsed).toEqual(mockTransaction);
     });
 
-    it("should handle transactions with undefined/null values in raw field", () => {
+    it("should handle transactions with undefined/null values in raw field when includeRaw is true", () => {
       const mockTransaction = createMockTransactionRow({
         chargedAmount: 100,
         description: "Test transaction",
@@ -93,7 +111,7 @@ describe("transactionTableRow", () => {
         category: null as any,
       });
 
-      const result = tableRow(mockTransaction);
+      const result = tableRow(mockTransaction, true);
 
       expect(result.raw).toBeDefined();
       const parsed = JSON.parse(result.raw!);

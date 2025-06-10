@@ -30,7 +30,10 @@ export type TableRow = Omit<
   raw?: string;
 };
 
-export function tableRow(tx: TransactionRow): TableRow {
+export function tableRow(
+  tx: TransactionRow,
+  includeRaw: boolean = false,
+): TableRow {
   const baseRow = {
     date: format(parseISO(tx.date), "dd/MM/yyyy", {}),
     amount: tx.chargedAmount,
@@ -51,6 +54,6 @@ export function tableRow(tx: TransactionRow): TableRow {
 
   return {
     ...baseRow,
-    ...(TableHeaders.includes("raw") ? { raw: JSON.stringify(tx) } : {}),
+    ...(includeRaw ? { raw: JSON.stringify(tx) } : {}),
   };
 }
