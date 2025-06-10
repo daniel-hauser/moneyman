@@ -19,17 +19,22 @@ export const TableHeaders = [
   "scraped by",
   "identifier",
   "chargedCurrency",
+  "raw",
 ] as const;
 
 export type TableRow = Omit<
   Record<(typeof TableHeaders)[number], string>,
-  "amount"
+  "amount" | "raw"
 > & {
   amount: number;
+  raw?: string;
 };
 
-export function tableRow(tx: TransactionRow): TableRow {
-  return {
+export function tableRow(
+  tx: TransactionRow,
+  includeRaw: boolean = false,
+): TableRow {
+  const baseRow = {
     date: format(parseISO(tx.date), "dd/MM/yyyy", {}),
     amount: tx.chargedAmount,
     description: tx.description,
@@ -45,5 +50,10 @@ export function tableRow(tx: TransactionRow): TableRow {
     chargedCurrency:
       normalizeCurrency(tx.chargedCurrency) ||
       normalizeCurrency(tx.originalCurrency),
+  };
+
+  return {
+    ...baseRow,
+    ...(includeRaw ? { raw: JSON.stringify(tx) } : {}),
   };
 }

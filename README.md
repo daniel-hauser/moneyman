@@ -256,8 +256,8 @@ WIP
 1. Follow the instructions [here](https://theoephraim.github.io/node-google-spreadsheet/#/guides/authentication?id=setting-up-your-quotapplicationquot) to create a google service account.
 2. Create a [new sheet](https://sheets.new/) and share it with your service account using the `GOOGLE_SERVICE_ACCOUNT_EMAIL`.
 3. Create a sheet named `_moneyman` with the following headers in the first row:
-   | date | amount | description | memo | category | account | hash | comment | scraped at | scraped by | identifier | chargedCurrency |
-   | ---- | ------ | ----------- | ---- | -------- | ------- | ---- | ------- | ---------- | ---------- | ---------- | --------------- |
+   | date | amount | description | memo | category | account | hash | comment | scraped at | scraped by | identifier | chargedCurrency | raw |
+   | ---- | ------ | ----------- | ---- | -------- | ------- | ---- | ------- | ---------- | ---------- | ---------- | --------------- | --- |
 
 Use the following env vars to setup:
 

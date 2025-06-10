@@ -65,6 +65,10 @@ export class GoogleSheetsStorage implements TransactionStorage {
       throw new Error(`Sheet ${worksheetName} not found`);
     }
 
+    // Load header row to check if raw column exists
+    await retry(retryOptions, async () => sheet.loadHeaderRow());
+    const hasRawColumn = sheet.headerValues.includes("raw");
+
     const [existingHashes] = await Promise.all([
       this.loadHashes(sheet),
       onProgress("Loading hashes"),
@@ -103,14 +107,14 @@ export class GoogleSheetsStorage implements TransactionStorage {
         continue;
       }
 
-      rows.push(tableRow(tx));
+      rows.push(tableRow(tx, hasRawColumn));
       stats.highlightedTransactions.Added.push(tx);
     }
 
     if (rows.length) {
       stats.added = rows.length;
       await Promise.all([
-        onProgress("Saving"),
+        onProgress(`Saving ${rows.length} rows`),
         retry(retryOptions, async () => sheet.addRows(rows)),
       ]);
       if (TRANSACTION_HASH_TYPE !== "moneyman") {
@@ -139,7 +143,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
    * Load hashes from the "hash" column, assuming the first row is a header row
    */
   private async loadHashes(sheet: GoogleSpreadsheetWorksheet) {
-    await retry(retryOptions, async () => sheet.loadHeaderRow());
+    // Header row should already be loaded by the caller
 
     const hashColumnNumber = sheet.headerValues.indexOf("hash");
     if (hashColumnNumber === -1) {
@@ -163,6 +167,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
       return new Set(columns[0] as string[]);
     }
 
-    throw new Error("loadHashesBetter: getCellsInRange returned non-array");
+    // Return empty set for sheets with only headers (no data rows)
+    return new Set<string>();
   }
 }
