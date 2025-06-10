@@ -19,17 +19,19 @@ export const TableHeaders = [
   "scraped by",
   "identifier",
   "chargedCurrency",
+  "raw",
 ] as const;
 
 export type TableRow = Omit<
   Record<(typeof TableHeaders)[number], string>,
-  "amount"
+  "amount" | "raw"
 > & {
   amount: number;
+  raw?: string;
 };
 
 export function tableRow(tx: TransactionRow): TableRow {
-  return {
+  const baseRow = {
     date: format(parseISO(tx.date), "dd/MM/yyyy", {}),
     amount: tx.chargedAmount,
     description: tx.description,
@@ -46,4 +48,17 @@ export function tableRow(tx: TransactionRow): TableRow {
       normalizeCurrency(tx.chargedCurrency) ||
       normalizeCurrency(tx.originalCurrency),
   };
+
+  // Read the environment variable each time to support testing
+  const { RAW_TRANSACTION_DATA_ENABLED = "true" } = process.env;
+
+  // Add raw JSON field if enabled
+  if (RAW_TRANSACTION_DATA_ENABLED === "true") {
+    return {
+      ...baseRow,
+      raw: JSON.stringify(tx),
+    };
+  }
+
+  return baseRow;
 }

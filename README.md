@@ -96,6 +96,7 @@ Example:
 | `FUTURE_MONTHS`                       | `1`                | The amount of months that will be scrapped in the future, starting from the day calculated using `DAYS_BACK`                                                              |
 | `TRANSACTION_HASH_TYPE`               | ``                 | The hash type to use for the transaction hash. Can be `moneyman` or empty. The default will be changed to `moneyman` in the upcoming versions                             |
 | `ADDITIONAL_TRANSACTION_INFO_ENABLED` | `'false'`          | If set to `'true'`, enables the `additionalTransactionInformation` option in the underlying scraper, which may provide more detailed transaction data for some providers. |
+| `RAW_TRANSACTION_DATA_ENABLED`        | `'true'`           | If set to `'true'` (default), includes the raw TransactionRow JSON data in a `raw` column in Google Sheets. Set to `'false'` to disable this feature.                     |
 | `HIDDEN_DEPRECATIONS`                 | `''`               | A comma separated list of deprecations to hide                                                                                                                            |
 | `PUPPETEER_EXECUTABLE_PATH`           | `undefined`        | An ExecutablePath for the scraper. if undefined defaults to system.                                                                                                       |
 | `MAX_PARALLEL_SCRAPERS`               | `1`                | The maximum number of parallel scrapers to run                                                                                                                            |
@@ -256,8 +257,8 @@ WIP
 1. Follow the instructions [here](https://theoephraim.github.io/node-google-spreadsheet/#/guides/authentication?id=setting-up-your-quotapplicationquot) to create a google service account.
 2. Create a [new sheet](https://sheets.new/) and share it with your service account using the `GOOGLE_SERVICE_ACCOUNT_EMAIL`.
 3. Create a sheet named `_moneyman` with the following headers in the first row:
-   | date | amount | description | memo | category | account | hash | comment | scraped at | scraped by | identifier | chargedCurrency |
-   | ---- | ------ | ----------- | ---- | -------- | ------- | ---- | ------- | ---------- | ---------- | ---------- | --------------- |
+   | date | amount | description | memo | category | account | hash | comment | scraped at | scraped by | identifier | chargedCurrency | raw |
+   | ---- | ------ | ----------- | ---- | -------- | ------- | ---- | ------- | ---------- | ---------- | ---------- | --------------- | --- |
 
 Use the following env vars to setup:
 
