@@ -1,3 +1,4 @@
+import assert from "node:assert";
 import { createLogger } from "../../utils/logger.js";
 import {
   GoogleSpreadsheet,
@@ -39,9 +40,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
 
     await onProgress("Getting sheet");
     const sheet = doc.sheetsByTitle[worksheetName];
-    if (!sheet) {
-      throw new Error(`Sheet ${worksheetName} not found`);
-    }
+    assert(sheet, `Sheet ${worksheetName} not found`);
 
     // Load header row to check if raw column exists
     await sheet.loadHeaderRow();
@@ -123,16 +122,11 @@ export class GoogleSheetsStorage implements TransactionStorage {
   private async loadHashes(sheet: GoogleSpreadsheetWorksheet) {
     // Header row should already be loaded by the caller
 
-    const hashColumnNumber = sheet.headerValues.indexOf("hash");
-    if (hashColumnNumber === -1) {
-      throw new Error("Hash column not found");
-    }
+    const column = sheet.headerValues.indexOf("hash");
+    assert(column !== -1, "Hash column not found");
+    assert(column < 26, "Currently only supports single letter columns");
 
-    if (hashColumnNumber >= 26) {
-      throw new Error("Currently only supports single letter columns");
-    }
-
-    const columnLetter = String.fromCharCode(65 + hashColumnNumber);
+    const columnLetter = String.fromCharCode(65 + column);
     const range = `${columnLetter}2:${columnLetter}`;
 
     const columns = await sheet.getCellsInRange(range, {
