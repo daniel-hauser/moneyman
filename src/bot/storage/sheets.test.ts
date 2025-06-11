@@ -101,15 +101,15 @@ describe("GoogleSheetsStorage", () => {
       expect(doc).toBe(mockDoc);
     });
 
-    it("should retry sheet.addRows on 503 error", async () => {
+    it("should retry sheet.addRows on 503 error with deduplication", async () => {
       mockDoc.loadInfo.mockResolvedValue(undefined);
       mockSheet.loadHeaderRow.mockResolvedValue(undefined);
 
-      // Mock addRows to fail twice with 503, then succeed
-      let callCount = 0;
+      // Mock addRows to fail once with 503, then succeed on retry
+      let addRowsCallCount = 0;
       mockSheet.addRows.mockImplementation(() => {
-        callCount++;
-        if (callCount <= 2) {
+        addRowsCallCount++;
+        if (addRowsCallCount === 1) {
           return Promise.reject(
             new Error(
               "Google API error - [503] The service is currently unavailable",
@@ -119,11 +119,104 @@ describe("GoogleSheetsStorage", () => {
         return Promise.resolve([]);
       });
 
+      // Mock getCellsInRange for hash loading (initial and retry)
+      let getCellsCallCount = 0;
+      mockSheet.getCellsInRange.mockImplementation(() => {
+        getCellsCallCount++;
+        if (getCellsCallCount === 1) {
+          // Initial hash loading - empty sheet
+          return Promise.resolve([[]]);
+        } else {
+          // Retry hash loading - still empty (simulating no rows were actually saved)
+          return Promise.resolve([[]]);
+        }
+      });
+
       const mockTxn = createMockTransactionRow();
 
       await storage.saveTransactions([mockTxn], async () => {});
 
-      expect(mockSheet.addRows).toHaveBeenCalledTimes(3);
+      // Should call addRows twice: initial attempt + retry
+      expect(mockSheet.addRows).toHaveBeenCalledTimes(2);
+      // Should call getCellsInRange twice: initial hash load + retry hash load
+      expect(mockSheet.getCellsInRange).toHaveBeenCalledTimes(2);
+    });
+
+    it("should deduplicate rows on retry when some were already saved", async () => {
+      mockDoc.loadInfo.mockResolvedValue(undefined);
+      mockSheet.loadHeaderRow.mockResolvedValue(undefined);
+
+      // Mock addRows to fail once with 503, then succeed on retry
+      let addRowsCallCount = 0;
+      mockSheet.addRows.mockImplementation(() => {
+        addRowsCallCount++;
+        if (addRowsCallCount === 1) {
+          return Promise.reject(
+            new Error(
+              "Google API error - [503] The service is currently unavailable",
+            ),
+          );
+        }
+        return Promise.resolve([]);
+      });
+
+      // Mock getCellsInRange for hash loading (initial and retry)
+      let getCellsCallCount = 0;
+      mockSheet.getCellsInRange.mockImplementation(() => {
+        getCellsCallCount++;
+        if (getCellsCallCount === 1) {
+          // Initial hash loading - empty sheet
+          return Promise.resolve([[]]);
+        } else {
+          // Retry hash loading - first transaction was saved during the failed attempt
+          return Promise.resolve([["test-hash"]]);
+        }
+      });
+
+      const mockTxn = createMockTransactionRow();
+
+      await storage.saveTransactions([mockTxn], async () => {});
+
+      // Should call addRows once (initial attempt fails, but on retry no rows needed)
+      expect(mockSheet.addRows).toHaveBeenCalledTimes(1);
+      // Should call getCellsInRange twice: initial hash load + retry hash load
+      expect(mockSheet.getCellsInRange).toHaveBeenCalledTimes(2);
+    });
+
+    it("should show retry progress message with correct row count", async () => {
+      mockDoc.loadInfo.mockResolvedValue(undefined);
+      mockSheet.loadHeaderRow.mockResolvedValue(undefined);
+
+      // Mock addRows to fail once with 503, then succeed on retry
+      let addRowsCallCount = 0;
+      mockSheet.addRows.mockImplementation(() => {
+        addRowsCallCount++;
+        if (addRowsCallCount === 1) {
+          return Promise.reject(
+            new Error(
+              "Google API error - [503] The service is currently unavailable",
+            ),
+          );
+        }
+        return Promise.resolve([]);
+      });
+
+      // Mock getCellsInRange for hash loading - simulate empty sheet throughout
+      mockSheet.getCellsInRange.mockResolvedValue([[]]);
+
+      const mockTxn1 = createMockTransactionRow();
+      const mockTxn2 = {
+        ...createMockTransactionRow(),
+        hash: "test-hash-2",
+        uniqueId: "test-unique-id-2",
+      };
+
+      const onProgressSpy = jest.fn();
+      await storage.saveTransactions([mockTxn1, mockTxn2], onProgressSpy);
+
+      // Should show initial save and retry messages
+      expect(onProgressSpy).toHaveBeenCalledWith("Saving 2 rows");
+      expect(onProgressSpy).toHaveBeenCalledWith("retry: Saving 2 rows");
     });
 
     it("should retry sheet.loadHeaderRow on 503 error", async () => {

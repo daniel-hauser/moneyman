@@ -53,6 +53,20 @@ export class GoogleSheetsStorage implements TransactionStorage {
     );
   }
 
+  /**
+   * Check if an error is retryable (503 service unavailable errors)
+   */
+  private isRetryableError(err: any): boolean {
+    return (
+      err &&
+      (err.status === 503 ||
+        err.message?.includes("503") ||
+        err.message?.includes("currently unavailable") ||
+        err.message?.includes("temporarily unavailable") ||
+        err.message?.includes("Service Unavailable"))
+    );
+  }
+
   async saveTransactions(
     txns: Array<TransactionRow>,
     onProgress: (status: string) => Promise<void>,
@@ -113,10 +127,47 @@ export class GoogleSheetsStorage implements TransactionStorage {
 
     if (rows.length) {
       stats.added = rows.length;
-      await Promise.all([
-        onProgress(`Saving ${rows.length} rows`),
-        retry(retryOptions, async () => sheet.addRows(rows)),
-      ]);
+      await onProgress(`Saving ${rows.length} rows`);
+
+      try {
+        await sheet.addRows(rows);
+      } catch (err) {
+        // Only retry on 503 service unavailable errors
+        if (this.isRetryableError(err)) {
+          // Reload hashes to check what was actually saved
+          const newExistingHashes = await this.loadHashes(sheet);
+
+          // Filter out transactions that are now already in the sheet (deduplication)
+          const remainingRows: TableRow[] = [];
+          const remainingTxns: TransactionRow[] = [];
+
+          for (let i = 0; i < rows.length; i++) {
+            const tx = stats.highlightedTransactions.Added[i];
+            const hashToCheck =
+              TRANSACTION_HASH_TYPE === "moneyman" ? tx.uniqueId : tx.hash;
+
+            if (!newExistingHashes.has(hashToCheck)) {
+              remainingRows.push(rows[i]);
+              remainingTxns.push(tx);
+            }
+          }
+
+          if (remainingRows.length > 0) {
+            await onProgress(`retry: Saving ${remainingRows.length} rows`);
+            await sheet.addRows(remainingRows);
+            // Update stats to reflect only the rows that were actually added
+            stats.added = remainingRows.length;
+            stats.highlightedTransactions.Added = remainingTxns;
+          } else {
+            // All rows were already saved, no need to retry
+            stats.added = rows.length;
+          }
+        } else {
+          // Non-retryable error, just throw
+          throw err;
+        }
+      }
+
       if (TRANSACTION_HASH_TYPE !== "moneyman") {
         sendDeprecationMessage("hashFiledChange");
       }
