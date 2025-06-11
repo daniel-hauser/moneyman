@@ -7,9 +7,9 @@ import {
 import { GoogleAuth } from "google-auth-library";
 import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
-import { sendDeprecationMessage } from "../notifier.js";
+import { sendDeprecationMessage, sendError } from "../notifier.js";
 import { createSaveStats } from "../saveStats.js";
-import { TableRow, tableRow } from "../transactionTableRow.js";
+import { tableRow } from "../transactionTableRow.js";
 
 const logger = createLogger("GoogleSheetsStorage");
 
@@ -38,7 +38,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
   ) {
     const [doc] = await Promise.all([this.getDoc(), onProgress("Getting doc")]);
 
-    await onProgress("Getting sheet");
+    await onProgress(`Getting sheet ${worksheetName}`);
     const sheet = doc.sheetsByTitle[worksheetName];
     assert(sheet, `Sheet ${worksheetName} not found`);
 
@@ -46,10 +46,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
     await sheet.loadHeaderRow();
     const hasRawColumn = sheet.headerValues.includes("raw");
 
-    const [existingHashes] = await Promise.all([
-      this.loadHashes(sheet),
-      onProgress("Loading hashes"),
-    ]);
+    const existingHashes = await this.loadHashes(sheet, onProgress);
 
     const stats = createSaveStats("Google Sheets", worksheetName, txns, {
       highlightedTransactions: {
@@ -57,13 +54,12 @@ export class GoogleSheetsStorage implements TransactionStorage {
       },
     });
 
-    const rows: TableRow[] = [];
-    for (let tx of txns) {
+    const newTxns = txns.filter((tx) => {
       if (TRANSACTION_HASH_TYPE === "moneyman") {
         // Use the new uniqueId as the unique identifier for the transactions if the hash type is moneyman
         if (existingHashes.has(tx.uniqueId)) {
           stats.existing++;
-          continue;
+          return false;
         }
       }
 
@@ -77,25 +73,33 @@ export class GoogleSheetsStorage implements TransactionStorage {
           stats.existing++;
         }
 
-        continue;
+        return false;
       }
 
-      if (tx.status === TransactionStatuses.Pending) {
-        continue;
-      }
+      return tx.status !== TransactionStatuses.Pending;
+    });
 
-      rows.push(tableRow(tx, hasRawColumn));
-      stats.highlightedTransactions.Added.push(tx);
-    }
-
+    const rows = newTxns.map((tx) => tableRow(tx, hasRawColumn));
     if (rows.length) {
-      stats.added = rows.length;
-      await Promise.all([
-        onProgress(`Saving ${rows.length} rows`),
-        sheet.addRows(rows),
-      ]);
-      if (TRANSACTION_HASH_TYPE !== "moneyman") {
-        sendDeprecationMessage("hashFiledChange");
+      try {
+        stats.highlightedTransactions.Added.push(...newTxns);
+        stats.added = rows.length;
+        await Promise.all([
+          onProgress(`Saving ${rows.length} rows`),
+          sheet.addRows(rows),
+        ]);
+        if (TRANSACTION_HASH_TYPE !== "moneyman") {
+          sendDeprecationMessage("hashFiledChange");
+        }
+      } catch (e) {
+        logger("Error saving transactions", e);
+        sendError(e, "GoogleSheetsStorage::saveTransactions");
+        const hashes = await this.loadHashes(sheet, onProgress);
+        const notSaved = newTxns.filter(
+          ({ hash, uniqueId }) => !hashes.has(hash) && !hashes.has(uniqueId),
+        );
+        stats.added -= notSaved.length;
+        stats.otherSkipped = notSaved.length;
       }
     }
 
@@ -119,9 +123,10 @@ export class GoogleSheetsStorage implements TransactionStorage {
   /**
    * Load hashes from the "hash" column, assuming the first row is a header row
    */
-  private async loadHashes(sheet: GoogleSpreadsheetWorksheet) {
-    // Header row should already be loaded by the caller
-
+  private async loadHashes(
+    sheet: GoogleSpreadsheetWorksheet,
+    onProgress: (status: string) => Promise<void>,
+  ) {
     const column = sheet.headerValues.indexOf("hash");
     assert(column !== -1, "Hash column not found");
     assert(column < 26, "Currently only supports single letter columns");
@@ -129,15 +134,15 @@ export class GoogleSheetsStorage implements TransactionStorage {
     const columnLetter = String.fromCharCode(65 + column);
     const range = `${columnLetter}2:${columnLetter}`;
 
-    const columns = await sheet.getCellsInRange(range, {
-      majorDimension: "COLUMNS",
-    });
+    const [columns] = await Promise.all([
+      sheet.getCellsInRange(range, {
+        majorDimension: "COLUMNS",
+      }),
+      onProgress(`Loading hashes (${range})`),
+    ]);
 
-    if (Array.isArray(columns)) {
-      return new Set(columns[0] as string[]);
-    }
-
-    // Return empty set for sheets with only headers (no data rows)
-    return new Set<string>();
+    return Array.isArray(columns)
+      ? new Set(columns[0] as string[])
+      : new Set<string>();
   }
 }
