@@ -6,16 +6,10 @@ import hash from "hash-it";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { sendDeprecationMessage } from "../notifier.js";
 import { createSaveStats } from "../saveStats.js";
+import { config } from "../../config.js";
 
 const YNAB_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("YNABStorage");
-
-const {
-  YNAB_TOKEN = "",
-  YNAB_BUDGET_ID = "",
-  YNAB_ACCOUNTS = "",
-  TRANSACTION_HASH_TYPE = "",
-} = process.env;
 
 export class YNABStorage implements TransactionStorage {
   private ynabAPI: ynab.API;
@@ -24,13 +18,13 @@ export class YNABStorage implements TransactionStorage {
 
   async init() {
     logger("init");
-    this.ynabAPI = new ynab.API(YNAB_TOKEN);
-    this.budgetName = await this.getBudgetName(YNAB_BUDGET_ID);
-    this.accountToYnabAccount = this.parseYnabAccounts(YNAB_ACCOUNTS);
+    this.ynabAPI = new ynab.API(config.YNAB_TOKEN);
+    this.budgetName = await this.getBudgetName(config.YNAB_BUDGET_ID);
+    this.accountToYnabAccount = this.parseYnabAccounts(config.YNAB_ACCOUNTS);
   }
 
   canSave() {
-    return Boolean(YNAB_TOKEN && YNAB_BUDGET_ID);
+    return Boolean(config.YNAB_TOKEN && config.YNAB_BUDGET_ID);
   }
 
   isDateInFuture(date: string) {
@@ -82,7 +76,7 @@ export class YNABStorage implements TransactionStorage {
       // Send transactions to YNAB
       logger(`sending to YNAB budget: "${this.budgetName}"`);
       const [resp] = await Promise.all([
-        this.ynabAPI.transactions.createTransactions(YNAB_BUDGET_ID, {
+        this.ynabAPI.transactions.createTransactions(config.YNAB_BUDGET_ID, {
           transactions: txToSend,
         }),
         onProgress("Sending"),
@@ -91,7 +85,7 @@ export class YNABStorage implements TransactionStorage {
       stats.added = resp.data.transactions?.length ?? 0;
       stats.existing = resp.data.duplicate_import_ids?.length ?? 0;
 
-      if (TRANSACTION_HASH_TYPE !== "moneyman") {
+      if (config.TRANSACTION_HASH_TYPE !== "moneyman") {
         sendDeprecationMessage("hashFiledChange");
       }
     }
@@ -141,7 +135,7 @@ export class YNABStorage implements TransactionStorage {
           : undefined,
       approved: false,
       import_id: hash(
-        TRANSACTION_HASH_TYPE === "moneyman" ? tx.uniqueId : tx.hash,
+        config.TRANSACTION_HASH_TYPE === "moneyman" ? tx.uniqueId : tx.hash,
       ).toString(),
       memo: tx.memo,
     };

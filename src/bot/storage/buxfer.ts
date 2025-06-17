@@ -4,15 +4,10 @@ import { format, parseISO } from "date-fns";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { BuxferApiClient, BuxferTransaction } from "buxfer-ts-client";
 import { createSaveStats } from "../saveStats.js";
+import { config } from "../../config.js";
 
 const BUXFER_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("BuxferStorage");
-
-const {
-  BUXFER_USER_NAME = "",
-  BUXFER_PASSWORD = "",
-  BUXFER_ACCOUNTS = "",
-} = process.env;
 
 export class BuxferStorage implements TransactionStorage {
   private buxferClient: BuxferApiClient;
@@ -20,12 +15,12 @@ export class BuxferStorage implements TransactionStorage {
 
   async init() {
     logger("init");
-    this.buxferClient = new BuxferApiClient(BUXFER_USER_NAME, BUXFER_PASSWORD);
-    this.accountToBuxferAccount = this.parseBuxferAccounts(BUXFER_ACCOUNTS);
+    this.buxferClient = new BuxferApiClient(config.BUXFER_USER_NAME, config.BUXFER_PASSWORD);
+    this.accountToBuxferAccount = this.parseBuxferAccounts(config.BUXFER_ACCOUNTS);
   }
 
   canSave() {
-    return Boolean(BUXFER_USER_NAME && BUXFER_PASSWORD && BUXFER_ACCOUNTS);
+    return Boolean(config.BUXFER_USER_NAME && config.BUXFER_PASSWORD && config.BUXFER_ACCOUNTS);
   }
 
   async saveTransactions(

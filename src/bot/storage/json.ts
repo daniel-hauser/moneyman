@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import { createLogger } from "../../utils/logger.js";
 import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { createSaveStats } from "../saveStats.js";
+import { config } from "../../config.js";
 
 const logger = createLogger("LocalJsonStorage");
 
@@ -15,7 +16,7 @@ export class LocalJsonStorage implements TransactionStorage {
   }
 
   canSave() {
-    return Boolean(process.env.LOCAL_JSON_STORAGE);
+    return Boolean(config.LOCAL_JSON_STORAGE);
   }
 
   async saveTransactions(txns: Array<TransactionRow>) {

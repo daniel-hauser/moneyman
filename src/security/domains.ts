@@ -4,6 +4,7 @@ import { type BrowserContext, TargetType } from "puppeteer";
 import { ClientRequestInterceptor } from "@mswjs/interceptors/ClientRequest";
 import { DomainRuleManager } from "./domainRules.js";
 import { addToKeyedSet } from "../utils/collections.js";
+import { config } from "../config.js";
 
 const logger = createLogger("domain-security");
 

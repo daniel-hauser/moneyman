@@ -1,5 +1,5 @@
 import { scrapeAccounts } from "./scraper/index.js";
-import { scraperConfig } from "./config.js";
+import { scraperConfig, sendConfigToTelegramIfRequested } from "./config.js";
 import { sendError } from "./bot/notifier.js";
 import { createLogger } from "./utils/logger.js";
 import { RunnerHooks } from "./types.js";
@@ -19,6 +19,7 @@ Exception origin: ${origin}`).catch((e) => {});
 });
 
 monitorNodeConnections();
+await sendConfigToTelegramIfRequested();
 await run();
 
 // kill internal browsers if stuck

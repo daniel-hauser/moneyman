@@ -10,25 +10,18 @@ import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { sendDeprecationMessage, sendError } from "../notifier.js";
 import { createSaveStats } from "../saveStats.js";
 import { tableRow } from "../transactionTableRow.js";
+import { config } from "../../config.js";
 
 const logger = createLogger("GoogleSheetsStorage");
 
-const {
-  WORKSHEET_NAME,
-  GOOGLE_SHEET_ID = "",
-  GOOGLE_SERVICE_ACCOUNT_EMAIL,
-  GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
-  TRANSACTION_HASH_TYPE,
-} = process.env;
-
-const worksheetName = WORKSHEET_NAME || "_moneyman";
+const worksheetName = config.WORKSHEET_NAME || "_moneyman";
 
 export class GoogleSheetsStorage implements TransactionStorage {
   canSave() {
     return Boolean(
-      GOOGLE_SHEET_ID &&
-        GOOGLE_SERVICE_ACCOUNT_EMAIL &&
-        GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+      config.GOOGLE_SHEET_ID &&
+        config.GOOGLE_SERVICE_ACCOUNT_EMAIL &&
+        config.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
     );
   }
 
@@ -55,7 +48,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
     });
 
     const newTxns = txns.filter((tx) => {
-      if (TRANSACTION_HASH_TYPE === "moneyman") {
+      if (config.TRANSACTION_HASH_TYPE === "moneyman") {
         // Use the new uniqueId as the unique identifier for the transactions if the hash type is moneyman
         if (existingHashes.has(tx.uniqueId)) {
           stats.existing++;
@@ -64,7 +57,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
       }
 
       if (existingHashes.has(tx.hash)) {
-        if (TRANSACTION_HASH_TYPE === "moneyman") {
+        if (config.TRANSACTION_HASH_TYPE === "moneyman") {
           logger(`Skipping, old hash ${tx.hash} is already in the sheet`);
         }
 
@@ -88,7 +81,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
           onProgress(`Saving ${rows.length} rows`),
           sheet.addRows(rows),
         ]);
-        if (TRANSACTION_HASH_TYPE !== "moneyman") {
+        if (config.TRANSACTION_HASH_TYPE !== "moneyman") {
           sendDeprecationMessage("hashFiledChange");
         }
       } catch (e) {
@@ -110,12 +103,12 @@ export class GoogleSheetsStorage implements TransactionStorage {
     const auth = new GoogleAuth({
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
       credentials: {
-        client_email: GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        private_key: GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+        client_email: config.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        private_key: config.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
       },
     });
 
-    const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, auth);
+    const doc = new GoogleSpreadsheet(config.GOOGLE_SHEET_ID, auth);
     await doc.loadInfo();
     return doc;
   }

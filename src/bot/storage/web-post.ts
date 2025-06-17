@@ -3,12 +3,13 @@ import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { tableRow } from "../transactionTableRow.js";
 import { createSaveStats } from "../saveStats.js";
+import { config } from "../../config.js";
 
 const logger = createLogger("WebPostStorage");
 
 export class WebPostStorage implements TransactionStorage {
-  private url = process.env.WEB_POST_URL || "";
-  private authorizationToken = process.env.WEB_POST_AUTHORIZATION_TOKEN || "";
+  private url = config.WEB_POST_URL || "";
+  private authorizationToken = config.WEB_POST_AUTHORIZATION_TOKEN || "";
 
   canSave() {
     return Boolean(this.url) && URL.canParse(this.url);

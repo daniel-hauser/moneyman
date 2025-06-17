@@ -1,6 +1,7 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { createLogger } from "../utils/logger.js";
 import { addToKeyedMap } from "../utils/collections.js";
+import { config } from "../config.js";
 
 const logger = createLogger("domain-rules");
 export type Rule = "ALLOW" | "BLOCK";

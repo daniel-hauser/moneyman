@@ -2,14 +2,12 @@ import "dotenv/config";
 import { subDays } from "date-fns";
 import { z } from "zod";
 import { AccountConfig, ScraperConfig } from "./types.js";
-import { createLogger, logToPublicLog } from "./utils/logger.js";
-import { sendJSON } from "./bot/notifier.js";
+import { createLogger } from "./utils/logger.js";
 
 export const systemName = "moneyman";
 const logger = createLogger("config");
 
 logger("Parsing config");
-logToPublicLog("Parsing config");
 
 // Define config schema using zod
 const configSchema = z.object({
@@ -81,7 +79,7 @@ type Config = z.infer<typeof configSchema>;
 
 // Parse configuration
 let config: Config;
-const { MONEYMAN_CONFIG, SEND_NEW_CONFIG_TO_TG } = process.env;
+const { MONEYMAN_CONFIG } = process.env;
 
 if (MONEYMAN_CONFIG) {
   logger("Using MONEYMAN_CONFIG");
@@ -95,17 +93,23 @@ if (MONEYMAN_CONFIG) {
 } else {
   logger("Using environment variables");
   config = configSchema.parse(process.env);
-  
-  // If SEND_NEW_CONFIG_TO_TG is set, send the constructed config to telegram
-  if (SEND_NEW_CONFIG_TO_TG) {
-    sendJSON(config, "config.txt").catch((error) => {
-      logger("Failed to send config to telegram", error);
-    });
-  }
 }
 
 // Export the config for use in other modules
 export { config };
+
+// Function to send config to telegram if needed (to be called after imports are resolved)
+export async function sendConfigToTelegramIfRequested() {
+  const { SEND_NEW_CONFIG_TO_TG } = process.env;
+  if (SEND_NEW_CONFIG_TO_TG) {
+    try {
+      const { sendJSON } = await import("./bot/notifier.js");
+      await sendJSON(config, "config.txt");
+    } catch (error) {
+      logger("Failed to send config to telegram", error);
+    }
+  }
+}
 
 logger("Env", {
   systemName,
@@ -122,8 +126,11 @@ logger("config loaded", {
 
 function getAccounts(): Array<AccountConfig> {
   function parseAccounts(accountsJson?: string): Array<AccountConfig> {
+    if (!accountsJson) {
+      return [];
+    }
     try {
-      const parsed = JSON.parse(accountsJson!);
+      const parsed = JSON.parse(accountsJson);
       if (Array.isArray(parsed)) {
         // TODO: Add schema validations?
         return parsed as Array<AccountConfig>;

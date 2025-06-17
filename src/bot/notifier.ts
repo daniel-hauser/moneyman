@@ -1,13 +1,12 @@
 import { Telegraf, TelegramError } from "telegraf";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
 import type { ImageWithCaption } from "../types.js";
+import { config } from "../config.js";
 
 const logger = createLogger("notifier");
 
-const { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID = "" } = process.env;
-
 const bot =
-  TELEGRAM_API_KEY && TELEGRAM_CHAT_ID ? new Telegraf(TELEGRAM_API_KEY) : null;
+  config.TELEGRAM_API_KEY && config.TELEGRAM_CHAT_ID ? new Telegraf(config.TELEGRAM_API_KEY) : null;
 
 logToPublicLog(
   bot
@@ -17,7 +16,7 @@ logToPublicLog(
 
 logger(`Telegram bot initialized: ${Boolean(bot)}`);
 if (bot) {
-  logger(`Telegram chat ID: ${TELEGRAM_CHAT_ID}`);
+  logger(`Telegram chat ID: ${config.TELEGRAM_CHAT_ID}`);
 }
 
 export async function send(message: string, parseMode?: "HTML") {
@@ -26,7 +25,7 @@ export async function send(message: string, parseMode?: "HTML") {
     return send(message.slice(0, 4096));
   }
   logger(message);
-  return await bot?.telegram.sendMessage(TELEGRAM_CHAT_ID, message, {
+  return await bot?.telegram.sendMessage(config.TELEGRAM_CHAT_ID, message, {
     parse_mode: parseMode,
   });
 }
@@ -34,7 +33,7 @@ export async function send(message: string, parseMode?: "HTML") {
 export async function sendPhoto(photoPath: string, caption: string) {
   logger(`Sending photo`, { photoPath, caption });
   return await bot?.telegram.sendPhoto(
-    TELEGRAM_CHAT_ID,
+    config.TELEGRAM_CHAT_ID,
     { source: photoPath },
     { caption, has_spoiler: true },
   );
@@ -46,7 +45,7 @@ export async function sendPhotos(photos: Array<ImageWithCaption>) {
     return;
   }
   return await bot?.telegram.sendMediaGroup(
-    TELEGRAM_CHAT_ID,
+    config.TELEGRAM_CHAT_ID,
     photos.map(({ photoPath, caption }) => ({
       type: "photo",
       caption,
@@ -58,7 +57,7 @@ export async function sendPhotos(photos: Array<ImageWithCaption>) {
 export async function sendJSON(json: {}, filename: string) {
   logger(`Sending JSON`, { json, filename });
   const buffer = Buffer.from(JSON.stringify(json, null, 2), "utf-8");
-  return await bot?.telegram.sendDocument(TELEGRAM_CHAT_ID, {
+  return await bot?.telegram.sendDocument(config.TELEGRAM_CHAT_ID, {
     source: buffer,
     filename,
   });
@@ -78,7 +77,7 @@ export async function editMessage(
        */
       await new Promise((resolve) => setTimeout(resolve, 250));
       await bot?.telegram.editMessageText(
-        TELEGRAM_CHAT_ID,
+        config.TELEGRAM_CHAT_ID,
         message,
         undefined,
         newText,
@@ -116,10 +115,9 @@ export function sendError(message: any, caller: string = "") {
 const deprecationMessages = {
   ["hashFiledChange"]: `This run is using the old transaction hash field, please update to the new one (it might require manual de-duping of some transactions). See https://github.com/daniel-hauser/moneyman/issues/268 for more details.`,
 } as const;
-const { HIDDEN_DEPRECATIONS = "" } = process.env;
-logger(`Hidden deprecations: ${HIDDEN_DEPRECATIONS}`);
+logger(`Hidden deprecations: ${config.HIDDEN_DEPRECATIONS}`);
 
-const sentDeprecationMessages = new Set<string>(HIDDEN_DEPRECATIONS.split(","));
+const sentDeprecationMessages = new Set<string>(config.HIDDEN_DEPRECATIONS.split(","));
 
 export function sendDeprecationMessage(
   messageId: keyof typeof deprecationMessages,

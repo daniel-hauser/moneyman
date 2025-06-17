@@ -1,13 +1,14 @@
 import type { RunMetadata } from "./types";
 import { getUsedDomains } from "./security/domains.js";
 import { createLogger, metadataLogEntries } from "./utils/logger.js";
+import { config } from "./config.js";
 
 const logger = createLogger("runner-metadata");
 
 export async function getExternalIp(): Promise<{ ip: string }> {
   try {
     const res = await fetch(
-      process.env.GET_IP_INFO_URL || "https://ipinfo.io/json",
+      config.GET_IP_INFO_URL || "https://ipinfo.io/json",
     );
     return res.json();
   } catch (e) {
