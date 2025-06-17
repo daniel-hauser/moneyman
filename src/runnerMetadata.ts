@@ -7,9 +7,7 @@ const logger = createLogger("runner-metadata");
 
 export async function getExternalIp(): Promise<{ ip: string }> {
   try {
-    const res = await fetch(
-      config.GET_IP_INFO_URL || "https://ipinfo.io/json",
-    );
+    const res = await fetch(config.GET_IP_INFO_URL || "https://ipinfo.io/json");
     return res.json();
   } catch (e) {
     logger("Failed to get external IP", e);

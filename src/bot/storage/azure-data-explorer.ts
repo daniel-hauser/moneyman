@@ -63,7 +63,11 @@ export class AzureDataExplorerStorage implements TransactionStorage {
     logger(`Saving ${txns.length} transactions`);
     this.init();
 
-    const stats = createSaveStats("AzureDataExplorer", config.ADE_TABLE_NAME, txns);
+    const stats = createSaveStats(
+      "AzureDataExplorer",
+      config.ADE_TABLE_NAME,
+      txns,
+    );
 
     if (!this.ingestClient) {
       await sendError(

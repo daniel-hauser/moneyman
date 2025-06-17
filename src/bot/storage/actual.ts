@@ -181,7 +181,9 @@ export class ActualBudgetStorage implements TransactionStorage {
         actualAccounts.map((a) => [a.id, a.name]),
       );
 
-      this.bankToActualAccountMap = this.parseActualAccounts(config.ACTUAL_ACCOUNTS!);
+      this.bankToActualAccountMap = this.parseActualAccounts(
+        config.ACTUAL_ACCOUNTS!,
+      );
 
       for (const [
         bankAccountId,

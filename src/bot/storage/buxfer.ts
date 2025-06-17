@@ -15,12 +15,21 @@ export class BuxferStorage implements TransactionStorage {
 
   async init() {
     logger("init");
-    this.buxferClient = new BuxferApiClient(config.BUXFER_USER_NAME, config.BUXFER_PASSWORD);
-    this.accountToBuxferAccount = this.parseBuxferAccounts(config.BUXFER_ACCOUNTS);
+    this.buxferClient = new BuxferApiClient(
+      config.BUXFER_USER_NAME,
+      config.BUXFER_PASSWORD,
+    );
+    this.accountToBuxferAccount = this.parseBuxferAccounts(
+      config.BUXFER_ACCOUNTS,
+    );
   }
 
   canSave() {
-    return Boolean(config.BUXFER_USER_NAME && config.BUXFER_PASSWORD && config.BUXFER_ACCOUNTS);
+    return Boolean(
+      config.BUXFER_USER_NAME &&
+        config.BUXFER_PASSWORD &&
+        config.BUXFER_ACCOUNTS,
+    );
   }
 
   async saveTransactions(

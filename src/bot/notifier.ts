@@ -6,7 +6,9 @@ import { config } from "../config.js";
 const logger = createLogger("notifier");
 
 const bot =
-  config.TELEGRAM_API_KEY && config.TELEGRAM_CHAT_ID ? new Telegraf(config.TELEGRAM_API_KEY) : null;
+  config.TELEGRAM_API_KEY && config.TELEGRAM_CHAT_ID
+    ? new Telegraf(config.TELEGRAM_API_KEY)
+    : null;
 
 logToPublicLog(
   bot
@@ -117,7 +119,9 @@ const deprecationMessages = {
 } as const;
 logger(`Hidden deprecations: ${config.HIDDEN_DEPRECATIONS}`);
 
-const sentDeprecationMessages = new Set<string>(config.HIDDEN_DEPRECATIONS.split(","));
+const sentDeprecationMessages = new Set<string>(
+  config.HIDDEN_DEPRECATIONS.split(","),
+);
 
 export function sendDeprecationMessage(
   messageId: keyof typeof deprecationMessages,

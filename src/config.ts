@@ -18,17 +18,17 @@ const configSchema = z.object({
   MAX_PARALLEL_SCRAPERS: z.string().optional().default(""),
   ADDITIONAL_TRANSACTION_INFO_ENABLED: z.string().optional().default("false"),
   ACCOUNTS_JSON: z.string().optional().default(""),
-  
+
   // Telegram
   TELEGRAM_API_KEY: z.string().optional().default(""),
   TELEGRAM_CHAT_ID: z.string().optional().default(""),
-  
+
   // Google Sheets
   GOOGLE_SERVICE_ACCOUNT_EMAIL: z.string().optional().default(""),
   GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: z.string().optional().default(""),
   GOOGLE_SHEET_ID: z.string().optional().default(""),
   WORKSHEET_NAME: z.string().optional().default(""),
-  
+
   // Azure Data Explorer
   AZURE_APP_ID: z.string().optional().default(""),
   AZURE_APP_KEY: z.string().optional().default(""),
@@ -37,40 +37,40 @@ const configSchema = z.object({
   ADE_TABLE_NAME: z.string().optional().default(""),
   ADE_INGESTION_MAPPING: z.string().optional().default(""),
   ADE_INGEST_URI: z.string().optional().default(""),
-  
+
   // YNAB
   YNAB_TOKEN: z.string().optional().default(""),
   YNAB_BUDGET_ID: z.string().optional().default(""),
   YNAB_ACCOUNTS: z.string().optional().default(""),
-  
+
   // Buxfer
   BUXFER_USER_NAME: z.string().optional().default(""),
   BUXFER_PASSWORD: z.string().optional().default(""),
   BUXFER_ACCOUNTS: z.string().optional().default(""),
-  
+
   // Actual Budget
   ACTUAL_SERVER_URL: z.string().optional().default(""),
   ACTUAL_PASSWORD: z.string().optional().default(""),
   ACTUAL_BUDGET_ID: z.string().optional().default(""),
   ACTUAL_ACCOUNTS: z.string().optional().default(""),
-  
+
   // Web Post
   WEB_POST_URL: z.string().optional().default(""),
   WEB_POST_AUTHORIZATION_TOKEN: z.string().optional().default(""),
-  
+
   // Other storage/features
   LOCAL_JSON_STORAGE: z.string().optional().default(""),
   TRANSACTION_HASH_TYPE: z.string().optional().default(""),
   HIDDEN_DEPRECATIONS: z.string().optional().default(""),
-  
+
   // Security/Domain
   DOMAIN_TRACKING_ENABLED: z.string().optional().default(""),
   FIREWALL_SETTINGS: z.string().optional().default(""),
   BLOCK_BY_DEFAULT: z.string().optional().default(""),
-  
+
   // Browser/Scraper
   PUPPETEER_EXECUTABLE_PATH: z.string().optional().default(""),
-  
+
   // Network
   GET_IP_INFO_URL: z.string().optional().default(""),
 });
@@ -121,7 +121,8 @@ logger("config loaded", {
   ACCOUNTS_TO_SCRAPE: config.ACCOUNTS_TO_SCRAPE,
   FUTURE_MONTHS: config.FUTURE_MONTHS,
   MAX_PARALLEL_SCRAPERS: config.MAX_PARALLEL_SCRAPERS,
-  ADDITIONAL_TRANSACTION_INFO_ENABLED: config.ADDITIONAL_TRANSACTION_INFO_ENABLED,
+  ADDITIONAL_TRANSACTION_INFO_ENABLED:
+    config.ADDITIONAL_TRANSACTION_INFO_ENABLED,
 });
 
 function getAccounts(): Array<AccountConfig> {
