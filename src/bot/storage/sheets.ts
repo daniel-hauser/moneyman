@@ -14,15 +14,11 @@ import { config } from "../../config.js";
 
 const logger = createLogger("GoogleSheetsStorage");
 
-const worksheetName = config.WORKSHEET_NAME || "_moneyman";
+const worksheetName = config.storage.googleSheets?.worksheetName || "_moneyman";
 
 export class GoogleSheetsStorage implements TransactionStorage {
   canSave() {
-    return Boolean(
-      config.GOOGLE_SHEET_ID &&
-        config.GOOGLE_SERVICE_ACCOUNT_EMAIL &&
-        config.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
-    );
+    return Boolean(config.storage.googleSheets);
   }
 
   async saveTransactions(
@@ -48,7 +44,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
     });
 
     const newTxns = txns.filter((tx) => {
-      if (config.TRANSACTION_HASH_TYPE === "moneyman") {
+      if (config.options.scraping.transactionHashType === "moneyman") {
         // Use the new uniqueId as the unique identifier for the transactions if the hash type is moneyman
         if (existingHashes.has(tx.uniqueId)) {
           stats.existing++;
@@ -57,7 +53,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
       }
 
       if (existingHashes.has(tx.hash)) {
-        if (config.TRANSACTION_HASH_TYPE === "moneyman") {
+        if (config.options.scraping.transactionHashType === "moneyman") {
           logger(`Skipping, old hash ${tx.hash} is already in the sheet`);
         }
 
@@ -81,7 +77,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
           onProgress(`Saving ${rows.length} rows`),
           sheet.addRows(rows),
         ]);
-        if (config.TRANSACTION_HASH_TYPE !== "moneyman") {
+        if (config.options.scraping.transactionHashType !== "moneyman") {
           sendDeprecationMessage("hashFiledChange");
         }
       } catch (e) {
@@ -100,15 +96,20 @@ export class GoogleSheetsStorage implements TransactionStorage {
   }
 
   private async getDoc() {
+    const googleSheetsConfig = config.storage.googleSheets;
+    if (!googleSheetsConfig) {
+      throw new Error("Google Sheets configuration not found");
+    }
+
     const auth = new GoogleAuth({
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
       credentials: {
-        client_email: config.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        private_key: config.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+        client_email: googleSheetsConfig.serviceAccountEmail,
+        private_key: googleSheetsConfig.serviceAccountPrivateKey,
       },
     });
 
-    const doc = new GoogleSpreadsheet(config.GOOGLE_SHEET_ID, auth);
+    const doc = new GoogleSpreadsheet(googleSheetsConfig.sheetId, auth);
     await doc.loadInfo();
     return doc;
   }

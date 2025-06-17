@@ -16,7 +16,7 @@ export class LocalJsonStorage implements TransactionStorage {
   }
 
   canSave() {
-    return Boolean(config.LOCAL_JSON_STORAGE);
+    return Boolean(config.storage.localJson?.enabled);
   }
 
   async saveTransactions(txns: Array<TransactionRow>) {

@@ -8,11 +8,8 @@ import { config } from "../../config.js";
 const logger = createLogger("WebPostStorage");
 
 export class WebPostStorage implements TransactionStorage {
-  private url = config.WEB_POST_URL || "";
-  private authorizationToken = config.WEB_POST_AUTHORIZATION_TOKEN || "";
-
   canSave() {
-    return Boolean(this.url) && URL.canParse(this.url);
+    return Boolean(config.storage.webPost?.url);
   }
 
   async saveTransactions(
@@ -21,20 +18,23 @@ export class WebPostStorage implements TransactionStorage {
   ) {
     logger("saveTransactions");
 
+    const webPostConfig = config.storage.webPost;
+    if (!webPostConfig) {
+      throw new Error("Web Post configuration not found");
+    }
+
     const nonPendingTxns = txns.filter(
       (txn) => txn.status !== TransactionStatuses.Pending,
     );
 
-    logger(`Posting ${nonPendingTxns.length} transactions to ${this.url}`);
+    logger(`Posting ${nonPendingTxns.length} transactions to ${webPostConfig.url}`);
 
     const [response] = await Promise.all([
-      fetch(this.url, {
+      fetch(webPostConfig.url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(this.authorizationToken && {
-            Authorization: this.authorizationToken,
-          }),
+          Authorization: webPostConfig.authorizationToken,
         },
         body: JSON.stringify(nonPendingTxns.map((tx) => tableRow(tx))),
       }),

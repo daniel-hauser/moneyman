@@ -9,90 +9,247 @@ const logger = createLogger("config");
 
 logger("Parsing config");
 
-// Define config schema using zod
-const configSchema = z.object({
-  // Core scraper configuration
-  DAYS_BACK: z.string().optional().default("10"),
-  ACCOUNTS_TO_SCRAPE: z.string().optional().default(""),
-  FUTURE_MONTHS: z.string().optional().default(""),
-  MAX_PARALLEL_SCRAPERS: z.string().optional().default(""),
-  ADDITIONAL_TRANSACTION_INFO_ENABLED: z.string().optional().default("false"),
-  ACCOUNTS_JSON: z.string().optional().default(""),
+// Account configuration schema
+const AccountSchema = z.object({
+  companyId: z.string().min(1, 'Company ID is required'),
+  userCode: z.string().optional(),
+  username: z.string().optional(), 
+  password: z.string().min(1, 'Password is required'),
+}).refine(
+  (data) => data.userCode || data.username,
+  { message: 'Either userCode or username is required' }
+);
 
-  // Telegram
-  TELEGRAM_API_KEY: z.string().optional().default(""),
-  TELEGRAM_CHAT_ID: z.string().optional().default(""),
-
-  // Google Sheets
-  GOOGLE_SERVICE_ACCOUNT_EMAIL: z.string().optional().default(""),
-  GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: z.string().optional().default(""),
-  GOOGLE_SHEET_ID: z.string().optional().default(""),
-  WORKSHEET_NAME: z.string().optional().default(""),
-
-  // Azure Data Explorer
-  AZURE_APP_ID: z.string().optional().default(""),
-  AZURE_APP_KEY: z.string().optional().default(""),
-  AZURE_TENANT_ID: z.string().optional().default(""),
-  ADE_DATABASE_NAME: z.string().optional().default(""),
-  ADE_TABLE_NAME: z.string().optional().default(""),
-  ADE_INGESTION_MAPPING: z.string().optional().default(""),
-  ADE_INGEST_URI: z.string().optional().default(""),
-
-  // YNAB
-  YNAB_TOKEN: z.string().optional().default(""),
-  YNAB_BUDGET_ID: z.string().optional().default(""),
-  YNAB_ACCOUNTS: z.string().optional().default(""),
-
-  // Buxfer
-  BUXFER_USER_NAME: z.string().optional().default(""),
-  BUXFER_PASSWORD: z.string().optional().default(""),
-  BUXFER_ACCOUNTS: z.string().optional().default(""),
-
-  // Actual Budget
-  ACTUAL_SERVER_URL: z.string().optional().default(""),
-  ACTUAL_PASSWORD: z.string().optional().default(""),
-  ACTUAL_BUDGET_ID: z.string().optional().default(""),
-  ACTUAL_ACCOUNTS: z.string().optional().default(""),
-
-  // Web Post
-  WEB_POST_URL: z.string().optional().default(""),
-  WEB_POST_AUTHORIZATION_TOKEN: z.string().optional().default(""),
-
-  // Other storage/features
-  LOCAL_JSON_STORAGE: z.string().optional().default(""),
-  TRANSACTION_HASH_TYPE: z.string().optional().default(""),
-  HIDDEN_DEPRECATIONS: z.string().optional().default(""),
-
-  // Security/Domain
-  DOMAIN_TRACKING_ENABLED: z.string().optional().default(""),
-  FIREWALL_SETTINGS: z.string().optional().default(""),
-  BLOCK_BY_DEFAULT: z.string().optional().default(""),
-
-  // Browser/Scraper
-  PUPPETEER_EXECUTABLE_PATH: z.string().optional().default(""),
-
-  // Network
-  GET_IP_INFO_URL: z.string().optional().default(""),
+// Storage provider schemas
+const GoogleSheetsSchema = z.object({
+  serviceAccountPrivateKey: z.string().min(1, 'Google private key is required'),
+  serviceAccountEmail: z.string().email('Invalid Google service account email'),
+  sheetId: z.string().min(1, 'Google Sheet ID is required'),
+  worksheetName: z.string().min(1, 'Worksheet name is required'),
 });
 
-type Config = z.infer<typeof configSchema>;
+const YnabSchema = z.object({
+  token: z.string().min(1, 'YNAB token is required'),
+  budgetId: z.string().min(1, 'YNAB budget ID is required'),
+  accounts: z.record(z.string(), z.string()),
+});
+
+const AzureSchema = z.object({
+  appId: z.string().min(1, 'Azure app ID is required'),
+  appKey: z.string().min(1, 'Azure app key is required'),
+  tenantId: z.string().min(1, 'Azure tenant ID is required'),
+  databaseName: z.string().min(1, 'Database name is required'),
+  tableName: z.string().min(1, 'Table name is required'),
+  ingestionMapping: z.string().min(1, 'Ingestion mapping is required'),
+  ingestUri: z.string().url('Invalid ingest URI'),
+});
+
+const BuxferSchema = z.object({
+  userName: z.string().min(1, 'Buxfer username is required'),
+  password: z.string().min(1, 'Buxfer password is required'),
+  accounts: z.record(z.string(), z.string()),
+});
+
+const ActualSchema = z.object({
+  serverUrl: z.string().url('Invalid Actual Budget server URL'),
+  password: z.string().min(1, 'Actual Budget password is required'),
+  budgetId: z.string().min(1, 'Actual Budget ID is required'),
+  accounts: z.record(z.string(), z.string()),
+});
+
+const WebPostSchema = z.object({
+  url: z.string().url('Invalid web post URL'),
+  authorizationToken: z.string().min(1, 'Authorization token is required'),
+});
+
+// Storage configuration schema
+const StorageSchema = z.object({
+  googleSheets: GoogleSheetsSchema.optional(),
+  ynab: YnabSchema.optional(),
+  azure: AzureSchema.optional(),
+  buxfer: BuxferSchema.optional(),
+  actual: ActualSchema.optional(),
+  localJson: z.object({ enabled: z.boolean() }).optional(),
+  webPost: WebPostSchema.optional(),
+}).refine(
+  (data) => Object.values(data).some(Boolean),
+  { message: 'At least one storage provider must be configured' }
+);
+
+// Options schemas
+const ScrapingOptionsSchema = z.object({
+  accountsToScrape: z.array(z.string()).optional(),
+  daysBack: z.number().min(1).max(365).default(10),
+  futureMonths: z.number().min(0).max(12).default(1),
+  timezone: z.string().default('Asia/Jerusalem'),
+  transactionHashType: z.enum(['', 'moneyman']).default(''),
+  additionalTransactionInfo: z.boolean().default(false),
+  hiddenDeprecations: z.array(z.string()).default([]),
+  puppeteerExecutablePath: z.string().optional(),
+  maxParallelScrapers: z.number().min(1).max(10).default(1),
+  domainTracking: z.boolean().default(false),
+});
+
+const SecurityOptionsSchema = z.object({
+  firewallSettings: z.string().optional(),
+  blockByDefault: z.boolean().default(false),
+});
+
+const NotificationOptionsSchema = z.object({
+  telegram: z.object({
+    apiKey: z.string().min(1, 'Telegram API key is required'),
+    chatId: z.string().min(1, 'Telegram chat ID is required'),
+  }).optional(),
+});
+
+const LoggingOptionsSchema = z.object({
+  debug: z.string().default(''),
+  separatedMode: z.boolean().default(true),
+  timezone: z.string().default('Asia/Jerusalem'),
+});
+
+// Complete configuration schema
+export const MoneymanConfigSchema = z.object({
+  accounts: z.array(AccountSchema).min(1, 'At least one account is required'),
+  storage: StorageSchema,
+  options: z.object({
+    scraping: ScrapingOptionsSchema,
+    security: SecurityOptionsSchema,
+    notifications: NotificationOptionsSchema,
+    logging: LoggingOptionsSchema,
+  }),
+});
+
+export type MoneymanConfig = z.infer<typeof MoneymanConfigSchema>;
+
+// Environment variable conversion function for backward compatibility
+function convertEnvVarsToConfig(): MoneymanConfig {
+  const config: MoneymanConfig = {
+    accounts: [],
+    storage: {},
+    options: {
+      scraping: {},
+      security: {},
+      notifications: {},
+      logging: {},
+    },
+  };
+
+  // Convert account configuration
+  if (process.env.ACCOUNTS_JSON) {
+    try {
+      config.accounts = JSON.parse(process.env.ACCOUNTS_JSON);
+    } catch (error) {
+      throw new Error('Invalid ACCOUNTS_JSON format');
+    }
+  }
+
+  // Convert scraping options
+  if (process.env.ACCOUNTS_TO_SCRAPE) config.options.scraping.accountsToScrape = process.env.ACCOUNTS_TO_SCRAPE.split(',');
+  if (process.env.DAYS_BACK) config.options.scraping.daysBack = parseInt(process.env.DAYS_BACK, 10);
+  if (process.env.TZ) config.options.scraping.timezone = process.env.TZ;
+  if (process.env.FUTURE_MONTHS) config.options.scraping.futureMonths = parseInt(process.env.FUTURE_MONTHS, 10);
+  if (process.env.TRANSACTION_HASH_TYPE) config.options.scraping.transactionHashType = process.env.TRANSACTION_HASH_TYPE as '' | 'moneyman';
+  if (process.env.ADDITIONAL_TRANSACTION_INFO_ENABLED) config.options.scraping.additionalTransactionInfo = process.env.ADDITIONAL_TRANSACTION_INFO_ENABLED === 'true';
+  if (process.env.HIDDEN_DEPRECATIONS) config.options.scraping.hiddenDeprecations = process.env.HIDDEN_DEPRECATIONS.split(',').filter(Boolean);
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) config.options.scraping.puppeteerExecutablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+  if (process.env.MAX_PARALLEL_SCRAPERS) config.options.scraping.maxParallelScrapers = parseInt(process.env.MAX_PARALLEL_SCRAPERS, 10);
+  if (process.env.DOMAIN_TRACKING_ENABLED) config.options.scraping.domainTracking = process.env.DOMAIN_TRACKING_ENABLED === 'true';
+
+  // Convert security options
+  if (process.env.FIREWALL_SETTINGS) config.options.security.firewallSettings = process.env.FIREWALL_SETTINGS;
+  if (process.env.BLOCK_BY_DEFAULT) config.options.security.blockByDefault = process.env.BLOCK_BY_DEFAULT === 'true';
+
+  // Convert Google Sheets storage
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
+    config.storage.googleSheets = {
+      serviceAccountPrivateKey: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+      serviceAccountEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '',
+      sheetId: process.env.GOOGLE_SHEET_ID || '',
+      worksheetName: process.env.WORKSHEET_NAME || '_moneyman'
+    };
+  }
+
+  // Convert YNAB storage
+  if (process.env.YNAB_TOKEN) {
+    config.storage.ynab = {
+      token: process.env.YNAB_TOKEN,
+      budgetId: process.env.YNAB_BUDGET_ID || '',
+      accounts: process.env.YNAB_ACCOUNTS ? JSON.parse(process.env.YNAB_ACCOUNTS) : {}
+    };
+  }
+
+  // Convert Azure storage
+  if (process.env.AZURE_APP_ID) {
+    config.storage.azure = {
+      appId: process.env.AZURE_APP_ID,
+      appKey: process.env.AZURE_APP_KEY || '',
+      tenantId: process.env.AZURE_TENANT_ID || '',
+      databaseName: process.env.ADE_DATABASE_NAME || '',
+      tableName: process.env.ADE_TABLE_NAME || '',
+      ingestionMapping: process.env.ADE_INGESTION_MAPPING || '',
+      ingestUri: process.env.ADE_INGEST_URI || ''
+    };
+  }
+
+  // Convert Buxfer storage
+  if (process.env.BUXFER_USER_NAME) {
+    config.storage.buxfer = {
+      userName: process.env.BUXFER_USER_NAME,
+      password: process.env.BUXFER_PASSWORD || '',
+      accounts: process.env.BUXFER_ACCOUNTS ? JSON.parse(process.env.BUXFER_ACCOUNTS) : {}
+    };
+  }
+
+  // Convert Actual Budget storage
+  if (process.env.ACTUAL_SERVER_URL) {
+    config.storage.actual = {
+      serverUrl: process.env.ACTUAL_SERVER_URL,
+      password: process.env.ACTUAL_PASSWORD || '',
+      budgetId: process.env.ACTUAL_BUDGET_ID || '',
+      accounts: process.env.ACTUAL_ACCOUNTS ? JSON.parse(process.env.ACTUAL_ACCOUNTS) : {}
+    };
+  }
+
+  // Convert other storage options
+  if (process.env.LOCAL_JSON_STORAGE) config.storage.localJson = { enabled: process.env.LOCAL_JSON_STORAGE === 'true' };
+  if (process.env.WEB_POST_URL) {
+    config.storage.webPost = {
+      url: process.env.WEB_POST_URL,
+      authorizationToken: process.env.WEB_POST_AUTHORIZATION_TOKEN || ''
+    };
+  }
+
+  // Convert notification options
+  if (process.env.TELEGRAM_API_KEY) {
+    config.options.notifications.telegram = {
+      apiKey: process.env.TELEGRAM_API_KEY,
+      chatId: process.env.TELEGRAM_CHAT_ID || ''
+    };
+  }
+
+  // Convert logging options
+  if (process.env.DEBUG) config.options.logging.debug = process.env.DEBUG;
+
+  return config;
+}
 
 // Parse configuration
-let config: Config;
+let config: MoneymanConfig;
 const { MONEYMAN_CONFIG } = process.env;
 
 if (MONEYMAN_CONFIG) {
   logger("Using MONEYMAN_CONFIG");
   try {
     const parsedConfig = JSON.parse(MONEYMAN_CONFIG);
-    config = configSchema.parse(parsedConfig);
+    config = MoneymanConfigSchema.parse(parsedConfig);
   } catch (error) {
     logger("Failed to parse MONEYMAN_CONFIG, falling back to env vars", error);
-    config = configSchema.parse(process.env);
+    config = MoneymanConfigSchema.parse(convertEnvVarsToConfig());
   }
 } else {
-  logger("Using environment variables");
-  config = configSchema.parse(process.env);
+  logger("Converting individual environment variables to MONEYMAN_CONFIG format...");
+  config = MoneymanConfigSchema.parse(convertEnvVarsToConfig());
 }
 
 // Export the config for use in other modules
@@ -117,36 +274,18 @@ logger("Env", {
 });
 
 logger("config loaded", {
-  DAYS_BACK: config.DAYS_BACK,
-  ACCOUNTS_TO_SCRAPE: config.ACCOUNTS_TO_SCRAPE,
-  FUTURE_MONTHS: config.FUTURE_MONTHS,
-  MAX_PARALLEL_SCRAPERS: config.MAX_PARALLEL_SCRAPERS,
-  ADDITIONAL_TRANSACTION_INFO_ENABLED:
-    config.ADDITIONAL_TRANSACTION_INFO_ENABLED,
+  DAYS_BACK: config.options.scraping.daysBack,
+  ACCOUNTS_TO_SCRAPE: config.options.scraping.accountsToScrape,
+  FUTURE_MONTHS: config.options.scraping.futureMonths,
+  MAX_PARALLEL_SCRAPERS: config.options.scraping.maxParallelScrapers,
+  ADDITIONAL_TRANSACTION_INFO_ENABLED: config.options.scraping.additionalTransactionInfo,
 });
 
 function getAccounts(): Array<AccountConfig> {
-  function parseAccounts(accountsJson?: string): Array<AccountConfig> {
-    if (!accountsJson) {
-      return [];
-    }
-    try {
-      const parsed = JSON.parse(accountsJson);
-      if (Array.isArray(parsed)) {
-        // TODO: Add schema validations?
-        return parsed as Array<AccountConfig>;
-      }
-    } catch {}
+  const allAccounts = config.accounts as Array<AccountConfig>;
+  const accountsToScrape = config.options.scraping.accountsToScrape;
 
-    throw new TypeError("ACCOUNTS_JSON must be a valid array");
-  }
-
-  const allAccounts = parseAccounts(config.ACCOUNTS_JSON);
-  const accountsToScrape = config.ACCOUNTS_TO_SCRAPE.split(",")
-    .filter(Boolean)
-    .map((a) => a.trim());
-
-  return accountsToScrape.length == 0
+  return !accountsToScrape || accountsToScrape.length === 0
     ? allAccounts
     : allAccounts.filter((account) =>
         accountsToScrape.includes(account.companyId),
@@ -155,9 +294,8 @@ function getAccounts(): Array<AccountConfig> {
 
 export const scraperConfig: ScraperConfig = {
   accounts: getAccounts(),
-  startDate: subDays(Date.now(), Number(config.DAYS_BACK || 10)),
-  parallelScrapers: Number(config.MAX_PARALLEL_SCRAPERS) || 1,
-  futureMonthsToScrape: parseInt(config.FUTURE_MONTHS, 10),
-  additionalTransactionInformation:
-    config.ADDITIONAL_TRANSACTION_INFO_ENABLED.toLowerCase() === "true",
+  startDate: subDays(Date.now(), config.options.scraping.daysBack),
+  parallelScrapers: config.options.scraping.maxParallelScrapers,
+  futureMonthsToScrape: config.options.scraping.futureMonths,
+  additionalTransactionInformation: config.options.scraping.additionalTransactionInfo,
 };

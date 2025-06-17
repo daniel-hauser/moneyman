@@ -15,21 +15,22 @@ export class BuxferStorage implements TransactionStorage {
 
   async init() {
     logger("init");
+    const buxferConfig = config.storage.buxfer;
+    if (!buxferConfig) {
+      throw new Error("Buxfer configuration not found");
+    }
+    
     this.buxferClient = new BuxferApiClient(
-      config.BUXFER_USER_NAME,
-      config.BUXFER_PASSWORD,
+      buxferConfig.userName,
+      buxferConfig.password,
     );
     this.accountToBuxferAccount = this.parseBuxferAccounts(
-      config.BUXFER_ACCOUNTS,
+      buxferConfig.accounts,
     );
   }
 
   canSave() {
-    return Boolean(
-      config.BUXFER_USER_NAME &&
-        config.BUXFER_PASSWORD &&
-        config.BUXFER_ACCOUNTS,
-    );
+    return Boolean(config.storage.buxfer);
   }
 
   async saveTransactions(
@@ -101,15 +102,8 @@ export class BuxferStorage implements TransactionStorage {
     });
   }
 
-  private parseBuxferAccounts(accountsJSON: string): Map<string, string> {
-    try {
-      const accounts = JSON.parse(accountsJSON);
-      return new Map(Object.entries(accounts));
-    } catch (parseError) {
-      throw new Error(
-        `Error parsing JSON in BUXFER_ACCOUNTS: ${parseError.message}`,
-      );
-    }
+  private parseBuxferAccounts(accounts: Record<string, string>): Map<string, string> {
+    return new Map(Object.entries(accounts));
   }
 
   private convertTransactionToBuxferFormat(

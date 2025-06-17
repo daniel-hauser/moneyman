@@ -18,13 +18,18 @@ export class YNABStorage implements TransactionStorage {
 
   async init() {
     logger("init");
-    this.ynabAPI = new ynab.API(config.YNAB_TOKEN);
-    this.budgetName = await this.getBudgetName(config.YNAB_BUDGET_ID);
-    this.accountToYnabAccount = this.parseYnabAccounts(config.YNAB_ACCOUNTS);
+    const ynabConfig = config.storage.ynab;
+    if (!ynabConfig) {
+      throw new Error("YNAB configuration not found");
+    }
+    
+    this.ynabAPI = new ynab.API(ynabConfig.token);
+    this.budgetName = await this.getBudgetName(ynabConfig.budgetId);
+    this.accountToYnabAccount = this.parseYnabAccounts(ynabConfig.accounts);
   }
 
   canSave() {
-    return Boolean(config.YNAB_TOKEN && config.YNAB_BUDGET_ID);
+    return Boolean(config.storage.ynab);
   }
 
   isDateInFuture(date: string) {
@@ -76,7 +81,7 @@ export class YNABStorage implements TransactionStorage {
       // Send transactions to YNAB
       logger(`sending to YNAB budget: "${this.budgetName}"`);
       const [resp] = await Promise.all([
-        this.ynabAPI.transactions.createTransactions(config.YNAB_BUDGET_ID, {
+        this.ynabAPI.transactions.createTransactions(config.storage.ynab!.budgetId, {
           transactions: txToSend,
         }),
         onProgress("Sending"),
@@ -85,7 +90,7 @@ export class YNABStorage implements TransactionStorage {
       stats.added = resp.data.transactions?.length ?? 0;
       stats.existing = resp.data.duplicate_import_ids?.length ?? 0;
 
-      if (config.TRANSACTION_HASH_TYPE !== "moneyman") {
+      if (config.options.scraping.transactionHashType !== "moneyman") {
         sendDeprecationMessage("hashFiledChange");
       }
     }
@@ -106,15 +111,8 @@ export class YNABStorage implements TransactionStorage {
     }
   }
 
-  private parseYnabAccounts(accountsJSON: string): Map<string, string> {
-    try {
-      const accounts = JSON.parse(accountsJSON);
-      return new Map(Object.entries(accounts));
-    } catch (parseError) {
-      throw new Error(
-        `Error parsing JSON in YNAB_ACCOUNTS: ${parseError.message}`,
-      );
-    }
+  private parseYnabAccounts(accounts: Record<string, string>): Map<string, string> {
+    return new Map(Object.entries(accounts));
   }
 
   private convertTransactionToYnabFormat(
@@ -135,7 +133,7 @@ export class YNABStorage implements TransactionStorage {
           : undefined,
       approved: false,
       import_id: hash(
-        config.TRANSACTION_HASH_TYPE === "moneyman" ? tx.uniqueId : tx.hash,
+        config.options.scraping.transactionHashType === "moneyman" ? tx.uniqueId : tx.hash,
       ).toString(),
       memo: tx.memo,
     };

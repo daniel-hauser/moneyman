@@ -22,19 +22,24 @@ export class AzureDataExplorerStorage implements TransactionStorage {
     logger("init");
 
     try {
+      const azureConfig = config.storage.azure;
+      if (!azureConfig) {
+        throw new Error("Azure configuration not found");
+      }
+
       const connection =
         KustoConnectionStringBuilder.withAadApplicationKeyAuthentication(
-          config.ADE_INGEST_URI!,
-          config.AZURE_APP_ID!,
-          config.AZURE_APP_KEY!,
-          config.AZURE_TENANT_ID,
+          azureConfig.ingestUri,
+          azureConfig.appId,
+          azureConfig.appKey,
+          azureConfig.tenantId,
         );
 
       const ingestionProps = new IngestionProperties({
-        database: config.ADE_DATABASE_NAME,
-        table: config.ADE_TABLE_NAME,
+        database: azureConfig.databaseName,
+        table: azureConfig.tableName,
         format: DataFormat.MULTIJSON,
-        ingestionMappingReference: config.ADE_INGESTION_MAPPING,
+        ingestionMappingReference: azureConfig.ingestionMapping,
       });
 
       logger("Creating ingestClient");
@@ -45,15 +50,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
   }
 
   canSave() {
-    return Boolean(
-      config.AZURE_APP_ID &&
-        config.AZURE_APP_KEY &&
-        config.AZURE_TENANT_ID &&
-        config.ADE_DATABASE_NAME &&
-        config.ADE_TABLE_NAME &&
-        config.ADE_INGESTION_MAPPING &&
-        config.ADE_INGEST_URI,
-    );
+    return Boolean(config.storage.azure);
   }
 
   async saveTransactions(
@@ -65,7 +62,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
 
     const stats = createSaveStats(
       "AzureDataExplorer",
-      config.ADE_TABLE_NAME,
+      config.storage.azure?.tableName || "transactions",
       txns,
     );
 

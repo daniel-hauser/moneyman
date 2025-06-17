@@ -17,7 +17,7 @@ const allowedByCompany: CompanyToSet = new Map();
 const resourceTypesByCompany: Map<string, CompanyToSet> = new Map();
 
 export function monitorNodeConnections() {
-  if (process.env.DOMAIN_TRACKING_ENABLED) {
+  if (config.options.scraping.domainTracking) {
     const interceptor = new ClientRequestInterceptor();
     interceptor.apply();
     interceptor.on("request", ({ request }) => {
@@ -32,7 +32,7 @@ export async function initDomainTracking(
   browserContext: BrowserContext,
   companyId: CompanyTypes,
 ): Promise<void> {
-  if (process.env.DOMAIN_TRACKING_ENABLED) {
+  if (config.options.scraping.domainTracking) {
     const rules = new DomainRuleManager();
     browserContext.on("targetcreated", async (target) => {
       switch (target.type()) {

@@ -12,7 +12,7 @@ import { config } from "../config.js";
 
 export const browserArgs = ["--disable-dev-shm-usage", "--no-sandbox"];
 export const browserExecutablePath =
-  config.PUPPETEER_EXECUTABLE_PATH || undefined;
+  config.options.scraping.puppeteerExecutablePath || undefined;
 
 const logger = createLogger("browser");
 

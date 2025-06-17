@@ -10,7 +10,7 @@ const logger = createLogger("TelegramStorage");
 export class TelegramStorage implements TransactionStorage {
   canSave() {
     // Enable if we have a chat ID, the API key will be checked in notifier
-    return Boolean(config.TELEGRAM_CHAT_ID);
+    return Boolean(config.options.notifications.telegram?.chatId);
   }
 
   async saveTransactions(

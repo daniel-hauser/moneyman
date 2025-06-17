@@ -19,7 +19,7 @@ export class DomainRuleManager {
    * @param rulesString Domain rules string. Format: [company] [ALLOW/BLOCK] [domain]
    */
   public constructor(
-    rulesString: string = process.env.FIREWALL_SETTINGS || "",
+    rulesString: string = config.options.security.firewallSettings || "",
   ) {
     const rules = this.parseDomainRules(rulesString);
     for (const [companyId, action, domain] of rules) {
