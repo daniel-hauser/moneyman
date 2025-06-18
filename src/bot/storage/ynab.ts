@@ -21,7 +21,7 @@ export class YNABStorage implements TransactionStorage {
     logger("init");
     const ynabConfig = config.storage.ynab;
     assert(ynabConfig, "YNAB configuration not found");
-    
+
     this.ynabAPI = new ynab.API(ynabConfig.token);
     this.budgetName = await this.getBudgetName(ynabConfig.budgetId);
     this.accountToYnabAccount = this.parseYnabAccounts(ynabConfig.accounts);
@@ -80,9 +80,12 @@ export class YNABStorage implements TransactionStorage {
       // Send transactions to YNAB
       logger(`sending to YNAB budget: "${this.budgetName}"`);
       const [resp] = await Promise.all([
-        this.ynabAPI.transactions.createTransactions(config.storage.ynab!.budgetId, {
-          transactions: txToSend,
-        }),
+        this.ynabAPI.transactions.createTransactions(
+          config.storage.ynab!.budgetId,
+          {
+            transactions: txToSend,
+          },
+        ),
         onProgress("Sending"),
       ]);
       logger("transactions sent to YNAB successfully!");
@@ -110,7 +113,9 @@ export class YNABStorage implements TransactionStorage {
     }
   }
 
-  private parseYnabAccounts(accounts: Record<string, string>): Map<string, string> {
+  private parseYnabAccounts(
+    accounts: Record<string, string>,
+  ): Map<string, string> {
     return new Map(Object.entries(accounts));
   }
 
@@ -132,7 +137,9 @@ export class YNABStorage implements TransactionStorage {
           : undefined,
       approved: false,
       import_id: hash(
-        config.options.scraping.transactionHashType === "moneyman" ? tx.uniqueId : tx.hash,
+        config.options.scraping.transactionHashType === "moneyman"
+          ? tx.uniqueId
+          : tx.hash,
       ).toString(),
       memo: tx.memo,
     };

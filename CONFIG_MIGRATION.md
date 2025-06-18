@@ -71,12 +71,14 @@ The new system uses Zod for runtime validation of the configuration, ensuring:
 The new JSON configuration uses a nested structure organized into logical sections:
 
 ### `accounts` (Required)
+
 Array of bank account configurations:
+
 ```json
 "accounts": [
   {
     "companyId": "hapoalim",
-    "userCode": "AB1234", 
+    "userCode": "AB1234",
     "password": "p@ssword"
   },
   {
@@ -88,26 +90,29 @@ Array of bank account configurations:
 ```
 
 ### `storage` (Required - at least one)
+
 Configuration for various storage providers:
 
 #### Google Sheets
+
 ```json
 "storage": {
   "googleSheets": {
     "serviceAccountEmail": "service@account.com",
     "serviceAccountPrivateKey": "-----BEGIN PRIVATE KEY-----...",
-    "sheetId": "your-sheet-id", 
+    "sheetId": "your-sheet-id",
     "worksheetName": "_moneyman"
   }
 }
 ```
 
 #### YNAB (You Need A Budget)
+
 ```json
 "storage": {
   "ynab": {
     "token": "your-ynab-token",
-    "budgetId": "your-budget-id", 
+    "budgetId": "your-budget-id",
     "accounts": {
       "bankAccountId": "ynab-account-id"
     }
@@ -116,6 +121,7 @@ Configuration for various storage providers:
 ```
 
 #### Azure Data Explorer
+
 ```json
 "storage": {
   "azure": {
@@ -131,6 +137,7 @@ Configuration for various storage providers:
 ```
 
 #### Buxfer
+
 ```json
 "storage": {
   "buxfer": {
@@ -144,6 +151,7 @@ Configuration for various storage providers:
 ```
 
 #### Actual Budget
+
 ```json
 "storage": {
   "actual": {
@@ -158,6 +166,7 @@ Configuration for various storage providers:
 ```
 
 #### Web Post
+
 ```json
 "storage": {
   "webPost": {
@@ -168,6 +177,7 @@ Configuration for various storage providers:
 ```
 
 #### Local JSON
+
 ```json
 "storage": {
   "localJson": {
@@ -177,9 +187,11 @@ Configuration for various storage providers:
 ```
 
 ### `options` (Optional)
+
 Additional configuration options organized by category:
 
 #### Scraping Options
+
 ```json
 "options": {
   "scraping": {
@@ -198,6 +210,7 @@ Additional configuration options organized by category:
 ```
 
 #### Security Options
+
 ```json
 "options": {
   "security": {
@@ -207,7 +220,8 @@ Additional configuration options organized by category:
 }
 ```
 
-#### Notification Options  
+#### Notification Options
+
 ```json
 "options": {
   "notifications": {
@@ -220,6 +234,7 @@ Additional configuration options organized by category:
 ```
 
 #### Logging Options
+
 ```json
 "options": {
   "logging": {
@@ -249,7 +264,7 @@ export MONEYMAN_CONFIG='{
   "storage": {
     "googleSheets": {
       "serviceAccountPrivateKey": "...",
-      "serviceAccountEmail": "service@account.com", 
+      "serviceAccountEmail": "service@account.com",
       "sheetId": "1A2B3C...",
       "worksheetName": "_moneyman"
     }

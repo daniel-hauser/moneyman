@@ -26,7 +26,9 @@ export class WebPostStorage implements TransactionStorage {
       (txn) => txn.status !== TransactionStatuses.Pending,
     );
 
-    logger(`Posting ${nonPendingTxns.length} transactions to ${webPostConfig.url}`);
+    logger(
+      `Posting ${nonPendingTxns.length} transactions to ${webPostConfig.url}`,
+    );
 
     const [response] = await Promise.all([
       fetch(webPostConfig.url, {

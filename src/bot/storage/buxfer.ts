@@ -18,7 +18,7 @@ export class BuxferStorage implements TransactionStorage {
     logger("init");
     const buxferConfig = config.storage.buxfer;
     assert(buxferConfig, "Buxfer configuration not found");
-    
+
     this.buxferClient = new BuxferApiClient(
       buxferConfig.userName,
       buxferConfig.password,
@@ -101,7 +101,9 @@ export class BuxferStorage implements TransactionStorage {
     });
   }
 
-  private parseBuxferAccounts(accounts: Record<string, string>): Map<string, string> {
+  private parseBuxferAccounts(
+    accounts: Record<string, string>,
+  ): Map<string, string> {
     return new Map(Object.entries(accounts));
   }
 

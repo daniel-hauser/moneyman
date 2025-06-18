@@ -48,7 +48,7 @@ export class ActualBudgetStorage implements TransactionStorage {
 
     const stats = createSaveStats(
       "ActualBudgetStorage",
-      `budget: "${config.storage.actual?.budgetId || 'unknown'}"`,
+      `budget: "${config.storage.actual?.budgetId || "unknown"}"`,
       txns,
     );
 
@@ -207,7 +207,9 @@ export class ActualBudgetStorage implements TransactionStorage {
     }
   }
 
-  private parseActualAccounts(accounts: Record<string, string>): Map<string, string> {
+  private parseActualAccounts(
+    accounts: Record<string, string>,
+  ): Map<string, string> {
     return new Map(Object.entries(accounts));
   }
 
@@ -224,7 +226,9 @@ export class ActualBudgetStorage implements TransactionStorage {
       payee_name: tx.description,
       cleared: tx.status === TransactionStatuses.Completed,
       imported_id: hash(
-        config.options.scraping.transactionHashType === "moneyman" ? tx.uniqueId : tx.hash,
+        config.options.scraping.transactionHashType === "moneyman"
+          ? tx.uniqueId
+          : tx.hash,
       ).toString(),
       notes: tx.memo,
     };

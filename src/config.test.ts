@@ -19,14 +19,19 @@ describe("config", () => {
       ACCOUNTS_TO_SCRAPE: "test1,test2",
       TELEGRAM_API_KEY: "test-key",
       TELEGRAM_CHAT_ID: "test-chat-id",
-      ACCOUNTS_JSON: JSON.stringify([{ companyId: "test", password: "pass", userCode: "12345" }]),
-      LOCAL_JSON_STORAGE: "true"
+      ACCOUNTS_JSON: JSON.stringify([
+        { companyId: "test", password: "pass", userCode: "12345" },
+      ]),
+      LOCAL_JSON_STORAGE: "true",
     };
 
     const { config } = await import("./config.js");
 
     expect(config.options.scraping.daysBack).toBe(15);
-    expect(config.options.scraping.accountsToScrape).toEqual(["test1", "test2"]);
+    expect(config.options.scraping.accountsToScrape).toEqual([
+      "test1",
+      "test2",
+    ]);
     expect(config.options.notifications.telegram?.apiKey).toBe("test-key");
     expect(config.options.notifications.telegram?.chatId).toBe("test-chat-id");
   });
@@ -45,24 +50,24 @@ describe("config", () => {
           hiddenDeprecations: [],
           maxParallelScrapers: 1,
           domainTracking: false,
-          accountsToScrape: ["config1", "config2"]
+          accountsToScrape: ["config1", "config2"],
         },
         security: {
-          blockByDefault: false
+          blockByDefault: false,
         },
         notifications: {
           telegram: {
             apiKey: "config-key",
-            chatId: "config-chat-id"
-          }
+            chatId: "config-chat-id",
+          },
         },
         logging: {
           debug: "",
           separatedMode: true,
           timezone: "Asia/Jerusalem",
-          getIpInfoUrl: "https://ipinfo.io/json"
-        }
-      }
+          getIpInfoUrl: "https://ipinfo.io/json",
+        },
+      },
     };
 
     process.env = {
@@ -76,9 +81,14 @@ describe("config", () => {
     const { config } = await import("./config.js");
 
     expect(config.options.scraping.daysBack).toBe(20);
-    expect(config.options.scraping.accountsToScrape).toEqual(["config1", "config2"]);
+    expect(config.options.scraping.accountsToScrape).toEqual([
+      "config1",
+      "config2",
+    ]);
     expect(config.options.notifications.telegram?.apiKey).toBe("config-key");
-    expect(config.options.notifications.telegram?.chatId).toBe("config-chat-id");
+    expect(config.options.notifications.telegram?.chatId).toBe(
+      "config-chat-id",
+    );
   });
 
   it("should fall back to env vars when MONEYMAN_CONFIG is invalid JSON", async () => {
@@ -87,21 +97,28 @@ describe("config", () => {
       MONEYMAN_CONFIG: "invalid json {",
       DAYS_BACK: "25",
       ACCOUNTS_TO_SCRAPE: "fallback1,fallback2",
-      ACCOUNTS_JSON: JSON.stringify([{ companyId: "test", password: "pass", userCode: "12345" }]),
-      LOCAL_JSON_STORAGE: "true"
+      ACCOUNTS_JSON: JSON.stringify([
+        { companyId: "test", password: "pass", userCode: "12345" },
+      ]),
+      LOCAL_JSON_STORAGE: "true",
     };
 
     const { config } = await import("./config.js");
 
     expect(config.options.scraping.daysBack).toBe(25);
-    expect(config.options.scraping.accountsToScrape).toEqual(["fallback1", "fallback2"]);
+    expect(config.options.scraping.accountsToScrape).toEqual([
+      "fallback1",
+      "fallback2",
+    ]);
   });
 
   it("should use default values when neither config nor env vars are provided", async () => {
-    process.env = { 
+    process.env = {
       ...originalEnv,
-      ACCOUNTS_JSON: JSON.stringify([{ companyId: "test", password: "pass", userCode: "12345" }]),
-      LOCAL_JSON_STORAGE: "true"
+      ACCOUNTS_JSON: JSON.stringify([
+        { companyId: "test", password: "pass", userCode: "12345" },
+      ]),
+      LOCAL_JSON_STORAGE: "true",
     };
     delete process.env.DAYS_BACK;
     delete process.env.ACCOUNTS_TO_SCRAPE;
@@ -127,24 +144,24 @@ describe("config", () => {
           hiddenDeprecations: [],
           maxParallelScrapers: 1,
           domainTracking: false,
-          accountsToScrape: ["test"]
+          accountsToScrape: ["test"],
         },
         security: {
-          blockByDefault: false
+          blockByDefault: false,
         },
         notifications: {
           telegram: {
             apiKey: "key",
-            chatId: "123"
-          }
+            chatId: "123",
+          },
         },
         logging: {
           debug: "",
           separatedMode: true,
           timezone: "Asia/Jerusalem",
-          getIpInfoUrl: "https://ipinfo.io/json"
-        }
-      }
+          getIpInfoUrl: "https://ipinfo.io/json",
+        },
+      },
     };
 
     process.env = {

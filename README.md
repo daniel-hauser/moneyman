@@ -82,7 +82,7 @@ export MONEYMAN_CONFIG='{
   "accounts": [
     {
       "companyId": "hapoalim",
-      "userCode": "AB1234", 
+      "userCode": "AB1234",
       "password": "p@ssword"
     },
     {
@@ -143,8 +143,8 @@ export MONEYMAN_CONFIG='{
 <details>
 <summary>Deprecated Environment Variable Settings - Google Sheets</summary>
 
-| env variable name                    | description                                               |
-| ------------------------------------ | --------------------------------------------------------- |
+| env variable name                    | description                                                   |
+| ------------------------------------ | ------------------------------------------------------------- |
 | `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | The super secret api key of your service account              |
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL`       | The service account's email address                           |
 | `GOOGLE_SHEET_ID`                    | The id of the spreadsheet you shared with the service account |
@@ -177,14 +177,15 @@ The `accounts` object maps your bank account IDs to YNAB account IDs.
 <details>
 <summary>Deprecated Environment Variable Settings - YNAB</summary>
 
-| env variable name | description |
-| ------------------------------------ | ------------------------------------------------------------- |
-| `YNAB_TOKEN` | The `YNAB` access token. Check [YNAB documentation](https://api.ynab.com/#authentication) about how to obtain it |
-| `YNAB_BUDGET_ID` | The budget id from `YNAB` (can be found in the url when you browse your budget) |
+| env variable name | description                                                                                                      |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `YNAB_TOKEN`      | The `YNAB` access token. Check [YNAB documentation](https://api.ynab.com/#authentication) about how to obtain it |
+| `YNAB_BUDGET_ID`  | The budget id from `YNAB` (can be found in the url when you browse your budget)                                  |
 
 For the accounts mapping, you need to have your bank scraped account number (from your bank) linked to a YNAB account id.
 
 Example accounts mapping:
+
 ```json
 {
   "5897": "ba2dd3a9-b7d4-46d6-8413-8327203e2b82"
@@ -203,7 +204,7 @@ export MONEYMAN_CONFIG='{
   "storage": {
     "azure": {
       "appId": "your-app-id",
-      "appKey": "your-app-key", 
+      "appKey": "your-app-key",
       "tenantId": "your-tenant-id",
       "databaseName": "your-database",
       "tableName": "your-table",
@@ -254,15 +255,15 @@ export MONEYMAN_CONFIG='{
 <details>
 <summary>Deprecated Environment Variable Settings - Azure Data Explorer</summary>
 
-| env variable name           | description                                                    |
-| --------------------------- | -------------------------------------------------------------- |
-| `AZURE_APP_ID`              | the app id you created                                         |
-| `AZURE_APP_KEY`             | the app key you created                                        |
-| `AZURE_TENANT_ID`           | the tenant id of your app                                      |
-| `AZURE_DATABASE_NAME`       | the database name inside your cluster                          |
-| `AZURE_TABLE_NAME`          | the table name inside your database                            |
-| `AZURE_INGESTION_MAPPING`   | the ingestion mapping (created in step 4)                     |
-| `AZURE_INGEST_URI`          | the ingest endpoint of your cluster                            |
+| env variable name         | description                               |
+| ------------------------- | ----------------------------------------- |
+| `AZURE_APP_ID`            | the app id you created                    |
+| `AZURE_APP_KEY`           | the app key you created                   |
+| `AZURE_TENANT_ID`         | the tenant id of your app                 |
+| `AZURE_DATABASE_NAME`     | the database name inside your cluster     |
+| `AZURE_TABLE_NAME`        | the table name inside your database       |
+| `AZURE_INGESTION_MAPPING` | the ingestion mapping (created in step 4) |
+| `AZURE_INGEST_URI`        | the ingest endpoint of your cluster       |
 
 </details>
 
@@ -289,14 +290,15 @@ export MONEYMAN_CONFIG='{
 <details>
 <summary>Deprecated Environment Variable Settings - Buxfer</summary>
 
-| env variable name | description |
-| ------------------------------------ | ------------------------------------------------------------- |
+| env variable name  | description                                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------ |
 | `BUXFER_USER_NAME` | The `Buxfer` user name. Check [Buxfer settings](https://www.buxfer.com/settings?type=login) about how to obtain it |
-| `BUXFER_PASSWORD` | The `Buxfer` password |
+| `BUXFER_PASSWORD`  | The `Buxfer` password                                                                                              |
 
 For the accounts mapping, you need to have your bank scraped account number (from your bank) linked to a Buxfer account id.
 
 Example accounts mapping:
+
 ```json
 {
   "5897": "123456"
@@ -329,12 +331,12 @@ export MONEYMAN_CONFIG='{
 <details>
 <summary>Deprecated Environment Variable Settings - Actual Budget</summary>
 
-| env variable name | description |
-| ------------------------------------ | ------------------------------------------------------------- |
-| `ACTUAL_SERVER_URL` | The URL of your Actual Budget server |
-| `ACTUAL_PASSWORD` | The password for your Actual Budget server |
-| `ACTUAL_BUDGET_ID` | The budget ID in Actual Budget |
-| `ACTUAL_ACCOUNTS` | JSON mapping of bank account numbers to Actual Budget account IDs |
+| env variable name   | description                                                       |
+| ------------------- | ----------------------------------------------------------------- |
+| `ACTUAL_SERVER_URL` | The URL of your Actual Budget server                              |
+| `ACTUAL_PASSWORD`   | The password for your Actual Budget server                        |
+| `ACTUAL_BUDGET_ID`  | The budget ID in Actual Budget                                    |
+| `ACTUAL_ACCOUNTS`   | JSON mapping of bank account numbers to Actual Budget account IDs |
 
 </details>
 
@@ -385,9 +387,9 @@ The transactions will be sent as a JSON array in the body of the request.
 <details>
 <summary>Deprecated Environment Variable Settings - Web POST</summary>
 
-| env variable name              | description                                                   |
-| ------------------------------ | ------------------------------------------------------------- |
-| `WEB_POST_URL`                 | The url to post the transactions to                          |
+| env variable name              | description                                                                  |
+| ------------------------------ | ---------------------------------------------------------------------------- |
+| `WEB_POST_URL`                 | The url to post the transactions to                                          |
 | `WEB_POST_AUTHORIZATION_TOKEN` | The Authorization header value (i.e. `Bearer *****`, but can use any schema) |
 
 > [!IMPORTANT]
@@ -527,10 +529,10 @@ We use telegram to send you the update status.
 <details>
 <summary>Deprecated Environment Variable Settings - Notifications</summary>
 
-| env variable name    | description                                               |
-| -------------------- | --------------------------------------------------------- |
-| `TELEGRAM_API_KEY`   | The telegram bot token you got from @BotFather           |
-| `TELEGRAM_CHAT_ID`   | The chat id of the chat you want to send the messages to |
+| env variable name  | description                                              |
+| ------------------ | -------------------------------------------------------- |
+| `TELEGRAM_API_KEY` | The telegram bot token you got from @BotFather           |
+| `TELEGRAM_CHAT_ID` | The chat id of the chat you want to send the messages to |
 
 </details>
 
@@ -569,4 +571,3 @@ To migrate from environment variables to JSON config:
 ### Backward Compatibility
 
 If `MONEYMAN_CONFIG` is not set, moneyman will continue to use individual environment variables as before. No breaking changes to existing setups.
-
