@@ -8,6 +8,7 @@ import { CompanyTypes } from "israeli-bank-scrapers";
 import { mock, mockClear } from "jest-mock-extended";
 import { transaction } from "../../utils/tests.js";
 import type { TransactionRow } from "../../types.js";
+import type { MoneymanConfig } from "../../config.js";
 
 // Create mocks at top level
 const mockSheet = mock<GoogleSpreadsheetWorksheet>({
@@ -61,7 +62,41 @@ describe("GoogleSheetsStorage", () => {
   });
 
   beforeEach(() => {
-    storage = new GoogleSheetsStorage();
+    const mockConfig: MoneymanConfig = {
+      accounts: [],
+      storage: {
+        googleSheets: {
+          serviceAccountPrivateKey: "test-key",
+          serviceAccountEmail: "test@example.com",
+          sheetId: "test-sheet-id",
+          worksheetName: "_moneyman",
+        },
+      },
+      options: {
+        scraping: {
+          daysBack: 10,
+          futureMonths: 1,
+          timezone: "Asia/Jerusalem",
+          transactionHashType: "",
+          additionalTransactionInfo: false,
+          hiddenDeprecations: [],
+          maxParallelScrapers: 1,
+          domainTracking: false,
+        },
+        security: {
+          blockByDefault: false,
+        },
+        notifications: {},
+        logging: {
+          debug: "",
+          separatedMode: true,
+          timezone: "Asia/Jerusalem",
+          getIpInfoUrl: "https://ipinfo.io/json",
+        },
+      },
+    };
+    
+    storage = new GoogleSheetsStorage(mockConfig);
 
     // Setup default mock implementations
     mockSheet.getCellsInRange.mockResolvedValue([[]]);
@@ -160,13 +195,35 @@ describe("GoogleSheetsStorage", () => {
 
   describe("canSave", () => {
     it("should return false when GOOGLE_SHEET_ID is missing", () => {
-      const originalValue = process.env.GOOGLE_SHEET_ID;
-      delete process.env.GOOGLE_SHEET_ID;
+      const configWithoutGoogleSheets: MoneymanConfig = {
+        accounts: [],
+        storage: {},
+        options: {
+          scraping: {
+            daysBack: 10,
+            futureMonths: 1,
+            timezone: "Asia/Jerusalem",
+            transactionHashType: "",
+            additionalTransactionInfo: false,
+            hiddenDeprecations: [],
+            maxParallelScrapers: 1,
+            domainTracking: false,
+          },
+          security: {
+            blockByDefault: false,
+          },
+          notifications: {},
+          logging: {
+            debug: "",
+            separatedMode: true,
+            timezone: "Asia/Jerusalem",
+            getIpInfoUrl: "https://ipinfo.io/json",
+          },
+        },
+      };
 
-      const newStorage = new (require("./sheets.js").GoogleSheetsStorage)();
+      const newStorage = new GoogleSheetsStorage(configWithoutGoogleSheets);
       expect(newStorage.canSave()).toBe(false);
-
-      process.env.GOOGLE_SHEET_ID = originalValue;
     });
   });
 });

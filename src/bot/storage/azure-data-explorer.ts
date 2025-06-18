@@ -6,39 +6,40 @@ import {
   IngestionProperties,
 } from "azure-kusto-ingest";
 import { sendError } from "../notifier.js";
-import { systemName } from "../../config.js";
+import { systemName, type MoneymanConfig } from "../../config.js";
 import { createLogger } from "../../utils/logger.js";
 import type { KustoIngestClient } from "azure-kusto-ingest/types/src/ingestClient.js";
 import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { createSaveStats } from "../saveStats.js";
-import { config } from "../../config.js";
 import assert from "node:assert";
 
 const logger = createLogger("azure-data-explorer");
 
 export class AzureDataExplorerStorage implements TransactionStorage {
   ingestClient: KustoIngestClient;
+  
+  constructor(private config: MoneymanConfig) {}
 
   init() {
     logger("init");
 
     try {
-      const azureConfig = config.storage.azure;
-      assert(azureConfig, "Azure configuration not found");
+      const adxConfig = this.config.storage.azure;
+      assert(adxConfig, "Azure Data Explorer configuration not found");
 
       const connection =
         KustoConnectionStringBuilder.withAadApplicationKeyAuthentication(
-          azureConfig.ingestUri,
-          azureConfig.appId,
-          azureConfig.appKey,
-          azureConfig.tenantId,
+          adxConfig.ingestUri,
+          adxConfig.appId,
+          adxConfig.appKey,
+          adxConfig.tenantId,
         );
 
       const ingestionProps = new IngestionProperties({
-        database: azureConfig.databaseName,
-        table: azureConfig.tableName,
+        database: adxConfig.databaseName,
+        table: adxConfig.tableName,
         format: DataFormat.MULTIJSON,
-        ingestionMappingReference: azureConfig.ingestionMapping,
+        ingestionMappingReference: adxConfig.ingestionMapping,
       });
 
       logger("Creating ingestClient");
@@ -49,7 +50,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
   }
 
   canSave() {
-    return Boolean(config.storage.azure);
+    return Boolean(this.config.storage.azure);
   }
 
   async saveTransactions(
@@ -61,7 +62,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
 
     const stats = createSaveStats(
       "AzureDataExplorer",
-      config.storage.azure?.tableName || "transactions",
+      this.config.storage.azure?.tableName || "transactions",
       txns,
     );
 

@@ -6,7 +6,7 @@ import hash from "hash-it";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { sendDeprecationMessage } from "../notifier.js";
 import { createSaveStats } from "../saveStats.js";
-import { config } from "../../config.js";
+import type { MoneymanConfig } from "../../config.js";
 import assert from "node:assert";
 
 const YNAB_DATE_FORMAT = "yyyy-MM-dd";
@@ -17,9 +17,11 @@ export class YNABStorage implements TransactionStorage {
   private budgetName: string;
   private accountToYnabAccount: Map<string, string>;
 
+  constructor(private config: MoneymanConfig) {}
+
   async init() {
     logger("init");
-    const ynabConfig = config.storage.ynab;
+    const ynabConfig = this.config.storage.ynab;
     assert(ynabConfig, "YNAB configuration not found");
 
     this.ynabAPI = new ynab.API(ynabConfig.token);
@@ -28,7 +30,7 @@ export class YNABStorage implements TransactionStorage {
   }
 
   canSave() {
-    return Boolean(config.storage.ynab);
+    return Boolean(this.config.storage.ynab);
   }
 
   isDateInFuture(date: string) {
@@ -81,7 +83,7 @@ export class YNABStorage implements TransactionStorage {
       logger(`sending to YNAB budget: "${this.budgetName}"`);
       const [resp] = await Promise.all([
         this.ynabAPI.transactions.createTransactions(
-          config.storage.ynab!.budgetId,
+          this.config.storage.ynab!.budgetId,
           {
             transactions: txToSend,
           },
@@ -92,7 +94,7 @@ export class YNABStorage implements TransactionStorage {
       stats.added = resp.data.transactions?.length ?? 0;
       stats.existing = resp.data.duplicate_import_ids?.length ?? 0;
 
-      if (config.options.scraping.transactionHashType !== "moneyman") {
+      if (this.config.options.scraping.transactionHashType !== "moneyman") {
         sendDeprecationMessage("hashFiledChange");
       }
     }
@@ -137,7 +139,7 @@ export class YNABStorage implements TransactionStorage {
           : undefined,
       approved: false,
       import_id: hash(
-        config.options.scraping.transactionHashType === "moneyman"
+        this.config.options.scraping.transactionHashType === "moneyman"
           ? tx.uniqueId
           : tx.hash,
       ).toString(),

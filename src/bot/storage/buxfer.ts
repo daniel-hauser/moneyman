@@ -4,7 +4,7 @@ import { format, parseISO } from "date-fns";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { BuxferApiClient, BuxferTransaction } from "buxfer-ts-client";
 import { createSaveStats } from "../saveStats.js";
-import { config } from "../../config.js";
+import type { MoneymanConfig } from "../../config.js";
 import assert from "node:assert";
 
 const BUXFER_DATE_FORMAT = "yyyy-MM-dd";
@@ -14,9 +14,10 @@ export class BuxferStorage implements TransactionStorage {
   private buxferClient: BuxferApiClient;
   private accountToBuxferAccount: Map<string, string>;
 
+  constructor(private config: MoneymanConfig) {}
   async init() {
     logger("init");
-    const buxferConfig = config.storage.buxfer;
+    const buxferConfig = this.config.storage.buxfer;
     assert(buxferConfig, "Buxfer configuration not found");
 
     this.buxferClient = new BuxferApiClient(
@@ -29,7 +30,7 @@ export class BuxferStorage implements TransactionStorage {
   }
 
   canSave() {
-    return Boolean(config.storage.buxfer);
+    return Boolean(this.config.storage.buxfer);
   }
 
   async saveTransactions(
