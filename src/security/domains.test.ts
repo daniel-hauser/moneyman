@@ -1,6 +1,5 @@
 import { jest } from "@jest/globals";
 import { CompanyTypes } from "israeli-bank-scrapers";
-import { initDomainTracking, getUsedDomains } from "./domains.js";
 import {
   BrowserContext,
   TargetType,
@@ -23,6 +22,7 @@ describe("domains", () => {
   beforeEach(() => {
     originalEnv = process.env;
     jest.resetAllMocks();
+    jest.resetModules();
     process.env = { ...originalEnv, DOMAIN_TRACKING_ENABLED: "true" };
   });
 
@@ -33,11 +33,25 @@ describe("domains", () => {
   describe("initDomainTracking", () => {
     it("should not set up event listeners when domain tracking is disabled", async () => {
       process.env.DOMAIN_TRACKING_ENABLED = "";
+      // Set up minimal config needed for the test
+      process.env.ACCOUNTS_JSON = JSON.stringify([
+        { companyId: "test", password: "pass", userCode: "12345" },
+      ]);
+      process.env.LOCAL_JSON_STORAGE = "true";
+      
+      const { initDomainTracking } = await import("./domains.js");
       await initDomainTracking(browserContext, CompanyTypes.max);
       expect(browserContext.on).not.toHaveBeenCalled();
     });
 
     it("should set up event listeners when domain tracking is enabled", async () => {
+      // Set up minimal config needed for the test
+      process.env.ACCOUNTS_JSON = JSON.stringify([
+        { companyId: "test", password: "pass", userCode: "12345" },
+      ]);
+      process.env.LOCAL_JSON_STORAGE = "true";
+      
+      const { initDomainTracking } = await import("./domains.js");
       await initDomainTracking(browserContext, CompanyTypes.max);
       expect(browserContext.on).toHaveBeenCalledWith(
         "targetcreated",
@@ -57,6 +71,13 @@ describe("domains", () => {
       max ALLOW bar.com
       max BLOCK baz.com
       `;
+      // Set up minimal config needed for the test
+      process.env.ACCOUNTS_JSON = JSON.stringify([
+        { companyId: "test", password: "pass", userCode: "12345" },
+      ]);
+      process.env.LOCAL_JSON_STORAGE = "true";
+      
+      const { initDomainTracking, getUsedDomains } = await import("./domains.js");
       await initDomainTracking(browserContext, CompanyTypes.max);
 
       const targetCreatedCallback = browserContext.on.mock.calls[0][1] as (
@@ -107,6 +128,13 @@ describe("domains", () => {
       const target = mock<Target>();
       target.type.mockReturnValue(TargetType.OTHER);
 
+      // Set up minimal config needed for the test
+      process.env.ACCOUNTS_JSON = JSON.stringify([
+        { companyId: "test", password: "pass", userCode: "12345" },
+      ]);
+      process.env.LOCAL_JSON_STORAGE = "true";
+      
+      const { initDomainTracking } = await import("./domains.js");
       await initDomainTracking(browserContext, CompanyTypes.max);
 
       const targetCreatedCallback = browserContext.on.mock.calls[0][1];
