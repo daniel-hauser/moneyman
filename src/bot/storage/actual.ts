@@ -159,6 +159,8 @@ export class ActualBudgetStorage implements TransactionStorage {
 
   private async init() {
     logger("init");
+    const actualConfig = this.config.storage.actual;
+    assert(actualConfig, "Actual storage is not configured");
 
     try {
       const tempDir = path.join(os.tmpdir(), "moneyman-actual-data");
@@ -169,11 +171,11 @@ export class ActualBudgetStorage implements TransactionStorage {
 
       await actualApi.init({
         dataDir: tempDir,
-        serverURL: this.config.storage.actual!.serverUrl,
-        password: this.config.storage.actual!.password,
+        serverURL: actualConfig.serverUrl,
+        password: actualConfig.password,
       });
 
-      await actualApi.downloadBudget(this.config.storage.actual!.budgetId);
+      await actualApi.downloadBudget(actualConfig.budgetId);
 
       const actualAccounts = await actualApi.getAccounts();
       const validActualAccountIds = new Set(actualAccounts.map((a) => a.id));
@@ -182,7 +184,7 @@ export class ActualBudgetStorage implements TransactionStorage {
       );
 
       this.bankToActualAccountMap = this.parseActualAccounts(
-        this.config.storage.actual!.accounts,
+        actualConfig.accounts,
       );
 
       for (const [

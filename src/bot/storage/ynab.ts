@@ -26,7 +26,7 @@ export class YNABStorage implements TransactionStorage {
 
     this.ynabAPI = new ynab.API(ynabConfig.token);
     this.budgetName = await this.getBudgetName(ynabConfig.budgetId);
-    this.accountToYnabAccount = this.parseYnabAccounts(ynabConfig.accounts);
+    this.accountToYnabAccount = new Map(Object.entries(ynabConfig.accounts));
   }
 
   canSave() {
@@ -113,12 +113,6 @@ export class YNABStorage implements TransactionStorage {
     } else {
       throw new Error(`YNAB_BUDGET_ID does not exist in YNAB: ${budgetId}`);
     }
-  }
-
-  private parseYnabAccounts(
-    accounts: Record<string, string>,
-  ): Map<string, string> {
-    return new Map(Object.entries(accounts));
   }
 
   private convertTransactionToYnabFormat(

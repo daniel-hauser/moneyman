@@ -24,8 +24,8 @@ export class BuxferStorage implements TransactionStorage {
       buxferConfig.userName,
       buxferConfig.password,
     );
-    this.accountToBuxferAccount = this.parseBuxferAccounts(
-      buxferConfig.accounts,
+    this.accountToBuxferAccount = new Map(
+      Object.entries(buxferConfig.accounts),
     );
   }
 
@@ -100,12 +100,6 @@ export class BuxferStorage implements TransactionStorage {
     txToSend.forEach((trx) => {
       trx.tags = `${tags}`;
     });
-  }
-
-  private parseBuxferAccounts(
-    accounts: Record<string, string>,
-  ): Map<string, string> {
-    return new Map(Object.entries(accounts));
   }
 
   private convertTransactionToBuxferFormat(
