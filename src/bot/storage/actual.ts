@@ -101,7 +101,9 @@ export class ActualBudgetStorage implements TransactionStorage {
     stats: SaveStats,
     onProgress: (status: string) => Promise<void>,
   ) {
-    logger(`sending to Actual budget: "${this.config.storage.actual?.budgetId}"`);
+    logger(
+      `sending to Actual budget: "${this.config.storage.actual?.budgetId}"`,
+    );
 
     try {
       for (const [

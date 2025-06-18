@@ -18,7 +18,8 @@ export class GoogleSheetsStorage implements TransactionStorage {
   private worksheetName: string;
 
   constructor(private config: MoneymanConfig) {
-    this.worksheetName = this.config.storage.googleSheets?.worksheetName || "_moneyman";
+    this.worksheetName =
+      this.config.storage.googleSheets?.worksheetName || "_moneyman";
   }
   canSave() {
     return Boolean(this.config.storage.googleSheets);

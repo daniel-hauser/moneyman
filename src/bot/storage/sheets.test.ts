@@ -95,7 +95,7 @@ describe("GoogleSheetsStorage", () => {
         },
       },
     };
-    
+
     storage = new GoogleSheetsStorage(mockConfig);
 
     // Setup default mock implementations

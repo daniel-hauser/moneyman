@@ -38,7 +38,7 @@ describe("domains", () => {
         { companyId: "test", password: "pass", userCode: "12345" },
       ]);
       process.env.LOCAL_JSON_STORAGE = "true";
-      
+
       const { initDomainTracking } = await import("./domains.js");
       await initDomainTracking(browserContext, CompanyTypes.max);
       expect(browserContext.on).not.toHaveBeenCalled();
@@ -50,7 +50,7 @@ describe("domains", () => {
         { companyId: "test", password: "pass", userCode: "12345" },
       ]);
       process.env.LOCAL_JSON_STORAGE = "true";
-      
+
       const { initDomainTracking } = await import("./domains.js");
       await initDomainTracking(browserContext, CompanyTypes.max);
       expect(browserContext.on).toHaveBeenCalledWith(
@@ -76,8 +76,10 @@ describe("domains", () => {
         { companyId: "test", password: "pass", userCode: "12345" },
       ]);
       process.env.LOCAL_JSON_STORAGE = "true";
-      
-      const { initDomainTracking, getUsedDomains } = await import("./domains.js");
+
+      const { initDomainTracking, getUsedDomains } = await import(
+        "./domains.js"
+      );
       await initDomainTracking(browserContext, CompanyTypes.max);
 
       const targetCreatedCallback = browserContext.on.mock.calls[0][1] as (
@@ -133,7 +135,7 @@ describe("domains", () => {
         { companyId: "test", password: "pass", userCode: "12345" },
       ]);
       process.env.LOCAL_JSON_STORAGE = "true";
-      
+
       const { initDomainTracking } = await import("./domains.js");
       await initDomainTracking(browserContext, CompanyTypes.max);
 

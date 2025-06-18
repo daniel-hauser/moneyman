@@ -17,7 +17,7 @@ const logger = createLogger("azure-data-explorer");
 
 export class AzureDataExplorerStorage implements TransactionStorage {
   ingestClient: KustoIngestClient;
-  
+
   constructor(private config: MoneymanConfig) {}
 
   init() {
