@@ -62,9 +62,6 @@ describe("config", () => {
           },
         },
         logging: {
-          debug: "",
-          separatedMode: true,
-          timezone: "Asia/Jerusalem",
           getIpInfoUrl: "https://ipinfo.io/json",
         },
       },
@@ -156,9 +153,6 @@ describe("config", () => {
           },
         },
         logging: {
-          debug: "",
-          separatedMode: true,
-          timezone: "Asia/Jerusalem",
           getIpInfoUrl: "https://ipinfo.io/json",
         },
       },

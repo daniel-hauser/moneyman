@@ -88,9 +88,6 @@ describe("GoogleSheetsStorage", () => {
         },
         notifications: {},
         logging: {
-          debug: "",
-          separatedMode: true,
-          timezone: "Asia/Jerusalem",
           getIpInfoUrl: "https://ipinfo.io/json",
         },
       },
@@ -214,9 +211,6 @@ describe("GoogleSheetsStorage", () => {
           },
           notifications: {},
           logging: {
-            debug: "",
-            separatedMode: true,
-            timezone: "Asia/Jerusalem",
             getIpInfoUrl: "https://ipinfo.io/json",
           },
         },

@@ -538,7 +538,7 @@ We use telegram to send you the update status.
 
 #### Logging Options
 
-Configure debug and logging settings:
+Configure logging settings:
 
 ```bash
 export MONEYMAN_CONFIG='{
@@ -546,9 +546,6 @@ export MONEYMAN_CONFIG='{
   "storage": {...},
   "options": {
     "logging": {
-      "debug": "moneyman:*",
-      "separatedMode": true,
-      "timezone": "Asia/Jerusalem",
       "getIpInfoUrl": "https://ipinfo.io/json"
     }
   }
@@ -557,7 +554,17 @@ export MONEYMAN_CONFIG='{
 
 We use the [debug](https://www.npmjs.com/package/debug) package for debug messages under the `moneyman:` namespace.
 
-If you want to see them, use the `debug` setting with the value `moneyman:*`
+To see debug messages, set the `DEBUG` environment variable:
+
+```bash
+export DEBUG=moneyman:*
+```
+
+For timezone configuration, use the standard `TZ` environment variable:
+
+```bash
+export TZ=Asia/Jerusalem
+```
 
 ### Migration Helper
 

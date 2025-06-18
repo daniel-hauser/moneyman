@@ -238,12 +238,15 @@ Additional configuration options organized by category:
 ```json
 "options": {
   "logging": {
-    "debug": "moneyman:*",
-    "separatedMode": true,
-    "timezone": "Asia/Jerusalem"
+    "getIpInfoUrl": "https://ipinfo.io/json"
   }
 }
 ```
+
+**Note:** Debug and timezone settings are now handled via environment variables:
+
+- Use `DEBUG=moneyman:*` environment variable for debug logging
+- Use `TZ=Asia/Jerusalem` environment variable for timezone configuration
 
 ## Example Migration
 

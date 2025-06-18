@@ -45,7 +45,6 @@ function convertEnvVarsToConfig(): MoneymanConfig {
       process.env.ACCOUNTS_TO_SCRAPE.split(",");
   if (process.env.DAYS_BACK)
     config.options.scraping.daysBack = parseInt(process.env.DAYS_BACK, 10);
-  if (process.env.TZ) config.options.scraping.timezone = process.env.TZ;
   if (process.env.FUTURE_MONTHS)
     config.options.scraping.futureMonths = parseInt(
       process.env.FUTURE_MONTHS,
@@ -157,7 +156,6 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   }
 
   // Convert logging options
-  if (process.env.DEBUG) config.options.logging.debug = process.env.DEBUG;
   if (process.env.GET_IP_INFO_URL)
     config.options.logging.getIpInfoUrl = process.env.GET_IP_INFO_URL;
 

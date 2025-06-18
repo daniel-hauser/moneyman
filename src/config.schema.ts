@@ -138,9 +138,6 @@ export const NotificationOptionsSchema = z.object({
 });
 
 export const LoggingOptionsSchema = z.object({
-  debug: z.string().default(""),
-  separatedMode: z.boolean().default(true),
-  timezone: z.string().default("Asia/Jerusalem"),
   getIpInfoUrl: z.string().url().default("https://ipinfo.io/json"),
 });
 
