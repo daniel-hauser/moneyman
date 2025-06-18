@@ -28,6 +28,11 @@ on:
         default: "latest"
         required: false
         description: "Container tag to use (e.g., 'latest', 'pr-123' for PR #123)"
+      sendNewConfigToTg:
+        description: "Send current config as config.txt via Telegram (true/false)"
+        type: boolean
+        required: false
+        default: false
   schedule:
     # In Israel: [12:05, 00:05] or [13:05, 01:05] on DST
     - cron: "5 10,22 * * *"
@@ -82,6 +87,7 @@ jobs:
           -e FIREWALL_SETTINGS
           -e BLOCK_BY_DEFAULT
           -e ADDITIONAL_TRANSACTION_INFO_ENABLED
+          -e SEND_NEW_CONFIG_TO_TG
           ${{ steps.set-container-image.outputs.image }}
         env:
           MONEYMAN_CONFIG: ${{ secrets.MONEYMAN_CONFIG }}
@@ -116,3 +122,4 @@ jobs:
           DOMAIN_TRACKING_ENABLED: ${{ vars.DOMAIN_TRACKING_ENABLED }}
           FIREWALL_SETTINGS: ${{ secrets.FIREWALL_SETTINGS }}
           BLOCK_BY_DEFAULT: ${{ vars.BLOCK_BY_DEFAULT }}
+          SEND_NEW_CONFIG_TO_TG: ${{ github.event.inputs.sendNewConfigToTg }}
