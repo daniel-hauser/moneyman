@@ -8,17 +8,40 @@ Instead of setting multiple environment variables, you can now provide a single 
 
 ```bash
 export MONEYMAN_CONFIG='{
-  "DAYS_BACK": "10",
-  "ACCOUNTS_TO_SCRAPE": "bank1,bank2",
-  "ACCOUNTS_JSON": "[{\"companyId\":\"bank1\",\"username\":\"user\",\"password\":\"pass\"}]",
-  "TELEGRAM_API_KEY": "your-telegram-bot-token",
-  "TELEGRAM_CHAT_ID": "your-chat-id",
-  "GOOGLE_SHEET_ID": "your-sheet-id",
-  "GOOGLE_SERVICE_ACCOUNT_EMAIL": "service@account.com",
-  "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY": "-----BEGIN PRIVATE KEY-----...",
-  "YNAB_TOKEN": "your-ynab-token",
-  "YNAB_BUDGET_ID": "your-budget-id",
-  "YNAB_ACCOUNTS": "{\"account1\":\"ynab-account-id\"}"
+  "accounts": [
+    {
+      "companyId": "bank1",
+      "username": "user",
+      "password": "pass"
+    }
+  ],
+  "storage": {
+    "googleSheets": {
+      "serviceAccountEmail": "service@account.com",
+      "serviceAccountPrivateKey": "-----BEGIN PRIVATE KEY-----...",
+      "sheetId": "your-sheet-id",
+      "worksheetName": "_moneyman"
+    },
+    "ynab": {
+      "token": "your-ynab-token",
+      "budgetId": "your-budget-id",
+      "accounts": {
+        "account1": "ynab-account-id"
+      }
+    }
+  },
+  "options": {
+    "scraping": {
+      "accountsToScrape": ["bank1", "bank2"],
+      "daysBack": 10
+    },
+    "notifications": {
+      "telegram": {
+        "apiKey": "your-telegram-bot-token",
+        "chatId": "your-chat-id"
+      }
+    }
+  }
 }'
 ```
 
@@ -43,82 +66,169 @@ The new system uses Zod for runtime validation of the configuration, ensuring:
 - Default values for missing configurations
 - Graceful fallback to environment variables if JSON parsing fails
 
-## Supported Configuration Keys
+## Supported Configuration Structure
 
-All existing environment variables are supported in the JSON format:
+The new JSON configuration uses a nested structure organized into logical sections:
 
-### Core Scraper Configuration
+### `accounts` (Required)
+Array of bank account configurations:
+```json
+"accounts": [
+  {
+    "companyId": "hapoalim",
+    "userCode": "AB1234", 
+    "password": "p@ssword"
+  },
+  {
+    "companyId": "visaCal",
+    "username": "Ploni Almoni",
+    "password": "p@ssword"
+  }
+]
+```
 
-- `DAYS_BACK` - Number of days back to scrape (default: "10")
-- `ACCOUNTS_TO_SCRAPE` - Comma-separated list of account IDs
-- `FUTURE_MONTHS` - Number of future months to scrape
-- `MAX_PARALLEL_SCRAPERS` - Maximum parallel scraper instances
-- `ADDITIONAL_TRANSACTION_INFO_ENABLED` - Enable additional transaction info
-- `ACCOUNTS_JSON` - JSON array of account configurations
-
-### Notification Configuration
-
-- `TELEGRAM_API_KEY` - Telegram bot API key
-- `TELEGRAM_CHAT_ID` - Telegram chat ID for notifications
-
-### Storage Configuration
+### `storage` (Required - at least one)
+Configuration for various storage providers:
 
 #### Google Sheets
-
-- `GOOGLE_SERVICE_ACCOUNT_EMAIL`
-- `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`
-- `GOOGLE_SHEET_ID`
-- `WORKSHEET_NAME`
-
-#### Azure Data Explorer
-
-- `AZURE_APP_ID`
-- `AZURE_APP_KEY`
-- `AZURE_TENANT_ID`
-- `ADE_DATABASE_NAME`
-- `ADE_TABLE_NAME`
-- `ADE_INGESTION_MAPPING`
-- `ADE_INGEST_URI`
+```json
+"storage": {
+  "googleSheets": {
+    "serviceAccountEmail": "service@account.com",
+    "serviceAccountPrivateKey": "-----BEGIN PRIVATE KEY-----...",
+    "sheetId": "your-sheet-id", 
+    "worksheetName": "_moneyman"
+  }
+}
+```
 
 #### YNAB (You Need A Budget)
+```json
+"storage": {
+  "ynab": {
+    "token": "your-ynab-token",
+    "budgetId": "your-budget-id", 
+    "accounts": {
+      "bankAccountId": "ynab-account-id"
+    }
+  }
+}
+```
 
-- `YNAB_TOKEN`
-- `YNAB_BUDGET_ID`
-- `YNAB_ACCOUNTS`
+#### Azure Data Explorer
+```json
+"storage": {
+  "azure": {
+    "appId": "your-app-id",
+    "appKey": "your-app-key",
+    "tenantId": "your-tenant-id",
+    "databaseName": "your-database",
+    "tableName": "your-table",
+    "ingestionMapping": "your-mapping",
+    "ingestUri": "https://your-cluster.kusto.windows.net"
+  }
+}
+```
 
 #### Buxfer
-
-- `BUXFER_USER_NAME`
-- `BUXFER_PASSWORD`
-- `BUXFER_ACCOUNTS`
+```json
+"storage": {
+  "buxfer": {
+    "userName": "your-username",
+    "password": "your-password",
+    "accounts": {
+      "bankAccountId": "buxfer-account-id"
+    }
+  }
+}
+```
 
 #### Actual Budget
+```json
+"storage": {
+  "actual": {
+    "serverUrl": "https://your-actual-server.com",
+    "password": "your-password",
+    "budgetId": "your-budget-id",
+    "accounts": {
+      "bankAccountId": "actual-account-id"
+    }
+  }
+}
+```
 
-- `ACTUAL_SERVER_URL`
-- `ACTUAL_PASSWORD`
-- `ACTUAL_BUDGET_ID`
-- `ACTUAL_ACCOUNTS`
+#### Web Post
+```json
+"storage": {
+  "webPost": {
+    "url": "https://your-endpoint.com/transactions",
+    "authorizationToken": "your-auth-token"
+  }
+}
+```
 
-#### Other Storage Options
+#### Local JSON
+```json
+"storage": {
+  "localJson": {
+    "enabled": true
+  }
+}
+```
 
-- `WEB_POST_URL`
-- `WEB_POST_AUTHORIZATION_TOKEN`
-- `LOCAL_JSON_STORAGE`
+### `options` (Optional)
+Additional configuration options organized by category:
 
-### Additional Configuration
+#### Scraping Options
+```json
+"options": {
+  "scraping": {
+    "accountsToScrape": ["bank1", "bank2"],
+    "daysBack": 10,
+    "futureMonths": 1,
+    "timezone": "Asia/Jerusalem",
+    "transactionHashType": "moneyman",
+    "additionalTransactionInfo": false,
+    "hiddenDeprecations": [],
+    "puppeteerExecutablePath": "/usr/bin/chromium",
+    "maxParallelScrapers": 1,
+    "domainTracking": false
+  }
+}
+```
 
-- `TRANSACTION_HASH_TYPE`
-- `HIDDEN_DEPRECATIONS`
-- `PUPPETEER_EXECUTABLE_PATH`
-- `GET_IP_INFO_URL`
+#### Security Options
+```json
+"options": {
+  "security": {
+    "firewallSettings": "companyId ALLOW domain.com",
+    "blockByDefault": false
+  }
+}
+```
 
-### Security Configuration
+#### Notification Options  
+```json
+"options": {
+  "notifications": {
+    "telegram": {
+      "apiKey": "123456:ABC...",
+      "chatId": "12345"
+    }
+  }
+}
+```
 
-Note: Security-related configurations still use environment variables directly for runtime testability:
-
-- `DOMAIN_TRACKING_ENABLED`
-- `FIREWALL_SETTINGS`
-- `BLOCK_BY_DEFAULT`
+#### Logging Options
+```json
+"options": {
+  "logging": {
+    "debug": "moneyman:*",
+    "separatedMode": true,
+    "timezone": "Asia/Jerusalem"
+  }
+}
+```
 
 ## Example Migration
 
@@ -135,10 +245,26 @@ export GOOGLE_SHEET_ID=1A2B3C...
 
 ```bash
 export MONEYMAN_CONFIG='{
-  "DAYS_BACK": "15",
-  "TELEGRAM_API_KEY": "123456:ABC...",
-  "TELEGRAM_CHAT_ID": "12345",
-  "GOOGLE_SHEET_ID": "1A2B3C..."
+  "accounts": [{"companyId": "hapoalim", "userCode": "AB1234", "password": "p@ssword"}],
+  "storage": {
+    "googleSheets": {
+      "serviceAccountPrivateKey": "...",
+      "serviceAccountEmail": "service@account.com", 
+      "sheetId": "1A2B3C...",
+      "worksheetName": "_moneyman"
+    }
+  },
+  "options": {
+    "scraping": {
+      "daysBack": 15
+    },
+    "notifications": {
+      "telegram": {
+        "apiKey": "123456:ABC...",
+        "chatId": "12345"
+      }
+    }
+  }
 }'
 ```
 

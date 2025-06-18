@@ -69,6 +69,97 @@ If you want to see them, use the `DEBUG` environment variable with the value `mo
 
 ## Settings
 
+### Configuration
+
+Moneyman supports unified JSON configuration through the `MONEYMAN_CONFIG` environment variable, while maintaining full backward compatibility with individual environment variables.
+
+#### JSON Configuration (Recommended)
+
+Set a single `MONEYMAN_CONFIG` environment variable with your complete configuration:
+
+```bash
+export MONEYMAN_CONFIG='{
+  "accounts": [
+    {
+      "companyId": "hapoalim",
+      "userCode": "AB1234", 
+      "password": "p@ssword"
+    },
+    {
+      "companyId": "visaCal",
+      "username": "Ploni Almoni",
+      "password": "p@ssword"
+    }
+  ],
+  "storage": {
+    "googleSheets": {
+      "serviceAccountEmail": "service@account.com",
+      "serviceAccountPrivateKey": "-----BEGIN PRIVATE KEY-----...",
+      "sheetId": "your-sheet-id",
+      "worksheetName": "_moneyman"
+    }
+  },
+  "options": {
+    "scraping": {
+      "accountsToScrape": ["hapoalim", "visaCal"],
+      "daysBack": 10,
+      "futureMonths": 1,
+      "timezone": "Asia/Jerusalem",
+      "transactionHashType": "moneyman",
+      "additionalTransactionInfo": false,
+      "hiddenDeprecations": [],
+      "puppeteerExecutablePath": "/usr/bin/chromium",
+      "maxParallelScrapers": 1,
+      "domainTracking": false
+    },
+    "security": {
+      "firewallSettings": "companyId ALLOW domain.com",
+      "blockByDefault": false
+    },
+    "notifications": {
+      "telegram": {
+        "apiKey": "123456:ABC...",
+        "chatId": "12345"
+      }
+    },
+    "logging": {
+      "debug": "moneyman:*",
+      "separatedMode": true,
+      "timezone": "Asia/Jerusalem",
+      "getIpInfoUrl": "https://ipinfo.io/json"
+    }
+  }
+}'
+```
+
+#### Configuration Structure
+
+The JSON configuration is organized into logical sections:
+
+- **`accounts`** (Required): Array of bank account configurations with `companyId`, `userCode`/`username`, and `password`
+- **`storage`** (Required - at least one): Storage provider configurations (Google Sheets, YNAB, Azure, Buxfer, Actual Budget, etc.)
+- **`options`** (Optional): Additional settings organized by category:
+  - **`scraping`**: Scraper behavior and timing settings
+  - **`security`**: Domain security and firewall settings  
+  - **`notifications`**: Telegram notification settings
+  - **`logging`**: Debug and logging configuration
+
+#### Migration Helper
+
+To migrate from environment variables to JSON config:
+
+1. Set `SEND_NEW_CONFIG_TO_TG=true` environment variable
+2. Run moneyman with your existing environment variables
+3. A `config.txt` file will be sent to your Telegram chat containing the equivalent JSON configuration
+4. Use this JSON as your `MONEYMAN_CONFIG` value
+
+#### Backward Compatibility
+
+If `MONEYMAN_CONFIG` is not set, moneyman will continue to use individual environment variables as before. No breaking changes to existing setups.
+
+<details>
+<summary>Deprecated Environment Variable Settings</summary>
+
 ### Add accounts and scrape
 
 Use the following env vars to setup the data fetching:
@@ -144,6 +235,11 @@ When a rule exists for a specific domain, the scraper will:
 
 Rules support parent domain matching, so a rule for `example.com` will apply to `api.example.com` and `www.example.com` as well.
 
+</details>
+
+<details>
+<summary>Deprecated Environment Variable Settings - Notifications</summary>
+
 ### Get notified in telegram
 
 We use telegram to send you the update status.
@@ -160,6 +256,11 @@ Use the following env vars to setup:
 | `TELEGRAM_CHAT_ID` | The chat id                                     |
 
 TODO: Add a way to send a message to the bot to connect?
+
+</details>
+
+<details>
+<summary>Deprecated Environment Variable Settings - Storage</summary>
 
 ### Export to Azure Data Explorer
 
@@ -341,3 +442,5 @@ Example:
 ```
 
 **Note:** Pending transactions will be skipped during import.
+
+</details>

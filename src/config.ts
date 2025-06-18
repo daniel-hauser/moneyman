@@ -106,6 +106,7 @@ const LoggingOptionsSchema = z.object({
   debug: z.string().default(''),
   separatedMode: z.boolean().default(true),
   timezone: z.string().default('Asia/Jerusalem'),
+  getIpInfoUrl: z.string().url().default('https://ipinfo.io/json'),
 });
 
 // Complete configuration schema
@@ -230,6 +231,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
 
   // Convert logging options
   if (process.env.DEBUG) config.options.logging.debug = process.env.DEBUG;
+  if (process.env.GET_IP_INFO_URL) config.options.logging.getIpInfoUrl = process.env.GET_IP_INFO_URL;
 
   return config;
 }

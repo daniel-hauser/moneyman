@@ -12,6 +12,7 @@ import type { KustoIngestClient } from "azure-kusto-ingest/types/src/ingestClien
 import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { createSaveStats } from "../saveStats.js";
 import { config } from "../../config.js";
+import assert from "node:assert";
 
 const logger = createLogger("azure-data-explorer");
 
@@ -23,9 +24,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
 
     try {
       const azureConfig = config.storage.azure;
-      if (!azureConfig) {
-        throw new Error("Azure configuration not found");
-      }
+      assert(azureConfig, "Azure configuration not found");
 
       const connection =
         KustoConnectionStringBuilder.withAadApplicationKeyAuthentication(

@@ -7,6 +7,7 @@ import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { sendDeprecationMessage } from "../notifier.js";
 import { createSaveStats } from "../saveStats.js";
 import { config } from "../../config.js";
+import assert from "node:assert";
 
 const YNAB_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("YNABStorage");
@@ -19,9 +20,7 @@ export class YNABStorage implements TransactionStorage {
   async init() {
     logger("init");
     const ynabConfig = config.storage.ynab;
-    if (!ynabConfig) {
-      throw new Error("YNAB configuration not found");
-    }
+    assert(ynabConfig, "YNAB configuration not found");
     
     this.ynabAPI = new ynab.API(ynabConfig.token);
     this.budgetName = await this.getBudgetName(ynabConfig.budgetId);

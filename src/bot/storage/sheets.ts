@@ -97,9 +97,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
 
   private async getDoc() {
     const googleSheetsConfig = config.storage.googleSheets;
-    if (!googleSheetsConfig) {
-      throw new Error("Google Sheets configuration not found");
-    }
+    assert(googleSheetsConfig, "Google Sheets configuration not found");
 
     const auth = new GoogleAuth({
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],

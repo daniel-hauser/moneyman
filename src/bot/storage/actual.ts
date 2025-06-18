@@ -8,6 +8,7 @@ import { TransactionRow, TransactionStorage } from "../../types.js";
 import { createLogger } from "../../utils/logger.js";
 import { createSaveStats, SaveStats } from "../saveStats.js";
 import { config } from "../../config.js";
+import assert from "node:assert";
 
 interface ActualTransaction {
   id?: string;

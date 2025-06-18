@@ -5,10 +5,8 @@ import { config } from "../config.js";
 
 const logger = createLogger("notifier");
 
-const bot =
-  config.options.notifications.telegram?.apiKey && config.options.notifications.telegram?.chatId
-    ? new Telegraf(config.options.notifications.telegram.apiKey)
-    : null;
+const telegramConfig = config.options.notifications.telegram;
+const bot = telegramConfig ? new Telegraf(telegramConfig.apiKey) : null;
 
 logToPublicLog(
   bot
@@ -17,8 +15,8 @@ logToPublicLog(
 );
 
 logger(`Telegram bot initialized: ${Boolean(bot)}`);
-if (bot) {
-  logger(`Telegram chat ID: ${config.options.notifications.telegram?.chatId}`);
+if (bot && telegramConfig) {
+  logger(`Telegram chat ID: ${telegramConfig.chatId}`);
 }
 
 export async function send(message: string, parseMode?: "HTML") {
@@ -27,7 +25,7 @@ export async function send(message: string, parseMode?: "HTML") {
     return send(message.slice(0, 4096));
   }
   logger(message);
-  return await bot?.telegram.sendMessage(config.options.notifications.telegram?.chatId!, message, {
+  return await bot?.telegram.sendMessage(telegramConfig?.chatId!, message, {
     parse_mode: parseMode,
   });
 }
@@ -35,7 +33,7 @@ export async function send(message: string, parseMode?: "HTML") {
 export async function sendPhoto(photoPath: string, caption: string) {
   logger(`Sending photo`, { photoPath, caption });
   return await bot?.telegram.sendPhoto(
-    config.options.notifications.telegram?.chatId!,
+    telegramConfig?.chatId!,
     { source: photoPath },
     { caption, has_spoiler: true },
   );
@@ -47,7 +45,7 @@ export async function sendPhotos(photos: Array<ImageWithCaption>) {
     return;
   }
   return await bot?.telegram.sendMediaGroup(
-    config.options.notifications.telegram?.chatId!,
+    telegramConfig?.chatId!,
     photos.map(({ photoPath, caption }) => ({
       type: "photo",
       caption,
@@ -59,7 +57,7 @@ export async function sendPhotos(photos: Array<ImageWithCaption>) {
 export async function sendJSON(json: {}, filename: string) {
   logger(`Sending JSON`, { json, filename });
   const buffer = Buffer.from(JSON.stringify(json, null, 2), "utf-8");
-  return await bot?.telegram.sendDocument(config.options.notifications.telegram?.chatId!, {
+  return await bot?.telegram.sendDocument(telegramConfig?.chatId!, {
     source: buffer,
     filename,
   });
@@ -79,7 +77,7 @@ export async function editMessage(
        */
       await new Promise((resolve) => setTimeout(resolve, 250));
       await bot?.telegram.editMessageText(
-        config.options.notifications.telegram?.chatId!,
+        telegramConfig?.chatId!,
         message,
         undefined,
         newText,

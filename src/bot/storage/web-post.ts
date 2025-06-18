@@ -4,6 +4,7 @@ import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { tableRow } from "../transactionTableRow.js";
 import { createSaveStats } from "../saveStats.js";
 import { config } from "../../config.js";
+import assert from "node:assert";
 
 const logger = createLogger("WebPostStorage");
 
@@ -19,9 +20,7 @@ export class WebPostStorage implements TransactionStorage {
     logger("saveTransactions");
 
     const webPostConfig = config.storage.webPost;
-    if (!webPostConfig) {
-      throw new Error("Web Post configuration not found");
-    }
+    assert(webPostConfig, "Web Post configuration not found");
 
     const nonPendingTxns = txns.filter(
       (txn) => txn.status !== TransactionStatuses.Pending,

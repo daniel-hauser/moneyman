@@ -5,6 +5,7 @@ import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { BuxferApiClient, BuxferTransaction } from "buxfer-ts-client";
 import { createSaveStats } from "../saveStats.js";
 import { config } from "../../config.js";
+import assert from "node:assert";
 
 const BUXFER_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("BuxferStorage");
@@ -16,9 +17,7 @@ export class BuxferStorage implements TransactionStorage {
   async init() {
     logger("init");
     const buxferConfig = config.storage.buxfer;
-    if (!buxferConfig) {
-      throw new Error("Buxfer configuration not found");
-    }
+    assert(buxferConfig, "Buxfer configuration not found");
     
     this.buxferClient = new BuxferApiClient(
       buxferConfig.userName,
