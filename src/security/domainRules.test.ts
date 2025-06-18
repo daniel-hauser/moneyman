@@ -5,6 +5,16 @@ jest.mock("../utils/logger.js", () => ({
   createLogger: jest.fn(() => jest.fn()),
 }));
 
+jest.mock("../config.js", () => ({
+  config: {
+    options: {
+      security: {
+        firewallSettings: "",
+      },
+    },
+  },
+}));
+
 describe("domainRules", () => {
   describe("DomainRuleManager", () => {
     it("should load rules from the provided string", () => {
