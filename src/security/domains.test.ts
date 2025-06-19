@@ -16,28 +16,24 @@ jest.mock("../utils/logger.js", () => ({
 }));
 
 describe("domains", () => {
-  let originalEnv: NodeJS.ProcessEnv;
   const browserContext = mock<BrowserContext>();
 
   beforeEach(() => {
-    originalEnv = process.env;
     jest.resetAllMocks();
     jest.resetModules();
-    process.env = { ...originalEnv, DOMAIN_TRACKING_ENABLED: "true" };
-  });
-
-  afterEach(() => {
-    process.env = originalEnv;
   });
 
   describe("initDomainTracking", () => {
     it("should not set up event listeners when domain tracking is disabled", async () => {
-      process.env.DOMAIN_TRACKING_ENABLED = "";
-      // Set up minimal config needed for the test
-      process.env.ACCOUNTS_JSON = JSON.stringify([
-        { companyId: "test", password: "pass", userCode: "12345" },
-      ]);
-      process.env.LOCAL_JSON_STORAGE = "true";
+      jest.mock("../config.js", () => ({
+        config: {
+          options: {
+            scraping: {
+              domainTracking: false,
+            },
+          },
+        },
+      }));
 
       const { initDomainTracking } = await import("./domains.js");
       await initDomainTracking(browserContext, CompanyTypes.max);
@@ -45,12 +41,16 @@ describe("domains", () => {
     });
 
     it("should set up event listeners when domain tracking is enabled", async () => {
-      // Set up minimal config needed for the test
-      process.env.ACCOUNTS_JSON = JSON.stringify([
-        { companyId: "test", password: "pass", userCode: "12345" },
-      ]);
-      process.env.LOCAL_JSON_STORAGE = "true";
-
+      jest.mock("../config.js", () => ({
+        config: {
+          options: {
+            security: {},
+            scraping: {
+              domainTracking: true,
+            },
+          },
+        },
+      }));
       const { initDomainTracking } = await import("./domains.js");
       await initDomainTracking(browserContext, CompanyTypes.max);
       expect(browserContext.on).toHaveBeenCalledWith(
@@ -67,16 +67,18 @@ describe("domains", () => {
       page.url.mockReturnValue("https://foo.com");
       target.page.mockResolvedValue(page);
 
-      process.env.FIREWALL_SETTINGS = `
-      max ALLOW bar.com
-      max BLOCK baz.com
-      `;
-      // Set up minimal config needed for the test
-      process.env.ACCOUNTS_JSON = JSON.stringify([
-        { companyId: "test", password: "pass", userCode: "12345" },
-      ]);
-      process.env.LOCAL_JSON_STORAGE = "true";
-
+      jest.mock("../config.js", () => ({
+        config: {
+          options: {
+            scraping: {
+              domainTracking: true,
+            },
+            security: {
+              firewallSettings: ["max ALLOW bar.com", "max BLOCK baz.com"],
+            },
+          },
+        },
+      }));
       const { initDomainTracking, getUsedDomains } = await import(
         "./domains.js"
       );
@@ -130,11 +132,16 @@ describe("domains", () => {
       const target = mock<Target>();
       target.type.mockReturnValue(TargetType.OTHER);
 
-      // Set up minimal config needed for the test
-      process.env.ACCOUNTS_JSON = JSON.stringify([
-        { companyId: "test", password: "pass", userCode: "12345" },
-      ]);
-      process.env.LOCAL_JSON_STORAGE = "true";
+      jest.mock("../config.js", () => ({
+        config: {
+          options: {
+            security: {},
+            scraping: {
+              domainTracking: true,
+            },
+          },
+        },
+      }));
 
       const { initDomainTracking } = await import("./domains.js");
       await initDomainTracking(browserContext, CompanyTypes.max);

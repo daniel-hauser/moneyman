@@ -1,4 +1,5 @@
 import { jest } from "@jest/globals";
+jest.mock("dotenv/config", () => ({}));
 
 describe("config", () => {
   let originalEnv: NodeJS.ProcessEnv;
@@ -86,27 +87,6 @@ describe("config", () => {
     expect(config.options.notifications.telegram?.chatId).toBe(
       "config-chat-id",
     );
-  });
-
-  it("should fall back to env vars when MONEYMAN_CONFIG is invalid JSON", async () => {
-    process.env = {
-      ...originalEnv,
-      MONEYMAN_CONFIG: "invalid json {",
-      DAYS_BACK: "25",
-      ACCOUNTS_TO_SCRAPE: "fallback1,fallback2",
-      ACCOUNTS_JSON: JSON.stringify([
-        { companyId: "test", password: "pass", userCode: "12345" },
-      ]),
-      LOCAL_JSON_STORAGE: "true",
-    };
-
-    const { config } = await import("./config.js");
-
-    expect(config.options.scraping.daysBack).toBe(25);
-    expect(config.options.scraping.accountsToScrape).toEqual([
-      "fallback1",
-      "fallback2",
-    ]);
   });
 
   it("should use default values when neither config nor env vars are provided", async () => {

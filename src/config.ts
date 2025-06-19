@@ -16,6 +16,8 @@ export const systemName = "moneyman";
 const logger = createLogger("config");
 
 logger("Parsing config");
+const config: MoneymanConfig = createConfig();
+export { config };
 
 // Environment variable conversion function for backward compatibility
 function convertEnvVarsToConfig(): MoneymanConfig {
@@ -31,7 +33,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   };
 
   // Convert account configuration
-  if (process.env.ACCOUNTS_JSON) {
+  if (typeof process.env.ACCOUNTS_JSON === "string") {
     try {
       config.accounts = JSON.parse(process.env.ACCOUNTS_JSON);
     } catch (error) {
@@ -40,50 +42,50 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   }
 
   // Convert scraping options
-  if (process.env.ACCOUNTS_TO_SCRAPE)
+  if (typeof process.env.ACCOUNTS_TO_SCRAPE === "string")
     config.options.scraping.accountsToScrape =
       process.env.ACCOUNTS_TO_SCRAPE.split(",");
-  if (process.env.DAYS_BACK)
+  if (typeof process.env.DAYS_BACK === "string")
     config.options.scraping.daysBack = parseInt(process.env.DAYS_BACK, 10);
-  if (process.env.FUTURE_MONTHS)
+  if (typeof process.env.FUTURE_MONTHS === "string")
     config.options.scraping.futureMonths = parseInt(
       process.env.FUTURE_MONTHS,
       10,
     );
-  if (process.env.TRANSACTION_HASH_TYPE)
+  if (typeof process.env.TRANSACTION_HASH_TYPE === "string")
     config.options.scraping.transactionHashType = process.env
       .TRANSACTION_HASH_TYPE as "" | "moneyman";
-  if (process.env.ADDITIONAL_TRANSACTION_INFO_ENABLED)
+  if (typeof process.env.ADDITIONAL_TRANSACTION_INFO_ENABLED === "string")
     config.options.scraping.additionalTransactionInfo =
       process.env.ADDITIONAL_TRANSACTION_INFO_ENABLED === "true";
-  if (process.env.HIDDEN_DEPRECATIONS)
+  if (typeof process.env.HIDDEN_DEPRECATIONS === "string")
     config.options.scraping.hiddenDeprecations =
       process.env.HIDDEN_DEPRECATIONS.split(",").filter(Boolean);
-  if (process.env.PUPPETEER_EXECUTABLE_PATH)
+  if (typeof process.env.PUPPETEER_EXECUTABLE_PATH)
     config.options.scraping.puppeteerExecutablePath =
       process.env.PUPPETEER_EXECUTABLE_PATH;
-  if (process.env.MAX_PARALLEL_SCRAPERS)
+  if (typeof process.env.MAX_PARALLEL_SCRAPERS === "string")
     config.options.scraping.maxParallelScrapers = parseInt(
       process.env.MAX_PARALLEL_SCRAPERS,
       10,
     );
-  if (process.env.DOMAIN_TRACKING_ENABLED)
+  if (typeof process.env.DOMAIN_TRACKING_ENABLED === "string")
     config.options.scraping.domainTracking =
       process.env.DOMAIN_TRACKING_ENABLED === "true";
 
   // Convert security options
-  if (process.env.FIREWALL_SETTINGS)
+  if (typeof process.env.FIREWALL_SETTINGS === "string")
     // TODO: The split by pipe is undocumented, and is here to support one-line env vars with no comment support
     config.options.security.firewallSettings =
       process.env.FIREWALL_SETTINGS.split(/\n|\|/)
         .map((line) => line.trim())
         .filter((line) => line && !line.startsWith("#"));
-  if (process.env.BLOCK_BY_DEFAULT)
+  if (typeof process.env.BLOCK_BY_DEFAULT === "string")
     config.options.security.blockByDefault =
       process.env.BLOCK_BY_DEFAULT === "true";
 
   // Convert Google Sheets storage
-  if (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
+  if (typeof process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY === "string") {
     config.storage.googleSheets = {
       serviceAccountPrivateKey: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
       serviceAccountEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "",
@@ -93,7 +95,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   }
 
   // Convert YNAB storage
-  if (process.env.YNAB_TOKEN) {
+  if (typeof process.env.YNAB_TOKEN === "string") {
     config.storage.ynab = {
       token: process.env.YNAB_TOKEN,
       budgetId: process.env.YNAB_BUDGET_ID || "",
@@ -104,7 +106,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   }
 
   // Convert Azure storage
-  if (process.env.AZURE_APP_ID) {
+  if (typeof process.env.AZURE_APP_ID === "string") {
     config.storage.azure = {
       appId: process.env.AZURE_APP_ID,
       appKey: process.env.AZURE_APP_KEY || "",
@@ -117,7 +119,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   }
 
   // Convert Buxfer storage
-  if (process.env.BUXFER_USER_NAME) {
+  if (typeof process.env.BUXFER_USER_NAME === "string") {
     config.storage.buxfer = {
       userName: process.env.BUXFER_USER_NAME,
       password: process.env.BUXFER_PASSWORD || "",
@@ -128,7 +130,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   }
 
   // Convert Actual Budget storage
-  if (process.env.ACTUAL_SERVER_URL) {
+  if (typeof process.env.ACTUAL_SERVER_URL === "string") {
     config.storage.actual = {
       serverUrl: process.env.ACTUAL_SERVER_URL,
       password: process.env.ACTUAL_PASSWORD || "",
@@ -140,11 +142,11 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   }
 
   // Convert other storage options
-  if (process.env.LOCAL_JSON_STORAGE)
+  if (typeof process.env.LOCAL_JSON_STORAGE === "string")
     config.storage.localJson = {
       enabled: process.env.LOCAL_JSON_STORAGE === "true",
     };
-  if (process.env.WEB_POST_URL) {
+  if (typeof process.env.WEB_POST_URL === "string") {
     config.storage.webPost = {
       url: process.env.WEB_POST_URL,
       authorizationToken: process.env.WEB_POST_AUTHORIZATION_TOKEN || "",
@@ -152,7 +154,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   }
 
   // Convert notification options
-  if (process.env.TELEGRAM_API_KEY) {
+  if (typeof process.env.TELEGRAM_API_KEY === "string") {
     config.options.notifications.telegram = {
       apiKey: process.env.TELEGRAM_API_KEY,
       chatId: process.env.TELEGRAM_CHAT_ID || "",
@@ -160,81 +162,40 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   }
 
   // Convert logging options
-  if (process.env.GET_IP_INFO_URL)
+  if (typeof process.env.GET_IP_INFO_URL === "string")
     config.options.logging.getIpInfoUrl = process.env.GET_IP_INFO_URL;
 
   return config;
 }
 
-// Parse configuration
-let config: MoneymanConfig;
-const { MONEYMAN_CONFIG, NODE_ENV } = process.env;
-
-// Check if we're in a test environment and no config is provided
-const isTestEnvironment =
-  NODE_ENV === "test" || process.env.JEST_WORKER_ID !== undefined;
-const hasAnyConfigEnvVars =
-  process.env.ACCOUNTS_JSON ||
-  process.env.GOOGLE_SHEET_ID ||
-  process.env.YNAB_TOKEN ||
-  process.env.AZURE_APP_ID ||
-  process.env.BUXFER_USER_NAME ||
-  process.env.ACTUAL_SERVER_URL ||
-  process.env.LOCAL_JSON_STORAGE ||
-  process.env.WEB_POST_URL;
-
-if (MONEYMAN_CONFIG) {
-  logger("Using MONEYMAN_CONFIG");
-  try {
-    const parsedConfig = JSON.parse(MONEYMAN_CONFIG);
-    config = MoneymanConfigSchema.parse(parsedConfig);
-  } catch (error) {
-    logger("Failed to parse MONEYMAN_CONFIG, falling back to env vars", error);
-    if (isTestEnvironment && !hasAnyConfigEnvVars) {
-      // Provide minimal config for tests that don't have any config env vars
-      config = {
-        accounts: [{ companyId: "test", password: "test", userCode: "test" }],
-        storage: { localJson: { enabled: true } },
-        options: {
-          scraping: ScrapingOptionsSchema.parse({}),
-          security: SecurityOptionsSchema.parse({}),
-          notifications: {},
-          logging: LoggingOptionsSchema.parse({}),
-        },
-      };
-    } else {
-      config = MoneymanConfigSchema.parse(convertEnvVarsToConfig());
+function createConfig() {
+  const { MONEYMAN_CONFIG } = process.env;
+  if (MONEYMAN_CONFIG) {
+    logger("Using MONEYMAN_CONFIG");
+    try {
+      const parsedConfig = JSON.parse(MONEYMAN_CONFIG);
+      return MoneymanConfigSchema.parse(parsedConfig);
+    } catch (error) {
+      logger(
+        "Failed to parse MONEYMAN_CONFIG, falling back to env vars",
+        error,
+      );
+      throw error;
+    }
+  } else {
+    try {
+      logger("Converting environment variables to MONEYMAN_CONFIG format...");
+      return MoneymanConfigSchema.parse(convertEnvVarsToConfig());
+    } catch (error) {
+      logger("Failed to convert env vars to MONEYMAN_CONFIG", error);
+      throw error;
     }
   }
-} else if (isTestEnvironment && !hasAnyConfigEnvVars) {
-  logger(
-    "Test environment detected with no config env vars, using minimal default config",
-  );
-  // Provide minimal config for tests that don't have any config env vars
-  config = {
-    accounts: [{ companyId: "test", password: "test", userCode: "test" }],
-    storage: { localJson: { enabled: true } },
-    options: {
-      scraping: ScrapingOptionsSchema.parse({}),
-      security: SecurityOptionsSchema.parse({}),
-      notifications: {},
-      logging: LoggingOptionsSchema.parse({}),
-    },
-  };
-} else {
-  logger(
-    "Converting individual environment variables to MONEYMAN_CONFIG format...",
-  );
-  config = MoneymanConfigSchema.parse(convertEnvVarsToConfig());
 }
-
-// Export the config for use in other modules
-export { config };
 
 // Function to send config to telegram if needed (to be called after imports are resolved)
 export async function sendConfigToTelegramIfRequested() {
-  const { SEND_NEW_CONFIG_TO_TG } = process.env;
-  if (SEND_NEW_CONFIG_TO_TG) {
+  if (process.env.SEND_NEW_CONFIG_TO_TG === "true") {
     try {
       const { sendJSON } = await import("./bot/notifier.js");
       await sendJSON(config, "config.txt");
@@ -249,18 +210,11 @@ logger("Env", {
   systemTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 });
 
-logger("config loaded", {
-  DAYS_BACK: config.options.scraping.daysBack,
-  ACCOUNTS_TO_SCRAPE: config.options.scraping.accountsToScrape,
-  FUTURE_MONTHS: config.options.scraping.futureMonths,
-  MAX_PARALLEL_SCRAPERS: config.options.scraping.maxParallelScrapers,
-  ADDITIONAL_TRANSACTION_INFO_ENABLED:
-    config.options.scraping.additionalTransactionInfo,
-});
+logger("config loaded", config.options.scraping);
 
 function getAccounts(): Array<AccountConfig> {
   const allAccounts = config.accounts as Array<AccountConfig>;
-  const accountsToScrape = config.options.scraping.accountsToScrape;
+  const { accountsToScrape } = config.options.scraping;
 
   return !accountsToScrape || accountsToScrape.length === 0
     ? allAccounts
