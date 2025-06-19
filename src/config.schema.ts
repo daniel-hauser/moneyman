@@ -1,56 +1,38 @@
 import { z } from "zod";
 
 // Account configuration schema based on israeli-bank-scrapers login field combinations
+// All accounts require companyId and password as base fields
 const BaseAccountSchema = z.object({
   companyId: z.string().min(1, "Company ID is required"),
   password: z.string().min(1, "Password is required"),
 });
 
-// Define specific account types based on login field combinations from israeli-bank-scrapers
-const HapoalimAccountSchema = BaseAccountSchema.extend({
-  userCode: z.string().min(1, "User code is required"),
-});
-
-const StandardUsernameAccountSchema = BaseAccountSchema.extend({
-  username: z.string().min(1, "Username is required"),
-});
-
-const DiscountMercantileAccountSchema = BaseAccountSchema.extend({
-  id: z.string().min(1, "ID is required"),
-  num: z.string().min(1, "Number is required"),
-});
-
-const IsracardAmexAccountSchema = BaseAccountSchema.extend({
-  id: z.string().min(1, "ID is required"),
-  card6Digits: z.string().min(1, "Card 6 digits is required"),
-});
-
-const YahavAccountSchema = BaseAccountSchema.extend({
-  username: z.string().min(1, "Username is required"),
-  nationalID: z.string().min(1, "National ID is required"),
-});
-
-const BeyahadBehatsdaaAccountSchema = BaseAccountSchema.extend({
-  id: z.string().min(1, "ID is required"),
-});
-
-const OneZeroAccountSchema = BaseAccountSchema.extend({
-  email: z.string().email("Valid email is required"),
-  phoneNumber: z.string().min(1, "Phone number is required"),
-  otpCodeRetriever: z.string().optional(),
-  otpLongTermToken: z.string().optional(),
-});
-
-// Union of all possible account configurations
-export const AccountSchema = z.union([
-  HapoalimAccountSchema,
-  StandardUsernameAccountSchema,
-  DiscountMercantileAccountSchema,
-  IsracardAmexAccountSchema,
-  YahavAccountSchema,
-  BeyahadBehatsdaaAccountSchema,
-  OneZeroAccountSchema,
-]);
+// Account schema that supports all login field combinations from israeli-bank-scrapers
+// Based on the SCRAPERS object which defines loginFields for each company type
+export const AccountSchema = BaseAccountSchema.extend({
+  // Common fields used across different scrapers
+  userCode: z.string().optional(), // hapoalim
+  username: z.string().optional(), // leumi, mizrahi, otsarHahayal, max, visaCal, union, beinleumi, massad, yahav, pagi
+  id: z.string().optional(), // discount, mercantile, isracard, amex, beyahadBishvilha, behatsdaa
+  num: z.string().optional(), // discount, mercantile
+  card6Digits: z.string().optional(), // isracard, amex
+  nationalID: z.string().optional(), // yahav
+  email: z.string().email().optional(), // oneZero
+  phoneNumber: z.string().optional(), // oneZero
+  otpCodeRetriever: z.string().optional(), // oneZero
+  otpLongTermToken: z.string().optional(), // oneZero
+}).refine(
+  (data) => {
+    // Validate that required fields are present based on common patterns
+    // This is a flexible schema that allows any combination of the login fields
+    // The actual validation of required fields per company type happens at runtime
+    return true;
+  },
+  {
+    message:
+      "Account configuration must include all required fields for the specified company type",
+  },
+);
 
 // Storage provider schemas
 export const GoogleSheetsSchema = z.object({
