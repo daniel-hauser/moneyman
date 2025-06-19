@@ -180,7 +180,7 @@ function createConfig() {
         "Failed to parse MONEYMAN_CONFIG, falling back to env vars",
         error,
       );
-      throw error;
+      throw new Error("Invalid MONEYMAN_CONFIG format");
     }
   } else {
     try {
@@ -188,7 +188,7 @@ function createConfig() {
       return MoneymanConfigSchema.parse(convertEnvVarsToConfig());
     } catch (error) {
       logger("Failed to convert env vars to MONEYMAN_CONFIG", error);
-      throw error;
+      throw new Error("Invalid environment variables");
     }
   }
 }

@@ -142,7 +142,7 @@ export const LoggingOptionsSchema = z.object({
 
 // Complete configuration schema
 export const MoneymanConfigSchema = z.object({
-  accounts: z.array(AccountSchema).min(1, "At least one account is required"),
+  accounts: z.array(AccountSchema).default([]),
   storage: StorageSchema,
   options: z.object({
     scraping: ScrapingOptionsSchema,
