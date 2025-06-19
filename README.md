@@ -69,428 +69,142 @@ If you want to see them, use the `DEBUG` environment variable with the value `mo
 
 ## Settings
 
-### Configuration
+### Add accounts and scrape
 
-Moneyman uses JSON configuration for all settings. Set the `MONEYMAN_CONFIG` environment variable with your complete configuration:
+Moneyman uses a JSON configuration for all settings. Set the `MONEYMAN_CONFIG` environment variable with your complete configuration.
 
-#### Accounts (Required)
-
-Configure bank accounts to scrape:
-
-```bash
-export MONEYMAN_CONFIG='{
-  "accounts": [
-    {
-      "companyId": "hapoalim",
-      "userCode": "AB1234",
-      "password": "p@ssword"
-    },
-    {
-      "companyId": "visaCal",
-      "username": "Ploni Almoni",
-      "password": "p@ssword"
-    }
-  ],
-  "storage": { ... },
-  "options": { ... }
-}'
-```
-
-<details>
-<summary>Deprecated Environment Variable Settings - Accounts</summary>
-
-#### ACCOUNTS_JSON
+#### Accounts Configuration
 
 A json array of accounts following [this](https://github.com/eshaham/israeli-bank-scrapers#specific-definitions-per-scraper) schema with an additional `companyId` field with a [companyType](https://github.com/eshaham/israeli-bank-scrapers/blob/master/src/definitions.ts#L5:L23) as the value.
 
-Example:
-
-```json
-[
-  { "companyId": "hapoalim", "userCode": "AB1234", "password": "p@ssword" },
-  { "companyId": "visaCal", "username": "Ploni Almoni", "password": "p@ssword" }
-]
+```typescript
+/**
+ * Previously configured via ACCOUNTS_JSON environment variable
+ */
+accounts: Array<{
+  companyId: string;
+  password: string;
+  /**
+   * And any other fields required by the specific scraper
+   */
+}>;
 ```
 
-</details>
+#### Other configurations
 
-### Storage (Required - at least one)
+| env variable name | default            | description                                                           |
+| ----------------- | ------------------ | --------------------------------------------------------------------- |
+| `TZ`              | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp |
+| `MONEYMAN_CONFIG` |                    | The JSON configuration for the process                                |
 
-#### Google Sheets
-
-Export transactions to a Google Sheets spreadsheet:
-
-```bash
-export MONEYMAN_CONFIG='{
-  "accounts": [...],
-  "storage": {
-    "googleSheets": {
-      "serviceAccountEmail": "service@account.com",
-      "serviceAccountPrivateKey": "-----BEGIN PRIVATE KEY-----...",
-      "sheetId": "your-sheet-id",
-      "worksheetName": "_moneyman"
-    }
-  },
-  "options": {...}
-}'
+```typescript
+scraping: {
+  /**
+   * A comma separated list of providers to take from `accounts`. if empty, all accounts will be used
+   * @default all accounts
+   * @replaces ACCOUNTS_TO_SCRAPE environment variable
+   */
+  accountsToScrape?: string[];
+  /**
+   * The amount of days back to scrape
+   * @default 10
+   * @replaces DAYS_BACK environment variable
+   */
+  daysBack?: number;
+  /**
+   * The amount of months that will be scrapped in the future, starting from the day calculated using `daysBack`
+   * @default 1
+   * @replaces FUTURE_MONTHS environment variable
+   */
+  futureMonths?: number;
+  /**
+   * The hash type to use for the transaction hash. Can be `moneyman` or empty. The default will be changed to `moneyman` in the upcoming versions
+   * @default ""
+   * @replaces TRANSACTION_HASH_TYPE environment variable
+   */
+  transactionHashType?: "" | "moneyman";
+  /**
+   * If set to `'true'`, enables the `additionalTransactionInformation` option in the underlying scraper, which may provide more detailed transaction data for some providers.
+   * @default false
+   * @replaces ADDITIONAL_TRANSACTION_INFO_ENABLED environment variable
+   */
+  additionalTransactionInfo?: boolean;
+  /**
+   * A comma separated list of deprecations to hide
+   * @default []
+   * @replaces HIDDEN_DEPRECATIONS environment variable
+   */
+  hiddenDeprecations?: string[];
+  /**
+   * An ExecutablePath for the scraper. if undefined defaults to system.
+   * @replaces PUPPETEER_EXECUTABLE_PATH environment variable
+   */
+  puppeteerExecutablePath?: string;
+  /**
+   * The maximum number of parallel scrapers to run
+   * @default 1
+   * @replaces MAX_PARALLEL_SCRAPERS environment variable
+   */
+  maxParallelScrapers?: number;
+  /**
+   * Enable tracking of all domains accessed during scraping
+   * @default false
+   * @replaces DOMAIN_TRACKING_ENABLED environment variable
+   */
+  domainTracking?: boolean;
+};
 ```
 
-1. Follow the instructions [here](https://theoephraim.github.io/node-google-spreadsheet/#/guides/authentication?id=setting-up-your-quotapplicationquot) to create a google service account.
-2. Create a [new sheet](https://sheets.new/) and share it with your service account using the `serviceAccountEmail`.
-3. Create a sheet named `_moneyman` with the following headers in the first row:
-   | date | amount | description | memo | category | account | hash | comment | scraped at | scraped by | identifier | chargedCurrency | raw |
-
-<details>
-<summary>Deprecated Environment Variable Settings - Google Sheets</summary>
-
-| env variable name                    | description                                                   |
-| ------------------------------------ | ------------------------------------------------------------- |
-| `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | The super secret api key of your service account              |
-| `GOOGLE_SERVICE_ACCOUNT_EMAIL`       | The service account's email address                           |
-| `GOOGLE_SHEET_ID`                    | The id of the spreadsheet you shared with the service account |
-| `WORKSHEET_NAME`                     | The name of the sheet you want to add the transactions to     |
-
-</details>
-
-#### YNAB (YouNeedABudget)
-
-Export transactions directly to YNAB:
-
-```bash
-export MONEYMAN_CONFIG='{
-  "accounts": [...],
-  "storage": {
-    "ynab": {
-      "token": "your-ynab-access-token",
-      "budgetId": "your-budget-id",
-      "accounts": {
-        "5897": "ba2dd3a9-b7d4-46d6-8413-8327203e2b82"
-      }
-    }
-  },
-  "options": {...}
-}'
-```
-
-The `accounts` object maps your bank account IDs to YNAB account IDs.
-
-<details>
-<summary>Deprecated Environment Variable Settings - YNAB</summary>
-
-| env variable name | description                                                                                                      |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `YNAB_TOKEN`      | The `YNAB` access token. Check [YNAB documentation](https://api.ynab.com/#authentication) about how to obtain it |
-| `YNAB_BUDGET_ID`  | The budget id from `YNAB` (can be found in the url when you browse your budget)                                  |
-
-For the accounts mapping, you need to have your bank scraped account number (from your bank) linked to a YNAB account id.
-
-Example accounts mapping:
-
-```json
-{
-  "5897": "ba2dd3a9-b7d4-46d6-8413-8327203e2b82"
-}
-```
-
-</details>
-
-#### Azure Data Explorer
-
-Export to Azure Data Explorer cluster:
-
-```bash
-export MONEYMAN_CONFIG='{
-  "accounts": [...],
-  "storage": {
-    "azure": {
-      "appId": "your-app-id",
-      "appKey": "your-app-key",
-      "tenantId": "your-tenant-id",
-      "databaseName": "your-database",
-      "tableName": "your-table",
-      "ingestionMapping": "your-mapping",
-      "ingestUri": "https://ingest-your-cluster.region.kusto.windows.net"
-    }
-  },
-  "options": {...}
-}'
-```
-
-1. Create a new data explorer cluster (can be done for free [here](https://docs.microsoft.com/en-us/azure/data-explorer/start-for-free))
-2. Create a database within your cluster
-3. Create a azure Service Principal following steps 1-7 [here](https://docs.microsoft.com/en-us/azure/data-explorer/provision-azure-ad-app#create-azure-ad-application-registration)
-4. Allow the service to ingest data to the database by running this:
-
-```sql
-.add database <DB_NAME> ingestors ('aadapp=<APP_ID>;<TENANT_ID>') '<APP_NAME>'
-```
-
-5. Create a table with this command:
-
-```sql
-.create table <TABLE_NAME> (date: datetime, amount: real, description: string, memo: string, category: string, account: string, hash: string, comment: string, scraped_at: datetime, scraped_by: string, identifier: string, chargedCurrency: string, raw: string)
-```
-
-6. Create an ingestion mapping using this command:
-
-```sql
-.create table <TABLE_NAME> ingestion json mapping "<INGESTION_MAPPING_NAME>"
-'['
-'    { "column" : "date", "datatype" : "datetime", "path" : "$.date"},'
-'    { "column" : "amount", "datatype" : "real", "path" : "$.amount"},'
-'    { "column" : "description", "datatype" : "string", "path" : "$.description"},'
-'    { "column" : "memo", "datatype" : "string", "path" : "$.memo"},'
-'    { "column" : "category", "datatype" : "string", "path" : "$.category"},'
-'    { "column" : "account", "datatype" : "string", "path" : "$.account"},'
-'    { "column" : "hash", "datatype" : "string", "path" : "$.hash"},'
-'    { "column" : "comment", "datatype" : "string", "path" : "$.comment"},'
-'    { "column" : "scraped_at", "datatype" : "datetime", "path" : "$.scrapedAt"},'
-'    { "column" : "scraped_by", "datatype" : "string", "path" : "$.scrapedBy"},'
-'    { "column" : "identifier", "datatype" : "string", "path" : "$.identifier"},'
-'    { "column" : "chargedCurrency", "datatype" : "string", "path" : "$.chargedCurrency"},'
-'    { "column" : "raw", "datatype" : "string", "path" : "$.raw"}'
-']'
-```
-
-<details>
-<summary>Deprecated Environment Variable Settings - Azure Data Explorer</summary>
-
-| env variable name         | description                               |
-| ------------------------- | ----------------------------------------- |
-| `AZURE_APP_ID`            | the app id you created                    |
-| `AZURE_APP_KEY`           | the app key you created                   |
-| `AZURE_TENANT_ID`         | the tenant id of your app                 |
-| `AZURE_DATABASE_NAME`     | the database name inside your cluster     |
-| `AZURE_TABLE_NAME`        | the table name inside your database       |
-| `AZURE_INGESTION_MAPPING` | the ingestion mapping (created in step 4) |
-| `AZURE_INGEST_URI`        | the ingest endpoint of your cluster       |
-
-</details>
-
-#### Buxfer
-
-Export transactions to Buxfer:
-
-```bash
-export MONEYMAN_CONFIG='{
-  "accounts": [...],
-  "storage": {
-    "buxfer": {
-      "userName": "your-buxfer-username",
-      "password": "your-buxfer-password",
-      "accounts": {
-        "5897": "123456"
-      }
-    }
-  },
-  "options": {...}
-}'
-```
-
-<details>
-<summary>Deprecated Environment Variable Settings - Buxfer</summary>
-
-| env variable name  | description                                                                                                        |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| `BUXFER_USER_NAME` | The `Buxfer` user name. Check [Buxfer settings](https://www.buxfer.com/settings?type=login) about how to obtain it |
-| `BUXFER_PASSWORD`  | The `Buxfer` password                                                                                              |
-
-For the accounts mapping, you need to have your bank scraped account number (from your bank) linked to a Buxfer account id.
-
-Example accounts mapping:
-
-```json
-{
-  "5897": "123456"
-}
-```
-
-</details>
-
-#### Actual Budget
-
-Export transactions to Actual Budget server:
-
-```bash
-export MONEYMAN_CONFIG='{
-  "accounts": [...],
-  "storage": {
-    "actual": {
-      "serverUrl": "https://your-actual-server.com",
-      "password": "your-password",
-      "budgetId": "your-budget-id",
-      "accounts": {
-        "5897": "actual-account-id"
-      }
-    }
-  },
-  "options": {...}
-}'
-```
-
-<details>
-<summary>Deprecated Environment Variable Settings - Actual Budget</summary>
-
-| env variable name   | description                                                       |
-| ------------------- | ----------------------------------------------------------------- |
-| `ACTUAL_SERVER_URL` | The URL of your Actual Budget server                              |
-| `ACTUAL_PASSWORD`   | The password for your Actual Budget server                        |
-| `ACTUAL_BUDGET_ID`  | The budget ID in Actual Budget                                    |
-| `ACTUAL_ACCOUNTS`   | JSON mapping of bank account numbers to Actual Budget account IDs |
-
-</details>
-
-#### Local JSON Storage
-
-Save transactions to local JSON files:
-
-```bash
-export MONEYMAN_CONFIG='{
-  "accounts": [...],
-  "storage": {
-    "localJson": {
-      "enabled": true
-    }
-  },
-  "options": {...}
-}'
-```
-
-<details>
-<summary>Deprecated Environment Variable Settings - Local JSON</summary>
-
-| env variable name    | description                                                                                    |
-| -------------------- | ---------------------------------------------------------------------------------------------- |
-| `LOCAL_JSON_STORAGE` | If truthy, all transaction will be saved to a `<process cwd>/output/<ISO timestamp>.json` file |
-
-</details>
-
-#### Web POST
-
-Export transactions as a POST request to a web address:
-
-```bash
-export MONEYMAN_CONFIG='{
-  "accounts": [...],
-  "storage": {
-    "webPost": {
-      "url": "https://your-endpoint.com/transactions",
-      "authorizationToken": "Bearer your-token"
-    }
-  },
-  "options": {...}
-}'
-```
-
-The transactions will be sent as a JSON array in the body of the request.
-
-<details>
-<summary>Deprecated Environment Variable Settings - Web POST</summary>
-
-| env variable name              | description                                                                  |
-| ------------------------------ | ---------------------------------------------------------------------------- |
-| `WEB_POST_URL`                 | The url to post the transactions to                                          |
-| `WEB_POST_AUTHORIZATION_TOKEN` | The Authorization header value (i.e. `Bearer *****`, but can use any schema) |
-
-> [!IMPORTANT]
-> Be sure to post only to a trusted server.
-
-</details>
-
-### Options
-
-#### Scraping Options
-
-Configure scraper behavior:
-
-```bash
-export MONEYMAN_CONFIG='{
-  "accounts": [...],
-  "storage": {...},
-  "options": {
-    "scraping": {
-      "accountsToScrape": ["hapoalim", "visaCal"],
-      "daysBack": 10,
-      "futureMonths": 1,
-      "timezone": "Asia/Jerusalem",
-      "transactionHashType": "moneyman",
-      "additionalTransactionInfo": false,
-      "hiddenDeprecations": [],
-      "puppeteerExecutablePath": "/usr/bin/chromium",
-      "maxParallelScrapers": 1,
-      "domainTracking": false
-    }
-  }
-}'
-```
-
-<details>
-<summary>Deprecated Environment Variable Settings - Scraping</summary>
-
-| env variable name                     | default            | description                                                                                                                                                               |
-| ------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ACCOUNTS_TO_SCRAPE`                  | `""`               | A comma separated list of providers to take from `ACCOUNTS_JSON`. if empty, all accounts will be used                                                                     |
-| `DAYS_BACK`                           | `10`               | The amount of days back to scrape                                                                                                                                         |
-| `TZ`                                  | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                                                                                     |
-| `FUTURE_MONTHS`                       | `1`                | The amount of months that will be scrapped in the future, starting from the day calculated using `DAYS_BACK`                                                              |
-| `TRANSACTION_HASH_TYPE`               | ``                 | The hash type to use for the transaction hash. Can be `moneyman` or empty. The default will be changed to `moneyman` in the upcoming versions                             |
-| `ADDITIONAL_TRANSACTION_INFO_ENABLED` | `'false'`          | If set to `'true'`, enables the `additionalTransactionInformation` option in the underlying scraper, which may provide more detailed transaction data for some providers. |
-| `HIDDEN_DEPRECATIONS`                 | `''`               | A comma separated list of deprecations to hide                                                                                                                            |
-| `PUPPETEER_EXECUTABLE_PATH`           | `undefined`        | An ExecutablePath for the scraper. if undefined defaults to system.                                                                                                       |
-| `MAX_PARALLEL_SCRAPERS`               | `1`                | The maximum number of parallel scrapers to run                                                                                                                            |
-| `DOMAIN_TRACKING_ENABLED`             | `''`               | Enable tracking of all domains accessed during scraping                                                                                                                   |
-
-</details>
-
-#### Security Options
-
-Configure domain security and firewall settings:
-
-```bash
-export MONEYMAN_CONFIG='{
-  "accounts": [...],
-  "storage": {...},
-  "options": {
-    "security": {
-      "firewallSettings": ["companyId ALLOW domain.com"],
-      "blockByDefault": false
-    }
-  }
-}'
-```
-
-Given the nature of the scraping process, it's important to keep track of the domains accessed during the scraping process and ensure we connect only to the domains we expect.
-
-<details>
-<summary>Deprecated Environment Variable Settings - Security</summary>
+### Domain Security
 
 Given the nature of the scraping process, it's important to keep track of the domains accessed during the scraping process and ensure we connect only to the domains we expect.
 
 #### Domain Tracking
 
-Use `DOMAIN_TRACKING_ENABLED` environment variable to generate a report of all domains accessed during the scraping process. This will help you to understand which domains are being accessed by the scrapers.
+After enabling the domain tracking setting, the process will keep track of all domains accessed during the scraping process.
+When the scraping process is done, a message will be sent to the telegram chat with the list of domains accessed.
 
 #### Domain Whitelisting
 
-The Domain whitelisting is a **security** feature that will allow you to specify which domains are allowed to be accessed by the scrapers.
-
-To enable the Domain whitelisting, use the env var `FIREWALL_SETTINGS`.
-
-Each row is in the following format: `<companyId> <ALLOW|BLOCK> <domain>`
-
-example: `hapoalim ALLOW www.bankhapoalim.co.il`
-
-Example settings:
+You can control which domains each scraper can access by configuring firewall rules. Each rule follows the format:
 
 ```
-hapoalim ALLOW www.bankhapoalim.co.il
-hapoalim ALLOW login.bankhapoalim.co.il
-hapoalim ALLOW loginp.bankhapoalim.co.il
+<companyId> <ALLOW|BLOCK> <domain>
 ```
 
-**Rules:**
+Use the following configuration to setup:
 
-- `ALLOW` - Allow the connection
+```typescript
+security: {
+  /**
+   * A list of domain rules. Each line should follow the format `<companyId> <ALLOW|BLOCK> <domain>`
+   * @replaces FIREWALL_SETTINGS environment variable (newline-separated rules)
+   */
+  firewallSettings?: string[];
+  /**
+   * If truthy, all domains with no rule will be blocked by default. If falsy, all domains will be allowed by default
+   * @replaces BLOCK_BY_DEFAULT environment variable
+   */
+  blockByDefault?: boolean;
+};
+```
+
+Example:
+
+```
+/**
+ * Allow hapoalim to access these domains
+ */
+["hapoalim ALLOW bankhapoalim.co.il"]
+/**
+ * Block specific domain for visaCal
+ */
+["visaCal BLOCK suspicious-domain.com"]
+```
+
+When a rule exists for a specific domain, the scraper will:
+
+- `ALLOW` - Allow the connection to proceed
 - `BLOCK` - Block the connection
 - If no rule exists for a domain, the default behavior is to allow the connection
 
@@ -499,82 +213,335 @@ hapoalim ALLOW loginp.bankhapoalim.co.il
 
 Rules support parent domain matching, so a rule for `example.com` will apply to `api.example.com` and `www.example.com` as well.
 
-</details>
-
-#### Notification Options
-
-Configure Telegram notifications:
-
-```bash
-export MONEYMAN_CONFIG='{
-  "accounts": [...],
-  "storage": {...},
-  "options": {
-    "notifications": {
-      "telegram": {
-        "apiKey": "123456:ABC...",
-        "chatId": "12345"
-      }
-    }
-  }
-}'
-```
+### Get notified in telegram
 
 We use telegram to send you the update status.
+
+Setup instructions:
 
 1. Create your bot following [this](https://core.telegram.org/bots#creating-a-new-bot)
 2. Open this url `https://api.telegram.org/bot<TELEGRAM_API_KEY>/getUpdates`
 3. Send a message to your bot and find the chat id
 
-<details>
-<summary>Deprecated Environment Variable Settings - Notifications</summary>
-
-| env variable name  | description                                              |
-| ------------------ | -------------------------------------------------------- |
-| `TELEGRAM_API_KEY` | The telegram bot token you got from @BotFather           |
-| `TELEGRAM_CHAT_ID` | The chat id of the chat you want to send the messages to |
-
-</details>
-
-#### Logging Options
-
-Configure logging settings:
-
-```bash
-export MONEYMAN_CONFIG='{
-  "accounts": [...],
-  "storage": {...},
-  "options": {
-    "logging": {
-      "getIpInfoUrl": "https://ipinfo.io/json"
-    }
-  }
-}'
+```typescript
+notifications: {
+  telegram?: {
+    /**
+     * The super secret api key you got from BotFather
+     * @replaces TELEGRAM_API_KEY environment variable
+     */
+    apiKey: string;
+    /**
+     * The chat id
+     * @replaces TELEGRAM_CHAT_ID environment variable
+     */
+    chatId: string;
+  };
+};
 ```
 
-We use the [debug](https://www.npmjs.com/package/debug) package for debug messages under the `moneyman:` namespace.
+### Export to Azure Data Explorer
 
-To see debug messages, set the `DEBUG` environment variable:
+Setup instructions:
 
-```bash
-export DEBUG=moneyman:*
+1. Create a new data explorer cluster (can be done for free [here](https://docs.microsoft.com/en-us/azure/data-explorer/start-for-free))
+2. Create a database within your cluster
+3. Create a azure Service Principal following steps 1-7 [here](https://docs.microsoft.com/en-us/azure/data-explorer/provision-azure-ad-app#create-azure-ad-application-registration)
+4. Allow the service to ingest data to the database by running this:
+
+   ```kql
+   .execute database script <|
+   .add database ['<ADE_DATABASE_NAME>'] ingestors ('aadapp=<AZURE_APP_ID>;<AZURE_TENANT_ID>')
+   ```
+
+5. Create a table and ingestion mapping by running this: (Replace `<ADE_TABLE_NAME>` and `<ADE_INGESTION_MAPPING>`)
+
+   ````kql
+   .execute database script <|
+   .drop table <ADE_TABLE_NAME> ifexists
+   .create table <ADE_TABLE_NAME> (
+      metadata: dynamic,
+      transaction: dynamic
+   )
+   .create table <ADE_TABLE_NAME> ingestion json mapping '<ADE_INGESTION_MAPPING>' ```
+   [
+      { "column": "transaction", "path": "$.transaction" },
+      { "column": "metadata", "path": "$.metadata" }
+   ]
+   ```
+   ````
+
+   Feel free to add more columns to the table and ingestion json mapping
+
+Use the following configuration to setup:
+
+```typescript
+azure?: {
+  /**
+   * The azure application ID
+   * @replaces AZURE_APP_ID environment variable
+   */
+  appId: string;
+  /**
+   * The azure application secret key
+   * @replaces AZURE_APP_KEY environment variable
+   */
+  appKey: string;
+  /**
+   * The tenant ID of your azure application
+   * @replaces AZURE_TENANT_ID environment variable
+   */
+  tenantId: string;
+  /**
+   * The name of the database
+   * @replaces ADE_DATABASE_NAME environment variable
+   */
+  databaseName: string;
+  /**
+   * The name of the table
+   * @replaces ADE_TABLE_NAME environment variable
+   */
+  tableName: string;
+  /**
+   * The name of the JSON ingestion mapping
+   * @replaces ADE_INGESTION_MAPPING environment variable
+   */
+  ingestionMapping: string;
+  /**
+   * The ingest URI of the cluster
+   * @replaces ADE_INGEST_URI environment variable
+   */
+  ingestUri: string;
+};
 ```
 
-For timezone configuration, use the standard `TZ` environment variable:
+### Export JSON files
 
-```bash
-export TZ=Asia/Jerusalem
+Export transactions to json file.
+
+Use the following configuration to setup:
+
+```typescript
+localJson?: {
+  /**
+   * If truthy, all transaction will be saved to a `<process cwd>/output/<ISO timestamp>.json` file
+   * @replaces LOCAL_JSON_STORAGE environment variable
+   */
+  enabled: boolean;
+};
 ```
 
-### Migration Helper
+### Export to web address
 
-To migrate from environment variables to JSON config:
+Export transactions as a POST request to a web address.
 
-1. Set `SEND_NEW_CONFIG_TO_TG=true` environment variable
-2. Run moneyman with your existing environment variables
-3. A `config.txt` file will be sent to your Telegram chat containing the equivalent JSON configuration
-4. Use this JSON as your `MONEYMAN_CONFIG` value
+The transactions will be sent as a JSON array in the body of the request with the following structure:
 
-### Backward Compatibility
+```
+{
+    /**
+     * Date in "dd/mm/yyyy" format
+     */
+    date: string,
+    amount: number,
+    description: string,
+    memo: string,
+    category: string,
+    account: string,
+    hash: string,
+    comment: string | undefined,
+    /**
+     * Scraped date in "YYYY-MM-DD" format
+     */
+    "scraped at": string,
+    "scraped by": string,
+    identifier: string,
+    chargedCurrency: string | undefined,
+}
+```
 
-If `MONEYMAN_CONFIG` is not set, moneyman will continue to use individual environment variables as before. No breaking changes to existing setups.
+Use the following configuration to setup:
+
+```typescript
+webPost?: {
+  /**
+   * The URL to post to
+   * @replaces WEB_POST_URL environment variable
+   */
+  url: string;
+  /**
+   * The Authorization header value (i.e. `Bearer *****`, but can use any schema)
+   * @replaces WEB_POST_AUTHORIZATION_TOKEN environment variable
+   */
+  authorizationToken: string;
+};
+```
+
+> [!IMPORTANT]
+> Be sure to post only to a trusted server.
+
+### Export to excel on OneDrive
+
+WIP
+
+### Export to google sheets
+
+Export transactions to a Google Sheets spreadsheet.
+
+Setup instructions:
+
+1. Follow the instructions [here](https://theoephraim.github.io/node-google-spreadsheet/#/guides/authentication?id=setting-up-your-quotapplicationquot) to create a google service account.
+2. Create a [new sheet](https://sheets.new/) and share it with your service account using the `serviceAccountEmail`.
+3. Create a sheet named `_moneyman` with the following headers in the first row:
+   | date | amount | description | memo | category | account | hash | comment | scraped at | scraped by | identifier | chargedCurrency | raw |
+
+Use the following configuration to setup:
+
+```typescript
+googleSheets?: {
+  /**
+   * The super secret api key of your service account
+   * @replaces GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY environment variable
+   */
+  serviceAccountPrivateKey: string;
+  /**
+   * The service account's email address
+   * @replaces GOOGLE_SERVICE_ACCOUNT_EMAIL environment variable
+   */
+  serviceAccountEmail: string;
+  /**
+   * The id of the spreadsheet you shared with the service account
+   * @replaces GOOGLE_SHEET_ID environment variable
+   */
+  sheetId: string;
+  /**
+   * The name of the sheet you want to add the transactions to
+   * @default "_moneyman"
+   * @replaces WORKSHEET_NAME environment variable
+   */
+  worksheetName: string;
+};
+```
+
+### Export to YNAB (YouNeedABudget)
+
+To export your transactions directly to `YNAB` you need to use the following configuration to setup:
+
+```typescript
+ynab?: {
+  /**
+   * The `YNAB` access token. Check [YNAB documentation](https://api.ynab.com/#authentication) about how to obtain it
+   * @replaces YNAB_TOKEN environment variable
+   */
+  token: string;
+  /**
+   * The `YNAB` budget ID where you want to import the data. You can obtain it opening [YNAB application](https://app.ynab.com/) on a browser and taking the budget `UUID` in the `URL`
+   * @replaces YNAB_BUDGET_ID environment variable
+   */
+  budgetId: string;
+  /**
+   * A key-value list to correlate each account with the `YNAB` account `UUID`
+   * @replaces YNAB_ACCOUNTS environment variable
+   */
+  accounts: Record<string, string>;
+};
+```
+
+#### accounts
+
+A `JSON` key-value pair structure representing a mapping between two identifiers. The `key` represent the account ID as is understood by moneyman and the `value` it's the `UUID` visible in the YNAB URL when an account is selected.
+
+For example, in the URL:
+`https://app.ynab.com/22aa9fcd-93a9-47e9-8ff6-33036b7c6242/accounts/ba2dd3a9-b7d4-46d6-8413-8327203e2b82` the account UUID is the second `UUID`.
+
+Example:
+
+```json
+{
+  "5897": "ba2dd3a9-b7d4-46d6-8413-8327203e2b82"
+}
+```
+
+### Export to [Buxfer](https://www.buxfer.com/features)
+
+To export your transactions directly to `Buxfer` you need to use the following configuration to setup:
+
+```typescript
+buxfer?: {
+  /**
+   * The `Buxfer` user name. Check [Buxfer settings](https://www.buxfer.com/settings?type=login) about how to obtain it
+   * @replaces BUXFER_USER_NAME environment variable
+   */
+  userName: string;
+  /**
+   * The `Buxfer` user password. Check [Buxfer settings](https://www.buxfer.com/settings?type=login) about how to obtain it
+   * @replaces BUXFER_PASSWORD environment variable
+   */
+  password: string;
+  /**
+   * A key-value list to correlate each account with the `Buxfer` account `UUID`
+   * @replaces BUXFER_ACCOUNTS environment variable
+   */
+  accounts: Record<string, string>;
+};
+```
+
+#### accounts
+
+A `JSON` key-value pair structure representing a mapping between two identifiers. The `key` represent the account ID as is understood by moneyman (as obtained from web scrapping the financial institutions) and the `value` it's the `UUID` visible in the Buxfer URL when an account is selected.
+
+For example, in the URL:
+`https://www.buxfer.com/account?id=123456` the account UUID is the account id query parameter.
+
+Example:
+
+```json
+{
+  "5897": "123456"
+}
+```
+
+### Export to [Actual Budget](https://actualbudget.org/)
+
+Export transactions directly to your Actual Budget server.
+
+Use the following configuration to setup:
+
+```typescript
+actual?: {
+  /**
+   * The URL of your Actual Budget server
+   * @replaces ACTUAL_SERVER_URL environment variable
+   */
+  serverUrl: string;
+  /**
+   * The password for your Actual Budget server
+   * @replaces ACTUAL_PASSWORD environment variable
+   */
+  password: string;
+  /**
+   * The ID of the budget where you want to import the data
+   * @replaces ACTUAL_BUDGET_ID environment variable
+   */
+  budgetId: string;
+  /**
+   * A key-value list to correlate each account with the Actual Budget account ID
+   * @replaces ACTUAL_ACCOUNTS environment variable
+   */
+  accounts: Record<string, string>;
+};
+```
+
+#### accounts
+
+A `JSON` key-value pair structure representing a mapping between two identifiers. The `key` represents the account ID as understood by moneyman (from web scraping the financial institutions) and the `value` is the account ID from your Actual Budget server.
+
+Example:
+
+```json
+{
+  "5897": "actual-account-id-123"
+}
+```
+
+**Note:** Pending transactions will be skipped during import.
