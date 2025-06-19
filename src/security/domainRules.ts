@@ -1,7 +1,6 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { createLogger } from "../utils/logger.js";
 import { addToKeyedMap } from "../utils/collections.js";
-import { config } from "../config.js";
 
 const logger = createLogger("domain-rules");
 export type Rule = "ALLOW" | "BLOCK";
@@ -16,13 +15,10 @@ export class DomainRuleManager {
   private rootDomainTrie: TrieNode = { rules: new Map(), children: new Map() };
 
   /**
-   * @param rulesString Domain rules string. Format: [company] [ALLOW/BLOCK] [domain]
+   * @param rules Domain rules array. Format: [company] [ALLOW/BLOCK] [domain]
    */
-  public constructor(
-    rulesString: string = config.options.security.firewallSettings || "",
-  ) {
-    const rules = this.parseDomainRules(rulesString);
-    for (const [companyId, action, domain] of rules) {
+  public constructor(rules: string[]) {
+    for (const [companyId, action, domain] of this.parseDomainRules(rules)) {
       this.insertRule(domain, companyId, action);
     }
   }
@@ -88,22 +84,20 @@ export class DomainRuleManager {
     return findRule(this.rootDomainTrie, 0);
   }
 
-  private parseDomainRules(rules: string): [CompanyTypes, Rule, string][] {
-    return (
-      rules
-        // TODO: The split by pipe is undocumented, and is here to support one-line env vars with no comment support
-        .split(/\n|\|/)
-        .map((line) => line.trim())
-        .filter((line) => line && !line.startsWith("#"))
-        .map((line) => line.split(" ").filter((part) => part.trim()))
-        .filter(
-          (parts): parts is [string, string, string] => parts.length === 3,
-        )
-        .map(([companyId, action, domain]) => [
-          companyId as CompanyTypes,
-          action as Rule,
-          domain,
-        ])
-    );
+  private parseDomainRules(rules: string[]): [CompanyTypes, Rule, string][] {
+    const ruleRegex = /^(\w+)\s+(ALLOW|BLOCK)\s+(\S+)$/;
+    return rules
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#"))
+      .map((line) => {
+        const match = line.match(ruleRegex);
+        return match ? [match[1], match[2], match[3]] : null;
+      })
+      .filter((parts): parts is [string, string, string] => parts !== null)
+      .map(([companyId, action, domain]) => [
+        companyId as CompanyTypes,
+        action as Rule,
+        domain,
+      ]);
   }
 }

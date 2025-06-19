@@ -73,7 +73,11 @@ function convertEnvVarsToConfig(): MoneymanConfig {
 
   // Convert security options
   if (process.env.FIREWALL_SETTINGS)
-    config.options.security.firewallSettings = process.env.FIREWALL_SETTINGS;
+    // TODO: The split by pipe is undocumented, and is here to support one-line env vars with no comment support
+    config.options.security.firewallSettings =
+      process.env.FIREWALL_SETTINGS.split(/\n|\|/)
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith("#"));
   if (process.env.BLOCK_BY_DEFAULT)
     config.options.security.blockByDefault =
       process.env.BLOCK_BY_DEFAULT === "true";

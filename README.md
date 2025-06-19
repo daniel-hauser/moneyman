@@ -452,7 +452,7 @@ export MONEYMAN_CONFIG='{
   "storage": {...},
   "options": {
     "security": {
-      "firewallSettings": "companyId ALLOW domain.com",
+      "firewallSettings": ["companyId ALLOW domain.com"],
       "blockByDefault": false
     }
   }

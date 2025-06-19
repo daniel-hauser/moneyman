@@ -124,7 +124,7 @@ export const ScrapingOptionsSchema = z.object({
 });
 
 export const SecurityOptionsSchema = z.object({
-  firewallSettings: z.string().optional(),
+  firewallSettings: z.array(z.string()).optional(),
   blockByDefault: z.boolean().default(false),
 });
 
