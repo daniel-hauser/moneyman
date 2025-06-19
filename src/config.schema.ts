@@ -114,7 +114,6 @@ export const ScrapingOptionsSchema = z.object({
   accountsToScrape: z.array(z.string()).optional(),
   daysBack: z.number().min(1).max(365).default(10),
   futureMonths: z.number().min(0).max(12).default(1),
-  timezone: z.string().default("Asia/Jerusalem"),
   transactionHashType: z.enum(["", "moneyman"]).default(""),
   additionalTransactionInfo: z.boolean().default(false),
   hiddenDeprecations: z.array(z.string()).default([]),

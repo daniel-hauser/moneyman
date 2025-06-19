@@ -76,7 +76,6 @@ describe("GoogleSheetsStorage", () => {
         scraping: {
           daysBack: 10,
           futureMonths: 1,
-          timezone: "Asia/Jerusalem",
           transactionHashType: "",
           additionalTransactionInfo: false,
           hiddenDeprecations: [],
@@ -199,7 +198,6 @@ describe("GoogleSheetsStorage", () => {
           scraping: {
             daysBack: 10,
             futureMonths: 1,
-            timezone: "Asia/Jerusalem",
             transactionHashType: "",
             additionalTransactionInfo: false,
             hiddenDeprecations: [],
