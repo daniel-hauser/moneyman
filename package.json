@@ -16,6 +16,7 @@
     "lint": "prettier --check .",
     "lint:fix": "prettier --write .",
     "test": "jest",
+    "test:config": "npm run build && node dst/scripts/verify-config.js",
     "test:scraper-access": "jest -c jest.scraper-access.config.js"
   },
   "repository": {
