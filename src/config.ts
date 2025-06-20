@@ -246,17 +246,21 @@ function sendConfigError(error: Error) {
   const message = `Failed to load config\n${error}`;
   const { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID, MONEYMAN_CONFIG } = process.env;
   if (TELEGRAM_API_KEY && TELEGRAM_CHAT_ID) {
+    console.log("sendConfigError using TELEGRAM_API_KEY and TELEGRAM_CHAT_ID");
     new Telegraf(TELEGRAM_API_KEY).telegram.sendMessage(
       TELEGRAM_CHAT_ID,
       message,
     );
   } else if (MONEYMAN_CONFIG) {
     try {
+      console.log("sendConfigError using MONEYMAN_CONFIG");
       const config = parseJsoncConfig(MONEYMAN_CONFIG) as MoneymanConfig;
       if (config.options?.notifications?.telegram) {
         const { apiKey, chatId } = config.options.notifications.telegram;
         new Telegraf(apiKey).telegram.sendMessage(chatId, message);
       }
-    } catch (error) {}
+    } catch (error) {
+      console.error("Failed to send config error to telegram");
+    }
   }
 }
