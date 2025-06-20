@@ -2,6 +2,7 @@ import "dotenv/config";
 import { subDays } from "date-fns";
 import { AccountConfig, ScraperConfig } from "./types.js";
 import { createLogger } from "./utils/logger.js";
+import { parseJsoncConfig } from "./utils/jsonc.js";
 import {
   MoneymanConfigSchema,
   type MoneymanConfig,
@@ -173,7 +174,7 @@ function createConfig() {
   if (MONEYMAN_CONFIG) {
     logger("Using MONEYMAN_CONFIG");
     try {
-      const parsedConfig = JSON.parse(MONEYMAN_CONFIG);
+      const parsedConfig = parseJsoncConfig(MONEYMAN_CONFIG);
       return MoneymanConfigSchema.parse(parsedConfig);
     } catch (error) {
       logger(
