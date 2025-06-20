@@ -3,27 +3,6 @@ name: Scrape
 on:
   workflow_dispatch:
     inputs:
-      accountsToScrape:
-        default: ""
-        required: false
-        description: "Accounts to scrape (comma separated)"
-      daysBack:
-        default: "10"
-        required: false
-        description: "Days back to scrape"
-      worksheetName:
-        default: "auto_moneyman"
-        required: false
-        description: "The name of the worksheet to write to"
-      parallelScrapes:
-        default: "1"
-        required: false
-        description: "Number of parallel scrapes to run"
-      additionalTransactionInformationEnabled:
-        description: "Enable additional transaction information (true/false)"
-        type: boolean
-        required: false
-        default: false
       containerTag:
         default: "latest"
         required: false
@@ -93,10 +72,6 @@ jobs:
           MONEYMAN_CONFIG: ${{ secrets.MONEYMAN_CONFIG }}
           DEBUG: ""
           TZ: "Asia/Jerusalem"
-          DAYS_BACK: ${{ github.event.inputs.daysBack }}
-          WORKSHEET_NAME: ${{ github.event.inputs.worksheetName }}
-          ACCOUNTS_TO_SCRAPE: ${{ github.event.inputs.accountsToScrape }}
-          ADDITIONAL_TRANSACTION_INFO_ENABLED: ${{ github.event.inputs.additionalTransactionInformationEnabled }}
           ACCOUNTS_JSON: ${{ secrets.ACCOUNTS_JSON }}
           TELEGRAM_API_KEY: ${{ secrets.TELEGRAM_API_KEY }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -118,7 +93,7 @@ jobs:
           BUXFER_ACCOUNTS: ${{ secrets.BUXFER_ACCOUNTS }}
           TRANSACTION_HASH_TYPE: ${{ secrets.TRANSACTION_HASH_TYPE }}
           WEB_POST_URL: ${{ secrets.WEB_POST_URL }}
-          MAX_PARALLEL_SCRAPERS: ${{ github.event.inputs.parallelScrapes || env.MAX_PARALLEL_SCRAPERS }}
+          MAX_PARALLEL_SCRAPERS: ${{ env.MAX_PARALLEL_SCRAPERS }}
           DOMAIN_TRACKING_ENABLED: ${{ vars.DOMAIN_TRACKING_ENABLED }}
           FIREWALL_SETTINGS: ${{ secrets.FIREWALL_SETTINGS }}
           BLOCK_BY_DEFAULT: ${{ vars.BLOCK_BY_DEFAULT }}
