@@ -183,8 +183,8 @@ export class ActualBudgetStorage implements TransactionStorage {
         actualAccounts.map((a) => [a.id, a.name]),
       );
 
-      this.bankToActualAccountMap = this.parseActualAccounts(
-        actualConfig.accounts,
+      this.bankToActualAccountMap = new Map(
+        Object.entries(actualConfig.accounts),
       );
 
       for (const [
@@ -211,12 +211,6 @@ export class ActualBudgetStorage implements TransactionStorage {
         `Failed to initialize Actual Budget: ${error instanceof Error ? error.message : error}`,
       );
     }
-  }
-
-  private parseActualAccounts(
-    accounts: Record<string, string>,
-  ): Map<string, string> {
-    return new Map(Object.entries(accounts));
   }
 
   private convertTransactionToActualFormat(
