@@ -45,7 +45,6 @@ describe("config", () => {
         scraping: {
           daysBack: 20,
           futureMonths: 1,
-          timezone: "Asia/Jerusalem",
           transactionHashType: "",
           additionalTransactionInfo: false,
           hiddenDeprecations: [],
@@ -115,7 +114,6 @@ describe("config", () => {
         scraping: {
           daysBack: 15,
           futureMonths: 1,
-          timezone: "Asia/Jerusalem",
           transactionHashType: "",
           additionalTransactionInfo: false,
           hiddenDeprecations: [],
