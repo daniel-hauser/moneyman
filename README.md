@@ -28,17 +28,16 @@ By using moneyman, you acknowledge that you are taking full responsibility for t
 
 Moneyman can be configured to periodically run automatically, using the [`scrape`](./.github/workflows/scrape.yml) github workflow.
 
-By default, this workflow will run every other day.
+By default, this workflow will run twice daily at 10:05 and 22:05 UTC (12:05 and 00:05 or 13:05 and 01:05 in Israel time, depending on DST).
 
 Since logs are public for public repos, most logs are off by default and the progress and error messages will be sent in telegram.
 
 #### Setup
 
 1. Fork the [moneyman](https://github.com/daniel-hauser/moneyman) repo to your account
-2. Add the following secrets to the [actions secrets](../../settings/secrets/actions) of the forked repo
-   1. [`ACCOUNTS_JSON`](#add-accounts-and-scrape) - So moneyman can login to your accounts
-   2. [`TELEGRAM_API_[KEY, CHAT_ID]`](#get-notified-in-telegram) - So moneyman can send private logs and errors
-   3. The environment variables of the storage you want to use
+2. Add the `MONEYMAN_CONFIG` to the [actions secrets](../../settings/secrets/actions) of the forked repo
+   - Use the config in `.env.public` as a starting point and add configurations for your selected storage
+   - For better logging, add the [telegram configuration](#get-notified-in-telegram) So moneyman can send private logs and errors
 3. Build and upload the docker image using the "Run workflow" button in [workflows/build.yml](../../actions/workflows/build.yml)
 4. Wait for the [scrape workflow](../../actions/workflows/scrape.yml) to be triggered by github
 
@@ -92,66 +91,77 @@ accounts: Array<{
 
 #### Other configurations
 
-| env variable name | default            | description                                                           |
-| ----------------- | ------------------ | --------------------------------------------------------------------- |
-| `TZ`              | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp |
-| `MONEYMAN_CONFIG` |                    | The JSON configuration for the process                                |
+| env variable name       | default            | description                                                                                           |
+| ----------------------- | ------------------ | ----------------------------------------------------------------------------------------------------- |
+| `TZ`                    | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                 |
+| `MONEYMAN_CONFIG`       |                    | The JSON configuration for the process                                                                |
+| `SEND_NEW_CONFIG_TO_TG` | `"false"`          | Set to `"true"` to send the current configuration as `config.txt` via Telegram for debugging purposes |
 
 ```typescript
-scraping: {
-  /**
-   * A comma separated list of providers to take from `accounts`. if empty, all accounts will be used
-   * @default all accounts
-   * @replaces ACCOUNTS_TO_SCRAPE environment variable
-   */
-  accountsToScrape?: string[];
-  /**
-   * The amount of days back to scrape
-   * @default 10
-   * @replaces DAYS_BACK environment variable
-   */
-  daysBack?: number;
-  /**
-   * The amount of months that will be scrapped in the future, starting from the day calculated using `daysBack`
-   * @default 1
-   * @replaces FUTURE_MONTHS environment variable
-   */
-  futureMonths?: number;
-  /**
-   * The hash type to use for the transaction hash. Can be `moneyman` or empty. The default will be changed to `moneyman` in the upcoming versions
-   * @default ""
-   * @replaces TRANSACTION_HASH_TYPE environment variable
-   */
-  transactionHashType?: "" | "moneyman";
-  /**
-   * If set to `'true'`, enables the `additionalTransactionInformation` option in the underlying scraper, which may provide more detailed transaction data for some providers.
-   * @default false
-   * @replaces ADDITIONAL_TRANSACTION_INFO_ENABLED environment variable
-   */
-  additionalTransactionInfo?: boolean;
-  /**
-   * A comma separated list of deprecations to hide
-   * @default []
-   * @replaces HIDDEN_DEPRECATIONS environment variable
-   */
-  hiddenDeprecations?: string[];
-  /**
-   * An ExecutablePath for the scraper. if undefined defaults to system.
-   * @replaces PUPPETEER_EXECUTABLE_PATH environment variable
-   */
-  puppeteerExecutablePath?: string;
-  /**
-   * The maximum number of parallel scrapers to run
-   * @default 1
-   * @replaces MAX_PARALLEL_SCRAPERS environment variable
-   */
-  maxParallelScrapers?: number;
-  /**
-   * Enable tracking of all domains accessed during scraping
-   * @default false
-   * @replaces DOMAIN_TRACKING_ENABLED environment variable
-   */
-  domainTracking?: boolean;
+options: {
+  scraping: {
+    /**
+     * A comma separated list of providers to take from `accounts`. if empty, all accounts will be used
+     * @default all accounts
+     * @replaces ACCOUNTS_TO_SCRAPE environment variable
+     */
+    accountsToScrape?: string[];
+    /**
+     * The amount of days back to scrape
+     * @default 10
+     * @replaces DAYS_BACK environment variable
+     */
+    daysBack?: number;
+    /**
+     * The amount of months that will be scrapped in the future, starting from the day calculated using `daysBack`
+     * @default 1
+     * @replaces FUTURE_MONTHS environment variable
+     */
+    futureMonths?: number;
+    /**
+     * The hash type to use for the transaction hash. Can be `moneyman` or empty. The default will be changed to `moneyman` in the upcoming versions
+     * @default ""
+     * @replaces TRANSACTION_HASH_TYPE environment variable
+     */
+    transactionHashType?: "" | "moneyman";
+    /**
+     * If set to `'true'`, enables the `additionalTransactionInformation` option in the underlying scraper, which may provide more detailed transaction data for some providers.
+     * @default false
+     * @replaces ADDITIONAL_TRANSACTION_INFO_ENABLED environment variable
+     */
+    additionalTransactionInfo?: boolean;
+    /**
+     * A comma separated list of deprecations to hide
+     * @default []
+     * @replaces HIDDEN_DEPRECATIONS environment variable
+     */
+    hiddenDeprecations?: string[];
+    /**
+     * An ExecutablePath for the scraper. if undefined defaults to system.
+     * @replaces PUPPETEER_EXECUTABLE_PATH environment variable
+     */
+    puppeteerExecutablePath?: string;
+    /**
+     * The maximum number of parallel scrapers to run
+     * @default 1
+     * @replaces MAX_PARALLEL_SCRAPERS environment variable
+     */
+    maxParallelScrapers?: number;
+    /**
+     * Enable tracking of all domains accessed during scraping
+     * @default false
+     * @replaces DOMAIN_TRACKING_ENABLED environment variable
+     */
+    domainTracking?: boolean;
+  },
+  logging: {
+    /**
+     * The URL to get IP information from
+     * @default "https://ipinfo.io/json"
+     * @replaces GET_IP_INFO_URL environment variable
+     */
+    getIpInfoUrl?: string;
+  };
 };
 ```
 
@@ -175,31 +185,33 @@ You can control which domains each scraper can access by configuring firewall ru
 Use the following configuration to setup:
 
 ```typescript
-security: {
-  /**
-   * A list of domain rules. Each line should follow the format `<companyId> <ALLOW|BLOCK> <domain>`
-   * @replaces FIREWALL_SETTINGS environment variable (newline-separated rules)
-   */
-  firewallSettings?: string[];
-  /**
-   * If truthy, all domains with no rule will be blocked by default. If falsy, all domains will be allowed by default
-   * @replaces BLOCK_BY_DEFAULT environment variable
-   */
-  blockByDefault?: boolean;
+options: {
+  security: {
+    /**
+     * A list of domain rules. Each line should follow the format `<companyId> <ALLOW|BLOCK> <domain>`
+     * @replaces FIREWALL_SETTINGS environment variable (newline-separated rules, or pipe-separated for single-line env vars)
+     */
+    firewallSettings?: string[];
+    /**
+     * If truthy, all domains with no rule will be blocked by default. If falsy, all domains will be allowed by default
+     * @replaces BLOCK_BY_DEFAULT environment variable
+     */
+    blockByDefault?: boolean;
+  };
 };
 ```
 
 Example:
 
-```
-/**
- * Allow hapoalim to access these domains
- */
-["hapoalim ALLOW bankhapoalim.co.il"]
-/**
- * Block specific domain for visaCal
- */
-["visaCal BLOCK suspicious-domain.com"]
+```typescript
+options: {
+  security: {
+    firewallSettings: [
+      "hapoalim ALLOW bankhapoalim.co.il",
+      "visaCal BLOCK suspicious-domain.com",
+    ];
+  }
+}
 ```
 
 When a rule exists for a specific domain, the scraper will:
@@ -224,18 +236,20 @@ Setup instructions:
 3. Send a message to your bot and find the chat id
 
 ```typescript
-notifications: {
-  telegram?: {
-    /**
-     * The super secret api key you got from BotFather
-     * @replaces TELEGRAM_API_KEY environment variable
-     */
-    apiKey: string;
-    /**
-     * The chat id
-     * @replaces TELEGRAM_CHAT_ID environment variable
-     */
-    chatId: string;
+options: {
+  notifications: {
+    telegram?: {
+      /**
+       * The super secret api key you got from BotFather
+       * @replaces TELEGRAM_API_KEY environment variable
+       */
+      apiKey: string;
+      /**
+       * The chat id
+       * @replaces TELEGRAM_CHAT_ID environment variable
+       */
+      chatId: string;
+    };
   };
 };
 ```
@@ -276,42 +290,44 @@ Setup instructions:
 Use the following configuration to setup:
 
 ```typescript
-azure?: {
-  /**
-   * The azure application ID
-   * @replaces AZURE_APP_ID environment variable
-   */
-  appId: string;
-  /**
-   * The azure application secret key
-   * @replaces AZURE_APP_KEY environment variable
-   */
-  appKey: string;
-  /**
-   * The tenant ID of your azure application
-   * @replaces AZURE_TENANT_ID environment variable
-   */
-  tenantId: string;
-  /**
-   * The name of the database
-   * @replaces ADE_DATABASE_NAME environment variable
-   */
-  databaseName: string;
-  /**
-   * The name of the table
-   * @replaces ADE_TABLE_NAME environment variable
-   */
-  tableName: string;
-  /**
-   * The name of the JSON ingestion mapping
-   * @replaces ADE_INGESTION_MAPPING environment variable
-   */
-  ingestionMapping: string;
-  /**
-   * The ingest URI of the cluster
-   * @replaces ADE_INGEST_URI environment variable
-   */
-  ingestUri: string;
+storage: {
+  azure?: {
+    /**
+     * The azure application ID
+     * @replaces AZURE_APP_ID environment variable
+     */
+    appId: string;
+    /**
+     * The azure application secret key
+     * @replaces AZURE_APP_KEY environment variable
+     */
+    appKey: string;
+    /**
+     * The tenant ID of your azure application
+     * @replaces AZURE_TENANT_ID environment variable
+     */
+    tenantId: string;
+    /**
+     * The name of the database
+     * @replaces ADE_DATABASE_NAME environment variable
+     */
+    databaseName: string;
+    /**
+     * The name of the table
+     * @replaces ADE_TABLE_NAME environment variable
+     */
+    tableName: string;
+    /**
+     * The name of the JSON ingestion mapping
+     * @replaces ADE_INGESTION_MAPPING environment variable
+     */
+    ingestionMapping: string;
+    /**
+     * The ingest URI of the cluster
+     * @replaces ADE_INGEST_URI environment variable
+     */
+    ingestUri: string;
+  };
 };
 ```
 
@@ -322,12 +338,14 @@ Export transactions to json file.
 Use the following configuration to setup:
 
 ```typescript
-localJson?: {
-  /**
-   * If truthy, all transaction will be saved to a `<process cwd>/output/<ISO timestamp>.json` file
-   * @replaces LOCAL_JSON_STORAGE environment variable
-   */
-  enabled: boolean;
+storage: {
+  localJson?: {
+    /**
+     * If truthy, all transaction will be saved to a `<process cwd>/output/<ISO timestamp>.json` file
+     * @replaces LOCAL_JSON_STORAGE environment variable
+     */
+    enabled: boolean;
+  };
 };
 ```
 
@@ -363,17 +381,19 @@ The transactions will be sent as a JSON array in the body of the request with th
 Use the following configuration to setup:
 
 ```typescript
-webPost?: {
-  /**
-   * The URL to post to
-   * @replaces WEB_POST_URL environment variable
-   */
-  url: string;
-  /**
-   * The Authorization header value (i.e. `Bearer *****`, but can use any schema)
-   * @replaces WEB_POST_AUTHORIZATION_TOKEN environment variable
-   */
-  authorizationToken: string;
+storage: {
+  webPost?: {
+    /**
+     * The URL to post to
+     * @replaces WEB_POST_URL environment variable
+     */
+    url: string;
+    /**
+     * The Authorization header value (i.e. `Bearer *****`, but can use any schema)
+     * @replaces WEB_POST_AUTHORIZATION_TOKEN environment variable
+     */
+    authorizationToken: string;
+  };
 };
 ```
 
@@ -398,28 +418,30 @@ Setup instructions:
 Use the following configuration to setup:
 
 ```typescript
-googleSheets?: {
-  /**
-   * The super secret api key of your service account
-   * @replaces GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY environment variable
-   */
-  serviceAccountPrivateKey: string;
-  /**
-   * The service account's email address
-   * @replaces GOOGLE_SERVICE_ACCOUNT_EMAIL environment variable
-   */
-  serviceAccountEmail: string;
-  /**
-   * The id of the spreadsheet you shared with the service account
-   * @replaces GOOGLE_SHEET_ID environment variable
-   */
-  sheetId: string;
-  /**
-   * The name of the sheet you want to add the transactions to
-   * @default "_moneyman"
-   * @replaces WORKSHEET_NAME environment variable
-   */
-  worksheetName: string;
+storage: {
+  googleSheets?: {
+    /**
+     * The super secret api key of your service account
+     * @replaces GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY environment variable
+     */
+    serviceAccountPrivateKey: string;
+    /**
+     * The service account's email address
+     * @replaces GOOGLE_SERVICE_ACCOUNT_EMAIL environment variable
+     */
+    serviceAccountEmail: string;
+    /**
+     * The id of the spreadsheet you shared with the service account
+     * @replaces GOOGLE_SHEET_ID environment variable
+     */
+    sheetId: string;
+    /**
+     * The name of the sheet you want to add the transactions to
+     * @default "_moneyman" (when using environment variables)
+     * @replaces WORKSHEET_NAME environment variable
+     */
+    worksheetName: string;
+  };
 };
 ```
 
@@ -428,22 +450,24 @@ googleSheets?: {
 To export your transactions directly to `YNAB` you need to use the following configuration to setup:
 
 ```typescript
-ynab?: {
-  /**
-   * The `YNAB` access token. Check [YNAB documentation](https://api.ynab.com/#authentication) about how to obtain it
-   * @replaces YNAB_TOKEN environment variable
-   */
-  token: string;
-  /**
-   * The `YNAB` budget ID where you want to import the data. You can obtain it opening [YNAB application](https://app.ynab.com/) on a browser and taking the budget `UUID` in the `URL`
-   * @replaces YNAB_BUDGET_ID environment variable
-   */
-  budgetId: string;
-  /**
-   * A key-value list to correlate each account with the `YNAB` account `UUID`
-   * @replaces YNAB_ACCOUNTS environment variable
-   */
-  accounts: Record<string, string>;
+storage: {
+  ynab?: {
+    /**
+     * The `YNAB` access token. Check [YNAB documentation](https://api.ynab.com/#authentication) about how to obtain it
+     * @replaces YNAB_TOKEN environment variable
+     */
+    token: string;
+    /**
+     * The `YNAB` budget ID where you want to import the data. You can obtain it opening [YNAB application](https://app.ynab.com/) on a browser and taking the budget `UUID` in the `URL`
+     * @replaces YNAB_BUDGET_ID environment variable
+     */
+    budgetId: string;
+    /**
+     * A key-value list to correlate each account with the `YNAB` account `UUID`
+     * @replaces YNAB_ACCOUNTS environment variable
+     */
+    accounts: Record<string, string>;
+  };
 };
 ```
 
@@ -467,22 +491,24 @@ Example:
 To export your transactions directly to `Buxfer` you need to use the following configuration to setup:
 
 ```typescript
-buxfer?: {
-  /**
-   * The `Buxfer` user name. Check [Buxfer settings](https://www.buxfer.com/settings?type=login) about how to obtain it
-   * @replaces BUXFER_USER_NAME environment variable
-   */
-  userName: string;
-  /**
-   * The `Buxfer` user password. Check [Buxfer settings](https://www.buxfer.com/settings?type=login) about how to obtain it
-   * @replaces BUXFER_PASSWORD environment variable
-   */
-  password: string;
-  /**
-   * A key-value list to correlate each account with the `Buxfer` account `UUID`
-   * @replaces BUXFER_ACCOUNTS environment variable
-   */
-  accounts: Record<string, string>;
+storage: {
+  buxfer?: {
+    /**
+     * The `Buxfer` user name. Check [Buxfer settings](https://www.buxfer.com/settings?type=login) about how to obtain it
+     * @replaces BUXFER_USER_NAME environment variable
+     */
+    userName: string;
+    /**
+     * The `Buxfer` user password. Check [Buxfer settings](https://www.buxfer.com/settings?type=login) about how to obtain it
+     * @replaces BUXFER_PASSWORD environment variable
+     */
+    password: string;
+    /**
+     * A key-value list to correlate each account with the `Buxfer` account `UUID`
+     * @replaces BUXFER_ACCOUNTS environment variable
+     */
+    accounts: Record<string, string>;
+  };
 };
 ```
 
@@ -508,27 +534,29 @@ Export transactions directly to your Actual Budget server.
 Use the following configuration to setup:
 
 ```typescript
-actual?: {
-  /**
-   * The URL of your Actual Budget server
-   * @replaces ACTUAL_SERVER_URL environment variable
-   */
-  serverUrl: string;
-  /**
-   * The password for your Actual Budget server
-   * @replaces ACTUAL_PASSWORD environment variable
-   */
-  password: string;
-  /**
-   * The ID of the budget where you want to import the data
-   * @replaces ACTUAL_BUDGET_ID environment variable
-   */
-  budgetId: string;
-  /**
-   * A key-value list to correlate each account with the Actual Budget account ID
-   * @replaces ACTUAL_ACCOUNTS environment variable
-   */
-  accounts: Record<string, string>;
+storage: {
+  actual?: {
+    /**
+     * The URL of your Actual Budget server
+     * @replaces ACTUAL_SERVER_URL environment variable
+     */
+    serverUrl: string;
+    /**
+     * The password for your Actual Budget server
+     * @replaces ACTUAL_PASSWORD environment variable
+     */
+    password: string;
+    /**
+     * The ID of the budget where you want to import the data
+     * @replaces ACTUAL_BUDGET_ID environment variable
+     */
+    budgetId: string;
+    /**
+     * A key-value list to correlate each account with the Actual Budget account ID
+     * @replaces ACTUAL_ACCOUNTS environment variable
+     */
+    accounts: Record<string, string>;
+  };
 };
 ```
 
