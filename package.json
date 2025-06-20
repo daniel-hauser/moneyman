@@ -65,5 +65,10 @@
     "hooks": {
       "pre-commit": "pretty-quick --staged"
     }
+  },
+  "overrides": {
+    "google-spreadsheet": {
+      "google-auth-library": "^10.1.0"
+    }
   }
 }
