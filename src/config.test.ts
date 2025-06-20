@@ -1,5 +1,9 @@
 import { jest } from "@jest/globals";
+import { mock } from "jest-mock-extended";
+import type { Telegraf } from "telegraf";
+
 jest.mock("dotenv/config", () => ({}));
+jest.mock("telegraf", () => ({ Telegraf: mock<Telegraf>() }));
 
 describe("config", () => {
   let originalEnv: NodeJS.ProcessEnv;

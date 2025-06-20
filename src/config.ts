@@ -19,7 +19,7 @@ export const systemName = "moneyman";
 const logger = createLogger("config");
 
 logger("Parsing config");
-const config: MoneymanConfig = await createConfig();
+const config: MoneymanConfig = createConfig();
 export { config };
 
 // Environment variable conversion function for backward compatibility
@@ -171,7 +171,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   return config;
 }
 
-async function createConfig() {
+function createConfig() {
   const { MONEYMAN_CONFIG } = process.env;
   if (MONEYMAN_CONFIG) {
     logger("Using MONEYMAN_CONFIG");
@@ -183,7 +183,7 @@ async function createConfig() {
         "Failed to parse MONEYMAN_CONFIG, falling back to env vars",
         error,
       );
-      await sendConfigError(error);
+      void sendConfigError(error);
       throw new Error("Invalid MONEYMAN_CONFIG format");
     }
   } else {
@@ -192,7 +192,7 @@ async function createConfig() {
       return MoneymanConfigSchema.parse(convertEnvVarsToConfig());
     } catch (error) {
       logger("Failed to convert env vars to MONEYMAN_CONFIG", error);
-      await sendConfigError(error);
+      void sendConfigError(error);
       throw new Error("Invalid environment variables");
     }
   }
