@@ -19,7 +19,7 @@ export const systemName = "moneyman";
 const logger = createLogger("config");
 
 logger("Parsing config");
-const config: MoneymanConfig = createConfig();
+const config: MoneymanConfig = await createConfig();
 export { config };
 
 // Environment variable conversion function for backward compatibility
@@ -171,7 +171,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   return config;
 }
 
-function createConfig() {
+async function createConfig() {
   const { MONEYMAN_CONFIG } = process.env;
   if (MONEYMAN_CONFIG) {
     logger("Using MONEYMAN_CONFIG");
@@ -183,7 +183,7 @@ function createConfig() {
         "Failed to parse MONEYMAN_CONFIG, falling back to env vars",
         error,
       );
-      sendConfigError(error);
+      await sendConfigError(error);
       throw new Error("Invalid MONEYMAN_CONFIG format");
     }
   } else {
@@ -192,7 +192,7 @@ function createConfig() {
       return MoneymanConfigSchema.parse(convertEnvVarsToConfig());
     } catch (error) {
       logger("Failed to convert env vars to MONEYMAN_CONFIG", error);
-      sendConfigError(error);
+      await sendConfigError(error);
       throw new Error("Invalid environment variables");
     }
   }
@@ -242,12 +242,12 @@ export const scraperConfig: ScraperConfig = {
  * We can't use the notifier module here because it needs the config to be loaded
  * @param error The error that occurred while loading the config
  */
-function sendConfigError(error: Error) {
-  const message = `Failed to load config\n${error}`;
+async function sendConfigError(error: Error): Promise<void> {
+  const message = `Failed to load config\n${JSON.stringify(error, null, 2)}`;
   const { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID, MONEYMAN_CONFIG } = process.env;
   if (TELEGRAM_API_KEY && TELEGRAM_CHAT_ID) {
     console.log("sendConfigError using TELEGRAM_API_KEY and TELEGRAM_CHAT_ID");
-    new Telegraf(TELEGRAM_API_KEY).telegram.sendMessage(
+    await new Telegraf(TELEGRAM_API_KEY).telegram.sendMessage(
       TELEGRAM_CHAT_ID,
       message,
     );
@@ -257,7 +257,7 @@ function sendConfigError(error: Error) {
       const config = parseJsoncConfig(MONEYMAN_CONFIG) as MoneymanConfig;
       if (config.options?.notifications?.telegram) {
         const { apiKey, chatId } = config.options.notifications.telegram;
-        new Telegraf(apiKey).telegram.sendMessage(chatId, message);
+        await new Telegraf(apiKey).telegram.sendMessage(chatId, message);
       }
     } catch (error) {
       console.error("Failed to send config error to telegram");
