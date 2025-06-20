@@ -11,17 +11,27 @@ import { scraperOptions } from "./scraper/index.js";
 
 const logger = createLogger("test-scraper-access");
 
-process.env.DOMAIN_TRACKING_ENABLED = "1";
-process.env.FIREWALL_SETTINGS = [
-  ...["amex", "isracard"].flatMap((c) =>
-    [
-      "doubleclick.net",
-      "googletagmanager.com",
-      "google.com",
-      "instagram.com",
-    ].map((d) => `${c} BLOCK ${d}`),
-  ),
-].join("|");
+jest.mock("./config.js", () => ({
+  config: {
+    options: {
+      scraping: {
+        domainTracking: true,
+      },
+      security: {
+        firewallSettings: [
+          ...["amex", "isracard"].flatMap((c) =>
+            [
+              "doubleclick.net",
+              "googletagmanager.com",
+              "google.com",
+              "instagram.com",
+            ].map((d) => `${c} BLOCK ${d}`),
+          ),
+        ],
+      },
+    },
+  },
+}));
 
 debug.enable(
   "moneyman:browser,moneyman:test-scraper-access,moneyman:cloudflare-solver,moneyman:domain-rules,israeli-bank-scrapers:*",

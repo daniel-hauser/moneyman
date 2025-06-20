@@ -8,10 +8,11 @@ import puppeteer, {
 import { createLogger, logToMetadataFile } from "../utils/logger.js";
 import { initDomainTracking } from "../security/domains.js";
 import { solveTurnstile } from "./cloudflareSolver.js";
+import { config } from "../config.js";
 
 export const browserArgs = ["--disable-dev-shm-usage", "--no-sandbox"];
 export const browserExecutablePath =
-  process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
+  config.options.scraping.puppeteerExecutablePath || undefined;
 
 const logger = createLogger("browser");
 

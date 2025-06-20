@@ -3,11 +3,14 @@ import fs from "node:fs/promises";
 import { createLogger } from "../../utils/logger.js";
 import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { createSaveStats } from "../saveStats.js";
+import type { MoneymanConfig } from "../../config.js";
 
 const logger = createLogger("LocalJsonStorage");
 
 export class LocalJsonStorage implements TransactionStorage {
   static folder = path.join(process.cwd(), `output`);
+
+  constructor(private config: MoneymanConfig) {}
 
   async init() {
     logger("init");
@@ -15,7 +18,7 @@ export class LocalJsonStorage implements TransactionStorage {
   }
 
   canSave() {
-    return Boolean(process.env.LOCAL_JSON_STORAGE);
+    return Boolean(this.config.storage.localJson?.enabled);
   }
 
   async saveTransactions(txns: Array<TransactionRow>) {

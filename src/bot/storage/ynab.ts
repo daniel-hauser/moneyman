@@ -6,31 +6,31 @@ import hash from "hash-it";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { sendDeprecationMessage } from "../notifier.js";
 import { createSaveStats } from "../saveStats.js";
+import type { MoneymanConfig } from "../../config.js";
+import assert from "node:assert";
 
 const YNAB_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("YNABStorage");
-
-const {
-  YNAB_TOKEN = "",
-  YNAB_BUDGET_ID = "",
-  YNAB_ACCOUNTS = "",
-  TRANSACTION_HASH_TYPE = "",
-} = process.env;
 
 export class YNABStorage implements TransactionStorage {
   private ynabAPI: ynab.API;
   private budgetName: string;
   private accountToYnabAccount: Map<string, string>;
 
+  constructor(private config: MoneymanConfig) {}
+
   async init() {
     logger("init");
-    this.ynabAPI = new ynab.API(YNAB_TOKEN);
-    this.budgetName = await this.getBudgetName(YNAB_BUDGET_ID);
-    this.accountToYnabAccount = this.parseYnabAccounts(YNAB_ACCOUNTS);
+    const ynabConfig = this.config.storage.ynab;
+    assert(ynabConfig, "YNAB configuration not found");
+
+    this.ynabAPI = new ynab.API(ynabConfig.token);
+    this.budgetName = await this.getBudgetName(ynabConfig.budgetId);
+    this.accountToYnabAccount = new Map(Object.entries(ynabConfig.accounts));
   }
 
   canSave() {
-    return Boolean(YNAB_TOKEN && YNAB_BUDGET_ID);
+    return Boolean(this.config.storage.ynab);
   }
 
   isDateInFuture(date: string) {
@@ -82,16 +82,19 @@ export class YNABStorage implements TransactionStorage {
       // Send transactions to YNAB
       logger(`sending to YNAB budget: "${this.budgetName}"`);
       const [resp] = await Promise.all([
-        this.ynabAPI.transactions.createTransactions(YNAB_BUDGET_ID, {
-          transactions: txToSend,
-        }),
+        this.ynabAPI.transactions.createTransactions(
+          this.config.storage.ynab!.budgetId,
+          {
+            transactions: txToSend,
+          },
+        ),
         onProgress("Sending"),
       ]);
       logger("transactions sent to YNAB successfully!");
       stats.added = resp.data.transactions?.length ?? 0;
       stats.existing = resp.data.duplicate_import_ids?.length ?? 0;
 
-      if (TRANSACTION_HASH_TYPE !== "moneyman") {
+      if (this.config.options.scraping.transactionHashType !== "moneyman") {
         sendDeprecationMessage("hashFiledChange");
       }
     }
@@ -109,17 +112,6 @@ export class YNABStorage implements TransactionStorage {
       return budgetResponse.data.budget.name;
     } else {
       throw new Error(`YNAB_BUDGET_ID does not exist in YNAB: ${budgetId}`);
-    }
-  }
-
-  private parseYnabAccounts(accountsJSON: string): Map<string, string> {
-    try {
-      const accounts = JSON.parse(accountsJSON);
-      return new Map(Object.entries(accounts));
-    } catch (parseError) {
-      throw new Error(
-        `Error parsing JSON in YNAB_ACCOUNTS: ${parseError.message}`,
-      );
     }
   }
 
@@ -141,7 +133,9 @@ export class YNABStorage implements TransactionStorage {
           : undefined,
       approved: false,
       import_id: hash(
-        TRANSACTION_HASH_TYPE === "moneyman" ? tx.uniqueId : tx.hash,
+        this.config.options.scraping.transactionHashType === "moneyman"
+          ? tx.uniqueId
+          : tx.hash,
       ).toString(),
       memo: tx.memo,
     };
