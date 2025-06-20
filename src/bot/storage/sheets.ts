@@ -114,8 +114,8 @@ export class GoogleSheetsStorage implements TransactionStorage {
         private_key: GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
       },
     });
-
-    const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, auth);
+    const authClient = await auth.getClient();
+    const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, authClient);
     await doc.loadInfo();
     return doc;
   }
