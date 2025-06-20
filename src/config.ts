@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { subDays } from "date-fns";
+import { Telegraf } from "telegraf";
 import { AccountConfig, ScraperConfig } from "./types.js";
 import { createLogger } from "./utils/logger.js";
 import { parseJsoncConfig } from "./utils/jsonc.js";
@@ -9,6 +10,7 @@ import {
   ScrapingOptionsSchema,
   SecurityOptionsSchema,
   LoggingOptionsSchema,
+  NotificationOptionsSchema,
 } from "./config.schema.js";
 
 export type { MoneymanConfig } from "./config.schema.js";
@@ -28,7 +30,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
     options: {
       scraping: ScrapingOptionsSchema.parse({}),
       security: SecurityOptionsSchema.parse({}),
-      notifications: {},
+      notifications: NotificationOptionsSchema.parse({}),
       logging: LoggingOptionsSchema.parse({}),
     },
   };
@@ -181,6 +183,7 @@ function createConfig() {
         "Failed to parse MONEYMAN_CONFIG, falling back to env vars",
         error,
       );
+      sendConfigError(error);
       throw new Error("Invalid MONEYMAN_CONFIG format");
     }
   } else {
@@ -189,6 +192,7 @@ function createConfig() {
       return MoneymanConfigSchema.parse(convertEnvVarsToConfig());
     } catch (error) {
       logger("Failed to convert env vars to MONEYMAN_CONFIG", error);
+      sendConfigError(error);
       throw new Error("Invalid environment variables");
     }
   }
@@ -232,3 +236,27 @@ export const scraperConfig: ScraperConfig = {
   additionalTransactionInformation:
     config.options.scraping.additionalTransactionInfo,
 };
+
+/**
+ * A function to send a telegram message if the config fails to load
+ * We can't use the notifier module here because it needs the config to be loaded
+ * @param error The error that occurred while loading the config
+ */
+function sendConfigError(error: Error) {
+  const message = `Failed to load config\n${error}`;
+  const { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID, MONEYMAN_CONFIG } = process.env;
+  if (TELEGRAM_API_KEY && TELEGRAM_CHAT_ID) {
+    new Telegraf(TELEGRAM_API_KEY).telegram.sendMessage(
+      TELEGRAM_CHAT_ID,
+      message,
+    );
+  } else if (MONEYMAN_CONFIG) {
+    try {
+      const config = parseJsoncConfig(MONEYMAN_CONFIG) as MoneymanConfig;
+      if (config.options?.notifications?.telegram) {
+        const { apiKey, chatId } = config.options.notifications.telegram;
+        new Telegraf(apiKey).telegram.sendMessage(chatId, message);
+      }
+    } catch (error) {}
+  }
+}
