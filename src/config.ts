@@ -172,29 +172,33 @@ function convertEnvVarsToConfig(): MoneymanConfig {
 }
 
 function createConfig() {
-  const { MONEYMAN_CONFIG } = process.env;
-  if (MONEYMAN_CONFIG) {
-    logger("Using MONEYMAN_CONFIG");
-    try {
-      const parsedConfig = parseJsoncConfig(MONEYMAN_CONFIG);
-      return MoneymanConfigSchema.parse(parsedConfig);
-    } catch (error) {
-      logger(
-        "Failed to parse MONEYMAN_CONFIG, falling back to env vars",
-        error,
-      );
-      void sendConfigError(error);
-      throw new Error("Invalid MONEYMAN_CONFIG format");
+  try {
+    const { MONEYMAN_CONFIG } = process.env;
+    if (MONEYMAN_CONFIG) {
+      logger("Using MONEYMAN_CONFIG");
+      try {
+        const parsedConfig = parseJsoncConfig(MONEYMAN_CONFIG);
+        return MoneymanConfigSchema.parse(parsedConfig);
+      } catch (error) {
+        logger(
+          "Failed to parse MONEYMAN_CONFIG, falling back to env vars",
+          error,
+        );
+        void sendConfigError(error);
+        throw new Error("Invalid MONEYMAN_CONFIG format");
+      }
+    } else {
+      try {
+        logger("Converting environment variables to MONEYMAN_CONFIG format...");
+        return MoneymanConfigSchema.parse(convertEnvVarsToConfig());
+      } catch (error) {
+        logger("Failed to convert env vars to MONEYMAN_CONFIG", error);
+        void sendConfigError(error);
+        throw new Error("Invalid environment variables");
+      }
     }
-  } else {
-    try {
-      logger("Converting environment variables to MONEYMAN_CONFIG format...");
-      return MoneymanConfigSchema.parse(convertEnvVarsToConfig());
-    } catch (error) {
-      logger("Failed to convert env vars to MONEYMAN_CONFIG", error);
-      void sendConfigError(error);
-      throw new Error("Invalid environment variables");
-    }
+  } catch (error) {
+    return {};
   }
 }
 
