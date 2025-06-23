@@ -6,5 +6,5 @@ export default {
   moduleNameMapper: {
     "^(\\.\\.?\\/.+)\\.jsx?$": "$1",
   },
-  reporters: [["github-actions", { silent: false }], "summary"],
+  reporters: ["default", ["github-actions", { silent: false }], "summary"],
 };

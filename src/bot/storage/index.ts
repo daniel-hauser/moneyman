@@ -18,18 +18,19 @@ import { transactionHash, transactionUniqueId } from "./utils.js";
 import { WebPostStorage } from "./web-post.js";
 import { TelegramStorage } from "./telegram.js";
 import { YNABStorage } from "./ynab.js";
+import { config } from "../../config.js";
 
 const baseLogger = createLogger("storage");
 
 export const storages = [
-  new LocalJsonStorage(),
-  new GoogleSheetsStorage(),
-  new AzureDataExplorerStorage(),
-  new YNABStorage(),
-  new BuxferStorage(),
-  new WebPostStorage(),
-  new TelegramStorage(),
-  new ActualBudgetStorage(),
+  new LocalJsonStorage(config),
+  new GoogleSheetsStorage(config),
+  new AzureDataExplorerStorage(config),
+  new YNABStorage(config),
+  new BuxferStorage(config),
+  new WebPostStorage(config),
+  new TelegramStorage(config),
+  new ActualBudgetStorage(config),
 ].filter((s) => s.canSave());
 
 export async function saveResults(results: Array<AccountScrapeResult>) {
