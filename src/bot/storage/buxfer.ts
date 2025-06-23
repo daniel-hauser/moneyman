@@ -4,28 +4,33 @@ import { format, parseISO } from "date-fns";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { BuxferApiClient, BuxferTransaction } from "buxfer-ts-client";
 import { createSaveStats } from "../saveStats.js";
+import type { MoneymanConfig } from "../../config.js";
+import assert from "node:assert";
 
 const BUXFER_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("BuxferStorage");
-
-const {
-  BUXFER_USER_NAME = "",
-  BUXFER_PASSWORD = "",
-  BUXFER_ACCOUNTS = "",
-} = process.env;
 
 export class BuxferStorage implements TransactionStorage {
   private buxferClient: BuxferApiClient;
   private accountToBuxferAccount: Map<string, string>;
 
+  constructor(private config: MoneymanConfig) {}
   async init() {
     logger("init");
-    this.buxferClient = new BuxferApiClient(BUXFER_USER_NAME, BUXFER_PASSWORD);
-    this.accountToBuxferAccount = this.parseBuxferAccounts(BUXFER_ACCOUNTS);
+    const buxferConfig = this.config.storage.buxfer;
+    assert(buxferConfig, "Buxfer configuration not found");
+
+    this.buxferClient = new BuxferApiClient(
+      buxferConfig.userName,
+      buxferConfig.password,
+    );
+    this.accountToBuxferAccount = new Map(
+      Object.entries(buxferConfig.accounts),
+    );
   }
 
   canSave() {
-    return Boolean(BUXFER_USER_NAME && BUXFER_PASSWORD && BUXFER_ACCOUNTS);
+    return Boolean(this.config.storage.buxfer);
   }
 
   async saveTransactions(
@@ -95,17 +100,6 @@ export class BuxferStorage implements TransactionStorage {
     txToSend.forEach((trx) => {
       trx.tags = `${tags}`;
     });
-  }
-
-  private parseBuxferAccounts(accountsJSON: string): Map<string, string> {
-    try {
-      const accounts = JSON.parse(accountsJSON);
-      return new Map(Object.entries(accounts));
-    } catch (parseError) {
-      throw new Error(
-        `Error parsing JSON in BUXFER_ACCOUNTS: ${parseError.message}`,
-      );
-    }
   }
 
   private convertTransactionToBuxferFormat(

@@ -16,6 +16,7 @@
     "lint": "prettier --check .",
     "lint:fix": "prettier --write .",
     "test": "jest",
+    "test:config": "npm run build && node dst/scripts/verify-config.js",
     "test:scraper-access": "jest -c jest.scraper-access.config.js"
   },
   "repository": {
@@ -39,13 +40,15 @@
     "date-fns": "^4.1.0",
     "debug": "^4.4.1",
     "dotenv": "^16.5.0",
-    "glob": "^11.0.2",
+    "glob": "^11.0.3",
     "google-auth-library": "^10.1.0",
     "google-spreadsheet": "^4.1.4",
     "hash-it": "^6.0.0",
     "israeli-bank-scrapers": "^6.1.4",
+    "jsonc-parser": "^3.3.1",
     "telegraf": "^4.16.3",
-    "ynab": "^2.9.0"
+    "ynab": "^2.9.0",
+    "zod": "^4.0.0-beta.20250505T195954"
   },
   "devDependencies": {
     "@types/async": "^3.2.24",
