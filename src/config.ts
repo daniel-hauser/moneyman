@@ -12,6 +12,7 @@ import {
   LoggingOptionsSchema,
   NotificationOptionsSchema,
 } from "./config.schema.js";
+import { a } from "@mswjs/interceptors/lib/node/BatchInterceptor-5b72232f.js";
 
 export type { MoneymanConfig } from "./config.schema.js";
 
@@ -198,7 +199,16 @@ function createConfig() {
       }
     }
   } catch (error) {
-    return {};
+    return {
+      accounts: [],
+      storage: {},
+      options: {
+        scraping: ScrapingOptionsSchema.parse({}),
+        security: SecurityOptionsSchema.parse({}),
+        notifications: NotificationOptionsSchema.parse({}),
+        logging: LoggingOptionsSchema.parse({}),
+      },
+    };
   }
 }
 
