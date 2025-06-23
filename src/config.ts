@@ -37,7 +37,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   };
 
   // Convert account configuration
-  if (typeof process.env.ACCOUNTS_JSON === "string") {
+  if (process.env.ACCOUNTS_JSON) {
     try {
       config.accounts = JSON.parse(process.env.ACCOUNTS_JSON);
     } catch (error) {
@@ -46,50 +46,50 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   }
 
   // Convert scraping options
-  if (typeof process.env.ACCOUNTS_TO_SCRAPE === "string")
+  if (process.env.ACCOUNTS_TO_SCRAPE)
     config.options.scraping.accountsToScrape =
       process.env.ACCOUNTS_TO_SCRAPE.split(",");
-  if (typeof process.env.DAYS_BACK === "string")
+  if (process.env.DAYS_BACK)
     config.options.scraping.daysBack = parseInt(process.env.DAYS_BACK, 10);
-  if (typeof process.env.FUTURE_MONTHS === "string")
+  if (process.env.FUTURE_MONTHS)
     config.options.scraping.futureMonths = parseInt(
       process.env.FUTURE_MONTHS,
       10,
     );
-  if (typeof process.env.TRANSACTION_HASH_TYPE === "string")
+  if (process.env.TRANSACTION_HASH_TYPE)
     config.options.scraping.transactionHashType = process.env
       .TRANSACTION_HASH_TYPE as "" | "moneyman";
-  if (typeof process.env.ADDITIONAL_TRANSACTION_INFO_ENABLED === "string")
+  if (process.env.ADDITIONAL_TRANSACTION_INFO_ENABLED)
     config.options.scraping.additionalTransactionInfo =
       process.env.ADDITIONAL_TRANSACTION_INFO_ENABLED === "true";
-  if (typeof process.env.HIDDEN_DEPRECATIONS === "string")
+  if (process.env.HIDDEN_DEPRECATIONS)
     config.options.scraping.hiddenDeprecations =
       process.env.HIDDEN_DEPRECATIONS.split(",").filter(Boolean);
   if (typeof process.env.PUPPETEER_EXECUTABLE_PATH)
     config.options.scraping.puppeteerExecutablePath =
       process.env.PUPPETEER_EXECUTABLE_PATH;
-  if (typeof process.env.MAX_PARALLEL_SCRAPERS === "string")
+  if (process.env.MAX_PARALLEL_SCRAPERS)
     config.options.scraping.maxParallelScrapers = parseInt(
       process.env.MAX_PARALLEL_SCRAPERS,
       10,
     );
-  if (typeof process.env.DOMAIN_TRACKING_ENABLED === "string")
+  if (process.env.DOMAIN_TRACKING_ENABLED)
     config.options.scraping.domainTracking =
       process.env.DOMAIN_TRACKING_ENABLED === "true";
 
   // Convert security options
-  if (typeof process.env.FIREWALL_SETTINGS === "string")
+  if (process.env.FIREWALL_SETTINGS)
     // TODO: The split by pipe is undocumented, and is here to support one-line env vars with no comment support
     config.options.security.firewallSettings =
       process.env.FIREWALL_SETTINGS.split(/\n|\|/)
         .map((line) => line.trim())
         .filter((line) => line && !line.startsWith("#"));
-  if (typeof process.env.BLOCK_BY_DEFAULT === "string")
+  if (process.env.BLOCK_BY_DEFAULT)
     config.options.security.blockByDefault =
       process.env.BLOCK_BY_DEFAULT === "true";
 
   // Convert Google Sheets storage
-  if (typeof process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY === "string") {
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
     config.storage.googleSheets = {
       serviceAccountPrivateKey: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
       serviceAccountEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "",
@@ -99,7 +99,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   }
 
   // Convert YNAB storage
-  if (typeof process.env.YNAB_TOKEN === "string") {
+  if (process.env.YNAB_TOKEN) {
     config.storage.ynab = {
       token: process.env.YNAB_TOKEN,
       budgetId: process.env.YNAB_BUDGET_ID || "",
@@ -110,7 +110,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   }
 
   // Convert Azure storage
-  if (typeof process.env.AZURE_APP_ID === "string") {
+  if (process.env.AZURE_APP_ID) {
     config.storage.azure = {
       appId: process.env.AZURE_APP_ID,
       appKey: process.env.AZURE_APP_KEY || "",
@@ -123,7 +123,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   }
 
   // Convert Buxfer storage
-  if (typeof process.env.BUXFER_USER_NAME === "string") {
+  if (process.env.BUXFER_USER_NAME) {
     config.storage.buxfer = {
       userName: process.env.BUXFER_USER_NAME,
       password: process.env.BUXFER_PASSWORD || "",
@@ -134,7 +134,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   }
 
   // Convert Actual Budget storage
-  if (typeof process.env.ACTUAL_SERVER_URL === "string") {
+  if (process.env.ACTUAL_SERVER_URL) {
     config.storage.actual = {
       serverUrl: process.env.ACTUAL_SERVER_URL,
       password: process.env.ACTUAL_PASSWORD || "",
@@ -146,11 +146,11 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   }
 
   // Convert other storage options
-  if (typeof process.env.LOCAL_JSON_STORAGE === "string")
+  if (process.env.LOCAL_JSON_STORAGE)
     config.storage.localJson = {
       enabled: process.env.LOCAL_JSON_STORAGE === "true",
     };
-  if (typeof process.env.WEB_POST_URL === "string") {
+  if (process.env.WEB_POST_URL) {
     config.storage.webPost = {
       url: process.env.WEB_POST_URL,
       authorizationToken: process.env.WEB_POST_AUTHORIZATION_TOKEN || "",
@@ -158,7 +158,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   }
 
   // Convert notification options
-  if (typeof process.env.TELEGRAM_API_KEY === "string") {
+  if (process.env.TELEGRAM_API_KEY) {
     config.options.notifications.telegram = {
       apiKey: process.env.TELEGRAM_API_KEY,
       chatId: process.env.TELEGRAM_CHAT_ID || "",
@@ -166,7 +166,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   }
 
   // Convert logging options
-  if (typeof process.env.GET_IP_INFO_URL === "string")
+  if (process.env.GET_IP_INFO_URL)
     config.options.logging.getIpInfoUrl = process.env.GET_IP_INFO_URL;
 
   return config;
