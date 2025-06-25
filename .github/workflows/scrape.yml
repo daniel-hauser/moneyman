@@ -3,6 +3,27 @@ name: Scrape
 on:
   workflow_dispatch:
     inputs:
+      accountsToScrape:
+        default: ""
+        required: false
+        description: "Accounts to scrape (comma separated)"
+      daysBack:
+        default: "12"
+        required: yes
+        description: "Days back to scrape"
+      worksheetName:
+        default: "_caspion"
+        required: yes
+        description: "The name of the worksheet to write to"
+      parallelScrapes:
+        default: "1"
+        required: false
+        description: "Number of parallel scrapes to run"
+      additionalTransactionInformationEnabled:
+        description: "Enable additional transaction information (true/false)"
+        type: boolean
+        required: false
+        default: false
       containerTag:
         default: "latest"
         required: false
@@ -66,12 +87,16 @@ jobs:
           -e FIREWALL_SETTINGS
           -e BLOCK_BY_DEFAULT
           -e ADDITIONAL_TRANSACTION_INFO_ENABLED
-          -e SEND_NEW_CONFIG_TO_TG
+          -e FUTURE_MONTHS
           ${{ steps.set-container-image.outputs.image }}
         env:
           MONEYMAN_CONFIG: ${{ secrets.MONEYMAN_CONFIG }}
           DEBUG: ""
           TZ: "Asia/Jerusalem"
+          DAYS_BACK: ${{ github.event.inputs.daysBack }}
+          WORKSHEET_NAME: ${{ secrets.WORKSHEET_NAME }}
+          ACCOUNTS_TO_SCRAPE: ${{ github.event.inputs.accountsToScrape }}
+          ADDITIONAL_TRANSACTION_INFO_ENABLED: ${{ github.event.inputs.additionalTransactionInformationEnabled }}
           ACCOUNTS_JSON: ${{ secrets.ACCOUNTS_JSON }}
           TELEGRAM_API_KEY: ${{ secrets.TELEGRAM_API_KEY }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -97,4 +122,4 @@ jobs:
           DOMAIN_TRACKING_ENABLED: ${{ vars.DOMAIN_TRACKING_ENABLED }}
           FIREWALL_SETTINGS: ${{ secrets.FIREWALL_SETTINGS }}
           BLOCK_BY_DEFAULT: ${{ vars.BLOCK_BY_DEFAULT }}
-          SEND_NEW_CONFIG_TO_TG: ${{ github.event.inputs.sendNewConfigToTg }}
+          FUTURE_MONTHS: ${{ secrets.FUTURE_MONTHS }}
