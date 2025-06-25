@@ -41,7 +41,7 @@
     "debug": "^4.4.1",
     "dotenv": "^16.5.0",
     "glob": "^11.0.3",
-    "google-auth-library": "^9.15.1",
+    "google-auth-library": "^10.1.0",
     "google-spreadsheet": "^4.1.4",
     "hash-it": "^6.0.0",
     "israeli-bank-scrapers": "^6.1.4",
@@ -67,6 +67,11 @@
   "husky": {
     "hooks": {
       "pre-commit": "pretty-quick --staged"
+    }
+  },
+  "overrides": {
+    "google-spreadsheet": {
+      "google-auth-library": "^10.1.0"
     }
   }
 }
