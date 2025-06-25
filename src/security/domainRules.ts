@@ -18,7 +18,10 @@ export class DomainRuleManager {
    * @param rules Domain rules array. Format: [company] [ALLOW/BLOCK] [domain]
    * @param blockByDefault Whether to block domains by default when no rule is found. Defaults to false.
    */
-  public constructor(rules: string[], private blockByDefault: boolean = false) {
+  public constructor(
+    rules: string[],
+    private blockByDefault: boolean = false,
+  ) {
     for (const [companyId, action, domain] of this.parseDomainRules(rules)) {
       this.insertRule(domain, companyId, action);
     }
