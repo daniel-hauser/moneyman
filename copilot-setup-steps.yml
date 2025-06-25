@@ -1,0 +1,18 @@
+# GitHub Copilot Setup Steps
+# This file defines the setup steps to pre-install dependencies for the moneyman project
+# when using GitHub Copilot coding agent
+
+setup_steps:
+  - name: Install Node.js dependencies
+    command: npm ci
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: "true"
+    description: Install all npm dependencies. Puppeteer download is skipped since Chrome is not needed for most development tasks.
+
+  - name: Build TypeScript project
+    command: npm run build
+    description: Compile TypeScript source code to JavaScript in the dst/ directory
+
+  - name: Apply patches
+    command: npm run postinstall
+    description: Apply any necessary patches to dependencies (handled automatically by npm ci, but explicitly mentioned for clarity)
