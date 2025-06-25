@@ -81,4 +81,91 @@ describe("domainRules", () => {
       expect(ruleManager.hasAnyRule(CompanyTypes.leumi)).toBe(false);
     });
   });
+
+  describe("DomainRuleManager blockByDefault behavior", () => {
+    it("should default to ALLOW when blockByDefault is false (default)", () => {
+      const ruleManager = new DomainRuleManager([]);
+
+      // Test with no rules defined - should default to ALLOW
+      expect(
+        ruleManager.getRule("https://example.com", CompanyTypes.hapoalim),
+      ).toBe("ALLOW");
+      expect(
+        ruleManager.getRule("https://unknown-domain.com", CompanyTypes.visaCal),
+      ).toBe("ALLOW");
+    });
+
+    it("should default to ALLOW when blockByDefault is explicitly false", () => {
+      const ruleManager = new DomainRuleManager([], false);
+
+      // Test with no rules defined - should default to ALLOW
+      expect(
+        ruleManager.getRule("https://example.com", CompanyTypes.hapoalim),
+      ).toBe("ALLOW");
+      expect(
+        ruleManager.getRule("https://unknown-domain.com", CompanyTypes.visaCal),
+      ).toBe("ALLOW");
+    });
+
+    it("should default to BLOCK when blockByDefault is true", () => {
+      const ruleManager = new DomainRuleManager([], true);
+
+      // Test with no rules defined - should default to BLOCK
+      expect(
+        ruleManager.getRule("https://example.com", CompanyTypes.hapoalim),
+      ).toBe("BLOCK");
+      expect(
+        ruleManager.getRule("https://unknown-domain.com", CompanyTypes.visaCal),
+      ).toBe("BLOCK");
+    });
+
+    it("should respect explicit rules regardless of blockByDefault setting", () => {
+      const rules = [
+        "hapoalim ALLOW api.bankhapoalim.co.il",
+        "hapoalim BLOCK malicious.com",
+      ];
+
+      // Test with blockByDefault = false
+      const allowByDefaultManager = new DomainRuleManager(rules, false);
+      expect(
+        allowByDefaultManager.getRule(
+          "https://api.bankhapoalim.co.il",
+          CompanyTypes.hapoalim,
+        ),
+      ).toBe("ALLOW");
+      expect(
+        allowByDefaultManager.getRule(
+          "https://malicious.com",
+          CompanyTypes.hapoalim,
+        ),
+      ).toBe("BLOCK");
+      expect(
+        allowByDefaultManager.getRule(
+          "https://unknown.com",
+          CompanyTypes.hapoalim,
+        ),
+      ).toBe("ALLOW"); // Default
+
+      // Test with blockByDefault = true
+      const blockByDefaultManager = new DomainRuleManager(rules, true);
+      expect(
+        blockByDefaultManager.getRule(
+          "https://api.bankhapoalim.co.il",
+          CompanyTypes.hapoalim,
+        ),
+      ).toBe("ALLOW");
+      expect(
+        blockByDefaultManager.getRule(
+          "https://malicious.com",
+          CompanyTypes.hapoalim,
+        ),
+      ).toBe("BLOCK");
+      expect(
+        blockByDefaultManager.getRule(
+          "https://unknown.com",
+          CompanyTypes.hapoalim,
+        ),
+      ).toBe("BLOCK"); // Default
+    });
+  });
 });
