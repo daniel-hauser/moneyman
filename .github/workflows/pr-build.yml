@@ -70,12 +70,22 @@ jobs:
         with:
           node-version: latest
           cache: "npm"
+          cache-dependency-path: package-lock.json
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
       - run: npm ci
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: true
       - run: npm run lint
 
   test:
     runs-on: ubuntu-latest
-    needs: [check-changes, lint]
+    needs: check-changes
     if: needs.check-changes.outputs.build-needed == 'true'
 
     strategy:
@@ -89,12 +99,23 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
+          cache-dependency-path: package-lock.json
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node-version }}-modules-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ matrix.node-version }}-modules-
+            ${{ runner.os }}-node-modules-
       - run: npm ci
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: true
       - run: npm run test
 
   build:
     runs-on: ubuntu-latest
-    needs: [check-changes, test]
+    needs: check-changes
     if: always() && needs.check-changes.result == 'success'
     strategy:
       matrix:
@@ -112,10 +133,22 @@ jobs:
       - uses: actions/setup-node@v4
         if: needs.check-changes.outputs.build-needed == 'true'
         with:
-          node-version: latest
+          node-version: ${{ matrix.node-version }}
           cache: "npm"
+          cache-dependency-path: package-lock.json
+      - name: Cache node_modules
+        if: needs.check-changes.outputs.build-needed == 'true'
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node-version }}-modules-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ matrix.node-version }}-modules-
+            ${{ runner.os }}-node-modules-
       - run: npm ci
         if: needs.check-changes.outputs.build-needed == 'true'
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: true
       - run: npm run build
         if: needs.check-changes.outputs.build-needed == 'true'
 
@@ -125,8 +158,8 @@ jobs:
 
   prepare:
     runs-on: ubuntu-latest
-    needs: [check-changes, test]
-    if: always() && needs.check-changes.result == 'success'
+    needs: [check-changes, lint, test, build]
+    if: always() && needs.check-changes.result == 'success' && (needs.check-changes.outputs.build-needed == 'false' || (needs.lint.result == 'success' && needs.test.result == 'success' && needs.build.result == 'success'))
 
     outputs:
       repository: ${{ steps.normalize-repository-name.outputs.repository }}
