@@ -13,11 +13,14 @@ interface TrieNode {
 export class DomainRuleManager {
   private cachedRules = new Map<string, Map<CompanyTypes, Rule>>();
   private rootDomainTrie: TrieNode = { rules: new Map(), children: new Map() };
+  private blockByDefault: boolean;
 
   /**
    * @param rules Domain rules array. Format: [company] [ALLOW/BLOCK] [domain]
+   * @param blockByDefault Whether to block domains by default when no rule is found. Defaults to false.
    */
-  public constructor(rules: string[]) {
+  public constructor(rules: string[], blockByDefault: boolean = false) {
+    this.blockByDefault = blockByDefault;
     for (const [companyId, action, domain] of this.parseDomainRules(rules)) {
       this.insertRule(domain, companyId, action);
     }
@@ -46,7 +49,7 @@ export class DomainRuleManager {
    * @returns "ALLOW" or "BLOCK" if a rule is found
    */
   getRule(url: URL | string, company: CompanyTypes): Rule {
-    const defaultRule = process.env.BLOCK_BY_DEFAULT ? "BLOCK" : "ALLOW";
+    const defaultRule = this.blockByDefault ? "BLOCK" : "ALLOW";
     const { hostname } = typeof url === "string" ? new URL(url) : url;
     if (!this.cachedRules.get(hostname)?.get(company)) {
       const rule = this.lookupRule(hostname, company);

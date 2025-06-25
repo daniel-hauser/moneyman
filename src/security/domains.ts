@@ -34,7 +34,10 @@ export async function initDomainTracking(
   companyId: CompanyTypes,
 ): Promise<void> {
   if (scrapingConfig.domainTracking) {
-    const rules = new DomainRuleManager(securityConfig.firewallSettings ?? []);
+    const rules = new DomainRuleManager(
+      securityConfig.firewallSettings ?? [],
+      securityConfig.blockByDefault,
+    );
     browserContext.on("targetcreated", async (target) => {
       switch (target.type()) {
         case TargetType.PAGE:
