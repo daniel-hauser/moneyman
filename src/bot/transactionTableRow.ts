@@ -1,10 +1,9 @@
 import { format, parseISO } from "date-fns";
-import { systemName } from "../config.js";
+import { systemName, config } from "../config.js";
 import type { TransactionRow } from "../types.js";
 import { normalizeCurrency } from "../utils/currency.js";
 
 const currentDate = format(Date.now(), "yyyy-MM-dd");
-const { TRANSACTION_HASH_TYPE } = process.env;
 
 export const TableHeaders = [
   "date",
@@ -33,11 +32,7 @@ export type TableRow = Omit<
 export function tableRow(
   tx: TransactionRow,
   includeRaw: boolean = false,
-  transactionHashType?: "" | "moneyman",
 ): TableRow {
-  // Use provided transactionHashType parameter, falling back to environment variable for backward compatibility
-  const hashType = transactionHashType ?? TRANSACTION_HASH_TYPE;
-
   const baseRow = {
     date: format(parseISO(tx.date), "dd/MM/yyyy", {}),
     amount: tx.chargedAmount,
@@ -45,7 +40,10 @@ export function tableRow(
     memo: tx.memo ?? "",
     category: tx.category ?? "",
     account: tx.account,
-    hash: hashType === "moneyman" ? tx.uniqueId : tx.hash,
+    hash:
+      config.options.scraping.transactionHashType === "moneyman"
+        ? tx.uniqueId
+        : tx.hash,
     comment: "",
     "scraped at": currentDate,
     "scraped by": systemName,

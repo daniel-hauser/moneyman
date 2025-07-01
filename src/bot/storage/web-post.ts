@@ -39,15 +39,7 @@ export class WebPostStorage implements TransactionStorage {
           "Content-Type": "application/json",
           Authorization: webPostConfig.authorizationToken,
         },
-        body: JSON.stringify(
-          nonPendingTxns.map((tx) =>
-            tableRow(
-              tx,
-              false,
-              this.config.options.scraping.transactionHashType,
-            ),
-          ),
-        ),
+        body: JSON.stringify(nonPendingTxns.map((tx) => tableRow(tx))),
       }),
       onProgress("Sending"),
     ]);
