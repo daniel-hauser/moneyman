@@ -33,7 +33,11 @@ export type TableRow = Omit<
 export function tableRow(
   tx: TransactionRow,
   includeRaw: boolean = false,
+  transactionHashType?: "" | "moneyman",
 ): TableRow {
+  // Use provided transactionHashType parameter, falling back to environment variable for backward compatibility
+  const hashType = transactionHashType ?? TRANSACTION_HASH_TYPE;
+
   const baseRow = {
     date: format(parseISO(tx.date), "dd/MM/yyyy", {}),
     amount: tx.chargedAmount,
@@ -41,7 +45,7 @@ export function tableRow(
     memo: tx.memo ?? "",
     category: tx.category ?? "",
     account: tx.account,
-    hash: TRANSACTION_HASH_TYPE === "moneyman" ? tx.uniqueId : tx.hash,
+    hash: hashType === "moneyman" ? tx.uniqueId : tx.hash,
     comment: "",
     "scraped at": currentDate,
     "scraped by": systemName,

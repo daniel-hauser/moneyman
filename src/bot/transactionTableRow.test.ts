@@ -118,5 +118,54 @@ describe("transactionTableRow", () => {
       expect(parsed.memo).toBeUndefined();
       expect(parsed.category).toBeNull();
     });
+
+    it("should use uniqueId when transactionHashType is 'moneyman'", () => {
+      const mockTransaction = createMockTransactionRow({
+        hash: "old-hash",
+        uniqueId: "new-unique-id",
+      });
+
+      const result = tableRow(mockTransaction, false, "moneyman");
+
+      expect(result.hash).toBe("new-unique-id");
+    });
+
+    it("should use hash when transactionHashType is empty string", () => {
+      const mockTransaction = createMockTransactionRow({
+        hash: "old-hash",
+        uniqueId: "new-unique-id",
+      });
+
+      const result = tableRow(mockTransaction, false, "");
+
+      expect(result.hash).toBe("old-hash");
+    });
+
+    it("should fallback to environment variable when transactionHashType is not provided", () => {
+      const mockTransaction = createMockTransactionRow({
+        hash: "old-hash",
+        uniqueId: "new-unique-id",
+      });
+
+      // This test will use the environment variable value (which is likely undefined/empty)
+      const result = tableRow(mockTransaction, false);
+
+      // Since TRANSACTION_HASH_TYPE is likely not set in test environment, it should use the old hash
+      expect(result.hash).toBe("old-hash");
+    });
+
+    it("should maintain backward compatibility when called without transactionHashType parameter", () => {
+      const mockTransaction = createMockTransactionRow({
+        hash: "old-hash",
+        uniqueId: "new-unique-id",
+      });
+
+      // Test that the function works the same as before when called without the new parameter
+      const result1 = tableRow(mockTransaction);
+      const result2 = tableRow(mockTransaction, false);
+
+      expect(result1.hash).toBe(result2.hash);
+      expect(result1.hash).toBe("old-hash"); // Should use old hash since env var is not set
+    });
   });
 });

@@ -72,7 +72,13 @@ export class GoogleSheetsStorage implements TransactionStorage {
       return tx.status !== TransactionStatuses.Pending;
     });
 
-    const rows = newTxns.map((tx) => tableRow(tx, hasRawColumn));
+    const rows = newTxns.map((tx) =>
+      tableRow(
+        tx,
+        hasRawColumn,
+        this.config.options.scraping.transactionHashType,
+      ),
+    );
     if (rows.length) {
       try {
         stats.highlightedTransactions.Added.push(...newTxns);

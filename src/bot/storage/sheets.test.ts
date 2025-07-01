@@ -218,4 +218,85 @@ describe("GoogleSheetsStorage", () => {
       expect(newStorage.canSave()).toBe(false);
     });
   });
+
+  describe("transaction hash type configuration", () => {
+    it("should pass transactionHashType from config to tableRow function", async () => {
+      const { tableRow } = await import("../transactionTableRow.js");
+      const tableRowMock = tableRow as jest.MockedFunction<typeof tableRow>;
+
+      // Create config with moneyman hash type
+      const configWithMoneymanHash: MoneymanConfig = {
+        accounts: [],
+        storage: {
+          googleSheets: {
+            serviceAccountPrivateKey: "test-key",
+            serviceAccountEmail: "test@example.com",
+            sheetId: "test-sheet-id",
+            worksheetName: "_moneyman",
+          },
+        },
+        options: {
+          scraping: {
+            daysBack: 10,
+            futureMonths: 1,
+            transactionHashType: "moneyman",
+            additionalTransactionInfo: false,
+            hiddenDeprecations: [],
+            maxParallelScrapers: 1,
+            domainTracking: false,
+          },
+          security: {
+            blockByDefault: false,
+          },
+          notifications: {},
+          logging: {
+            getIpInfoUrl: "https://ipinfo.io/json",
+          },
+        },
+      };
+
+      const storageWithMoneymanHash = new GoogleSheetsStorage(
+        configWithMoneymanHash,
+      );
+      const mockTxn = createMockTransactionRow();
+
+      // Mock the sheet to have no existing hashes
+      mockSheet.getCellsInRange.mockResolvedValue([[]]);
+      mockSheet.loadHeaderRow.mockResolvedValue(undefined);
+      mockDoc.loadInfo.mockResolvedValue(undefined);
+      tableRowMock.mockReturnValue({} as any);
+
+      await storageWithMoneymanHash.saveTransactions([mockTxn], async () => {});
+
+      // Verify that tableRow was called with the correct transactionHashType
+      expect(tableRowMock).toHaveBeenCalledWith(
+        mockTxn,
+        false, // hasRawColumn
+        "moneyman", // transactionHashType from config
+      );
+    });
+
+    it("should pass empty string transactionHashType from config to tableRow function", async () => {
+      const { tableRow } = await import("../transactionTableRow.js");
+      const tableRowMock = tableRow as jest.MockedFunction<typeof tableRow>;
+
+      // Use the default storage with empty string hash type
+      const mockTxn = createMockTransactionRow();
+
+      // Mock the sheet to have no existing hashes
+      mockSheet.getCellsInRange.mockResolvedValue([[]]);
+      mockSheet.loadHeaderRow.mockResolvedValue(undefined);
+      mockDoc.loadInfo.mockResolvedValue(undefined);
+      tableRowMock.mockReturnValue({} as any);
+
+      await storage.saveTransactions([mockTxn], async () => {});
+
+      // Verify that tableRow was called with the correct transactionHashType
+      expect(tableRowMock).toHaveBeenCalledWith(
+        mockTxn,
+        false, // hasRawColumn
+        "", // transactionHashType from config (default is empty string)
+      );
+    });
+  });
 });
