@@ -35,6 +35,35 @@ const createMockTransactionRow = (
 
 describe("transactionTableRow", () => {
   describe("tableRow", () => {
+    it("should use tx.hash when transactionHashType is not 'moneyman'", () => {
+      const mockTransaction = createMockTransactionRow({
+        hash: "test-hash",
+        uniqueId: "test-unique-id",
+      });
+
+      const result = tableRow(mockTransaction);
+
+      expect(result.hash).toBe("test-hash");
+    });
+
+    it("should use tx.uniqueId when transactionHashType is 'moneyman'", () => {
+      // Mock the config with moneyman hash type
+      const originalConfig = jest.requireMock("../config.js").config;
+      originalConfig.options.scraping.transactionHashType = "moneyman";
+
+      const mockTransaction = createMockTransactionRow({
+        hash: "test-hash",
+        uniqueId: "test-unique-id",
+      });
+
+      const result = tableRow(mockTransaction);
+
+      expect(result.hash).toBe("test-unique-id");
+
+      // Reset to original value
+      originalConfig.options.scraping.transactionHashType = "";
+    });
+
     it("should include raw field when includeRaw is true", () => {
       const mockTransaction = createMockTransactionRow({
         chargedAmount: 100,
