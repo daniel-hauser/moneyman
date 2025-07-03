@@ -156,6 +156,7 @@ describe("config", () => {
     "https://my-server.local:8080",
     "http://192.168.1.100:9000",
     "https://service-name:443",
+    "https://localhost",
   ];
 
   const baseOptions = {
