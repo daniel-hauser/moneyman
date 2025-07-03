@@ -149,59 +149,47 @@ describe("config", () => {
     expect(config.options.scraping.daysBack).toBe(15);
   });
 
-  it.each([
-    ["http://actual-budget:5006", "actual", "serverUrl"],
-    ["https://actual-budget:5006", "actual", "serverUrl"],
-    ["http://localhost:3000", "actual", "serverUrl"],
-    ["https://my-server.local:8080", "actual", "serverUrl"],
-    ["http://192.168.1.100:9000", "actual", "serverUrl"],
-    ["https://service-name:443", "actual", "serverUrl"],
-    ["http://actual-budget:5006", "webPost", "url"],
-    ["https://actual-budget:5006", "webPost", "url"],
-    ["http://localhost:3000", "webPost", "url"],
-    ["https://my-server.local:8080", "webPost", "url"],
-    ["http://192.168.1.100:9000", "webPost", "url"],
-    ["https://service-name:443", "webPost", "url"],
-  ])(
-    "should support internal URL %s for %s.%s",
-    async (url, storageType, urlProperty) => {
-      const baseOptions = {
-        scraping: {
-          daysBack: 15,
-          futureMonths: 1,
-          transactionHashType: "",
-          additionalTransactionInfo: false,
-          hiddenDeprecations: [],
-          maxParallelScrapers: 1,
-          domainTracking: false,
-        },
-        security: {
-          blockByDefault: false,
-        },
-        notifications: {},
-        logging: {
-          getIpInfoUrl: "https://ipinfo.io/json",
-        },
-      };
+  const internalUrls = [
+    "http://actual-budget:5006",
+    "https://actual-budget:5006",
+    "http://localhost:3000",
+    "https://my-server.local:8080",
+    "http://192.168.1.100:9000",
+    "https://service-name:443",
+  ];
 
+  const baseOptions = {
+    scraping: {
+      daysBack: 15,
+      futureMonths: 1,
+      transactionHashType: "",
+      additionalTransactionInfo: false,
+      hiddenDeprecations: [],
+      maxParallelScrapers: 1,
+      domainTracking: false,
+    },
+    security: {
+      blockByDefault: false,
+    },
+    notifications: {},
+    logging: {
+      getIpInfoUrl: "https://ipinfo.io/json",
+    },
+  };
+
+  it.each(internalUrls)(
+    "should support internal URL %s for actual.serverUrl",
+    async (url) => {
       const configWithUrl = {
         accounts: [{ companyId: "test", password: "pass", userCode: "12345" }],
-        storage:
-          storageType === "actual"
-            ? {
-                actual: {
-                  serverUrl: url,
-                  password: "test-password",
-                  budgetId: "test-budget-id",
-                  accounts: {},
-                },
-              }
-            : {
-                webPost: {
-                  url: url,
-                  authorizationToken: "test-token",
-                },
-              },
+        storage: {
+          actual: {
+            serverUrl: url,
+            password: "test-password",
+            budgetId: "test-budget-id",
+            accounts: {},
+          },
+        },
         options: baseOptions,
       };
 
@@ -210,14 +198,32 @@ describe("config", () => {
         MONEYMAN_CONFIG: JSON.stringify(configWithUrl),
       };
 
-      jest.resetModules();
       const { config } = await import("./config.js");
+      expect(config.storage.actual?.serverUrl).toBe(url);
+    },
+  );
 
-      if (storageType === "actual") {
-        expect(config.storage.actual?.serverUrl).toBe(url);
-      } else {
-        expect(config.storage.webPost?.url).toBe(url);
-      }
+  it.each(internalUrls)(
+    "should support internal URL %s for webPost.url",
+    async (url) => {
+      const configWithUrl = {
+        accounts: [{ companyId: "test", password: "pass", userCode: "12345" }],
+        storage: {
+          webPost: {
+            url: url,
+            authorizationToken: "test-token",
+          },
+        },
+        options: baseOptions,
+      };
+
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG: JSON.stringify(configWithUrl),
+      };
+
+      const { config } = await import("./config.js");
+      expect(config.storage.webPost?.url).toBe(url);
     },
   );
 });
