@@ -1,34 +1,15 @@
 import * as actualApi from "@actual-app/api";
+import { ImportTransactionEntity } from "@actual-app/api/@types/loot-core/src/types/models/index.js";
 import hash from "hash-it";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
+import assert from "node:assert";
 import fs from "node:fs/promises";
 import * as os from "os";
 import * as path from "path";
+import type { MoneymanConfig } from "../../config.js";
 import { TransactionRow, TransactionStorage } from "../../types.js";
 import { createLogger } from "../../utils/logger.js";
 import { createSaveStats, SaveStats } from "../saveStats.js";
-import type { MoneymanConfig } from "../../config.js";
-import assert from "node:assert";
-
-interface ActualTransaction {
-  id?: string;
-  account: string;
-  date: Date | string;
-  amount?: number;
-  payee?: string;
-  payee_name?: string;
-  imported_payee?: string;
-  category?: string;
-  notes?: string;
-  imported_id?: string;
-  transfer_id?: string;
-  cleared?: boolean;
-  subtransactions?: Array<{
-    amount: number;
-    category_id?: string;
-    notes?: string;
-  }>;
-}
 
 const logger = createLogger("ActualBudgetStorage");
 
@@ -57,7 +38,7 @@ export class ActualBudgetStorage implements TransactionStorage {
     try {
       const transactionsByActualAccountId = new Map<
         string,
-        ActualTransaction[]
+        ImportTransactionEntity[]
       >();
 
       for (let tx of txns) {
@@ -97,7 +78,7 @@ export class ActualBudgetStorage implements TransactionStorage {
   }
 
   private async sendTransactionsToActual(
-    transactionsByActualAccountId: Map<string, ActualTransaction[]>,
+    transactionsByActualAccountId: Map<string, ImportTransactionEntity[]>,
     stats: SaveStats,
     onProgress: (status: string) => Promise<void>,
   ) {
@@ -216,12 +197,12 @@ export class ActualBudgetStorage implements TransactionStorage {
   private convertTransactionToActualFormat(
     tx: TransactionRow,
     actualAccountId: string,
-  ): ActualTransaction {
+  ): ImportTransactionEntity {
     const amount = actualApi.utils.amountToInteger(tx.chargedAmount);
 
     return {
       account: actualAccountId,
-      date: new Date(tx.date),
+      date: new Date(tx.date).toISOString().split("T")[0],
       amount,
       payee_name: tx.description,
       cleared: tx.status === TransactionStatuses.Completed,
