@@ -1,4 +1,4 @@
-import * as z from "zod";
+import z from "zod/v4";
 
 // TODO: Use the actual login field combinations from israeli-bank-scrapers once available
 // Account configuration schema based on israeli-bank-scrapers login field combinations

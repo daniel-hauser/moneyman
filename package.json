@@ -39,27 +39,27 @@
     "buxfer-ts-client": "^1.1.4",
     "date-fns": "^4.1.0",
     "debug": "^4.4.1",
-    "dotenv": "^16.5.0",
+    "dotenv": "^16.6.0",
     "glob": "^11.0.3",
-    "google-auth-library": "^9.15.1",
+    "google-auth-library": "^10.1.0",
     "google-spreadsheet": "^4.1.4",
     "hash-it": "^6.0.0",
     "israeli-bank-scrapers": "^6.1.4",
     "jsonc-parser": "^3.3.1",
     "telegraf": "^4.16.3",
     "ynab": "^2.9.0",
-    "zod": "^4.0.0-beta.20250505T195954"
+    "zod": "^3.25.71"
   },
   "devDependencies": {
     "@types/async": "^3.2.24",
     "@types/debug": "^4.1.12",
     "@types/jest": "^30.0.0",
-    "@types/node": "^24.0.3",
+    "@types/node": "^24.0.4",
     "husky": "^9.1.7",
-    "jest": "^30.0.0",
+    "jest": "^30.0.3",
     "jest-mock-extended": "^4.0.0",
     "patch-package": "^8.0.0",
-    "prettier": "^3.5.3",
+    "prettier": "^3.6.1",
     "pretty-quick": "^4.2.2",
     "ts-jest": "^29.4.0",
     "typescript": "^5.8.3"
@@ -67,6 +67,11 @@
   "husky": {
     "hooks": {
       "pre-commit": "pretty-quick --staged"
+    }
+  },
+  "overrides": {
+    "google-spreadsheet": {
+      "google-auth-library": "^10.1.0"
     }
   }
 }

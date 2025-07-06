@@ -148,4 +148,83 @@ describe("config", () => {
     const { config } = await import("./config.js");
     expect(config.options.scraping.daysBack).toBe(15);
   });
+
+  const internalUrls = [
+    "http://actual-budget:5006",
+    "https://actual-budget:5006",
+    "http://localhost:3000",
+    "https://my-server.local:8080",
+    "http://192.168.1.100:9000",
+    "https://service-name:443",
+    "https://localhost",
+  ];
+
+  const baseOptions = {
+    scraping: {
+      daysBack: 15,
+      futureMonths: 1,
+      transactionHashType: "",
+      additionalTransactionInfo: false,
+      hiddenDeprecations: [],
+      maxParallelScrapers: 1,
+      domainTracking: false,
+    },
+    security: {
+      blockByDefault: false,
+    },
+    notifications: {},
+    logging: {
+      getIpInfoUrl: "https://ipinfo.io/json",
+    },
+  };
+
+  it.each(internalUrls)(
+    "should support internal URL %s for actual.serverUrl",
+    async (url) => {
+      const configWithUrl = {
+        accounts: [{ companyId: "test", password: "pass", userCode: "12345" }],
+        storage: {
+          actual: {
+            serverUrl: url,
+            password: "test-password",
+            budgetId: "test-budget-id",
+            accounts: {},
+          },
+        },
+        options: baseOptions,
+      };
+
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG: JSON.stringify(configWithUrl),
+      };
+
+      const { config } = await import("./config.js");
+      expect(config.storage.actual?.serverUrl).toBe(url);
+    },
+  );
+
+  it.each(internalUrls)(
+    "should support internal URL %s for webPost.url",
+    async (url) => {
+      const configWithUrl = {
+        accounts: [{ companyId: "test", password: "pass", userCode: "12345" }],
+        storage: {
+          webPost: {
+            url: url,
+            authorizationToken: "test-token",
+          },
+        },
+        options: baseOptions,
+      };
+
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG: JSON.stringify(configWithUrl),
+      };
+
+      const { config } = await import("./config.js");
+      expect(config.storage.webPost?.url).toBe(url);
+    },
+  );
 });
