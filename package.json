@@ -30,7 +30,7 @@
   },
   "homepage": "https://github.com/daniel-hauser/moneyman#readme",
   "dependencies": {
-    "@actual-app/api": "^25.6.1",
+    "@actual-app/api": "^25.7.1",
     "@mswjs/interceptors": "^0.39.2",
     "@telegraf/entity": "^0.6.0",
     "async": "^3.2.6",
@@ -48,18 +48,18 @@
     "jsonc-parser": "^3.3.1",
     "telegraf": "^4.16.3",
     "ynab": "^2.9.0",
-    "zod": "^3.25.71"
+    "zod": "^3.25.74"
   },
   "devDependencies": {
     "@types/async": "^3.2.24",
     "@types/debug": "^4.1.12",
     "@types/jest": "^30.0.0",
-    "@types/node": "^24.0.4",
+    "@types/node": "^24.0.10",
     "husky": "^9.1.7",
-    "jest": "^30.0.3",
+    "jest": "^30.0.4",
     "jest-mock-extended": "^4.0.0",
     "patch-package": "^8.0.0",
-    "prettier": "^3.6.1",
+    "prettier": "^3.6.2",
     "pretty-quick": "^4.2.2",
     "ts-jest": "^29.4.0",
     "typescript": "^5.8.3"
