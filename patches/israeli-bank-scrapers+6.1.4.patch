@@ -1,0 +1,118 @@
+diff --git a/node_modules/israeli-bank-scrapers/lib/helpers/fetch.js b/node_modules/israeli-bank-scrapers/lib/helpers/fetch.js
+index 843eadb..8dfa390 100644
+--- a/node_modules/israeli-bank-scrapers/lib/helpers/fetch.js
++++ b/node_modules/israeli-bank-scrapers/lib/helpers/fetch.js
+@@ -56,20 +56,17 @@ async function fetchGraphql(url, query, variables = {}, extraHeaders = {}) {
+   return result.data;
+ }
+ function fetchGetWithinPage(page, url) {
+-  return page.evaluate(innerUrl => {
+-    return new Promise((resolve, reject) => {
+-      fetch(innerUrl, {
+-        credentials: 'include'
+-      }).then(result => {
+-        if (result.status === 204) {
+-          resolve(null);
+-        } else {
+-          resolve(result.json());
+-        }
+-      }).catch(e => {
+-        reject(e);
+-      });
+-    });
++  return page.evaluate(async innerUrl => {
++    let result;
++    try {
++      result = await fetch(innerUrl, { credentials: 'include' });
++      if (result.status === 204) {
++        return null;
++      }
++      return result.json();
++    } catch (e) {
++      throw new Error(`fetchGetWithinPage error: ${e}, url: ${innerUrl}, stack: ${e?.stack}, status: ${result?.status}`);
++    }
+   }, url);
+ }
+ function fetchPostWithinPage(page, url, data, extraHeaders = {}) {
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
+index 8827ffc..8b9220c 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
+@@ -241,6 +241,16 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+     });
+     await (0, _browser.maskHeadlessUserAgent)(this.page);
+     await this.navigateTo(`${this.baseUrl}/personalarea/Login`);
++    try {
++      const initialPageTitle = await this.page.title();
++      debug("initial page title: ", initialPageTitle);
++      if (!initialPageTitle.includes('ישראכרט') && !initialPageTitle.includes('אמריקן אקספרס')) {
++        debug("waiting for page to load");
++        await this.page.waitForNavigation({ timeout: 60_000 });
++      }
++    } catch (error) {
++      debug("error while waiting for navigation: ", error);
++    }
+     this.emitProgress(_definitions.ScraperProgressTypes.LoggingIn);
+     const validateUrl = `${this.servicesUrl}?reqName=ValidateIdData`;
+     const validateRequest = {
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper.js
+index 6a1fef3..a75fc50 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper.js
+@@ -29,14 +29,14 @@ class BaseScraper {
+     try {
+       loginResult = await this.login(credentials);
+     } catch (e) {
+-      loginResult = e instanceof _waiting.TimeoutError ? (0, _errors.createTimeoutError)(e.message) : (0, _errors.createGenericError)(e.message);
++      loginResult = e instanceof _waiting.TimeoutError ? (0, _errors.createTimeoutError)(`[login]: ${e}`) : (0, _errors.createGenericError)(`[login]: ${e}`);
+     }
+     let scrapeResult;
+     if (loginResult.success) {
+       try {
+         scrapeResult = await this.fetchData();
+       } catch (e) {
+-        scrapeResult = e instanceof _waiting.TimeoutError ? (0, _errors.createTimeoutError)(e.message) : (0, _errors.createGenericError)(e.message);
++        scrapeResult = e instanceof _waiting.TimeoutError ? (0, _errors.createTimeoutError)(`[fetchData]: ${e}`) : (0, _errors.createGenericError)(`[fetchData]: ${e}`);
+       }
+     } else {
+       scrapeResult = loginResult;
+@@ -45,7 +45,7 @@ class BaseScraper {
+       const success = scrapeResult && scrapeResult.success === true;
+       await this.terminate(success);
+     } catch (e) {
+-      scrapeResult = (0, _errors.createGenericError)(e.message);
++      scrapeResult = (0, _errors.createGenericError)(`[terminate]: ${e}`);
+     }
+     this.emitProgress(_definitions.ScraperProgressTypes.EndScraping);
+     return scrapeResult;
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
+index 994998a..42b991c 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
+@@ -244,7 +244,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+         Authorization,
+         'X-Site-Id': xSiteId,
+         'Content-Type': 'application/json'
+-      });
++      }).catch(() => {});
+       debug(`fetch completed transactions for card ${card.cardUniqueId}`);
+       for (let i = 0; i <= months; i += 1) {
+         const month = finalMonthToFetchMoment.clone().subtract(i, 'months');
+@@ -256,12 +256,12 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+           Authorization,
+           'X-Site-Id': xSiteId,
+           'Content-Type': 'application/json'
+-        });
+-        if (monthData?.statusCode !== 1) throw new Error(`failed to fetch transactions for card ${card.last4Digits}. Message: ${monthData?.title || ''}`);
+-        if (!isCardTransactionDetails(monthData)) {
+-          throw new Error('monthData is not of type CardTransactionDetails');
++        }).catch(() => {});
++        if (monthData?.statusCode !== 1) { debug(`failed to fetch transactions for card ${card.last4Digits}. Message: ${monthData?.title || ''}`) }
++        else if (!isCardTransactionDetails(monthData)) {
++          debug('monthData is not of type CardTransactionDetails');
+         } 
+-        allMonthsData.push(monthData);
++        else { allMonthsData.push(monthData); }
+       }
+       if (pendingData?.statusCode !== 1 && pendingData?.statusCode !== 96) {
+         debug(`failed to fetch pending transactions for card ${card.last4Digits}. Message: ${pendingData?.title || ''}`);
