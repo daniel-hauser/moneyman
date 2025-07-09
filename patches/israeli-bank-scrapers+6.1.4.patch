@@ -55,6 +55,36 @@ index 8827ffc..8b9220c 100644
      this.emitProgress(_definitions.ScraperProgressTypes.LoggingIn);
      const validateUrl = `${this.servicesUrl}?reqName=ValidateIdData`;
      const validateRequest = {
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper.js
+index 6a1fef3..a75fc50 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/base-scraper.js
+@@ -29,14 +29,14 @@ class BaseScraper {
+     try {
+       loginResult = await this.login(credentials);
+     } catch (e) {
+-      loginResult = e instanceof _waiting.TimeoutError ? (0, _errors.createTimeoutError)(e.message) : (0, _errors.createGenericError)(e.message);
++      loginResult = e instanceof _waiting.TimeoutError ? (0, _errors.createTimeoutError)(`[login]: ${e}`) : (0, _errors.createGenericError)(`[login]: ${e}`);
+     }
+     let scrapeResult;
+     if (loginResult.success) {
+       try {
+         scrapeResult = await this.fetchData();
+       } catch (e) {
+-        scrapeResult = e instanceof _waiting.TimeoutError ? (0, _errors.createTimeoutError)(e.message) : (0, _errors.createGenericError)(e.message);
++        scrapeResult = e instanceof _waiting.TimeoutError ? (0, _errors.createTimeoutError)(`[fetchData]: ${e}`) : (0, _errors.createGenericError)(`[fetchData]: ${e}`);
+       }
+     } else {
+       scrapeResult = loginResult;
+@@ -45,7 +45,7 @@ class BaseScraper {
+       const success = scrapeResult && scrapeResult.success === true;
+       await this.terminate(success);
+     } catch (e) {
+-      scrapeResult = (0, _errors.createGenericError)(e.message);
++      scrapeResult = (0, _errors.createGenericError)(`[terminate]: ${e}`);
+     }
+     this.emitProgress(_definitions.ScraperProgressTypes.EndScraping);
+     return scrapeResult;
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
 index 994998a..61afcf8 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
