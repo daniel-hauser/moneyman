@@ -86,16 +86,27 @@ index 6a1fef3..a75fc50 100644
      this.emitProgress(_definitions.ScraperProgressTypes.EndScraping);
      return scrapeResult;
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
-index 994998a..61afcf8 100644
+index 994998a..42b991c 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
-@@ -257,11 +257,11 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+@@ -244,7 +244,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+         Authorization,
+         'X-Site-Id': xSiteId,
+         'Content-Type': 'application/json'
+-      });
++      }).catch(() => {});
+       debug(`fetch completed transactions for card ${card.cardUniqueId}`);
+       for (let i = 0; i <= months; i += 1) {
+         const month = finalMonthToFetchMoment.clone().subtract(i, 'months');
+@@ -256,12 +256,12 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+           Authorization,
            'X-Site-Id': xSiteId,
            'Content-Type': 'application/json'
-         });
+-        });
 -        if (monthData?.statusCode !== 1) throw new Error(`failed to fetch transactions for card ${card.last4Digits}. Message: ${monthData?.title || ''}`);
 -        if (!isCardTransactionDetails(monthData)) {
 -          throw new Error('monthData is not of type CardTransactionDetails');
++        }).catch(() => {});
 +        if (monthData?.statusCode !== 1) { debug(`failed to fetch transactions for card ${card.last4Digits}. Message: ${monthData?.title || ''}`) }
 +        else if (!isCardTransactionDetails(monthData)) {
 +          debug('monthData is not of type CardTransactionDetails');
