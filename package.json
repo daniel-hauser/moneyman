@@ -42,7 +42,7 @@
     "dotenv": "^16.6.0",
     "glob": "^11.0.3",
     "google-auth-library": "^10.1.0",
-    "google-spreadsheet": "^4.1.4",
+    "google-spreadsheet": "^4.1.5",
     "hash-it": "^6.0.0",
     "israeli-bank-scrapers": "^6.1.4",
     "jsonc-parser": "^3.3.1",
