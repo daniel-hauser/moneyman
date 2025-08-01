@@ -1,6 +1,5 @@
 import { jest } from "@jest/globals";
 import { CompanyTypes } from "israeli-bank-scrapers";
-import { initDomainTracking, getUsedDomains } from "./domains.js";
 import {
   BrowserContext,
   TargetType,
@@ -17,27 +16,42 @@ jest.mock("../utils/logger.js", () => ({
 }));
 
 describe("domains", () => {
-  let originalEnv: NodeJS.ProcessEnv;
   const browserContext = mock<BrowserContext>();
 
   beforeEach(() => {
-    originalEnv = process.env;
     jest.resetAllMocks();
-    process.env = { ...originalEnv, DOMAIN_TRACKING_ENABLED: "true" };
-  });
-
-  afterEach(() => {
-    process.env = originalEnv;
+    jest.resetModules();
   });
 
   describe("initDomainTracking", () => {
     it("should not set up event listeners when domain tracking is disabled", async () => {
-      process.env.DOMAIN_TRACKING_ENABLED = "";
+      jest.mock("../config.js", () => ({
+        config: {
+          options: {
+            scraping: {
+              domainTracking: false,
+            },
+          },
+        },
+      }));
+
+      const { initDomainTracking } = await import("./domains.js");
       await initDomainTracking(browserContext, CompanyTypes.max);
       expect(browserContext.on).not.toHaveBeenCalled();
     });
 
     it("should set up event listeners when domain tracking is enabled", async () => {
+      jest.mock("../config.js", () => ({
+        config: {
+          options: {
+            security: {},
+            scraping: {
+              domainTracking: true,
+            },
+          },
+        },
+      }));
+      const { initDomainTracking } = await import("./domains.js");
       await initDomainTracking(browserContext, CompanyTypes.max);
       expect(browserContext.on).toHaveBeenCalledWith(
         "targetcreated",
@@ -53,10 +67,21 @@ describe("domains", () => {
       page.url.mockReturnValue("https://foo.com");
       target.page.mockResolvedValue(page);
 
-      process.env.FIREWALL_SETTINGS = `
-      max ALLOW bar.com
-      max BLOCK baz.com
-      `;
+      jest.mock("../config.js", () => ({
+        config: {
+          options: {
+            scraping: {
+              domainTracking: true,
+            },
+            security: {
+              firewallSettings: ["max ALLOW bar.com", "max BLOCK baz.com"],
+            },
+          },
+        },
+      }));
+      const { initDomainTracking, getUsedDomains } = await import(
+        "./domains.js"
+      );
       await initDomainTracking(browserContext, CompanyTypes.max);
 
       const targetCreatedCallback = browserContext.on.mock.calls[0][1] as (
@@ -107,6 +132,18 @@ describe("domains", () => {
       const target = mock<Target>();
       target.type.mockReturnValue(TargetType.OTHER);
 
+      jest.mock("../config.js", () => ({
+        config: {
+          options: {
+            security: {},
+            scraping: {
+              domainTracking: true,
+            },
+          },
+        },
+      }));
+
+      const { initDomainTracking } = await import("./domains.js");
       await initDomainTracking(browserContext, CompanyTypes.max);
 
       const targetCreatedCallback = browserContext.on.mock.calls[0][1];

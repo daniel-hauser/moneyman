@@ -1,35 +1,36 @@
-import { editMessage, send, sendError } from "../notifier.js";
+import { parallel } from "async";
 import {
   AccountScrapeResult,
   TransactionRow,
   TransactionStorage,
 } from "../../types.js";
+import { createLogger } from "../../utils/logger.js";
+import { Timer } from "../../utils/Timer.js";
+import { saving } from "../messages.js";
+import { editMessage, send, sendError } from "../notifier.js";
+import { statsString } from "../saveStats.js";
+import { ActualBudgetStorage } from "./actual.js";
+import { AzureDataExplorerStorage } from "./azure-data-explorer.js";
+import { BuxferStorage } from "./buxfer.js";
 import { LocalJsonStorage } from "./json.js";
 import { GoogleSheetsStorage } from "./sheets.js";
-import { AzureDataExplorerStorage } from "./azure-data-explorer.js";
 import { transactionHash, transactionUniqueId } from "./utils.js";
-import { YNABStorage } from "./ynab.js";
-import { BuxferStorage } from "./buxfer.js";
 import { WebPostStorage } from "./web-post.js";
 import { TelegramStorage } from "./telegram.js";
-import { saving } from "../messages.js";
-import { createLogger } from "../../utils/logger.js";
-import { statsString } from "../saveStats.js";
-import { parallel } from "async";
-import { Timer } from "../../utils/Timer.js";
-import { MondayStorage } from "./monday.js";
+import { YNABStorage } from "./ynab.js";
+import { config } from "../../config.js";
 
 const baseLogger = createLogger("storage");
 
 export const storages = [
-  new LocalJsonStorage(),
-  new GoogleSheetsStorage(),
-  new AzureDataExplorerStorage(),
-  new YNABStorage(),
-  new BuxferStorage(),
-  new WebPostStorage(),
-  new TelegramStorage(),
-  new MondayStorage(),
+  new LocalJsonStorage(config),
+  new GoogleSheetsStorage(config),
+  new AzureDataExplorerStorage(config),
+  new YNABStorage(config),
+  new BuxferStorage(config),
+  new WebPostStorage(config),
+  new TelegramStorage(config),
+  new ActualBudgetStorage(config),
 ].filter((s) => s.canSave());
 
 export async function saveResults(results: Array<AccountScrapeResult>) {

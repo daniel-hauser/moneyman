@@ -4,7 +4,9 @@ import { type BrowserContext, TargetType } from "puppeteer";
 import { ClientRequestInterceptor } from "@mswjs/interceptors/ClientRequest";
 import { DomainRuleManager } from "./domainRules.js";
 import { addToKeyedSet } from "../utils/collections.js";
+import { config } from "../config.js";
 
+const { scraping: scrapingConfig, security: securityConfig } = config.options;
 const logger = createLogger("domain-security");
 
 type CompanyToSet = Map<CompanyTypes, Set<string>>;
@@ -16,7 +18,7 @@ const allowedByCompany: CompanyToSet = new Map();
 const resourceTypesByCompany: Map<string, CompanyToSet> = new Map();
 
 export function monitorNodeConnections() {
-  if (process.env.DOMAIN_TRACKING_ENABLED) {
+  if (scrapingConfig.domainTracking) {
     const interceptor = new ClientRequestInterceptor();
     interceptor.apply();
     interceptor.on("request", ({ request }) => {
@@ -31,8 +33,11 @@ export async function initDomainTracking(
   browserContext: BrowserContext,
   companyId: CompanyTypes,
 ): Promise<void> {
-  if (process.env.DOMAIN_TRACKING_ENABLED) {
-    const rules = new DomainRuleManager();
+  if (scrapingConfig.domainTracking) {
+    const rules = new DomainRuleManager(
+      securityConfig.firewallSettings ?? [],
+      securityConfig.blockByDefault,
+    );
     browserContext.on("targetcreated", async (target) => {
       switch (target.type()) {
         case TargetType.PAGE:

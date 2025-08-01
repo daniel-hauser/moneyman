@@ -20,18 +20,18 @@ exports[`messages getSummaryMessages should not add empty groups 2`] = `
 `;
 
 exports[`messages getSummaryMessages should return a summary message 1`] = `
-"8 transactions scraped.
+"8 transactions scraped from 2 accounts.
 (3 pending, 5 completed)
 From completed, 3 not originally in ILS and 1 not charged in ILS
 
-Accounts updated:
+<blockquote expandable>Accounts updated
 	✔️ [max] account1: 1
-	✔️ [max] account2: 7
+	✔️ [max] account2: 7</blockquote>
 
-Pending txns:
+<blockquote expandable>Pending txns
 	description1:	+20.00
 	description1:	+20.00 USD
-	description1:	-20.00"
+	description1:	-20.00</blockquote>"
 `;
 
 exports[`messages getSummaryMessages should return a summary message 2`] = `
@@ -40,7 +40,8 @@ exports[`messages getSummaryMessages should return a summary message 2`] = `
 	1 added
 	took 350.00s",
   "📝 Storage 2 (TheTable)
-	7 added
+	7 added	3 skipped (3 pending)
+
 	took 350.00s
 	-----
 	Group1:
@@ -49,30 +50,26 @@ exports[`messages getSummaryMessages should return a summary message 2`] = `
 `;
 
 exports[`messages getSummaryMessages should return a summary message with failed results 1`] = `
-"1 transactions scraped.
+"1 transactions scraped from 1 account.
 (0 pending, 1 completed)
 
-Accounts updated:
+<blockquote expandable>Failed Account Updates
 	❌ [max] GENERIC
 		Some error message
-	❌ [hapoalim] CHANGE_PASSWORD
-	✔️ [hapoalim] account1: 1
+	❌ [hapoalim] CHANGE_PASSWORD</blockquote>
 
-Pending txns:
-	😶 None"
+<blockquote expandable>Successful Account Updates
+	✔️ [hapoalim] account1: 1</blockquote>"
 `;
 
 exports[`messages getSummaryMessages should return a summary message with failed results 2`] = `[]`;
 
 exports[`messages getSummaryMessages should return a summary message with installments 1`] = `
-"2 transactions scraped.
+"2 transactions scraped from 1 account.
 (0 pending, 2 completed)
 
-Accounts updated:
-	✔️ [max] account1: 2
-
-Pending txns:
-	😶 None"
+<blockquote expandable>Accounts updated
+	✔️ [max] account1: 2</blockquote>"
 `;
 
 exports[`messages getSummaryMessages should return a summary message with installments 2`] = `
@@ -91,13 +88,22 @@ exports[`messages getSummaryMessages should return a summary message with no res
 "0 transactions scraped.
 
 Accounts updated:
-	😶 None
-
-Pending txns:
 	😶 None"
 `;
 
 exports[`messages getSummaryMessages should return a summary message with no results 2`] = `[]`;
+
+exports[`messages getSummaryMessages should support stats with otherSkipped transactions 1`] = `
+[
+  "📝 Storage (TheTable)
+	1 added	4 skipped (1 existing, 1 pending, 2 other)
+
+	took 0.00s
+	-----
+	Group1:
+		description1:	+10.00",
+]
+`;
 
 exports[`messages getSummaryMessages should support stats with skipped transactions 1`] = `
 [
@@ -124,6 +130,28 @@ exports[`messages getSummaryMessages should support steps 1`] = `
 	Group1:
 		description1:	+10.00",
 ]
+`;
+
+exports[`messages getSummaryMessages should use expandable block quotation for mixed success/error accounts (HTML) 1`] = `
+"8 transactions scraped from 2 accounts.
+(0 pending, 8 completed)
+
+<blockquote expandable>Failed Account Updates
+	❌ [max] GENERIC
+		Connection failed</blockquote>
+
+<blockquote expandable>Successful Account Updates
+	✔️ [hapoalim] 12345: 5
+	✔️ [hapoalim] 67890: 3</blockquote>"
+`;
+
+exports[`messages getSummaryMessages should use expandable block quotation for successful accounts only (HTML) 1`] = `
+"3 transactions scraped from 2 accounts.
+(0 pending, 3 completed)
+
+<blockquote expandable>Accounts updated
+	✔️ [max] account1: 1
+	✔️ [max] account2: 2</blockquote>"
 `;
 
 exports[`messages saving should return a saving message 1`] = `"📝 Storage Saving..."`;

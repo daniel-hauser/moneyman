@@ -5,44 +5,103 @@ import {
 import { AccountScrapeResult, Transaction } from "../types.js";
 import { normalizeCurrency } from "../utils/currency.js";
 import { Timer } from "../utils/Timer.js";
+import { escapers } from "@telegraf/entity";
+
+function blockquote(title: string, lines: string[], expandable = true): string {
+  const content = lines.join("\n");
+  const expandableAttr = expandable ? " expandable" : "";
+  return `<blockquote${expandableAttr}>${title}\n${content}</blockquote>`;
+}
+
+function getAccountsSummary(results: Array<AccountScrapeResult>): string {
+  const successfulAccounts = results
+    .filter(({ result }) => result.success)
+    .flatMap(({ result, companyId }) =>
+      result.accounts?.map(
+        (account) =>
+          `\t✔️ [${companyId}] ${escapers.HTML(account.accountNumber)}: ${account.txns.length}`,
+      ),
+    )
+    .filter((account): account is string => account !== undefined);
+
+  const errorAccounts = results
+    .filter(({ result }) => !result.success)
+    .map(
+      ({ result, companyId }) =>
+        `\t❌ [${companyId}] ${result.errorType}${
+          result.errorMessage
+            ? `\n\t\t${escapers.HTML(result.errorMessage)}`
+            : ""
+        }`,
+    );
+
+  if (errorAccounts.length === 0 && successfulAccounts.length === 0) {
+    // No accounts at all
+    return "Accounts updated:\n\t😶 None";
+  } else if (errorAccounts.length === 0) {
+    // Only successful accounts - use expandable block without duplication
+    return blockquote("Accounts updated", successfulAccounts);
+  } else if (successfulAccounts.length === 0) {
+    // Only error accounts - use expandable block
+    return blockquote("Accounts updated", errorAccounts);
+  } else {
+    // Mixed - show both in separate blocks (applying comment suggestion)
+    const failedBlock = blockquote("Failed Account Updates", errorAccounts);
+    const successBlock = blockquote(
+      "Successful Account Updates",
+      successfulAccounts,
+    );
+    return `${failedBlock}\n\n${successBlock}`;
+  }
+}
+
+function getPendingTransactionsSummary(pending: Array<Transaction>): string {
+  if (pending.length === 0) {
+    return "";
+  } else {
+    const pendingContent = transactionList(pending, "\t");
+    return blockquote("Pending txns", [pendingContent]);
+  }
+}
 
 export function getSummaryMessages(results: Array<AccountScrapeResult>) {
-  const accountsSummary = results.flatMap(({ result, companyId }) => {
-    if (!result.success) {
-      return `\t❌ [${companyId}] ${result.errorType}${
-        result.errorMessage ? `\n\t\t${result.errorMessage}` : ""
-      }`;
-    }
-    return result.accounts?.map(
-      (account) =>
-        `\t✔️ [${companyId}] ${account.accountNumber}: ${account.txns.length}`,
-    );
-  });
-
   const { pending, completed } = transactionsByStatus(results);
 
-  return `
-${transactionsString(pending, completed)}
-
-Accounts updated:
-${accountsSummary.join("\n") || "\t😶 None"}
-
-Pending txns:
-${transactionList(pending) || "\t😶 None"}
-`.trim();
+  const sections = [
+    transactionsString(pending, completed, results),
+    getAccountsSummary(results),
+    getPendingTransactionsSummary(pending),
+  ];
+  return sections.filter(Boolean).join("\n\n").trim();
 }
 
 function transactionsString(
   pending: Array<Transaction>,
   completed: Array<Transaction>,
+  results: Array<AccountScrapeResult>,
 ) {
   const total = pending.length + completed.length;
 
-  return `
-${total} transactions scraped.
+  // Count total accounts from successful results
+  const totalAccounts = results.reduce((count, { result }) => {
+    if (result.success) {
+      return count + (result.accounts?.length || 0);
+    }
+    return count;
+  }, 0);
+
+  const accountText =
+    totalAccounts > 0
+      ? ` from ${totalAccounts} account${totalAccounts === 1 ? "" : "s"}`
+      : "";
+
+  const summary = `
+${total} transactions scraped${accountText}.
 ${total > 0 ? `(${pending.length} pending, ${completed.length} completed)` : ""}
 ${foreignTransactionsSummary(completed)}
 `.trim();
+
+  return escapers.HTML(summary);
 }
 
 function foreignTransactionsSummary(completed: Array<Transaction>) {
@@ -91,7 +150,10 @@ export function transactionList(
   transactions: Array<Transaction>,
   indent = "\t",
 ) {
-  return transactions.map((t) => `${indent}${transactionString(t)}`).join("\n");
+  const list = transactions
+    .map((t) => `${indent}${transactionString(t)}`)
+    .join("\n");
+  return escapers.HTML(list);
 }
 
 export function saving(storage: string, steps: Array<Timer> = []) {

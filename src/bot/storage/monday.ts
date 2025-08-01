@@ -11,6 +11,7 @@ import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { createLogger } from "../../utils/logger.js";
 import { TransactionRow, TransactionStorage } from '../../types';
 import { SaveStats } from '../saveStats';
+import type { MoneymanConfig } from "../../config.js";
 
 const logger = createLogger("MondayStorage");
 const URL = 'https://api.monday.com/v2';
@@ -35,6 +36,8 @@ export class MondayStorage implements TransactionStorage {
   existingTransactionsHashes = new Set<string>();
   private initPromise: null | Promise<void> = null;
   private uniqueIdColumnID = "text__1"
+
+  constructor(private config: MoneymanConfig) { }
 
   async init() {
     // Init only once
@@ -111,7 +114,10 @@ export class MondayStorage implements TransactionStorage {
     }
   }
 
-  async saveTransactions(txns: Array<TransactionRow>) {
+  async saveTransactions(
+    txns: Array<TransactionRow>,
+    onProgress: (status: string) => Promise<void>
+  ) {
     await this.init();
 
     const txToSend: MondayTransaction[] = [];
@@ -123,7 +129,7 @@ export class MondayStorage implements TransactionStorage {
       added: 0,
       pending: 0,
       existing: 0,
-      skipped: 0,
+      otherSkipped: 0,
     } satisfies SaveStats;
 
     for (const tx of txns) {
@@ -132,7 +138,7 @@ export class MondayStorage implements TransactionStorage {
         // Use the new uniqueId as the unique identifier for the transactions if the hash type is moneyman
         if (this.existingTransactionsHashes.has(tx.uniqueId)) {
           stats.existing++;
-          stats.skipped++;
+          stats.otherSkipped++;
           continue;
         }
       }
@@ -145,7 +151,7 @@ export class MondayStorage implements TransactionStorage {
         // To avoid double counting, skip if the new hash is already in the sheet
         if (!this.existingTransactionsHashes.has(tx.uniqueId)) {
           stats.existing++;
-          stats.skipped++;
+          stats.otherSkipped++;
         }
 
         continue;
@@ -153,7 +159,7 @@ export class MondayStorage implements TransactionStorage {
 
       if (tx.status === TransactionStatuses.Pending) {
         stats.pending++;
-        stats.skipped++;
+        stats.otherSkipped++;
         continue;
       }
       // Converting to Monday format.
@@ -176,7 +182,7 @@ export class MondayStorage implements TransactionStorage {
       const resp = await this.createItemsFromTransactions(+MONDAY_BOARD_ID, txToSend);
 
       logger("transactions sent to Monday successfully!");
-      stats.skipped += stats.existing;
+      stats.otherSkipped += stats.existing;
     }
 
     return stats;

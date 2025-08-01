@@ -4,28 +4,33 @@ import { format, parseISO } from "date-fns";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { BuxferApiClient, BuxferTransaction } from "buxfer-ts-client";
 import { createSaveStats } from "../saveStats.js";
+import type { MoneymanConfig } from "../../config.js";
+import assert from "node:assert";
 
 const BUXFER_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("BuxferStorage");
-
-const {
-  BUXFER_USER_NAME = "",
-  BUXFER_PASSWORD = "",
-  BUXFER_ACCOUNTS = "",
-} = process.env;
 
 export class BuxferStorage implements TransactionStorage {
   private buxferClient: BuxferApiClient;
   private accountToBuxferAccount: Map<string, string>;
 
+  constructor(private config: MoneymanConfig) {}
   async init() {
     logger("init");
-    this.buxferClient = new BuxferApiClient(BUXFER_USER_NAME, BUXFER_PASSWORD);
-    this.accountToBuxferAccount = this.parseBuxferAccounts(BUXFER_ACCOUNTS);
+    const buxferConfig = this.config.storage.buxfer;
+    assert(buxferConfig, "Buxfer configuration not found");
+
+    this.buxferClient = new BuxferApiClient(
+      buxferConfig.userName,
+      buxferConfig.password,
+    );
+    this.accountToBuxferAccount = new Map(
+      Object.entries(buxferConfig.accounts),
+    );
   }
 
   canSave() {
-    return Boolean(BUXFER_USER_NAME && BUXFER_PASSWORD && BUXFER_ACCOUNTS);
+    return Boolean(this.config.storage.buxfer);
   }
 
   async saveTransactions(
@@ -48,14 +53,13 @@ export class BuxferStorage implements TransactionStorage {
       const isPending = tx.status === TransactionStatuses.Pending;
       // Ignore pending and only upload completed transactions
       if (isPending) {
-        stats.skipped++;
         continue;
       }
 
       const accountId = this.accountToBuxferAccount.get(tx.account);
       if (!accountId) {
         missingAccounts.add(tx.account);
-        stats.skipped++;
+        stats.otherSkipped++;
         continue;
       }
 
@@ -75,13 +79,13 @@ export class BuxferStorage implements TransactionStorage {
         `sending to Buxfer accounts: "${this.accountToBuxferAccount.keys()}"`,
       );
       const [resp] = await Promise.all([
-        this.buxferClient.addTransactions(txToSend, false),
+        this.buxferClient.addTransactions(txToSend),
         onProgress("Sending"),
       ]);
       logger("transactions sent to Buxfer successfully!");
       stats.added = resp.addedTransactionIds.length;
-      stats.existing = resp.existingTransactionIds.length;
-      stats.skipped += stats.existing;
+      stats.existing = resp.duplicatedTransactionIds.length;
+      stats.otherSkipped += resp.ignoredTransactionIds.length;
     }
 
     if (missingAccounts.size > 0) {
@@ -92,22 +96,10 @@ export class BuxferStorage implements TransactionStorage {
   }
 
   tagTransactionsByRules(txToSend: BuxferTransaction[]) {
-    // TODO - Implement declarative rule engine
     const tags: string[] = ["added-by-moneyman-etl"];
     txToSend.forEach((trx) => {
       trx.tags = `${tags}`;
     });
-  }
-
-  private parseBuxferAccounts(accountsJSON: string): Map<string, string> {
-    try {
-      const accounts = JSON.parse(accountsJSON);
-      return new Map(Object.entries(accounts));
-    } catch (parseError) {
-      throw new Error(
-        `Error parsing JSON in BUXFER_ACCOUNTS: ${parseError.message}`,
-      );
-    }
   }
 
   private convertTransactionToBuxferFormat(
