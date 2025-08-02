@@ -19,6 +19,7 @@ import { WebPostStorage } from "./web-post.js";
 import { TelegramStorage } from "./telegram.js";
 import { YNABStorage } from "./ynab.js";
 import { config } from "../../config.js";
+import { MondayStorage } from "./monday.js";
 
 const baseLogger = createLogger("storage");
 
@@ -31,6 +32,7 @@ export const storages = [
   new WebPostStorage(config),
   new TelegramStorage(config),
   new ActualBudgetStorage(config),
+  new MondayStorage(config),
 ].filter((s) => s.canSave());
 
 export async function saveResults(results: Array<AccountScrapeResult>) {
