@@ -143,3 +143,91 @@ export function sendDeprecationMessage(
   return send(`⚠️ Deprecation warning:
 ${deprecationMessages[messageId]}`);
 }
+
+/**
+ * Request an OTP code from the user via Telegram and wait for their response
+ */
+export async function requestOtpCode(phoneNumber: string): Promise<string> {
+  if (!bot || !telegramConfig?.chatId || !telegramConfig.enableOtp) {
+    throw new Error("Telegram OTP is not enabled or configured");
+  }
+
+  const message = await send(
+    `🔐 2FA Authentication Required\n\n` +
+    `Please enter the OTP code sent to ${phoneNumber}:\n\n` +
+    `Reply to this message with the code (digits only).`,
+  );
+
+  if (!message) {
+    throw new Error("Failed to send OTP request message");
+  }
+
+  logger("Waiting for OTP code from user...");
+
+  return new Promise((resolve, reject) => {
+    let isResolved = false;
+    
+    const timeout = setTimeout(() => {
+      if (!isResolved) {
+        isResolved = true;
+        cleanup();
+        reject(new Error(`OTP timeout: No response received within ${telegramConfig.otpTimeoutSeconds} seconds`));
+      }
+    }, telegramConfig.otpTimeoutSeconds * 1000);
+
+    const cleanup = () => {
+      clearTimeout(timeout);
+      // Remove the handler by creating a new bot instance would be complex
+      // For now, we'll rely on the timeout and isResolved flag
+    };
+
+    // Listen for any text message from the correct chat
+    const handler = (ctx: any) => {
+      if (isResolved) return;
+      
+      // Check if message is from the correct chat
+      if (ctx.chat?.id?.toString() !== telegramConfig.chatId) {
+        return;
+      }
+
+      const text = ctx.message?.text?.trim();
+      if (!text) {
+        return;
+      }
+
+      // Validate OTP format (should be digits only, typically 4-8 digits)
+      const otpRegex = /^\d{4,8}$/;
+      if (!otpRegex.test(text)) {
+        void send("❌ Invalid OTP format. Please enter digits only (4-8 digits).");
+        return;
+      }
+
+      // Valid OTP received
+      if (!isResolved) {
+        isResolved = true;
+        cleanup();
+        
+        logger(`Received OTP code: ${text.substring(0, 2)}...`);
+        void send("✅ OTP code received. Continuing authentication...");
+        
+        resolve(text);
+      }
+    };
+
+    bot.on("text", handler);
+    
+    // Start the bot if needed (this is safe to call multiple times)
+    bot.launch()
+      .then(() => {
+        logger("Bot launched for OTP collection");
+      })
+      .catch((error) => {
+        // Ignore "already running" errors
+        if (!error.message.includes("already running") && !isResolved) {
+          isResolved = true;
+          cleanup();
+          reject(new Error(`Failed to start Telegram bot for OTP: ${error.message}`));
+        }
+      });
+  });
+}

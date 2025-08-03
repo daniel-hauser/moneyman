@@ -95,6 +95,16 @@ export const NotificationOptionsSchema = z.object({
     .object({
       apiKey: z.string().min(1, { error: "Telegram API key is required" }),
       chatId: z.string().min(1, { error: "Telegram chat ID is required" }),
+      /**
+       * Enable OTP (One-Time Password) support for 2FA authentication.
+       * When enabled, the bot will ask for OTP codes via Telegram during scraping.
+       */
+      enableOtp: z.boolean().default(false),
+      /**
+       * Maximum time in seconds to wait for OTP response from user.
+       * @default 300 (5 minutes)
+       */
+      otpTimeoutSeconds: z.number().min(30).max(600).default(300),
     })
     .optional(),
 });
