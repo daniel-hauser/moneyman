@@ -4,12 +4,12 @@ describe("notifier", () => {
   describe("OTP validation regex", () => {
     it("should validate correct OTP formats", () => {
       const otpRegex = /^\d{4,8}$/;
-      
+
       // Valid OTP codes
       expect("1234").toMatch(otpRegex);
       expect("123456").toMatch(otpRegex);
       expect("12345678").toMatch(otpRegex);
-      
+
       // Invalid OTP codes
       expect("123").not.toMatch(otpRegex); // too short
       expect("123456789").not.toMatch(otpRegex); // too long
@@ -57,10 +57,10 @@ describe("notifier", () => {
       }));
 
       const notifierModule = await import("./notifier.js");
-      
+
       // Verify the function exists and is callable
       expect(typeof notifierModule.requestOtpCode).toBe("function");
-      
+
       jest.dontMock("../config.js");
       jest.dontMock("../utils/logger.js");
       jest.dontMock("telegraf");

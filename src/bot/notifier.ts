@@ -154,8 +154,8 @@ export async function requestOtpCode(phoneNumber: string): Promise<string> {
 
   const message = await send(
     `🔐 2FA Authentication Required\n\n` +
-    `Please enter the OTP code sent to ${phoneNumber}:\n\n` +
-    `Reply to this message with the code (digits only).`,
+      `Please enter the OTP code sent to ${phoneNumber}:\n\n` +
+      `Reply to this message with the code (digits only).`,
   );
 
   if (!message) {
@@ -166,12 +166,16 @@ export async function requestOtpCode(phoneNumber: string): Promise<string> {
 
   return new Promise((resolve, reject) => {
     let isResolved = false;
-    
+
     const timeout = setTimeout(() => {
       if (!isResolved) {
         isResolved = true;
         cleanup();
-        reject(new Error(`OTP timeout: No response received within ${telegramConfig.otpTimeoutSeconds} seconds`));
+        reject(
+          new Error(
+            `OTP timeout: No response received within ${telegramConfig.otpTimeoutSeconds} seconds`,
+          ),
+        );
       }
     }, telegramConfig.otpTimeoutSeconds * 1000);
 
@@ -184,7 +188,7 @@ export async function requestOtpCode(phoneNumber: string): Promise<string> {
     // Listen for any text message from the correct chat
     const handler = (ctx: any) => {
       if (isResolved) return;
-      
+
       // Check if message is from the correct chat
       if (ctx.chat?.id?.toString() !== telegramConfig.chatId) {
         return;
@@ -198,7 +202,9 @@ export async function requestOtpCode(phoneNumber: string): Promise<string> {
       // Validate OTP format (should be digits only, typically 4-8 digits)
       const otpRegex = /^\d{4,8}$/;
       if (!otpRegex.test(text)) {
-        void send("❌ Invalid OTP format. Please enter digits only (4-8 digits).");
+        void send(
+          "❌ Invalid OTP format. Please enter digits only (4-8 digits).",
+        );
         return;
       }
 
@@ -206,18 +212,19 @@ export async function requestOtpCode(phoneNumber: string): Promise<string> {
       if (!isResolved) {
         isResolved = true;
         cleanup();
-        
+
         logger(`Received OTP code: ${text.substring(0, 2)}...`);
         void send("✅ OTP code received. Continuing authentication...");
-        
+
         resolve(text);
       }
     };
 
     bot.on("text", handler);
-    
+
     // Start the bot if needed (this is safe to call multiple times)
-    bot.launch()
+    bot
+      .launch()
       .then(() => {
         logger("Bot launched for OTP collection");
       })
@@ -226,7 +233,9 @@ export async function requestOtpCode(phoneNumber: string): Promise<string> {
         if (!error.message.includes("already running") && !isResolved) {
           isResolved = true;
           cleanup();
-          reject(new Error(`Failed to start Telegram bot for OTP: ${error.message}`));
+          reject(
+            new Error(`Failed to start Telegram bot for OTP: ${error.message}`),
+          );
         }
       });
   });

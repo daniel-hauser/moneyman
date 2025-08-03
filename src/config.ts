@@ -163,8 +163,8 @@ function convertEnvVarsToConfig(): MoneymanConfig {
       apiKey: process.env.TELEGRAM_API_KEY,
       chatId: process.env.TELEGRAM_CHAT_ID || "",
       enableOtp: process.env.TELEGRAM_ENABLE_OTP === "true",
-      otpTimeoutSeconds: process.env.TELEGRAM_OTP_TIMEOUT_SECONDS 
-        ? parseInt(process.env.TELEGRAM_OTP_TIMEOUT_SECONDS, 10) 
+      otpTimeoutSeconds: process.env.TELEGRAM_OTP_TIMEOUT_SECONDS
+        ? parseInt(process.env.TELEGRAM_OTP_TIMEOUT_SECONDS, 10)
         : 300,
     };
   }
@@ -210,13 +210,13 @@ function createConfig() {
         scraping: ScrapingOptionsSchema.parse({}),
         security: SecurityOptionsSchema.parse({}),
         notifications: NotificationOptionsSchema.parse({
-          telegram: process.env.TELEGRAM_API_KEY 
+          telegram: process.env.TELEGRAM_API_KEY
             ? {
                 apiKey: process.env.TELEGRAM_API_KEY,
                 chatId: process.env.TELEGRAM_CHAT_ID || "",
                 enableOtp: process.env.TELEGRAM_ENABLE_OTP === "true",
-                otpTimeoutSeconds: process.env.TELEGRAM_OTP_TIMEOUT_SECONDS 
-                  ? parseInt(process.env.TELEGRAM_OTP_TIMEOUT_SECONDS, 10) 
+                otpTimeoutSeconds: process.env.TELEGRAM_OTP_TIMEOUT_SECONDS
+                  ? parseInt(process.env.TELEGRAM_OTP_TIMEOUT_SECONDS, 10)
                   : 300,
               }
             : undefined,

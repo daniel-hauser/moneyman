@@ -91,11 +91,13 @@ accounts: Array<{
 
 #### Other configurations
 
-| env variable name       | default            | description                                                                                           |
-| ----------------------- | ------------------ | ----------------------------------------------------------------------------------------------------- |
-| `TZ`                    | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                 |
-| `MONEYMAN_CONFIG`       |                    | The JSON configuration for the process                                                                |
-| `SEND_NEW_CONFIG_TO_TG` | `"false"`          | Set to `"true"` to send the current configuration as `config.txt` via Telegram for debugging purposes |
+| env variable name              | default            | description                                                                                           |
+| ------------------------------ | ------------------ | ----------------------------------------------------------------------------------------------------- |
+| `TZ`                           | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                 |
+| `MONEYMAN_CONFIG`              |                    | The JSON configuration for the process                                                                |
+| `SEND_NEW_CONFIG_TO_TG`        | `"false"`          | Set to `"true"` to send the current configuration as `config.txt` via Telegram for debugging purposes |
+| `TELEGRAM_ENABLE_OTP`          | `"false"`          | Set to `"true"` to enable OTP 2FA support for OneZero accounts via Telegram                           |
+| `TELEGRAM_OTP_TIMEOUT_SECONDS` | `"300"`            | Maximum time in seconds to wait for OTP response from user (5 minutes default)                        |
 
 ```typescript
 options: {
@@ -249,10 +251,66 @@ options: {
        * @replaces TELEGRAM_CHAT_ID environment variable
        */
       chatId: string;
+      /**
+       * Enable OTP (One-Time Password) support for 2FA authentication.
+       * When enabled, the bot will ask for OTP codes via Telegram during scraping.
+       * @default false
+       * @replaces TELEGRAM_ENABLE_OTP environment variable
+       */
+      enableOtp?: boolean;
+      /**
+       * Maximum time in seconds to wait for OTP response from user.
+       * @default 300 (5 minutes)
+       * @replaces TELEGRAM_OTP_TIMEOUT_SECONDS environment variable
+       */
+      otpTimeoutSeconds?: number;
     };
   };
 };
 ```
+
+#### Using OTP 2FA with OneZero Accounts
+
+If you have OneZero accounts that require 2FA authentication, you can enable OTP support:
+
+1. **Enable OTP in your configuration**:
+
+   ```json
+   {
+     "options": {
+       "notifications": {
+         "telegram": {
+           "apiKey": "your-telegram-bot-token",
+           "chatId": "your-chat-id",
+           "enableOtp": true,
+           "otpTimeoutSeconds": 300
+         }
+       }
+     }
+   }
+   ```
+
+2. **Configure your OneZero account with phone number**:
+
+   ```json
+   {
+     "accounts": [
+       {
+         "companyId": "oneZero",
+         "email": "your-email@example.com",
+         "password": "your-password",
+         "phoneNumber": "+972501234567"
+       }
+     ]
+   }
+   ```
+
+3. **During scraping**: When a OneZero account requires 2FA, the bot will:
+   - Send a message asking for the OTP code
+   - Wait for you to reply with the code (4-8 digits)
+   - Continue the scraping process automatically
+
+**Note**: The OTP feature uses Telegram polling, so make sure your bot has the necessary permissions and is properly configured.
 
 ### Export to Azure Data Explorer
 
