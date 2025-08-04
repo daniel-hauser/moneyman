@@ -51,18 +51,18 @@
     "zod": "^3.25.74"
   },
   "devDependencies": {
-    "@types/async": "^3.2.24",
+    "@types/async": "^3.2.25",
     "@types/debug": "^4.1.12",
     "@types/jest": "^30.0.0",
-    "@types/node": "^24.0.10",
+    "@types/node": "^24.1.0",
     "husky": "^9.1.7",
-    "jest": "^30.0.4",
+    "jest": "^30.0.5",
     "jest-mock-extended": "^4.0.0",
     "patch-package": "^8.0.0",
     "prettier": "^3.6.2",
     "pretty-quick": "^4.2.2",
-    "ts-jest": "^29.4.0",
-    "typescript": "^5.8.3"
+    "ts-jest": "^29.4.1",
+    "typescript": "^5.9.2"
   },
   "husky": {
     "hooks": {
