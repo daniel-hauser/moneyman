@@ -60,3 +60,17 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Create Release
+        run: |
+          gh release create sha-${{ github.sha }} \
+            --title "Release sha-${{ github.sha }}" \
+            --notes "🐳 Docker image published to GitHub Container Registry
+
+          **Image:** \`${{ env.REGISTRY }}/${{ github.repository }}:latest\`
+          **Tag:** \`sha-${{ github.sha }}\`
+          **Commit:** ${{ github.sha }}
+
+          Pull with: \`docker pull ${{ env.REGISTRY }}/${{ github.repository }}:latest\`"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
