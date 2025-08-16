@@ -1,5 +1,4 @@
 name: Scrape
-
 on:
   workflow_dispatch:
     inputs:
