@@ -8,11 +8,11 @@ on:
         description: "Accounts to scrape (comma separated)"
       daysBack:
         default: "12"
-        required: yes
+        required: true
         description: "Days back to scrape"
       worksheetName:
         default: "_caspion"
-        required: yes
+        required: true
         description: "The name of the worksheet to write to"
       parallelScrapes:
         default: "1"
