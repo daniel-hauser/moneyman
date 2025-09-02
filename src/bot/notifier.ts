@@ -147,13 +147,18 @@ ${deprecationMessages[messageId]}`);
 /**
  * Request an OTP code from the user via Telegram and wait for their response
  */
-export async function requestOtpCode(phoneNumber: string): Promise<string> {
+export async function requestOtpCode(
+  companyId: string,
+  email: string,
+  phoneNumber: string,
+): Promise<string> {
   if (!bot || !telegramConfig?.chatId || !telegramConfig.enableOtp) {
     throw new Error("Telegram OTP is not enabled or configured");
   }
 
   const message = await send(
     `🔐 2FA Authentication Required\n\n` +
+      `Account: ${companyId} (${email})\n` +
       `Please enter the OTP code sent to ${phoneNumber}:\n\n` +
       `Reply to this message with the code (digits only).`,
   );

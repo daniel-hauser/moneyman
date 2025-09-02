@@ -96,8 +96,6 @@ accounts: Array<{
 | `TZ`                           | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                 |
 | `MONEYMAN_CONFIG`              |                    | The JSON configuration for the process                                                                |
 | `SEND_NEW_CONFIG_TO_TG`        | `"false"`          | Set to `"true"` to send the current configuration as `config.txt` via Telegram for debugging purposes |
-| `TELEGRAM_ENABLE_OTP`          | `"false"`          | Set to `"true"` to enable OTP 2FA support for OneZero accounts via Telegram                           |
-| `TELEGRAM_OTP_TIMEOUT_SECONDS` | `"300"`            | Maximum time in seconds to wait for OTP response from user (5 minutes default)                        |
 
 ```typescript
 options: {
