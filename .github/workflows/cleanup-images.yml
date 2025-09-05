@@ -15,7 +15,7 @@ jobs:
       packages: write
     steps:
       - name: Delete old Docker images
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const repo = context.repo.repo;
