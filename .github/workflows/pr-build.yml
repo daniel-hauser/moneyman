@@ -12,7 +12,7 @@ jobs:
     outputs:
       build-needed: ${{ steps.check.outputs.build-needed }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -65,7 +65,7 @@ jobs:
     needs: check-changes
     if: needs.check-changes.outputs.build-needed == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
         with:
           node-version: latest
@@ -93,7 +93,7 @@ jobs:
         node-version: [20, latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
@@ -128,7 +128,7 @@ jobs:
           echo "✅ Build skipped - no code changes detected"
           echo "This PR only contains non-build files (documentation, etc.)"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: needs.check-changes.outputs.build-needed == 'true'
       - uses: actions/setup-node@v4
         if: needs.check-changes.outputs.build-needed == 'true'
@@ -235,7 +235,7 @@ jobs:
 
       - name: Checkout repository
         if: needs.prepare.outputs.build_needed == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Log in to the Container registry
         if: needs.prepare.outputs.build_needed == 'true'
@@ -373,7 +373,7 @@ jobs:
 
       - name: Checkout repository
         if: needs.prepare.outputs.build_needed == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Extract Docker metadata for PR
         if: needs.prepare.outputs.build_needed == 'true'
