@@ -48,7 +48,7 @@
     "jsonc-parser": "^3.3.1",
     "telegraf": "^4.16.3",
     "ynab": "^2.9.0",
-    "zod": "^3.25.74"
+    "zod": "^4.1.9"
   },
   "devDependencies": {
     "@types/async": "^3.2.25",
