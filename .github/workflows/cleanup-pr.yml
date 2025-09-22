@@ -36,7 +36,7 @@ jobs:
 
       - name: Update original comment about image push
         if: steps.pr-check.outputs.is_external == 'false'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const prNumber = context.payload.pull_request.number;
@@ -93,7 +93,7 @@ jobs:
 
       - name: Clean up artifacts for external PRs
         if: steps.pr-check.outputs.is_external == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         continue-on-error: true
         with:
           script: |
