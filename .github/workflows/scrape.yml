@@ -32,6 +32,10 @@ on:
         type: boolean
         required: false
         default: false
+      debug:
+        default: ""
+        required: false
+        description: "debug"
   schedule:
     # In Israel: [12:05, 00:05] or [13:05, 01:05] on DST
     - cron: "5 10,22 * * *"
@@ -90,7 +94,7 @@ jobs:
           ${{ steps.set-container-image.outputs.image }}
         env:
           MONEYMAN_CONFIG: ${{ secrets.MONEYMAN_CONFIG }}
-          DEBUG: ""
+          DEBUG: ${{ github.event.inputs.debug }}
           TZ: "Asia/Jerusalem"
           DAYS_BACK: ${{ github.event.inputs.daysBack }}
           WORKSHEET_NAME: ${{ secrets.WORKSHEET_NAME }}
