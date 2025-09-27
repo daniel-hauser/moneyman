@@ -56,10 +56,31 @@ index 8827ffc..8b9220c 100644
      const validateUrl = `${this.servicesUrl}?reqName=ValidateIdData`;
      const validateRequest = {
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
-index 9faabd8..357614b 100644
+index 9faabd8..eba0231 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
-@@ -246,15 +246,21 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+@@ -236,25 +236,35 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+       const months = finalMonthToFetchMoment.diff(startMoment, 'months');
+       const allMonthsData = [];
+       debug(`fetch pending transactions for card ${card.cardUniqueId}`);
+-      let pendingData = await (0, _fetch.fetchPostWithinPage)(this.page, PENDING_TRANSACTIONS_REQUEST_ENDPOINT, {
+-        cardUniqueIDArray: [card.cardUniqueId]
+-      }, {
+-        Authorization,
+-        'X-Site-Id': xSiteId,
+-        'Content-Type': 'application/json'
+-      });
++      let pendingData = await _fetch.fetchPost(
++        PENDING_TRANSACTIONS_REQUEST_ENDPOINT,
++        {
++          cardUniqueIDArray: [card.cardUniqueId]
++        },
++        {
++          Authorization,        // from getAuthorizationHeader()
++          'X-Site-Id': xSiteId,
++          'Content-Type': 'application/json'
++        }
++      );
        debug(`fetch completed transactions for card ${card.cardUniqueId}`);
        for (let i = 0; i <= months; i += 1) {
          const month = finalMonthToFetchMoment.clone().subtract(i, 'months');
