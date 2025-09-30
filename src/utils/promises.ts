@@ -1,17 +1,15 @@
 /**
- * Creates a promise that rejects when an AbortSignal times out
- * @param timeoutMs - Timeout in milliseconds
- * @param errorMessage - Error message to use when timeout occurs
- * @returns A promise that rejects when the timeout occurs
+ * Creates a promise that rejects when an AbortSignal is aborted
+ * @param signal - AbortSignal to listen to
+ * @param errorMessage - Error message to use when signal is aborted
+ * @returns A promise that rejects when the signal is aborted
  */
-export function createTimeoutPromise(
-  timeoutMs: number,
+export function waitForAbortSignal(
+  signal: AbortSignal,
   errorMessage: string,
 ): Promise<never> {
-  const timeoutSignal = AbortSignal.timeout(timeoutMs);
-
   return new Promise<never>((_, reject) => {
-    timeoutSignal.addEventListener(
+    signal.addEventListener(
       "abort",
       () => {
         reject(new Error(errorMessage));

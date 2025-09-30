@@ -2,7 +2,7 @@ import { Telegraf, TelegramError, Context } from "telegraf";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
 import type { ImageWithCaption } from "../types.js";
 import { config } from "../config.js";
-import { createTimeoutPromise } from "../utils/promises.js";
+import { waitForAbortSignal } from "../utils/promises.js";
 
 const logger = createLogger("notifier");
 
@@ -170,8 +170,9 @@ export async function requestOtpCode(
   logger("Waiting for OTP code from user...");
 
   const timeoutSeconds = telegramConfig.otpTimeoutSeconds;
-  const timeoutPromise = createTimeoutPromise(
-    timeoutSeconds * 1000,
+  const timeoutSignal = AbortSignal.timeout(timeoutSeconds * 1000);
+  const timeoutPromise = waitForAbortSignal(
+    timeoutSignal,
     `OTP timeout: No response received within ${timeoutSeconds} seconds`,
   );
 
