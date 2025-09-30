@@ -162,7 +162,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
     if (columns.status === "rejected") {
       logger("Failed to load hashes", columns.reason);
       await onProgress(`Loading hashes failed: ${columns.reason}`);
-      return new Set<string>();
+      throw new Error(`Loading hashes failed: ${columns.reason}`);
     }
 
     return Array.isArray(columns.value)
