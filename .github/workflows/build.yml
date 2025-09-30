@@ -27,7 +27,7 @@ jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
@@ -60,3 +60,18 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Create Release
+        run: |
+          gh release create sha-${{ github.sha }} \
+            --title "Release sha-${{ github.sha }}" \
+            --notes "🐳 Docker image published to GitHub Container Registry
+
+          **Image:** \`${{ env.REGISTRY }}/${{ github.repository }}:sha-${{ github.sha }}\`
+          **Tag:** \`sha-${{ github.sha }}\`
+          **Commit:** ${{ github.sha }}
+
+          Pull with: \`docker pull ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:sha-${{ github.sha }}\`" \
+            --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
