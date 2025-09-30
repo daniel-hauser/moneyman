@@ -24,7 +24,7 @@
     "url": "git+https://github.com/daniel-hauser/moneyman.git"
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/daniel-hauser/moneyman/issues"
   },
