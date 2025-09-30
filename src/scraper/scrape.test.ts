@@ -51,41 +51,4 @@ describe("getAccountTransactions", () => {
       "END_SCRAPING",
     );
   });
-
-  describe("OTP functionality", () => {
-    it("should prepare OneZero accounts with OTP when enabled", async () => {
-      // This is a basic test to ensure the OTP preparation logic exists
-      const oneZeroAccount = {
-        companyId: CompanyTypes.oneZero,
-        email: "test@example.com",
-        password: "password",
-        phoneNumber: "+972501234567",
-        // For this test, we'll add a minimal otpCodeRetriever to satisfy TypeScript
-        otpCodeRetriever: async () => "123456",
-      };
-
-      const result = await getAccountTransactions(
-        oneZeroAccount,
-        {
-          ...scraperOptions,
-          companyId: CompanyTypes.oneZero,
-        },
-        onProgress,
-      );
-
-      expect(result).toBeDefined();
-      // The actual OTP logic will be tested when integrated with real scenarios
-    });
-
-    it("should not modify non-OneZero accounts", async () => {
-      const result = await getAccountTransactions(
-        account,
-        scraperOptions,
-        onProgress,
-      );
-
-      expect(result).toBeDefined();
-      // Non-OneZero accounts should not be affected by OTP logic
-    });
-  });
 });

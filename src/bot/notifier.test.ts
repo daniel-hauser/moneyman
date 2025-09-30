@@ -49,24 +49,6 @@ describe("notifier", () => {
     jest.dontMock("telegraf");
   });
 
-  describe("OTP validation regex", () => {
-    it("should validate correct OTP formats", () => {
-      const otpRegex = /^\d{4,8}$/;
-
-      // Valid OTP codes
-      expect("1234").toMatch(otpRegex);
-      expect("123456").toMatch(otpRegex);
-      expect("12345678").toMatch(otpRegex);
-
-      // Invalid OTP codes
-      expect("123").not.toMatch(otpRegex); // too short
-      expect("123456789").not.toMatch(otpRegex); // too long
-      expect("12a456").not.toMatch(otpRegex); // contains letters
-      expect("12-456").not.toMatch(otpRegex); // contains dash
-      expect("").not.toMatch(otpRegex); // empty
-    });
-  });
-
   describe("requestOtpCode function", () => {
     it("should exist and be a function", async () => {
       const notifierModule = await import("./notifier.js");
