@@ -140,7 +140,7 @@ export async function getUsedDomains(): Promise<
   const domainsRecord = Object.fromEntries(
     Array.from(allCompanies).map((company) => {
       function getArray(set: Map<CompanyTypes, Set<string>>) {
-        return Array.from(set.get(company) ?? []);
+        return Array.from(set?.get(company) ?? []);
       }
       function withResourceType(key: string) {
         return `${key} [${getArray(resourceTypesByCompany.get(key)!).sort()}]`;
