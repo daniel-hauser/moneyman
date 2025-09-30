@@ -2,6 +2,7 @@ import { Telegraf, TelegramError, Context } from "telegraf";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
 import type { ImageWithCaption } from "../types.js";
 import { config } from "../config.js";
+import { createTimeoutPromise } from "../utils/promises.js";
 
 const logger = createLogger("notifier");
 
@@ -168,18 +169,11 @@ export async function requestOtpCode(
 
   logger("Waiting for OTP code from user...");
 
-  const timeoutSeconds = telegramConfig.otpTimeoutSeconds ?? 300;
-  const timeoutSignal = AbortSignal.timeout(timeoutSeconds * 1000);
-
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutSignal.addEventListener("abort", () => {
-      reject(
-        new Error(
-          `OTP timeout: No response received within ${timeoutSeconds} seconds`,
-        ),
-      );
-    });
-  });
+  const timeoutSeconds = telegramConfig.otpTimeoutSeconds;
+  const timeoutPromise = createTimeoutPromise(
+    timeoutSeconds * 1000,
+    `OTP timeout: No response received within ${timeoutSeconds} seconds`,
+  );
 
   const responsePromise = new Promise<string>((resolve, reject) => {
     const handler = (ctx: Context) => {
@@ -187,10 +181,11 @@ export async function requestOtpCode(
         return;
       }
 
-      const text =
-        ctx.message && "text" in ctx.message
-          ? ctx.message.text?.trim()
-          : undefined;
+      if (!ctx.message || !("text" in ctx.message)) {
+        return;
+      }
+
+      const text = ctx.message.text?.trim();
       if (!text) {
         return;
       }

@@ -162,7 +162,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
     config.options.notifications.telegram = {
       apiKey: process.env.TELEGRAM_API_KEY,
       chatId: process.env.TELEGRAM_CHAT_ID || "",
-    };
+    } as any;
   }
 
   // Convert logging options
@@ -206,12 +206,10 @@ function createConfig() {
         scraping: ScrapingOptionsSchema.parse({}),
         security: SecurityOptionsSchema.parse({}),
         notifications: NotificationOptionsSchema.parse({
-          telegram: process.env.TELEGRAM_API_KEY
-            ? {
-                apiKey: process.env.TELEGRAM_API_KEY,
-                chatId: process.env.TELEGRAM_CHAT_ID || "",
-              }
-            : undefined,
+          telegram: {
+            apiKey: process.env.TELEGRAM_API_KEY || "",
+            chatId: process.env.TELEGRAM_CHAT_ID || "",
+          },
         }),
         logging: LoggingOptionsSchema.parse({}),
       },

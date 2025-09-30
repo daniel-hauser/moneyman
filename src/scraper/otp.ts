@@ -8,19 +8,17 @@ const logger = createLogger("otp");
 /**
  * Creates an OTP code retriever function for OneZero accounts
  */
-function createOtpCodeRetriever(
-  companyId: string,
-  phoneNumber: string,
-): () => Promise<string> {
+function createOtpCodeRetriever(account: AccountConfig): () => Promise<string> {
   return async () => {
     if (!config.options.notifications.telegram?.enableOtp) {
       throw new Error("OTP is not enabled in configuration");
     }
 
+    const phoneNumber = (account as any).phoneNumber;
     logger(
-      `Requesting OTP code for ${companyId} account (phone: ${phoneNumber})`,
+      `Requesting OTP code for ${account.companyId} account (phone: ${phoneNumber})`,
     );
-    return await requestOtpCode(companyId, phoneNumber);
+    return await requestOtpCode(account.companyId, phoneNumber);
   };
 }
 
@@ -48,10 +46,7 @@ export function prepareAccountCredentials(
 
     return {
       ...account,
-      otpCodeRetriever: createOtpCodeRetriever(
-        account.companyId,
-        (account as any).phoneNumber,
-      ),
+      otpCodeRetriever: createOtpCodeRetriever(account),
     };
   }
 

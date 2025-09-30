@@ -99,12 +99,11 @@ export const NotificationOptionsSchema = z.object({
        * Enable OTP (One-Time Password) support for 2FA authentication.
        * When enabled, the bot will ask for OTP codes via Telegram during scraping.
        */
-      enableOtp: z.boolean().optional(),
+      enableOtp: z.boolean().optional().default(false),
       /**
        * Maximum time in seconds to wait for OTP response from user.
-       * @default 300 (5 minutes)
        */
-      otpTimeoutSeconds: z.number().min(30).max(600).optional(),
+      otpTimeoutSeconds: z.number().min(30).max(600).optional().default(300),
     })
     .optional(),
 });
