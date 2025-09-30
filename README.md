@@ -91,11 +91,11 @@ accounts: Array<{
 
 #### Other configurations
 
-| env variable name              | default            | description                                                                                           |
-| ------------------------------ | ------------------ | ----------------------------------------------------------------------------------------------------- |
-| `TZ`                           | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                 |
-| `MONEYMAN_CONFIG`              |                    | The JSON configuration for the process                                                                |
-| `SEND_NEW_CONFIG_TO_TG`        | `"false"`          | Set to `"true"` to send the current configuration as `config.txt` via Telegram for debugging purposes |
+| env variable name       | default            | description                                                                                           |
+| ----------------------- | ------------------ | ----------------------------------------------------------------------------------------------------- |
+| `TZ`                    | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                 |
+| `MONEYMAN_CONFIG`       |                    | The JSON configuration for the process                                                                |
+| `SEND_NEW_CONFIG_TO_TG` | `"false"`          | Set to `"true"` to send the current configuration as `config.txt` via Telegram for debugging purposes |
 
 ```typescript
 options: {
