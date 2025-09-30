@@ -162,7 +162,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
     config.options.notifications.telegram = {
       apiKey: process.env.TELEGRAM_API_KEY,
       chatId: process.env.TELEGRAM_CHAT_ID || "",
-    } as any;
+    };
   }
 
   // Convert logging options
@@ -210,10 +210,6 @@ function createConfig() {
             ? {
                 apiKey: process.env.TELEGRAM_API_KEY,
                 chatId: process.env.TELEGRAM_CHAT_ID || "",
-                enableOtp: process.env.TELEGRAM_ENABLE_OTP === "true",
-                otpTimeoutSeconds: process.env.TELEGRAM_OTP_TIMEOUT_SECONDS
-                  ? parseInt(process.env.TELEGRAM_OTP_TIMEOUT_SECONDS, 10)
-                  : 300,
               }
             : undefined,
         }),

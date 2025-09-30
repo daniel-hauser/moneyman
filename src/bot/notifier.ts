@@ -171,17 +171,18 @@ export async function requestOtpCode(
   return new Promise((resolve, reject) => {
     let isResolved = false;
 
+    const timeoutSeconds = telegramConfig.otpTimeoutSeconds ?? 300;
     const timeout = setTimeout(() => {
       if (!isResolved) {
         isResolved = true;
         cleanup();
         reject(
           new Error(
-            `OTP timeout: No response received within ${telegramConfig.otpTimeoutSeconds} seconds`,
+            `OTP timeout: No response received within ${timeoutSeconds} seconds`,
           ),
         );
       }
-    }, telegramConfig.otpTimeoutSeconds * 1000);
+    }, timeoutSeconds * 1000);
 
     const cleanup = () => {
       clearTimeout(timeout);

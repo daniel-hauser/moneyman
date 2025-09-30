@@ -306,8 +306,6 @@ If you have OneZero accounts that require 2FA authentication, you can enable OTP
    - Wait for you to reply with the code (4-8 digits)
    - Continue the scraping process automatically
 
-**Note**: The OTP feature uses Telegram polling, so make sure your bot has the necessary permissions and is properly configured.
-
 ### Export to Azure Data Explorer
 
 Setup instructions:
