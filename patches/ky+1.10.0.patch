@@ -7,7 +7,7 @@ index 8a2ec97..9746800 100644
              retry: normalizeRetryOptions(options.retry),
              throwHttpErrors: options.throwHttpErrors !== false,
 -            timeout: options.timeout ?? 10_000,
-+            timeout: options.timeout ?? 35_000,
++            timeout: options.timeout ?? 100_000,
              fetch: options.fetch ?? globalThis.fetch.bind(globalThis),
          };
          if (typeof this._input !== 'string' && !(this._input instanceof URL || this._input instanceof globalThis.Request)) {
