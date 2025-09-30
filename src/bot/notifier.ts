@@ -169,15 +169,16 @@ export async function requestOtpCode(
   logger("Waiting for OTP code from user...");
 
   const timeoutSeconds = telegramConfig.otpTimeoutSeconds ?? 300;
+  const timeoutSignal = AbortSignal.timeout(timeoutSeconds * 1000);
 
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => {
+    timeoutSignal.addEventListener("abort", () => {
       reject(
         new Error(
           `OTP timeout: No response received within ${timeoutSeconds} seconds`,
         ),
       );
-    }, timeoutSeconds * 1000);
+    });
   });
 
   const responsePromise = new Promise<string>((resolve, reject) => {
