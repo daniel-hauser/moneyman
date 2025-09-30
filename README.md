@@ -253,13 +253,11 @@ options: {
        * Enable OTP (One-Time Password) support for 2FA authentication.
        * When enabled, the bot will ask for OTP codes via Telegram during scraping.
        * @default false
-       * @replaces TELEGRAM_ENABLE_OTP environment variable
        */
       enableOtp?: boolean;
       /**
        * Maximum time in seconds to wait for OTP response from user.
        * @default 300 (5 minutes)
-       * @replaces TELEGRAM_OTP_TIMEOUT_SECONDS environment variable
        */
       otpTimeoutSeconds?: number;
     };

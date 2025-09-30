@@ -16,7 +16,6 @@ const logger = createLogger("scrape");
  */
 function createOtpCodeRetriever(
   companyId: string,
-  email: string,
   phoneNumber: string,
 ): () => Promise<string> {
   return async () => {
@@ -25,9 +24,9 @@ function createOtpCodeRetriever(
     }
 
     logger(
-      `Requesting OTP code for ${companyId} account ${email} (phone: ${phoneNumber.substring(0, 4)}...)`,
+      `Requesting OTP code for ${companyId} account (phone: ${phoneNumber.substring(0, 4)}...)`,
     );
-    return await requestOtpCode(companyId, email, phoneNumber);
+    return await requestOtpCode(companyId, phoneNumber);
   };
 }
 
@@ -49,7 +48,6 @@ function prepareAccountCredentials(account: AccountConfig): AccountConfig {
       ...account,
       otpCodeRetriever: createOtpCodeRetriever(
         account.companyId,
-        account.email,
         account.phoneNumber,
       ),
     };

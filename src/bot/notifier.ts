@@ -149,7 +149,6 @@ ${deprecationMessages[messageId]}`);
  */
 export async function requestOtpCode(
   companyId: string,
-  email: string,
   phoneNumber: string,
 ): Promise<string> {
   if (!bot || !telegramConfig?.chatId || !telegramConfig.enableOtp) {
@@ -158,7 +157,7 @@ export async function requestOtpCode(
 
   const message = await send(
     `🔐 2FA Authentication Required\n\n` +
-      `Account: ${companyId} (${email})\n` +
+      `Account: ${companyId}\n` +
       `Please enter the OTP code sent to ${phoneNumber}:\n\n` +
       `Reply to this message with the code (digits only).`,
   );
