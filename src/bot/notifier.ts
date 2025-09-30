@@ -1,4 +1,4 @@
-import { Telegraf, TelegramError } from "telegraf";
+import { Telegraf, TelegramError, Context } from "telegraf";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
 import type { ImageWithCaption } from "../types.js";
 import { config } from "../config.js";
@@ -169,12 +169,9 @@ export async function requestOtpCode(
   logger("Waiting for OTP code from user...");
 
   const timeoutSeconds = telegramConfig.otpTimeoutSeconds ?? 300;
-  const abortController = new AbortController();
 
-  // Create timeout promise
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => {
-      abortController.abort();
       reject(
         new Error(
           `OTP timeout: No response received within ${timeoutSeconds} seconds`,
@@ -183,54 +180,45 @@ export async function requestOtpCode(
     }, timeoutSeconds * 1000);
   });
 
-  // Create response promise
-  const responsePromise = new Promise<string>((resolve) => {
-    const handler = (ctx: any) => {
-      // Check if we've already aborted
-      if (abortController.signal.aborted) {
-        return;
-      }
-
-      // Check if message is from the correct chat
+  const responsePromise = new Promise<string>((resolve, reject) => {
+    const handler = (ctx: Context) => {
       if (ctx.chat?.id?.toString() !== telegramConfig.chatId) {
         return;
       }
 
-      const text = ctx.message?.text?.trim();
+      const text =
+        ctx.message && "text" in ctx.message
+          ? ctx.message.text?.trim()
+          : undefined;
       if (!text) {
         return;
       }
 
-      // Accept any text as OTP - trust the user
-      logger(`Received OTP code: ${text.substring(0, 2)}...`);
-      void send("✅ OTP code received. Continuing authentication...");
+      logger(`Received OTP code: ${text}`);
+      void ctx.reply("✅ OTP code received. Continuing authentication...");
 
-      abortController.abort();
       resolve(text);
     };
 
     bot.on("text", handler);
 
-    // Start the bot if needed (this is safe to call multiple times)
     bot
-      .launch()
-      .then(() => {
+      .launch(() => {
         logger("Bot launched for OTP collection");
       })
       .catch((error) => {
-        // Ignore "already running" errors
-        if (
-          !error.message.includes("already running") &&
-          !abortController.signal.aborted
-        ) {
-          abortController.abort();
-          throw new Error(
-            `Failed to start Telegram bot for OTP: ${error.message}`,
+        if (!error.message.includes("already running")) {
+          sendError(error, "requestOtpCode");
+          reject(
+            new Error(`Failed to start Telegram bot for OTP: ${error.message}`),
           );
         }
       });
   });
 
-  // Race the promises
-  return Promise.race([responsePromise, timeoutPromise]);
+  try {
+    return await Promise.race([responsePromise, timeoutPromise]);
+  } finally {
+    bot.stop();
+  }
 }

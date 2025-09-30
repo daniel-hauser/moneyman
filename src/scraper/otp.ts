@@ -18,7 +18,7 @@ function createOtpCodeRetriever(
     }
 
     logger(
-      `Requesting OTP code for ${companyId} account (phone: ${phoneNumber.substring(0, 4)}...)`,
+      `Requesting OTP code for ${companyId} account (phone: ${phoneNumber})`,
     );
     return await requestOtpCode(companyId, phoneNumber);
   };
