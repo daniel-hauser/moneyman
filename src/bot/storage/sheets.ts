@@ -44,6 +44,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
       logger("Error loading header row", headerRowResult.reason);
       sendError(headerRowResult.reason, "GoogleSheetsStorage::loadHeaderRow");
       await onProgress(`Loading header row failed: ${headerRowResult.reason}`);
+      throw new Error(`Failed to load header row: ${headerRowResult.reason}`);
     }
     logger(`Loaded header row: ${sheet.headerValues}`);
 
