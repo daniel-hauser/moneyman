@@ -12,7 +12,7 @@ jobs:
     outputs:
       build-needed: ${{ steps.check.outputs.build-needed }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -65,8 +65,8 @@ jobs:
     needs: check-changes
     if: needs.check-changes.outputs.build-needed == 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: latest
           cache: "npm"
@@ -93,9 +93,9 @@ jobs:
         node-version: [20, latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
@@ -128,9 +128,9 @@ jobs:
           echo "✅ Build skipped - no code changes detected"
           echo "This PR only contains non-build files (documentation, etc.)"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: needs.check-changes.outputs.build-needed == 'true'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: needs.check-changes.outputs.build-needed == 'true'
         with:
           node-version: ${{ matrix.node-version }}
@@ -195,7 +195,7 @@ jobs:
     steps:
       - name: Comment - No image build needed
         if: needs.prepare.outputs.build_needed == 'false'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const prNumber = context.payload.pull_request.number;
@@ -235,7 +235,7 @@ jobs:
 
       - name: Checkout repository
         if: needs.prepare.outputs.build_needed == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Log in to the Container registry
         if: needs.prepare.outputs.build_needed == 'true'
@@ -274,7 +274,7 @@ jobs:
 
       - name: Comment on PR with image information
         if: needs.prepare.outputs.build_needed == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           IMAGE_SIZE: ${{ steps.image-size.outputs.size }}
         with:
@@ -333,7 +333,7 @@ jobs:
     steps:
       - name: Comment - No image build needed
         if: needs.prepare.outputs.build_needed == 'false'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const prNumber = context.payload.pull_request.number;
@@ -373,7 +373,7 @@ jobs:
 
       - name: Checkout repository
         if: needs.prepare.outputs.build_needed == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Extract Docker metadata for PR
         if: needs.prepare.outputs.build_needed == 'true'
@@ -431,7 +431,7 @@ jobs:
 
       - name: Comment on PR with artifact instructions
         if: needs.prepare.outputs.build_needed == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           IMAGE_SIZE: ${{ steps.image-size.outputs.image_size }}
           TAR_SIZE: ${{ steps.image-size.outputs.tar_size }}
