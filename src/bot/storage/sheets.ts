@@ -35,9 +35,18 @@ export class GoogleSheetsStorage implements TransactionStorage {
     const sheet = doc.sheetsByTitle[this.worksheetName];
     assert(sheet, `Sheet ${this.worksheetName} not found`);
 
-    // Load header row to check if raw column exists
-    await sheet.loadHeaderRow();
-    const hasRawColumn = sheet.headerValues.includes("raw");
+    const [headerRowResult] = await Promise.allSettled([
+      sheet.loadHeaderRow(),
+      onProgress(`Loading header row`),
+    ]);
+
+    if (headerRowResult.status === "rejected") {
+      logger("Error loading header row", headerRowResult.reason);
+      sendError(headerRowResult.reason, "GoogleSheetsStorage::loadHeaderRow");
+      await onProgress(`Loading header row failed: ${headerRowResult.reason}`);
+      throw new Error(`Failed to load header row: ${headerRowResult.reason}`);
+    }
+    logger(`Loaded header row: ${sheet.headerValues}`);
 
     const existingHashes = await this.loadHashes(sheet, onProgress);
 
@@ -72,27 +81,40 @@ export class GoogleSheetsStorage implements TransactionStorage {
       return tx.status !== TransactionStatuses.Pending;
     });
 
+    const hasRawColumn = sheet.headerValues.includes("raw");
     const rows = newTxns.map((tx) => tableRow(tx, hasRawColumn));
     if (rows.length) {
-      try {
-        stats.highlightedTransactions.Added.push(...newTxns);
-        stats.added = rows.length;
-        await Promise.all([
-          onProgress(`Saving ${rows.length} rows`),
-          sheet.addRows(rows),
-        ]);
-        if (this.config.options.scraping.transactionHashType !== "moneyman") {
-          sendDeprecationMessage("hashFiledChange");
-        }
-      } catch (e) {
-        logger("Error saving transactions", e);
-        sendError(e, "GoogleSheetsStorage::saveTransactions");
-        const hashes = await this.loadHashes(sheet, onProgress);
-        const notSaved = newTxns.filter(
-          ({ hash, uniqueId }) => !hashes.has(hash) && !hashes.has(uniqueId),
+      stats.highlightedTransactions.Added.push(...newTxns);
+      stats.added = rows.length;
+      const [addRowsResult] = await Promise.allSettled([
+        sheet.addRows(rows),
+        onProgress(`Saving ${rows.length} rows`),
+      ]);
+      if (this.config.options.scraping.transactionHashType !== "moneyman") {
+        sendDeprecationMessage("hashFiledChange");
+      }
+
+      if (addRowsResult.status === "rejected") {
+        logger("Error saving rows", addRowsResult.reason);
+        sendError(
+          addRowsResult.reason,
+          "GoogleSheetsStorage::saveTransactions",
         );
-        stats.added -= notSaved.length;
-        stats.otherSkipped = notSaved.length;
+        await onProgress(
+          `recovering stats after saving failed: ${addRowsResult.reason}`,
+        );
+
+        try {
+          const hashes = await this.loadHashes(sheet, onProgress);
+          const notSaved = newTxns.filter(
+            ({ hash, uniqueId }) => !hashes.has(hash) && !hashes.has(uniqueId),
+          );
+          stats.added -= notSaved.length;
+          stats.otherSkipped = notSaved.length;
+        } catch (e) {
+          logger("Error loading hashes", e);
+          sendError(e, "GoogleSheetsStorage::saveTransactions");
+        }
       }
     }
 
@@ -130,15 +152,21 @@ export class GoogleSheetsStorage implements TransactionStorage {
     const columnLetter = String.fromCharCode(65 + column);
     const range = `${columnLetter}2:${columnLetter}`;
 
-    const [columns] = await Promise.all([
+    const [columns] = await Promise.allSettled([
       sheet.getCellsInRange(range, {
         majorDimension: "COLUMNS",
-      }),
+      }) as Promise<string[][]>,
       onProgress(`Loading hashes (${range})`),
     ]);
 
-    return Array.isArray(columns)
-      ? new Set(columns[0] as string[])
+    if (columns.status === "rejected") {
+      logger("Failed to load hashes", columns.reason);
+      await onProgress(`Loading hashes failed: ${columns.reason}`);
+      throw new Error(`Loading hashes failed: ${columns.reason}`);
+    }
+
+    return Array.isArray(columns.value)
+      ? new Set(columns.value[0])
       : new Set<string>();
   }
 }
