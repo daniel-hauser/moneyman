@@ -8,6 +8,16 @@ describe("promises utilities", () => {
 
       const promise = waitForAbortSignal(controller.signal, errorMessage);
 
+      // Verify the promise is pending before aborting
+      const isPending = await Promise.race([
+        promise.then(
+          () => false,
+          () => false,
+        ),
+        Promise.resolve(true),
+      ]);
+      expect(isPending).toBe(true);
+
       controller.abort();
 
       await expect(promise).rejects.toThrow(errorMessage);
