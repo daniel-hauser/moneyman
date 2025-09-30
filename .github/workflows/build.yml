@@ -71,7 +71,7 @@ jobs:
           **Tag:** \`sha-${{ github.sha }}\`
           **Commit:** ${{ github.sha }}
 
-          Pull with: \`docker pull ${{ env.REGISTRY }}/${{ github.repository }}:sha-${{ github.sha }}\`" \
+          Pull with: \`docker pull ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:sha-${{ github.sha }}\`" \
             --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
