@@ -1,4 +1,5 @@
 import { Telegraf, TelegramError, Context } from "telegraf";
+import { message } from "telegraf/filters";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
 import type { ImageWithCaption } from "../types.js";
 import { config } from "../config.js";
@@ -6,7 +7,7 @@ import { waitForAbortSignal } from "../utils/promises.js";
 
 const logger = createLogger("notifier");
 
-const telegramConfig = config.options.notifications.telegram;
+const telegramConfig = config.options.notifications?.telegram;
 const bot = telegramConfig ? new Telegraf(telegramConfig.apiKey) : null;
 
 logToPublicLog(
@@ -156,25 +157,27 @@ export async function requestOtpCode(
     throw new Error("Telegram OTP is not enabled or configured");
   }
 
-  const message = await send(
+  const requestMessage = await send(
     `🔐 2FA Authentication Required\n\n` +
       `Account: ${companyId}\n` +
       `Please enter the OTP code sent to ${phoneNumber}:\n\n` +
       `Reply to this message with the code.`,
   );
 
-  if (!message) {
+  if (!requestMessage) {
     throw new Error("Failed to send OTP request message");
   }
 
   logger("Waiting for OTP code from user...");
 
   const timeoutSeconds = telegramConfig.otpTimeoutSeconds;
-  const timeoutSignal = AbortSignal.timeout(timeoutSeconds * 1000);
   const timeoutPromise = waitForAbortSignal(
-    timeoutSignal,
-    `OTP timeout: No response received within ${timeoutSeconds} seconds`,
-  );
+    AbortSignal.timeout(timeoutSeconds * 1000),
+  ).catch(() => {
+    throw new Error(
+      `OTP timeout: No response received within ${timeoutSeconds} seconds`,
+    );
+  });
 
   const responsePromise = new Promise<string>((resolve, reject) => {
     const handler = (ctx: Context) => {
@@ -197,7 +200,7 @@ export async function requestOtpCode(
       resolve(text);
     };
 
-    bot.on("text", handler);
+    bot.on(message("text"), handler);
 
     bot
       .launch(() => {

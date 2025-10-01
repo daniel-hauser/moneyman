@@ -4,9 +4,8 @@ describe("promises utilities", () => {
   describe("waitForAbortSignal", () => {
     it("should reject when signal is aborted", async () => {
       const controller = new AbortController();
-      const errorMessage = "Test abort error";
 
-      const promise = waitForAbortSignal(controller.signal, errorMessage);
+      const promise = waitForAbortSignal(controller.signal);
 
       // Verify the promise is pending before aborting
       const isPending = await Promise.race([
@@ -20,48 +19,19 @@ describe("promises utilities", () => {
 
       controller.abort();
 
-      await expect(promise).rejects.toThrow(errorMessage);
-    });
-
-    it("should reject with custom error message", async () => {
-      const controller = new AbortController();
-      const customMessage = "Custom abort message";
-
-      const promise = waitForAbortSignal(controller.signal, customMessage);
-
-      controller.abort();
-
-      await expect(promise).rejects.toThrow(customMessage);
-    });
-
-    it("should work with AbortSignal.timeout", async () => {
-      const timeoutMs = 50;
-      const signal = AbortSignal.timeout(timeoutMs);
-      const errorMessage = "Timeout occurred";
-
-      const promise = waitForAbortSignal(signal, errorMessage);
-
-      await expect(promise).rejects.toThrow(errorMessage);
+      await expect(promise).rejects.toThrow(controller.signal.reason);
     });
 
     it("should only reject once even if abort is called multiple times", async () => {
       const controller = new AbortController();
-      const errorMessage = "Test error";
-      let rejectCount = 0;
+      const testError = new Error("Test error");
 
-      const promise = waitForAbortSignal(controller.signal, errorMessage).catch(
-        (error) => {
-          rejectCount++;
-          throw error;
-        },
-      );
+      const promise = waitForAbortSignal(controller.signal);
 
-      controller.abort();
-      controller.abort();
-      controller.abort();
+      controller.abort(testError);
+      controller.abort(new Error("Another error"));
 
-      await expect(promise).rejects.toThrow(errorMessage);
-      expect(rejectCount).toBe(1);
+      await expect(promise).rejects.toBe(testError);
     });
   });
 });

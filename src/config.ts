@@ -12,7 +12,6 @@ import {
   LoggingOptionsSchema,
   NotificationOptionsSchema,
 } from "./config.schema.js";
-import { a } from "@mswjs/interceptors/lib/node/BatchInterceptor-5b72232f.js";
 
 export type { MoneymanConfig } from "./config.schema.js";
 
@@ -159,10 +158,11 @@ function convertEnvVarsToConfig(): MoneymanConfig {
 
   // Convert notification options
   if (process.env.TELEGRAM_API_KEY) {
-    config.options.notifications.telegram = {
-      apiKey: process.env.TELEGRAM_API_KEY,
-      chatId: process.env.TELEGRAM_CHAT_ID || "",
-    } as any;
+    config.options.notifications.telegram =
+      NotificationOptionsSchema.shape.telegram.parse({
+        apiKey: process.env.TELEGRAM_API_KEY,
+        chatId: process.env.TELEGRAM_CHAT_ID || "",
+      });
   }
 
   // Convert logging options
@@ -206,12 +206,10 @@ function createConfig() {
         scraping: ScrapingOptionsSchema.parse({}),
         security: SecurityOptionsSchema.parse({}),
         notifications: NotificationOptionsSchema.parse({
-          telegram: process.env.TELEGRAM_API_KEY
-            ? {
-                apiKey: process.env.TELEGRAM_API_KEY,
-                chatId: process.env.TELEGRAM_CHAT_ID || "",
-              }
-            : undefined,
+          telegram: {
+            apiKey: process.env.TELEGRAM_API_KEY || "",
+            chatId: process.env.TELEGRAM_CHAT_ID || "",
+          },
         }),
         logging: LoggingOptionsSchema.parse({}),
       },
