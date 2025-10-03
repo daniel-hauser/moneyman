@@ -50,77 +50,85 @@ describe("Sites access tests", () => {
     await browser.close();
   });
 
-  test.each([
-    {
-      url: "https://digital.isracard.co.il",
-      title: "ישראכרט",
-      expectedText: "ישראכרט",
-      company: CompanyTypes.isracard,
-    },
-    {
-      url: "https://he.americanexpress.co.il",
-      title: "אמריקן אקספרס",
-      expectedText: "אמריקן אקספרס",
-      company: CompanyTypes.amex,
-    },
-  ])(
-    "should access $company at $url",
-    async ({ company, url, title, expectedText }) => {
-      expect(browser).toBeDefined();
-      const context = await createSecureBrowserContext(browser, company);
-      const page = await context.newPage();
-      await page.setViewport({ width: 1920, height: 1080 });
-      await page.goto(url, { waitUntil: "networkidle2" });
-      logger("Page loaded", page.url());
+  describe("basic access", () => {
+    test.each([
+      {
+        url: "https://digital.isracard.co.il",
+        title: "ישראכרט",
+        expectedText: "ישראכרט",
+        company: CompanyTypes.isracard,
+      },
+      {
+        url: "https://he.americanexpress.co.il",
+        title: "אמריקן אקספרס",
+        expectedText: "אמריקן אקספרס",
+        company: CompanyTypes.amex,
+      },
+    ])(
+      "should access $company at $url",
+      async ({ company, url, title, expectedText }) => {
+        expect(browser).toBeDefined();
+        const context = await createSecureBrowserContext(browser, company);
+        const page = await context.newPage();
+        await page.setViewport({ width: 1920, height: 1080 });
+        await page.goto(url, { waitUntil: "networkidle2" });
+        logger("Page loaded", page.url());
 
-      const initialPageTitle = await page.title();
-      if (!initialPageTitle.includes(title)) {
-        logger(
-          `Page title does not yet match, waiting for navigation. was ${initialPageTitle}`,
-        );
-        logger("content=", await page.content());
-        await page.waitForNavigation({
-          waitUntil: "networkidle2",
-          timeout: 55_000,
+        const initialPageTitle = await page.title();
+        if (!initialPageTitle.includes(title)) {
+          logger(
+            `Page title does not yet match, waiting for navigation. was ${initialPageTitle}`,
+          );
+          logger("content=", await page.content());
+          await page.waitForNavigation({
+            waitUntil: "networkidle2",
+            timeout: 55_000,
+          });
+        }
+
+        const pageTitle = await page.title();
+        logger("Page title", pageTitle);
+        expect(pageTitle).toContain(title);
+
+        const textFound = await page
+          .mainFrame()
+          .evaluate(
+            (expectedText) => document.body.innerText.includes(expectedText),
+            expectedText,
+          );
+        expect(textFound).toBeTruthy();
+      },
+    );
+  });
+
+  describe("scraper access", () => {
+    jest.retryTimes(3, {
+      waitBeforeRetry: 3000,
+    });
+
+    test.each([CompanyTypes.amex, CompanyTypes.isracard])(
+      "Can start scraping %s",
+      async (companyId) => {
+        const scraper = createScraper({
+          companyId,
+          startDate: new Date(),
+          browserContext: await createSecureBrowserContext(browser, companyId),
+          ...scraperOptions,
         });
-      }
 
-      const pageTitle = await page.title();
-      logger("Page title", pageTitle);
-      expect(pageTitle).toContain(title);
+        const result = await scraper.scrape({
+          card6Digits: "123456",
+          id: "123456789",
+          password: "1234",
+        });
 
-      const textFound = await page
-        .mainFrame()
-        .evaluate(
-          (expectedText) => document.body.innerText.includes(expectedText),
-          expectedText,
+        expect(result).toEqual(
+          expect.objectContaining({
+            success: false,
+            errorType: ScraperErrorTypes.InvalidPassword,
+          }),
         );
-      expect(textFound).toBeTruthy();
-    },
-  );
-
-  test.each([CompanyTypes.amex, CompanyTypes.isracard])(
-    "Can start scraping %s",
-    async (companyId) => {
-      const scraper = createScraper({
-        companyId,
-        startDate: new Date(),
-        browserContext: await createSecureBrowserContext(browser, companyId),
-        ...scraperOptions,
-      });
-
-      const result = await scraper.scrape({
-        card6Digits: "123456",
-        id: "123456789",
-        password: "1234",
-      });
-
-      expect(result).toEqual(
-        expect.objectContaining({
-          success: false,
-          errorType: ScraperErrorTypes.InvalidPassword,
-        }),
-      );
-    },
-  );
+      },
+    );
+  });
 });
