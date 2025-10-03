@@ -3,22 +3,7 @@ name: Create and publish a Docker image
 on:
   push:
     branches: ["main"]
-    paths:
-      - "src/**"
-      - "patches/**"
-      - "package.json"
-      - "package-lock.json"
-      - "tsconfig.json"
-      - ".eslintrc.js"
-      - ".prettierrc.js"
-      - "Dockerfile"
-      - "docker-compose.yml"
-      - ".github/workflows/build.yml"
   workflow_dispatch:
-
-concurrency:
-  group: build-${{ github.ref_name }}
-  cancel-in-progress: true
 
 env:
   REGISTRY: ghcr.io
@@ -27,12 +12,12 @@ jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       packages: write
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - id: normalize-repository-name
         run: echo "repository=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
@@ -44,34 +29,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Docker metadata and set tags
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}
-          tags: |
-            type=raw,value=latest
-            type=sha,format=short
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:latest
 
-      - name: Create Release
+      - name: Verify Docker image
         run: |
-          gh release create sha-${{ github.sha }} \
-            --title "Release sha-${{ github.sha }}" \
-            --notes "🐳 Docker image published to GitHub Container Registry
-
-          **Image:** \`${{ env.REGISTRY }}/${{ github.repository }}:sha-${{ github.sha }}\`
-          **Tag:** \`sha-${{ github.sha }}\`
-          **Commit:** ${{ github.sha }}
-
-          Pull with: \`docker pull ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:sha-${{ github.sha }}\`" \
-            --generate-notes
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "Verifying Docker image..."
+          docker run --rm ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:latest node --version
+          docker run --rm ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:latest npm --version
+          echo "Docker image verification complete."

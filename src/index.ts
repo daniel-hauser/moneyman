@@ -1,12 +1,10 @@
-import { scrapeAccounts } from "./scraper/index.js";
-import { scraperConfig, sendConfigToTelegramIfRequested } from "./config.js";
-import { sendError } from "./bot/notifier.js";
-import { createLogger } from "./utils/logger.js";
-import { RunnerHooks } from "./types.js";
-import { runWithStorage } from "./bot/index.js";
+import { scrapeAccounts } from "./data/index.js";
+import { accounts, futureMonthsToScrape, scrapeStartDate } from "./AppConfig.js";
+import { send, editMessage, sendError } from "./notifier.js";
+import { saveResults, storages } from "./storage/index.js";
+import { createLogger, logToPublicLog } from "./utils/logger.js";
+import { getSummaryMessages } from "./messages.js";
 import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
-import { monitorNodeConnections } from "./security/domains.js";
-import { reportRunMetadata } from "./runnerMetadata.js";
 
 const logger = createLogger("main");
 
@@ -14,55 +12,57 @@ process.on("uncaughtException", (err, origin) => {
   console.error("uncaughtException, sending error");
   sendError(`
 Caught exception: ${err}
-err.stack: ${err.stack}
 Exception origin: ${origin}`).catch((e) => {});
 });
 
-monitorNodeConnections();
-await sendConfigToTelegramIfRequested();
 await run();
 
 // kill internal browsers if stuck
 process.exit(0);
 
-async function runScraper(hooks: RunnerHooks) {
-  try {
-    logger("About to start");
-    await hooks.onBeforeStart();
-
-    logger("Starting to scrape");
-    const results = await scrapeAccounts(
-      scraperConfig,
-      async (status, totalTime) => {
-        logger("Status changed", { status, totalTime });
-        return hooks.onStatusChanged(status, totalTime);
-      },
-      async (e, caller) => {
-        logger("Error while scraping", e);
-        return hooks.onError(e, caller);
-      },
-    );
-    logger("Scraping ended");
-    await Promise.all([
-      hooks.onResultsReady(results),
-      sendFailureScreenShots(hooks.failureScreenshotsHandler),
-    ]);
-
-    await reportRunMetadata((metadata) => {
-      logger("Reporting run metadata", metadata);
-      return hooks.reportRunMetadata(metadata);
-    });
-  } catch (e) {
-    logger("Error", e);
-    await hooks.onError(e);
-  }
-}
-
 async function run() {
-  try {
-    logger("Running with storage");
-    await runWithStorage(runScraper);
-  } catch (error) {
-    logger(error);
+  logToPublicLog("Scraping started");
+  logger("Scraping started");
+
+  const message = await send("Starting...");
+
+  if (!storages.length) {
+    logger("No storages found, aborting");
+    await editMessage(message?.message_id, "No storages found, aborting");
+  } else {
+    try {
+      async function scrapeStatusChanged(
+        status: Array<string>,
+        totalTime?: number,
+      ) {
+        const text = status.join("\n");
+        await editMessage(
+          message?.message_id,
+          totalTime
+            ? text + `\n\nTotal time: ${totalTime.toFixed(1)} seconds`
+            : text,
+        );
+      }
+
+      const results = await scrapeAccounts(
+        accounts,
+        scrapeStartDate,
+        futureMonthsToScrape,
+        scrapeStatusChanged,
+      );
+
+      const summary = getSummaryMessages(results);
+      await send(summary);
+
+      logToPublicLog("Saving...");
+      await saveResults(results);
+      await sendFailureScreenShots();
+    } catch (e) {
+      logger(e);
+      await sendError(e);
+    }
   }
+
+  logger("Scraping ended");
+  logToPublicLog("Scraping ended");
 }
