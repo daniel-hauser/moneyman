@@ -3,11 +3,8 @@ import {
   GoogleSpreadsheet,
   GoogleSpreadsheetWorksheet,
 } from "google-spreadsheet";
-import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
-import { CompanyTypes } from "israeli-bank-scrapers";
 import { mock, mockClear } from "jest-mock-extended";
-import { transaction } from "../../utils/tests.js";
-import type { TransactionRow } from "../../types.js";
+import { config, transactionRow } from "../../utils/tests.js";
 import type { MoneymanConfig } from "../../config.js";
 
 // Create mocks at top level
@@ -50,46 +47,13 @@ jest.mock("../transactionTableRow.js", () => ({
 describe("GoogleSheetsStorage", () => {
   let storage: GoogleSheetsStorage;
 
-  // Helper to create a TransactionRow using existing test utility
-  const createMockTransactionRow = (): TransactionRow => ({
-    ...transaction({
-      status: TransactionStatuses.Completed,
-    }),
-    account: "test-account",
-    companyId: CompanyTypes.hapoalim,
-    hash: "test-hash",
-    uniqueId: "test-unique-id",
-  });
-
   beforeEach(() => {
-    const mockConfig: MoneymanConfig = {
-      accounts: [],
-      storage: {
-        googleSheets: {
-          serviceAccountPrivateKey: "test-key",
-          serviceAccountEmail: "test@example.com",
-          sheetId: "test-sheet-id",
-          worksheetName: "_moneyman",
-        },
-      },
-      options: {
-        scraping: {
-          daysBack: 10,
-          futureMonths: 1,
-          transactionHashType: "",
-          additionalTransactionInfo: false,
-          hiddenDeprecations: [],
-          maxParallelScrapers: 1,
-          domainTracking: false,
-        },
-        security: {
-          blockByDefault: false,
-        },
-        notifications: {},
-        logging: {
-          getIpInfoUrl: "https://ipinfo.io/json",
-        },
-      },
+    const mockConfig: MoneymanConfig = config();
+    mockConfig.storage.googleSheets = {
+      serviceAccountPrivateKey: "test-key",
+      serviceAccountEmail: "test@example.com",
+      sheetId: "test-sheet-id",
+      worksheetName: "_moneyman",
     };
 
     storage = new GoogleSheetsStorage(mockConfig);
@@ -125,7 +89,11 @@ describe("GoogleSheetsStorage", () => {
         "Google API error - [503] The service is currently unavailable";
       mockSheet.addRows.mockRejectedValue(new Error(errorMessage));
 
-      const mockTxn = createMockTransactionRow();
+      const mockTxn = transactionRow({
+        account: "test-account",
+        hash: "test-hash",
+        uniqueId: "test-unique-id",
+      });
 
       // The function should not throw but handle error internally
       const result = await storage.saveTransactions([mockTxn], async () => {});
@@ -144,7 +112,11 @@ describe("GoogleSheetsStorage", () => {
         "Google API error - [503] The service is currently unavailable";
       mockSheet.loadHeaderRow.mockRejectedValue(new Error(errorMessage));
 
-      const mockTxn = createMockTransactionRow();
+      const mockTxn = transactionRow({
+        account: "test-account",
+        hash: "test-hash",
+        uniqueId: "test-unique-id",
+      });
 
       await expect(
         storage.saveTransactions([mockTxn], async () => {}),
@@ -161,7 +133,11 @@ describe("GoogleSheetsStorage", () => {
         "Google API error - [503] The service is currently unavailable";
       mockSheet.getCellsInRange.mockRejectedValue(new Error(errorMessage));
 
-      const mockTxn = createMockTransactionRow();
+      const mockTxn = transactionRow({
+        account: "test-account",
+        hash: "test-hash",
+        uniqueId: "test-unique-id",
+      });
 
       await expect(
         storage.saveTransactions([mockTxn], async () => {}),
