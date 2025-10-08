@@ -50,7 +50,7 @@
     "pg-format": "^1.0.4",
     "telegraf": "^4.16.3",
     "ynab": "^2.10.0",
-    "zod": "^4.1.11"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/async": "^3.2.25",
