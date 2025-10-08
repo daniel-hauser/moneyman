@@ -1,10 +1,7 @@
-import { tableRow, TableHeaders } from "./transactionTableRow.js";
+import { tableRow } from "./transactionTableRow.js";
 import { TransactionRow } from "../types.js";
 import { CompanyTypes } from "israeli-bank-scrapers";
-import {
-  TransactionStatuses,
-  TransactionTypes,
-} from "israeli-bank-scrapers/lib/transactions.js";
+import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { transaction } from "../utils/tests.js";
 
 // Mock the config module to avoid ACCOUNTS_JSON requirement

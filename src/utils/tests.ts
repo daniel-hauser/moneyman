@@ -43,7 +43,9 @@ export function config(): MoneymanConfig {
     accounts: [],
     storage: {},
     options: {
-      scraping: ScrapingOptionsSchema.parse({}),
+      scraping: ScrapingOptionsSchema.parse({
+        transactionHashType: "moneyman",
+      }),
       security: SecurityOptionsSchema.parse({}),
       notifications: NotificationOptionsSchema.parse({}),
       logging: LoggingOptionsSchema.parse({}),

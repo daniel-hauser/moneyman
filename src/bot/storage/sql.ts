@@ -9,7 +9,6 @@ import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { createSaveStats } from "../saveStats.js";
 import { sendError } from "../notifier.js";
 import type { MoneymanConfig } from "../../config.js";
-import { debug } from "node:console";
 import { normalizeCurrency } from "../../utils/currency.js";
 
 const logger = createLogger("sql-storage");
@@ -65,10 +64,6 @@ export class SqlStorage implements TransactionStorage {
     });
     const client = await pool.connect();
     try {
-      // debug("Setting time zone for SQL client");
-      // await client.query("SET TIME ZONE $1", [
-      //   process.env.TZ ?? "Asia/Jerusalem",
-      // ]);
       await onProgress(`Ensuring schema ${schema}`);
       await this.ensureInitialized(client, schema);
 
@@ -115,14 +110,14 @@ export class SqlStorage implements TransactionStorage {
     fn: (tx: PoolClient) => Promise<T>,
   ): Promise<T> {
     await client.query("BEGIN");
-    debug("Starting transaction");
+    logger("Starting transaction");
     try {
       const result = await fn(client);
-      debug("Transaction completed successfully");
+      logger("Transaction completed successfully");
       await client.query("COMMIT");
       return result;
     } catch (error) {
-      debug("Rolling back transaction due to error", error);
+      logger("Rolling back transaction due to error", error);
       await client.query("ROLLBACK");
       throw error;
     }
@@ -132,7 +127,7 @@ export class SqlStorage implements TransactionStorage {
     client: PoolClient,
     schema: string,
   ): Promise<void> {
-    debug(`Ensuring schema ${schema} exists`);
+    logger(`Ensuring schema ${schema} exists`);
     await client.query(pgFormat("CREATE SCHEMA IF NOT EXISTS %I", schema));
     await client.query(`
       CREATE TABLE IF NOT EXISTS ${pgFormat(
