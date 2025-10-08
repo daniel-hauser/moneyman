@@ -33,10 +33,6 @@ describe("SqlStorage", () => {
     PoolMock.mockImplementation(() => new (db.adapters.createPg().Pool)());
 
     const mockConfig = config();
-    jest.mock("../../config.js", () => ({
-      systemName: "test-system",
-      config: mockConfig,
-    }));
     mockConfig.storage.sql = {
       connectionString: "postgresql://user:pass@localhost:5432/moneyman",
       schema: "moneyman",
