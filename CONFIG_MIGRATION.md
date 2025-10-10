@@ -176,6 +176,19 @@ Configuration for various storage providers:
 }
 ```
 
+#### PostgreSQL (SQL)
+
+```json
+"storage": {
+  "sql": {
+    "connectionString": "postgresql://user:password@host:5432/database",
+    "schema": "moneyman"
+  }
+}
+```
+
+- `schema` is optional and defaults to `"moneyman"`. moneyman will create the schema (and required tables) on first run if they do not exist.
+
 #### Local JSON
 
 ```json
