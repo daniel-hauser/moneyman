@@ -1,11 +1,11 @@
-name: "Weekly Documentation Verification (Agent Task)"
+name: "Documentation Verification (Agent Task)"
 
-# Run weekly on Sundays at 9:00 AM UTC to verify documentation is up to date
+# Run on Sundays at 9:00 AM UTC to verify documentation is up to date
 # This workflow uses gh agent-task create to directly create an agent task
 on:
-  schedule:
-    # Run every Sunday at 9:00 AM UTC
-    - cron: "0 9 * * 0"
+  # schedule:
+  #   # Run every Sunday at 9:00 AM UTC
+  #   - cron: "0 9 * * 0"
   workflow_dispatch:
 
 permissions:
