@@ -55,3 +55,55 @@ index 8827ffc..8b9220c 100644
      this.emitProgress(_definitions.ScraperProgressTypes.LoggingIn);
      const validateUrl = `${this.servicesUrl}?reqName=ValidateIdData`;
      const validateRequest = {
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js b/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
+index 9b988fd..bae39c6 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
+@@ -183,6 +183,10 @@ class MizrahiScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+     const relevantRows = response.body.table.rows.filter(row => row.RecTypeSpecified);
+     const oshTxn = convertTransactions(relevantRows);
+ 
++    oshTxn.filter(tx => !tx.identifier).forEach(tx => {
++      tx.status = _transactions.TransactionStatuses.Pending;
++    });
++
+     // workaround for a bug which the bank's API returns transactions before the requested start date
+     const startMoment = getStartMoment(this.options.startDate);
+     const oshTxnAfterStartDate = oshTxn.filter(txn => (0, _moment.default)(txn.date).isSameOrAfter(startMoment));
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
+index f0256bc..e86c532 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
+@@ -109,12 +109,8 @@ function convertParsedDataToTransactions(data, pendingData) {
+       total: numOfPayments
+     } : undefined;
+     const date = (0, _moment.default)(transaction.trnPurchaseDate);
+-    let chargedAmount = isPending(transaction) ? transaction.trnAmt * -1 : transaction.amtBeforeConvAndIndex * -1;
+-    let originalAmount = transaction.trnAmt * -1;
+-    if (transaction.trnTypeCode === TrnTypeCode.credit) {
+-      chargedAmount = isPending(transaction) ? transaction.trnAmt : transaction.amtBeforeConvAndIndex;
+-      originalAmount = transaction.trnAmt;
+-    }
++    const chargedAmount = (isPending(transaction) ? transaction.trnAmt : transaction.amtBeforeConvAndIndex) * -1;
++    const originalAmount = transaction.trnAmt * (transaction.trnTypeCode === TrnTypeCode.credit ? 1 : -1);
+     const result = {
+       identifier: !isPending(transaction) ? transaction.trnIntId : undefined,
+       type: [TrnTypeCode.regular, TrnTypeCode.standingOrder].includes(transaction.trnTypeCode) ? _transactions2.TransactionTypes.Normal : _transactions2.TransactionTypes.Installments,
+@@ -240,7 +236,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+       const months = finalMonthToFetchMoment.diff(startMoment, 'months');
+       const allMonthsData = [];
+       debug(`fetch pending transactions for card ${card.cardUniqueId}`);
+-      let pendingData = await (0, _fetch.fetchPostWithinPage)(this.page, PENDING_TRANSACTIONS_REQUEST_ENDPOINT, {
++      let pendingData = await (0, _fetch.fetchPost)(PENDING_TRANSACTIONS_REQUEST_ENDPOINT, {
+         cardUniqueIDArray: [card.cardUniqueId]
+       }, {
+         Authorization,
+@@ -250,7 +246,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+       debug(`fetch completed transactions for card ${card.cardUniqueId}`);
+       for (let i = 0; i <= months; i += 1) {
+         const month = finalMonthToFetchMoment.clone().subtract(i, 'months');
+-        const monthData = await (0, _fetch.fetchPostWithinPage)(this.page, TRANSACTIONS_REQUEST_ENDPOINT, {
++        const monthData = await (0, _fetch.fetchPost)(TRANSACTIONS_REQUEST_ENDPOINT, {
+           cardUniqueId: card.cardUniqueId,
+           month: month.format('M'),
+           year: month.format('YYYY')

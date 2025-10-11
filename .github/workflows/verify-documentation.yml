@@ -1,0 +1,56 @@
+name: "Documentation Verification"
+
+# Run on Sundays at 9:00 AM UTC to verify documentation is up to date
+on:
+  # schedule:
+  #   # Run every Sunday at 9:00 AM UTC
+  #   - cron: "0 9 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  verify-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Copilot to verify documentation
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const issueBody = `🤖 **Automated Documentation Verification Request**
+
+            Please verify the following documentation files are accurate and up to date:
+
+            1. **README.md** - Verify that:
+               - All mentioned features are still supported
+               - Configuration examples match the current schema
+               - Links to workflows and files are correct
+               - Environment variables are documented correctly
+               - Storage provider setup instructions are current
+
+            2. **.github/copilot-instructions.md** - Verify that:
+               - Project overview is accurate
+               - Architecture components are up to date
+               - Development workflow instructions are correct
+               - Key dependencies list is current
+               - Common development tasks are accurate
+
+            **Instructions:**
+            - Review both documentation files thoroughly
+            - Check against the current codebase (config schema, package.json, workflows, etc.)
+            - If everything is correct and up to date, close this issue with a comment confirming verification
+            - If issues are found, create **ONE** new issue listing all documentation updates needed, then close this verification issue
+            - Do not create multiple issues - consolidate all findings into a single issue
+
+            @copilot Please verify the documentation.`;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Documentation Verification',
+              body: issueBody,
+              labels: ['documentation', 'automated']
+            });
