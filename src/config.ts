@@ -12,7 +12,6 @@ import {
   LoggingOptionsSchema,
   NotificationOptionsSchema,
 } from "./config.schema.js";
-import { a } from "@mswjs/interceptors/lib/node/BatchInterceptor-5b72232f.js";
 
 export type { MoneymanConfig } from "./config.schema.js";
 
@@ -191,6 +190,13 @@ function createConfig() {
     } else {
       try {
         logger("Converting environment variables to MONEYMAN_CONFIG format...");
+        setTimeout(() => {
+          // Send deprecation message for the old environment variables usage.
+          // The delay and import is to ensure the notifier module is loaded after the config is created.
+          import("./bot/notifier.js").then((notifier) => {
+            notifier.sendDeprecationMessage("removeEnvVars");
+          });
+        }, 2000);
         return MoneymanConfigSchema.parse(convertEnvVarsToConfig());
       } catch (error) {
         logger("Failed to convert env vars to MONEYMAN_CONFIG", error);
