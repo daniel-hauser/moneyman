@@ -8,7 +8,7 @@ const {
 import axios from 'axios';
 import { parseISO, format } from "date-fns";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
-import { createLogger } from "../../utils/logger.js";
+import { createLogger, logToPublicLog } from "../../utils/logger.js";
 import { TransactionRow, TransactionStorage } from '../../types';
 import { SaveStats } from '../saveStats';
 import type { MoneymanConfig } from "../../config.js";
@@ -173,7 +173,7 @@ export class MondayStorage implements TransactionStorage {
       // this.tagTransactionsByRules(txToSend);
 
       // Send transactions to Monday
-      logger(
+      logToPublicLog(
         `sending ${txToSend.length} transactions to Monday`,
       );
       if (!MONDAY_BOARD_ID) {
@@ -181,7 +181,7 @@ export class MondayStorage implements TransactionStorage {
       }
       const resp = await this.createItemsFromTransactions(+MONDAY_BOARD_ID, txToSend);
 
-      logger("transactions sent to Monday successfully!");
+      logToPublicLog("transactions sent to Monday successfully!");
       stats.otherSkipped += stats.existing;
     }
 
@@ -212,7 +212,7 @@ export class MondayStorage implements TransactionStorage {
     // First check if item exists
     const itemExists = await this.checkItemExists(boardId, transaction.uniqueId);
     if (itemExists) {
-      logger(`Item with uniqueId ${transaction.uniqueId} already exists, skipping creation`);
+      logToPublicLog(`Item with uniqueId ${transaction.uniqueId} already exists, skipping creation`);
       return;
     }
 
@@ -246,7 +246,7 @@ export class MondayStorage implements TransactionStorage {
       if (response.data.errors) {
         console.error('Error creating item:', response.data.errors, columnValues);
       } else {
-        console.log('Item created successfully:', response.data.data.create_item.id);
+        logger('Item created successfully:', response.data.data.create_item.id);
       }
     } catch (error) {
       console.error('Error:', error);
