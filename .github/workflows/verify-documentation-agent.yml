@@ -1,0 +1,51 @@
+name: "Documentation Verification (Agent Task)"
+
+# Run on Sundays at 9:00 AM UTC to verify documentation is up to date
+# This workflow uses gh agent-task create to directly create an agent task
+on:
+  # schedule:
+  #   # Run every Sunday at 9:00 AM UTC
+  #   - cron: "0 9 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  verify-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create agent task for documentation verification
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh agent-task create -R ${{ github.repository }} -F - <<'EOF'
+          🤖 **Automated Documentation Verification Request**
+
+          Please verify the following documentation files are accurate and up to date:
+
+          1. **README.md** - Verify that:
+             - All mentioned features are still supported
+             - Configuration examples match the current schema
+             - Links to workflows and files are correct
+             - Environment variables are documented correctly
+             - Storage provider setup instructions are current
+
+          2. **.github/copilot-instructions.md** - Verify that:
+             - Project overview is accurate
+             - Architecture components are up to date
+             - Development workflow instructions are correct
+             - Key dependencies list is current
+             - Common development tasks are accurate
+
+          **Instructions:**
+          - Review both documentation files thoroughly
+          - Check against the current codebase (config schema, package.json, workflows, etc.)
+          - If everything is correct and up to date, report completion
+          - If issues are found, create **ONE** new issue listing all documentation updates needed
+          - Do not create multiple issues - consolidate all findings into a single issue
+
+          Please verify the documentation.
+          EOF

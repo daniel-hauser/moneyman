@@ -57,6 +57,20 @@ export const WebPostSchema = z.object({
     .min(1, { error: "Authorization token is required" }),
 });
 
+export const SqlStorageSchema = z.object({
+  connectionString: z
+    .string()
+    .min(1, { error: "SQL connection string is required" }),
+  schema: z
+    .string()
+    .min(1, { error: "Schema name is required" })
+    .regex(/^[A-Za-z_]\w*$/, {
+      message:
+        "Schema name must start with a letter or underscore and contain only letters, numbers, or underscores",
+    })
+    .default("moneyman"),
+});
+
 // Storage configuration schema
 export const StorageSchema = z
   .object({
@@ -67,6 +81,7 @@ export const StorageSchema = z
     actual: ActualSchema.optional(),
     localJson: z.object({ enabled: z.boolean() }).optional(),
     webPost: WebPostSchema.optional(),
+    sql: SqlStorageSchema.optional(),
   })
   .refine((data) => Object.values(data).some(Boolean), {
     error: "At least one storage provider must be configured",

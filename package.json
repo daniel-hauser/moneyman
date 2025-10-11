@@ -41,28 +41,33 @@
     "debug": "^4.4.3",
     "dotenv": "^17.2.3",
     "glob": "^11.0.3",
-    "google-auth-library": "^10.3.1",
+    "google-auth-library": "^10.4.0",
     "google-spreadsheet": "^5.0.2",
     "hash-it": "^6.0.0",
     "israeli-bank-scrapers": "^6.2.3",
     "jsonc-parser": "^3.3.1",
+    "pg": "^8.13.1",
+    "pg-format": "^1.0.4",
     "telegraf": "^4.16.3",
     "ynab": "^2.10.0",
-    "zod": "^4.1.11"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/async": "^3.2.25",
     "@types/debug": "^4.1.12",
     "@types/jest": "^30.0.0",
-    "@types/node": "^24.6.0",
+    "@types/node": "^24.7.1",
+    "@types/pg": "^8.15.5",
+    "@types/pg-format": "^1.0.3",
     "husky": "^9.1.7",
     "jest": "^30.2.0",
     "jest-mock-extended": "^4.0.0",
     "patch-package": "^8.0.1",
+    "pg-mem": "^3.0.5",
     "prettier": "^3.6.2",
     "pretty-quick": "^4.2.2",
     "ts-jest": "^29.4.4",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.3"
   },
   "husky": {
     "hooks": {

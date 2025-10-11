@@ -18,6 +18,7 @@ import { transactionHash, transactionUniqueId } from "./utils.js";
 import { WebPostStorage } from "./web-post.js";
 import { TelegramStorage } from "./telegram.js";
 import { YNABStorage } from "./ynab.js";
+import { SqlStorage } from "./sql.js";
 import { config } from "../../config.js";
 import { MondayStorage } from "./monday.js";
 
@@ -33,6 +34,7 @@ export const storages = [
   new TelegramStorage(config),
   new ActualBudgetStorage(config),
   new MondayStorage(config),
+  new SqlStorage(config),
 ].filter((s) => s.canSave());
 
 export async function saveResults(results: Array<AccountScrapeResult>) {
