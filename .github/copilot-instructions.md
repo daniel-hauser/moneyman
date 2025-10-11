@@ -26,7 +26,7 @@ Moneyman is a TypeScript/Node.js application that scrapes financial transaction 
 ### Testing
 
 - **Framework**: Jest with ts-jest
-- **Config**: `jest.config.js` for regular tests, `jest.scraper-access.config.js` for scraper tests
+- **Config**: `jest.config.js` for regular tests
 - **Location**: Test files are co-located with source files (`.test.ts` suffix)
 
 ## Development Workflow

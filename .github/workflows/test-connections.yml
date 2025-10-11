@@ -10,7 +10,6 @@ on:
       - "package-lock.json"
       - "tsconfig.json"
       - "Dockerfile"
-      - "jest.scraper-access.config.js"
 jobs:
   test-connections:
     runs-on: ubuntu-latest
@@ -35,4 +34,4 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Run test-scraper-access script
-        run: docker run --rm moneyman:test npm run test:scraper-access
+        run: docker run --rm --shm-size=2g --security-opt seccomp=unconfined moneyman:test npm run test:scraper-access-without-build
