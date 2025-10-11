@@ -1,4 +1,4 @@
-name: Scrape
+name: Scrape - Invoices
 
 on:
   workflow_dispatch:
@@ -16,7 +16,7 @@ on:
     # In Israel: [12:05, 00:05] or [13:05, 01:05] on DST
     - cron: "5 10,22 * * *"
   push:
-    branches-ignore: [monday-storage, invoices]
+    branches: [invoices]
 env:
   REGISTRY: ghcr.io
   MAX_PARALLEL_SCRAPERS: 8
@@ -74,7 +74,7 @@ jobs:
           MONEYMAN_CONFIG: ${{ secrets.MONEYMAN_CONFIG }}
           DEBUG: ""
           TZ: "Asia/Jerusalem"
-          ACCOUNTS_JSON: ${{ secrets.ACCOUNTS_JSON }}
+          ACCOUNTS_JSON: ${{ secrets.ACCOUNTS_JSON_INVOICES }}
           TELEGRAM_API_KEY: ${{ secrets.TELEGRAM_API_KEY }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}

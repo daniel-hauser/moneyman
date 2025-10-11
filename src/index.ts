@@ -15,7 +15,7 @@ process.on("uncaughtException", (err, origin) => {
   sendError(`
 Caught exception: ${err}
 err.stack: ${err.stack}
-Exception origin: ${origin}`).catch((e) => {});
+Exception origin: ${origin}`).catch((e) => { });
 });
 
 monitorNodeConnections();

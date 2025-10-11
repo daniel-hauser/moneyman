@@ -20,6 +20,7 @@ import { TelegramStorage } from "./telegram.js";
 import { YNABStorage } from "./ynab.js";
 import { SqlStorage } from "./sql.js";
 import { config } from "../../config.js";
+import { MondayStorage } from "./monday.js";
 
 const baseLogger = createLogger("storage");
 
@@ -32,6 +33,7 @@ export const storages = [
   new WebPostStorage(config),
   new TelegramStorage(config),
   new ActualBudgetStorage(config),
+  new MondayStorage(config),
   new SqlStorage(config),
 ].filter((s) => s.canSave());
 
