@@ -55,6 +55,21 @@ index 8827ffc..8b9220c 100644
      this.emitProgress(_definitions.ScraperProgressTypes.LoggingIn);
      const validateUrl = `${this.servicesUrl}?reqName=ValidateIdData`;
      const validateRequest = {
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js b/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
+index 9b988fd..bae39c6 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
+@@ -183,6 +183,10 @@ class MizrahiScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+     const relevantRows = response.body.table.rows.filter(row => row.RecTypeSpecified);
+     const oshTxn = convertTransactions(relevantRows);
+ 
++    oshTxn.filter(tx => !tx.identifier).forEach(tx => {
++      tx.status = _transactions.TransactionStatuses.Pending;
++    });
++
+     // workaround for a bug which the bank's API returns transactions before the requested start date
+     const startMoment = getStartMoment(this.options.startDate);
+     const oshTxnAfterStartDate = oshTxn.filter(txn => (0, _moment.default)(txn.date).isSameOrAfter(startMoment));
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
 index f0256bc..e86c532 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
