@@ -212,15 +212,16 @@ function createConfig() {
       options: {
         scraping: ScrapingOptionsSchema.parse({}),
         security: SecurityOptionsSchema.parse({}),
-        notifications: NotificationOptionsSchema.parse({
-          telegram:
-            process.env.TELEGRAM_API_KEY && process.env.TELEGRAM_CHAT_ID
-              ? {
+        notifications: NotificationOptionsSchema.parse(
+          process.env.TELEGRAM_API_KEY && process.env.TELEGRAM_CHAT_ID
+            ? {
+                telegram: {
                   apiKey: process.env.TELEGRAM_API_KEY,
                   chatId: process.env.TELEGRAM_CHAT_ID,
-                }
-              : undefined,
-        }),
+                },
+              }
+            : {},
+        ),
         logging: LoggingOptionsSchema.parse({}),
       },
     };
