@@ -24,7 +24,10 @@ export async function getAccountTransactions(
       onProgress(companyId, type);
     });
 
-    const result = await scraper.scrape(prepareAccountCredentials(account));
+    const result = await scraper.scrape({
+      ...account,
+      ...prepareAccountCredentials(account),
+    });
 
     if (!result.success) {
       logger(`error: ${result.errorType} ${result.errorMessage}`);

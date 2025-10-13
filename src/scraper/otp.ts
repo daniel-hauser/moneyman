@@ -40,15 +40,14 @@ export function shouldCreateOtpRetriever(account: AccountConfig): boolean {
  */
 export function prepareAccountCredentials(
   account: AccountConfig,
-): AccountConfig {
+): Partial<AccountConfig> {
   if (shouldCreateOtpRetriever(account)) {
     logger(`Setting up OTP code retriever for OneZero account`);
 
     return {
-      ...account,
       otpCodeRetriever: createOtpCodeRetriever(account),
     };
   }
 
-  return account;
+  return {};
 }
