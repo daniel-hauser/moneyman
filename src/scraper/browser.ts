@@ -9,6 +9,8 @@ import { createLogger, logToMetadataFile } from "../utils/logger.js";
 import { initDomainTracking } from "../security/domains.js";
 import { solveTurnstile } from "./cloudflareSolver.js";
 import { config } from "../config.js";
+import { randomPoint, moveTo } from "./mouse.js";
+import { a } from "@mswjs/interceptors/lib/node/BatchInterceptor-5b72232f.js";
 
 export const browserArgs = ["--disable-dev-shm-usage", "--no-sandbox"];
 export const browserExecutablePath =
@@ -33,6 +35,7 @@ export async function createSecureBrowserContext(
   const context = await browser.createBrowserContext();
   await initDomainTracking(context, companyId);
   await initCloudflareSkipping(context);
+  await initHumanMode(context);
   return context;
 }
 
@@ -76,6 +79,27 @@ async function initCloudflareSkipping(browserContext: BrowserContext) {
           );
         }
       });
+    }
+  });
+}
+
+async function initHumanMode(browserContext: BrowserContext) {
+  logger("Setting up human mode");
+  browserContext.on("targetcreated", async (target) => {
+    if (target.type() === TargetType.PAGE) {
+      logger("Target created %o", target.type());
+      const page = await target.page();
+      if (page) {
+        page.on("framenavigated", async () => {
+          try {
+            const point = await randomPoint(page);
+            moveTo(page, [0, 0], point);
+            moveTo(page, point, await randomPoint(page));
+          } catch (error) {
+            logger("Error getting random point", error);
+          }
+        });
+      }
     }
   });
 }
