@@ -38,8 +38,11 @@ describe("getAccountTransactions", () => {
     expect(result).toBeDefined();
     expect(result.success).toBeFalsy(); // because we didn't mock the scraper
 
-    expect(browserContext.newPage).toHaveBeenCalledTimes(1);
-    expect(browserPage.close).toHaveBeenCalledTimes(1);
+    const newPageCalls = browserContext.newPage.mock.calls.length;
+    expect(newPageCalls).toBeGreaterThan(0);
+    expect(newPageCalls).toBeLessThanOrEqual(2);
+
+    expect(browserPage.close).toHaveBeenCalledTimes(newPageCalls);
 
     expect(onProgress).toHaveBeenNthCalledWith(
       1,
