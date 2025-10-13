@@ -92,8 +92,8 @@ async function initHumanMode(browserContext: BrowserContext) {
         page.on("framenavigated", async () => {
           try {
             const point = await randomPoint(page);
-            moveTo(page, [0, 0], point);
-            moveTo(page, point, await randomPoint(page));
+            await moveTo(page, [0, 0], point);
+            await moveTo(page, point, await randomPoint(page));
           } catch (error) {
             logger("Error getting random point", error);
           }
