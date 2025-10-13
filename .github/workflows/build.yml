@@ -16,6 +16,10 @@ on:
       - ".github/workflows/build.yml"
   workflow_dispatch:
 
+# Debounce mechanism: combines concurrency control with delay to group multiple PRs
+# - Only one build runs at a time for the main branch
+# - If a new push occurs during the 10-minute delay, the current run is cancelled
+# - This results in grouping multiple merged PRs into a single release
 concurrency:
   group: build-${{ github.ref_name }}
   cancel-in-progress: true
@@ -31,6 +35,12 @@ jobs:
       packages: write
 
     steps:
+      - name: Debounce - Wait for potential new commits
+        run: |
+          echo "⏱️  Waiting 10 minutes to debounce multiple pushes to main..."
+          echo "If new commits are pushed during this time, this run will be cancelled."
+          sleep 10m
+
       - name: Checkout repository
         uses: actions/checkout@v5
 

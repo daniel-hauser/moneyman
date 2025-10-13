@@ -26,7 +26,7 @@ Moneyman is a TypeScript/Node.js application that scrapes financial transaction 
 ### Testing
 
 - **Framework**: Jest with ts-jest
-- **Config**: `jest.config.js` for regular tests, `jest.scraper-access.config.js` for scraper tests
+- **Config**: `jest.config.js` for regular tests
 - **Location**: Test files are co-located with source files (`.test.ts` suffix)
 
 ## Development Workflow
@@ -72,7 +72,7 @@ See `CONFIG_MIGRATION.md` for detailed configuration structure.
 ### Configuration
 
 - Uses Zod schemas for runtime validation
-- Supports environment variable fallbacks
+- Supports environment variable fallbacks (legacy only—do not add new env vars)
 - Configuration is centralized in `src/config.ts`
 
 ### Error Handling
@@ -117,6 +117,8 @@ The application supports multiple storage backends:
 ## Environment Variables
 
 Key environment variables include:
+
+> Legacy compatibility only: existing environment variables are still honored, but new features must rely on the `MONEYMAN_CONFIG` JSON configuration instead of introducing additional env vars.
 
 - `DEBUG=moneyman:*` - Enable debug logging
 - `MONEYMAN_CONFIG` - JSON configuration (preferred)
