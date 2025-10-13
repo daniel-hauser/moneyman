@@ -43,12 +43,20 @@ export async function getAccountTransactions(
       logger(`error: ${result.errorType} ${result.errorMessage}`);
     } else {
       logger(`error: ${result.errorType} ${result.errorMessage}`);
-
       const messageText = `Error scraping account ${account.companyId}: ${result.errorType} ${result.errorMessage}`;
-      const [message, retryResult] = await Promise.all([
-        sendError(`${messageText}\nretrying...`),
-        scraper.scrape({ ...account, ...accountCredentials }),
-      ]);
+      const message = await sendError(`${messageText}\nretrying...`);
+
+      scraper.onProgress((companyId, { type }) => {
+        void editMessage(
+          message?.message_id,
+          `${messageText}\nretrying...\n[${companyId}] ${type}`,
+        );
+      });
+
+      const retryResult = await scraper.scrape({
+        ...account,
+        ...accountCredentials,
+      });
 
       if (!retryResult.success) {
         const error = `${retryResult.errorType} ${retryResult.errorMessage}`;
