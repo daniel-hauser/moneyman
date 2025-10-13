@@ -1,11 +1,13 @@
-import { Telegraf, TelegramError } from "telegraf";
+import { Telegraf, TelegramError, Context } from "telegraf";
+import { message } from "telegraf/filters";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
 import type { ImageWithCaption } from "../types.js";
 import { config } from "../config.js";
+import { waitForAbortSignal } from "../utils/promises.js";
 
 const logger = createLogger("notifier");
 
-const telegramConfig = config.options.notifications.telegram;
+const telegramConfig = config.options.notifications?.telegram;
 const bot = telegramConfig ? new Telegraf(telegramConfig.apiKey) : null;
 
 logToPublicLog(
@@ -144,4 +146,81 @@ export function sendDeprecationMessage(
   sentDeprecationMessages.add(messageId);
   return send(`⚠️ Deprecation warning:
 ${deprecationMessages[messageId]}`);
+}
+
+/**
+ * Request an OTP code from the user via Telegram and wait for their response
+ */
+export async function requestOtpCode(
+  companyId: string,
+  phoneNumber: string,
+): Promise<string> {
+  if (!bot || !telegramConfig?.chatId || !telegramConfig.enableOtp) {
+    throw new Error("Telegram OTP is not enabled or configured");
+  }
+
+  const requestMessage = await send(
+    `🔐 2FA Authentication Required\n\n` +
+      `Account: ${companyId}\n` +
+      `Please enter the OTP code sent to ${phoneNumber}:\n\n` +
+      `Reply to this message with the code.`,
+  );
+
+  if (!requestMessage) {
+    throw new Error("Failed to send OTP request message");
+  }
+
+  logger("Waiting for OTP code from user...");
+
+  const timeoutSeconds = telegramConfig.otpTimeoutSeconds;
+  const timeoutPromise = waitForAbortSignal(
+    AbortSignal.timeout(timeoutSeconds * 1000),
+  ).catch(() => {
+    throw new Error(
+      `OTP timeout: No response received within ${timeoutSeconds} seconds`,
+    );
+  });
+
+  const responsePromise = new Promise<string>((resolve, reject) => {
+    const handler = (ctx: Context) => {
+      if (ctx.chat?.id?.toString() !== telegramConfig.chatId) {
+        return;
+      }
+
+      if (!ctx.message || !("text" in ctx.message)) {
+        return;
+      }
+
+      const text = ctx.message.text?.trim();
+      if (!text) {
+        return;
+      }
+
+      logger(`Received OTP code: ${text}`);
+      void ctx.reply("✅ OTP code received. Continuing authentication...");
+
+      resolve(text);
+    };
+
+    bot.on(message("text"), handler);
+
+    bot
+      .launch(() => {
+        logger("Bot launched for OTP collection");
+      })
+      .catch((error) => {
+        if (!error.message.includes("already running")) {
+          sendError(error, "requestOtpCode");
+          reject(
+            new Error(`Failed to start Telegram bot for OTP: ${error.message}`),
+          );
+        }
+      });
+  });
+
+  try {
+    return await Promise.race([responsePromise, timeoutPromise]);
+  } finally {
+    bot.stop();
+  }
 }

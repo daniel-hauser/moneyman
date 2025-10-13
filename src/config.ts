@@ -158,10 +158,11 @@ function convertEnvVarsToConfig(): MoneymanConfig {
 
   // Convert notification options
   if (process.env.TELEGRAM_API_KEY) {
-    config.options.notifications.telegram = {
-      apiKey: process.env.TELEGRAM_API_KEY,
-      chatId: process.env.TELEGRAM_CHAT_ID || "",
-    };
+    config.options.notifications.telegram =
+      NotificationOptionsSchema.shape.telegram.parse({
+        apiKey: process.env.TELEGRAM_API_KEY,
+        chatId: process.env.TELEGRAM_CHAT_ID || "",
+      });
   }
 
   // Convert logging options
