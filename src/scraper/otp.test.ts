@@ -90,8 +90,12 @@ describe("OTP utilities", () => {
 
       const prepared = prepareAccountCredentials(account);
 
-      expect(prepared).toEqual(account);
-      expect((prepared as any).otpCodeRetriever).toBeUndefined();
+      expect(prepared).toEqual({});
+      expect(account).toEqual({
+        companyId: CompanyTypes.hapoalim,
+        userCode: "123456",
+        password: "password",
+      });
     });
 
     it("should not modify OneZero accounts with otpLongTermToken", () => {
@@ -105,8 +109,14 @@ describe("OTP utilities", () => {
 
       const prepared = prepareAccountCredentials(account);
 
-      expect(prepared).toEqual(account);
-      expect((prepared as any).otpCodeRetriever).toBeUndefined();
+      expect(prepared).toEqual({});
+      expect(account).toEqual({
+        companyId: CompanyTypes.oneZero,
+        email: "test@example.com",
+        password: "password",
+        phoneNumber: "+972501234567",
+        otpLongTermToken: "token123",
+      });
     });
   });
 });
