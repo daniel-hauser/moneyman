@@ -10,7 +10,6 @@ import { initDomainTracking } from "../security/domains.js";
 import { solveTurnstile } from "./cloudflareSolver.js";
 import { config } from "../config.js";
 import { randomPoint, moveTo } from "./mouse.js";
-import { a } from "@mswjs/interceptors/lib/node/BatchInterceptor-5b72232f.js";
 
 export const browserArgs = ["--disable-dev-shm-usage", "--no-sandbox"];
 export const browserExecutablePath =
