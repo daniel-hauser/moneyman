@@ -26,7 +26,7 @@ body:
     attributes:
       label: Instructions
       value: |
-        This issue is to patch the israeli-bank-scrapers package to contain the changes of https://github.com/eshaham/israeli-bank-scrapers/pull/$pr-number. Do not modify the patch file, you must use the patch-package package for that.
+        This issue is to patch the israeli-bank-scrapers package to contain the changes in the PR. Do not modify the patch file, you must use the patch-package package for that.
 
         ## Steps
 
