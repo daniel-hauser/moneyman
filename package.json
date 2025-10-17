@@ -5,7 +5,7 @@
   "main": "dst/index.ts",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=20 <25"
   },
   "scripts": {
     "act": "go run github.com/nektos/act@latest",
@@ -32,7 +32,7 @@
   "homepage": "https://github.com/daniel-hauser/moneyman#readme",
   "dependencies": {
     "@actual-app/api": "^25.10.0",
-    "@mswjs/interceptors": "^0.39.7",
+    "@mswjs/interceptors": "^0.39.8",
     "@telegraf/entity": "^0.7.0",
     "async": "^3.2.6",
     "azure-kusto-data": "^7.0.1",
@@ -42,7 +42,7 @@
     "debug": "^4.4.3",
     "dotenv": "^17.2.3",
     "glob": "^11.0.3",
-    "google-auth-library": "^10.4.0",
+    "google-auth-library": "^10.4.1",
     "google-spreadsheet": "^5.0.2",
     "hash-it": "^6.0.0",
     "israeli-bank-scrapers": "^6.2.3",
@@ -57,7 +57,7 @@
     "@types/async": "^3.2.25",
     "@types/debug": "^4.1.12",
     "@types/jest": "^30.0.0",
-    "@types/node": "^24.7.1",
+    "@types/node": "^24.8.0",
     "@types/pg": "^8.15.5",
     "@types/pg-format": "^1.0.3",
     "husky": "^9.1.7",
@@ -67,7 +67,7 @@
     "pg-mem": "^3.0.5",
     "prettier": "^3.6.2",
     "pretty-quick": "^4.2.2",
-    "ts-jest": "^29.4.4",
+    "ts-jest": "^29.4.5",
     "typescript": "^5.9.3"
   },
   "husky": {
