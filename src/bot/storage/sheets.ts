@@ -4,7 +4,7 @@ import {
   GoogleSpreadsheet,
   GoogleSpreadsheetWorksheet,
 } from "google-spreadsheet";
-import { GoogleAuth } from "google-auth-library";
+import { JWT } from "google-auth-library";
 import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { sendDeprecationMessage, sendError } from "../notifier.js";
@@ -125,14 +125,11 @@ export class GoogleSheetsStorage implements TransactionStorage {
     const googleSheetsConfig = this.config.storage.googleSheets;
     assert(googleSheetsConfig, "Google Sheets configuration not found");
 
-    const auth = new GoogleAuth({
+    const authClient = new JWT({
+      email: googleSheetsConfig.serviceAccountEmail,
+      key: googleSheetsConfig.serviceAccountPrivateKey,
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-      credentials: {
-        client_email: googleSheetsConfig.serviceAccountEmail,
-        private_key: googleSheetsConfig.serviceAccountPrivateKey,
-      },
     });
-    const authClient = await auth.getClient();
     const doc = new GoogleSpreadsheet(googleSheetsConfig.sheetId, authClient);
     await doc.loadInfo();
     return doc;

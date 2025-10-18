@@ -12,7 +12,6 @@ import {
   LoggingOptionsSchema,
   NotificationOptionsSchema,
 } from "./config.schema.js";
-import { a } from "@mswjs/interceptors/lib/node/BatchInterceptor-5b72232f.js";
 
 export type { MoneymanConfig } from "./config.schema.js";
 
@@ -159,10 +158,11 @@ function convertEnvVarsToConfig(): MoneymanConfig {
 
   // Convert notification options
   if (process.env.TELEGRAM_API_KEY) {
-    config.options.notifications.telegram = {
-      apiKey: process.env.TELEGRAM_API_KEY,
-      chatId: process.env.TELEGRAM_CHAT_ID || "",
-    };
+    config.options.notifications.telegram =
+      NotificationOptionsSchema.shape.telegram.parse({
+        apiKey: process.env.TELEGRAM_API_KEY,
+        chatId: process.env.TELEGRAM_CHAT_ID || "",
+      });
   }
 
   // Convert logging options
@@ -191,6 +191,13 @@ function createConfig() {
     } else {
       try {
         logger("Converting environment variables to MONEYMAN_CONFIG format...");
+        setTimeout(() => {
+          // Send deprecation message for the old environment variables usage.
+          // The delay and import is to ensure the notifier module is loaded after the config is created.
+          import("./bot/notifier.js").then((notifier) => {
+            notifier.sendDeprecationMessage("removeEnvVars");
+          });
+        }, 2000);
         return MoneymanConfigSchema.parse(convertEnvVarsToConfig());
       } catch (error) {
         logger("Failed to convert env vars to MONEYMAN_CONFIG", error);

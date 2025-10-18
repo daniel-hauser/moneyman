@@ -1,0 +1,38 @@
+name: Patch israeli-bank-scrapers PR
+description: Create an issue to patch the israeli-bank-scrapers package with changes from an upstream pull request
+title: "Patch israeli-bank-scrapers PR: "
+labels: ["patch", "israeli-bank-scrapers"]
+body:
+  - type: input
+    id: pr-number
+    attributes:
+      label: Pull Request Number
+      description: Enter the PR number from https://github.com/eshaham/israeli-bank-scrapers
+      placeholder: "123"
+    validations:
+      required: true
+
+  - type: input
+    id: pr-title
+    attributes:
+      label: Pull Request Title
+      description: The title of the pull request
+      placeholder: "Fix login issue for Hapoalim"
+    validations:
+      required: true
+
+  - type: textarea
+    id: instructions
+    attributes:
+      label: Instructions
+      value: |
+        This issue is to patch the israeli-bank-scrapers package to contain the changes in the PR. Do not modify the patch file, you must use the patch-package package for that.
+
+        ## Steps
+
+        - [ ] Pull the PR branch to a temp folder
+        - [ ] Install dependancies and build
+        - [ ] Copy the built files from the PR to the correct place in the node_modules folder
+        - [ ] run `npx patch-package israeli-bank-scrapers` to generate the patch
+    validations:
+      required: true
