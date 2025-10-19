@@ -4,6 +4,7 @@ import { createLogger, logToPublicLog } from "../utils/logger.js";
 import type { ImageWithCaption } from "../types.js";
 import { config } from "../config.js";
 import { waitForAbortSignal } from "../utils/promises.js";
+import { assignDeprecationHandler } from "./deprecationManager.js";
 
 const logger = createLogger("notifier");
 
@@ -19,6 +20,13 @@ logToPublicLog(
 logger(`Telegram bot initialized: ${Boolean(bot)}`);
 if (bot && telegramConfig) {
   logger(`Telegram chat ID: ${telegramConfig.chatId}`);
+
+  assignDeprecationHandler((messageId, message) => {
+    if (!config.options.scraping.hiddenDeprecations?.includes(messageId)) {
+      logger(`Sending deprecation message: ${messageId}`);
+      void send(message);
+    }
+  });
 }
 
 export async function send(message: string, parseMode?: "HTML") {
@@ -123,29 +131,6 @@ export function sendError(message: any, caller: string = "") {
         : message,
     )}`.trim(),
   );
-}
-
-const deprecationMessages = {
-  ["hashFiledChange"]: `This run is using the old transaction hash field, please update to the new one (it might require manual de-duping of some transactions). See https://github.com/daniel-hauser/moneyman/issues/268 for more details.`,
-  ["removeEnvVars"]:
-    "This run uses the old environment variables which are about to be removed, please update to the new `MONEYMAN_CONFIG` variable. `SEND_NEW_CONFIG_TO_TG` can be used to send the new config object to Telegram (available in the action when manually triggered).",
-} as const;
-logger(`Hidden deprecations: ${config.options.scraping.hiddenDeprecations}`);
-
-const sentDeprecationMessages = new Set<string>(
-  config.options.scraping.hiddenDeprecations,
-);
-
-export function sendDeprecationMessage(
-  messageId: keyof typeof deprecationMessages,
-) {
-  if (sentDeprecationMessages.has(messageId)) {
-    return;
-  }
-  // Avoid sending the same message multiple times
-  sentDeprecationMessages.add(messageId);
-  return send(`⚠️ Deprecation warning:
-${deprecationMessages[messageId]}`);
 }
 
 /**
