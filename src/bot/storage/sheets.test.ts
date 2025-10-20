@@ -28,7 +28,6 @@ jest.mock("../../utils/logger.js", () => ({
 
 // Mock other dependencies
 jest.mock("../notifier.js", () => ({
-  sendDeprecationMessage: jest.fn(),
   sendError: jest.fn(),
 }));
 

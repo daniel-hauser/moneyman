@@ -12,6 +12,7 @@ import {
   LoggingOptionsSchema,
   NotificationOptionsSchema,
 } from "./config.schema.js";
+import { sendDeprecationMessage } from "./bot/deprecationManager.js";
 
 export type { MoneymanConfig } from "./config.schema.js";
 
@@ -191,13 +192,8 @@ function createConfig() {
     } else {
       try {
         logger("Converting environment variables to MONEYMAN_CONFIG format...");
-        setTimeout(() => {
-          // Send deprecation message for the old environment variables usage.
-          // The delay and import is to ensure the notifier module is loaded after the config is created.
-          import("./bot/notifier.js").then((notifier) => {
-            notifier.sendDeprecationMessage("removeEnvVars");
-          });
-        }, 2000);
+        // Send deprecation message for old environment variables usage
+        sendDeprecationMessage("removeEnvVars");
         return MoneymanConfigSchema.parse(convertEnvVarsToConfig());
       } catch (error) {
         logger("Failed to convert env vars to MONEYMAN_CONFIG", error);
