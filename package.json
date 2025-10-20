@@ -32,7 +32,7 @@
   "homepage": "https://github.com/daniel-hauser/moneyman#readme",
   "dependencies": {
     "@actual-app/api": "^25.10.0",
-    "@mswjs/interceptors": "^0.39.8",
+    "@mswjs/interceptors": "^0.40.0",
     "@telegraf/entity": "^0.7.0",
     "async": "^3.2.6",
     "azure-kusto-data": "^7.0.1",
@@ -57,7 +57,7 @@
     "@types/async": "^3.2.25",
     "@types/debug": "^4.1.12",
     "@types/jest": "^30.0.0",
-    "@types/node": "^24.8.0",
+    "@types/node": "^24.8.1",
     "@types/pg": "^8.15.5",
     "@types/pg-format": "^1.0.3",
     "husky": "^9.1.7",
