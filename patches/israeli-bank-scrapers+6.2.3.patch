@@ -99,7 +99,7 @@ index 5784520..cadd1e5 100644
  async function getExtraScrap(txnsResult, baseUrl, page, accountNumber) {
    const promises = txnsResult.transactions.map(async transaction => {
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js b/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
-index 9b988fd..fd9807e 100644
+index 9b988fd..7565bd6 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
 @@ -12,7 +12,9 @@ var _navigation = require("../helpers/navigation");
@@ -181,8 +181,9 @@ index 9b988fd..fd9807e 100644
        originalCurrency: _constants.SHEKEL_CURRENCY,
        chargedAmount: row.MC02SchumEZ,
        description: row.MC02TnuaTeurEZ,
+-      status: _transactions.TransactionStatuses.Completed
 +      memo: moreDetails?.memo,
-       status: _transactions.TransactionStatuses.Completed
++      status: row.IsTodayTransaction ? _transactions.TransactionStatuses.Pending : _transactions.TransactionStatuses.Completed
      };
 -  });
 +  }));
