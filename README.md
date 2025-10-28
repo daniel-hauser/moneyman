@@ -67,16 +67,18 @@ docker run --rm \
   ghcr.io/daniel-hauser/moneyman:latest
 ```
 
-This approach:
+Or use Docker secrets:
 
-- Avoids issues with multiline environment variables
-- Supports JSON with comments (JSONC)
-- Works seamlessly with Docker secrets
-- Makes configuration management easier in Docker and Kubernetes
+```bash
+docker run --rm \
+  --secret config.json \
+  -e MONEYMAN_CONFIG_PATH=/run/secrets/config.json \
+  ghcr.io/daniel-hauser/moneyman:latest
+```
 
 ##### Note
 
-docker doesn't support multiline environment variables (i.e. `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`), in that case you can run `docker-compose up` instead or use the `MONEYMAN_CONFIG_PATH` approach above.
+docker doesn't support multiline environment variables (i.e. `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`), in that case you can run `docker-compose up` instead
 
 ### Debug
 
