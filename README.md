@@ -95,6 +95,8 @@ Moneyman uses a JSON configuration for all settings. You can provide configurati
 
 The configuration file approach is recommended for Docker/Kubernetes environments and supports JSON with Comments (JSONC) for better readability.
 
+> **Tip:** See [`config.example.jsonc`](./config.example.jsonc) for a complete example configuration file with comments.
+
 #### Accounts Configuration
 
 A json array of accounts following [this](https://github.com/eshaham/israeli-bank-scrapers#specific-definitions-per-scraper) schema with an additional `companyId` field with a [companyType](https://github.com/eshaham/israeli-bank-scrapers/blob/master/src/definitions.ts#L5:L23) as the value.
