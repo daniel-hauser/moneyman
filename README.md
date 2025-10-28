@@ -56,9 +56,27 @@ Since logs are public for public repos, most logs are off by default and the pro
 1. Define the environment variables in a `.env` file
 2. `docker run --rm --env-file ".env" ghcr.io/daniel-hauser/moneyman:latest`.
 
+##### Using a configuration file (recommended for Docker)
+
+Instead of passing the configuration as an environment variable, you can mount a configuration file:
+
+```bash
+docker run --rm \
+  -v /path/to/config:/config \
+  -e MONEYMAN_CONFIG_PATH=/config/config.json \
+  ghcr.io/daniel-hauser/moneyman:latest
+```
+
+This approach:
+
+- Avoids issues with multiline environment variables
+- Supports JSON with comments (JSONC)
+- Works seamlessly with Docker secrets
+- Makes configuration management easier in Docker and Kubernetes
+
 ##### Note
 
-docker doesn't support multiline environment variables (i.e. `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`), in that case you can run `docker-compose up` instead
+docker doesn't support multiline environment variables (i.e. `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`), in that case you can run `docker-compose up` instead or use the `MONEYMAN_CONFIG_PATH` approach above.
 
 ### Debug
 
@@ -70,7 +88,12 @@ If you want to see them, use the `DEBUG` environment variable with the value `mo
 
 ### Add accounts and scrape
 
-Moneyman uses a JSON configuration for all settings. Set the `MONEYMAN_CONFIG` environment variable with your complete configuration.
+Moneyman uses a JSON configuration for all settings. You can provide configuration in two ways:
+
+1. **`MONEYMAN_CONFIG` environment variable**: The JSON configuration as a string
+2. **`MONEYMAN_CONFIG_PATH` environment variable**: Path to a JSON or JSONC configuration file
+
+The configuration file approach is recommended for Docker/Kubernetes environments and supports JSON with Comments (JSONC) for better readability.
 
 #### Accounts Configuration
 
@@ -95,6 +118,7 @@ accounts: Array<{
 | ----------------------- | ------------------ | ----------------------------------------------------------------------------------------------------- |
 | `TZ`                    | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                 |
 | `MONEYMAN_CONFIG`       |                    | The JSON configuration for the process                                                                |
+| `MONEYMAN_CONFIG_PATH`  |                    | Path to a JSON/JSONC configuration file (used if `MONEYMAN_CONFIG` is not set)                        |
 | `SEND_NEW_CONFIG_TO_TG` | `"false"`          | Set to `"true"` to send the current configuration as `config.txt` via Telegram for debugging purposes |
 
 ```typescript
