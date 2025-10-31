@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { subDays } from "date-fns";
 import { Telegraf } from "telegraf";
+import { readFileSync } from "fs";
 import { AccountConfig, ScraperConfig } from "./types.js";
 import { createLogger } from "./utils/logger.js";
 import { parseJsoncConfig } from "./utils/jsonc.js";
@@ -175,7 +176,7 @@ function convertEnvVarsToConfig(): MoneymanConfig {
 
 function createConfig() {
   try {
-    const { MONEYMAN_CONFIG } = process.env;
+    const { MONEYMAN_CONFIG, MONEYMAN_CONFIG_PATH } = process.env;
     if (MONEYMAN_CONFIG) {
       logger("Using MONEYMAN_CONFIG");
       try {
@@ -188,6 +189,22 @@ function createConfig() {
         );
         void sendConfigError(error);
         throw new Error("Invalid MONEYMAN_CONFIG format");
+      }
+    } else if (MONEYMAN_CONFIG_PATH) {
+      logger(`Using MONEYMAN_CONFIG_PATH: ${MONEYMAN_CONFIG_PATH}`);
+      try {
+        const configFileContent = readFileSync(MONEYMAN_CONFIG_PATH, "utf-8");
+        const parsedConfig = parseJsoncConfig(configFileContent);
+        return MoneymanConfigSchema.parse(parsedConfig);
+      } catch (error) {
+        logger(
+          "Failed to parse config file from MONEYMAN_CONFIG_PATH, falling back to env vars",
+          error,
+        );
+        void sendConfigError(error);
+        throw new Error(
+          `Invalid config file at MONEYMAN_CONFIG_PATH: ${MONEYMAN_CONFIG_PATH}`,
+        );
       }
     } else {
       try {
@@ -270,7 +287,12 @@ export const scraperConfig: ScraperConfig = {
  */
 async function sendConfigError(error: Error): Promise<void> {
   const message = `Failed to load config\n${JSON.stringify(error, null, 2)}`;
-  const { TELEGRAM_API_KEY, TELEGRAM_CHAT_ID, MONEYMAN_CONFIG } = process.env;
+  const {
+    TELEGRAM_API_KEY,
+    TELEGRAM_CHAT_ID,
+    MONEYMAN_CONFIG,
+    MONEYMAN_CONFIG_PATH,
+  } = process.env;
   if (TELEGRAM_API_KEY && TELEGRAM_CHAT_ID) {
     console.log("sendConfigError using TELEGRAM_API_KEY and TELEGRAM_CHAT_ID");
     await new Telegraf(TELEGRAM_API_KEY).telegram.sendMessage(
@@ -281,6 +303,18 @@ async function sendConfigError(error: Error): Promise<void> {
     try {
       console.log("sendConfigError using MONEYMAN_CONFIG");
       const config = parseJsoncConfig(MONEYMAN_CONFIG) as MoneymanConfig;
+      if (config.options?.notifications?.telegram) {
+        const { apiKey, chatId } = config.options.notifications.telegram;
+        await new Telegraf(apiKey).telegram.sendMessage(chatId, message);
+      }
+    } catch (error) {
+      console.error("Failed to send config error to telegram");
+    }
+  } else if (MONEYMAN_CONFIG_PATH) {
+    try {
+      console.log("sendConfigError using MONEYMAN_CONFIG_PATH");
+      const configFileContent = readFileSync(MONEYMAN_CONFIG_PATH, "utf-8");
+      const config = parseJsoncConfig(configFileContent) as MoneymanConfig;
       if (config.options?.notifications?.telegram) {
         const { apiKey, chatId } = config.options.notifications.telegram;
         await new Telegraf(apiKey).telegram.sendMessage(chatId, message);
