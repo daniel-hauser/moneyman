@@ -1,0 +1,46 @@
+{
+  // Example configuration file for Moneyman
+  // You can use this as a template for MONEYMAN_CONFIG_PATH
+  // This file supports JSON with Comments (JSONC)
+
+  "accounts": [
+    // Add your account credentials here
+    // Example:
+    // {
+    //   "companyId": "hapoalim",
+    //   "password": "your-password",
+    //   "userCode": "your-user-code"
+    // }
+  ],
+  "storage": {
+    // Choose your storage provider(s)
+    "localJson": {
+      "enabled": true,
+    },
+    // Other options: googleSheets, ynab, azure, buxfer, actual, webPost
+  },
+  "options": {
+    "scraping": {
+      // Number of days back to scrape transactions (default: 10)
+      // "daysBack": 10,
+      // Number of future months to scrape (default: 1)
+      // "futureMonths": 1,
+      // Maximum number of parallel scrapers (default: 1)
+      // "maxParallelScrapers": 1
+    },
+    "logging": {
+      // "getIpInfoUrl": "https://ipinfo.io/json"
+    },
+    "security": {
+      // Block domains by default (default: false)
+      // "blockByDefault": false
+    },
+    "notifications": {
+      // Telegram notifications
+      // "telegram": {
+      //   "apiKey": "your-telegram-api-key",
+      //   "chatId": "your-chat-id"
+      // }
+    },
+  },
+}
