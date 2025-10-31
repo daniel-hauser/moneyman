@@ -7,7 +7,8 @@ import {
 import { JWT } from "google-auth-library";
 import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
-import { sendDeprecationMessage, sendError } from "../notifier.js";
+import { sendError } from "../notifier.js";
+import { sendDeprecationMessage } from "../deprecationManager.js";
 import { createSaveStats } from "../saveStats.js";
 import { tableRow } from "../transactionTableRow.js";
 import type { MoneymanConfig } from "../../config.js";
