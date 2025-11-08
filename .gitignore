@@ -3,6 +3,7 @@ node_modules/
 
 # dotenv environment variables file
 .env
+moneyman.conf.jsonc
 
 local_config/
 dst/
