@@ -99,7 +99,7 @@ index 5784520..cadd1e5 100644
  async function getExtraScrap(txnsResult, baseUrl, page, accountNumber) {
    const promises = txnsResult.transactions.map(async transaction => {
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js b/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
-index 9b988fd..7565bd6 100644
+index 9b988fd..553d184 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
 @@ -12,7 +12,9 @@ var _navigation = require("../helpers/navigation");
@@ -190,6 +190,15 @@ index 9b988fd..7565bd6 100644
  }
  async function extractPendingTransactions(page) {
    const pendingTxn = await (0, _elementsInteractions.pageEvalAll)(page, 'tr.rgRow', [], trs => {
+@@ -99,7 +142,7 @@ async function extractPendingTransactions(page) {
+   });
+   return pendingTxn.map(txn => {
+     const date = (0, _moment.default)(txn[0], 'DD/MM/YY').toISOString();
+-    const amount = parseInt(txn[3], 10);
++    const amount = parseFloat(txn[3].replaceAll(",", ""), 10);
+     return {
+       type: _transactions.TransactionTypes.Normal,
+       date,
 @@ -171,17 +214,24 @@ class MizrahiScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
      if (!accountNumber) {
        throw new Error('Account number not found');
