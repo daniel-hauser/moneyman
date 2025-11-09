@@ -1,0 +1,55 @@
+language: en-US
+early_access: false
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+  tools:
+    shellcheck:
+      enabled: true
+    markdownlint:
+      enabled: true
+    yamllint:
+      enabled: true
+    ruff:
+      enabled: true
+    biome:
+      enabled: true
+    hadolint:
+      enabled: true
+    github-checks:
+      enabled: true
+      timeout: 5m
+chat:
+  auto_reply: true
+knowledge_base:
+  opt_out: false
+  learnings:
+    scope: auto
+  issues: auto
+  jira: auto
+  linear: auto
+  pull_requests: auto
+path_instructions:
+  - path: "patches/**/*.patch"
+    instructions: |
+      These are patch-package files that modify dependencies in the `node_modules` directory.
+      The entire file is in unified diff format (like `git diff` output).
+
+      **IMPORTANT**: When reviewing changes to patch files in a PR:
+      - Only review the lines that were actually added or removed in THIS pull request
+      - Do NOT summarize or comment on the entire patch file content
+      - Focus ONLY on the diff of the patch file itself (what changed in the patch)
+      - The format is: a git diff of another git diff
+
+      For example, if a PR adds 5 lines to a patch file:
+      - Review those 5 new lines only
+      - Do not review the existing hundreds of lines in the patch file
+
+      These patches are applied automatically via the `patch-package` postinstall script.
