@@ -1,8 +1,27 @@
 diff --git a/node_modules/israeli-bank-scrapers/lib/helpers/fetch.js b/node_modules/israeli-bank-scrapers/lib/helpers/fetch.js
-index 843eadb..34f72d0 100644
+index 843eadb..9a96935 100644
 --- a/node_modules/israeli-bank-scrapers/lib/helpers/fetch.js
 +++ b/node_modules/israeli-bank-scrapers/lib/helpers/fetch.js
-@@ -55,24 +55,31 @@ async function fetchGraphql(url, query, variables = {}, extraHeaders = {}) {
+@@ -42,7 +42,17 @@ async function fetchPost(url, data, extraHeaders = {}) {
+     body: JSON.stringify(data)
+   };
+   const result = await (0, _nodeFetch.default)(url, request);
+-  return result.json();
++  const res = await result.text();
++  const o = { url, data, extraHeaders, text: res, status: result.status, ok: result.ok };
++  if(result.ok) {
++    try {
++      return JSON.parse(res);
++    } catch (e) {
++      throw new Error(`fetchPost error: ${e}, ${JSON.stringify(o)}`);
++    }
++  } else {
++    throw new Error(`fetchPost error: ${JSON.stringify(o)}`);
++  }
+ }
+ async function fetchGraphql(url, query, variables = {}, extraHeaders = {}) {
+   const result = await fetchPost(url, {
+@@ -55,24 +65,31 @@ async function fetchGraphql(url, query, variables = {}, extraHeaders = {}) {
    }
    return result.data;
  }
@@ -51,7 +70,7 @@ index 843eadb..34f72d0 100644
    return page.evaluate((innerUrl, innerData, innerExtraHeaders) => {
      return new Promise((resolve, reject) => {
        fetch(innerUrl, {
-@@ -88,12 +95,22 @@ function fetchPostWithinPage(page, url, data, extraHeaders = {}) {
+@@ -88,12 +105,22 @@ function fetchPostWithinPage(page, url, data, extraHeaders = {}) {
            // No content response
            resolve(null);
          } else {
