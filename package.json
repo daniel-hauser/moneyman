@@ -41,7 +41,7 @@
     "date-fns": "^4.1.0",
     "debug": "^4.4.3",
     "dotenv": "^17.2.3",
-    "glob": "^11.0.3",
+    "glob": "^11.1.0",
     "google-auth-library": "^10.5.0",
     "google-spreadsheet": "^5.0.2",
     "hash-it": "^6.0.1",
