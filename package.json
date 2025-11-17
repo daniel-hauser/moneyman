@@ -31,7 +31,7 @@
   },
   "homepage": "https://github.com/daniel-hauser/moneyman#readme",
   "dependencies": {
-    "@actual-app/api": "^25.10.0",
+    "@actual-app/api": "^25.11.0",
     "@mswjs/interceptors": "^0.40.0",
     "@telegraf/entity": "^0.7.0",
     "async": "^3.2.6",
