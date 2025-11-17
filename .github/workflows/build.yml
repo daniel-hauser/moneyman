@@ -35,11 +35,6 @@ jobs:
       packages: write
 
     steps:
-      - name: Debounce - Wait for potential new commits
-        run: |
-          echo "⏱️  Waiting 10 minutes to debounce multiple pushes to main..."
-          echo "If new commits are pushed during this time, this run will be cancelled."
-          sleep 10m
 
       - name: Checkout repository
         uses: actions/checkout@v5
