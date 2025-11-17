@@ -295,8 +295,7 @@ index f0256bc..8f12661 100644
        }, {
          Authorization,
          'X-Site-Id': xSiteId,
--        'Content-Type': 'application/json'
-+        'Content-Type': 'application/json',
+         'Content-Type': 'application/json'
 +        'Origin': 'https://www.cal-online.co.il',
 +        'Referer': 'https://www.cal-online.co.il/',
        });
