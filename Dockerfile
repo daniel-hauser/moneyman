@@ -16,7 +16,7 @@ RUN npm run build && \
     npm cache clean --force && \
     rm -rf src
 
-FROM node:latest-slim AS runner
+FROM node:slim AS runner
 
 ENV NODE_ENV=production
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
