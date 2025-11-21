@@ -12,9 +12,9 @@ on:
         type: boolean
         required: false
         default: false
-  schedule:
+  #schedule:
     # In Israel: [12:05, 00:05] or [13:05, 01:05] on DST
-    - cron: "5 10,22 * * *"
+    #- cron: "5 10,22 * * *"
 env:
   REGISTRY: ghcr.io
   MAX_PARALLEL_SCRAPERS: 8
