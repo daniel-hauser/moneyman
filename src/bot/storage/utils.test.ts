@@ -102,6 +102,53 @@ describe("transactionHash", () => {
       expect(hash).not.toContain("undefined");
     }
   });
+
+  describe("error handling for malformed transactions", () => {
+    it("should throw error when transaction has null date", () => {
+      const transactionWithNullDate = {
+        ...transaction1,
+        date: null,
+      };
+
+      expect(() => {
+        transactionHash(
+          transactionWithNullDate as any,
+          CompanyTypes.hapoalim,
+          "123",
+        );
+      }).toThrow();
+    });
+
+    it("should throw error when transaction has undefined date", () => {
+      const transactionWithUndefinedDate = {
+        ...transaction1,
+        date: undefined,
+      };
+
+      expect(() => {
+        transactionHash(
+          transactionWithUndefinedDate as any,
+          CompanyTypes.hapoalim,
+          "123",
+        );
+      }).toThrow();
+    });
+
+    it("should throw error when transaction has invalid date string", () => {
+      const transactionWithInvalidDate = {
+        ...transaction1,
+        date: "invalid-date",
+      };
+
+      expect(() => {
+        transactionHash(
+          transactionWithInvalidDate as any,
+          CompanyTypes.hapoalim,
+          "123",
+        );
+      }).toThrow();
+    });
+  });
 });
 
 describe("transactionUniqueId", () => {
