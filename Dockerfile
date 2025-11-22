@@ -1,4 +1,4 @@
-FROM node:24-trixie AS builder
+FROM node:latest AS builder
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
@@ -16,7 +16,7 @@ RUN npm run build && \
     npm cache clean --force && \
     rm -rf src
 
-FROM node:24-trixie-slim AS runner
+FROM node:slim AS runner
 
 ENV NODE_ENV=production
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
