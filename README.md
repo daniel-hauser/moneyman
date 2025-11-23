@@ -425,6 +425,13 @@ storage: {
      * @replaces LOCAL_JSON_STORAGE environment variable
      */
     enabled: boolean;
+    /**
+     * Optional: a filesystem path where JSON files will be saved.
+     * If not provided, files are written to `<process.cwd()>/output`.
+     * Files are named using an ISO timestamp (colons are replaced with `_`),
+     * for example: `2025-11-23T12_34_56.789Z.json`.
+     */
+    path?: string;
   };
 };
 ```
