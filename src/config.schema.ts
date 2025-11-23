@@ -71,9 +71,10 @@ export const SqlStorageSchema = z.object({
     .default("moneyman"),
 });
 
-export const LocalJsonSchema = z
-  .object({ enabled: z.boolean(), path: z.string().optional() })
-  .optional();
+export const LocalJsonSchema = z.object({
+  enabled: z.boolean(),
+  path: z.string().optional(),
+});
 
 // Storage configuration schema
 export const StorageSchema = z
