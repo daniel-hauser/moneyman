@@ -130,7 +130,7 @@ index 5784520..cadd1e5 100644
  async function getExtraScrap(txnsResult, baseUrl, page, accountNumber) {
    const promises = txnsResult.transactions.map(async transaction => {
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js b/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
-index 9b988fd..553d184 100644
+index 9b988fd..481660b 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
 @@ -12,7 +12,9 @@ var _navigation = require("../helpers/navigation");
@@ -143,7 +143,7 @@ index 9b988fd..553d184 100644
  const BASE_WEBSITE_URL = 'https://www.mizrahi-tefahot.co.il';
  const LOGIN_URL = `${BASE_WEBSITE_URL}/login/index.html#/auth-page-he`;
  const BASE_APP_URL = 'https://mto.mizrahi-tefahot.co.il';
-@@ -22,6 +24,7 @@ const TRANSACTIONS_PAGE = '/osh/legacy/root-main-osh-p428New';
+@@ -22,12 +24,13 @@ const TRANSACTIONS_PAGE = '/osh/legacy/root-main-osh-p428New';
  const TRANSACTIONS_REQUEST_URLS = [`${BASE_APP_URL}/OnlinePilot/api/SkyOSH/get428Index`, `${BASE_APP_URL}/Online/api/SkyOSH/get428Index`];
  const PENDING_TRANSACTIONS_PAGE = '/osh/legacy/legacy-Osh-p420';
  const PENDING_TRANSACTIONS_IFRAME = 'p420.aspx';
@@ -151,6 +151,15 @@ index 9b988fd..553d184 100644
  const CHANGE_PASSWORD_URL = /https:\/\/www\.mizrahi-tefahot\.co\.il\/login\/index\.html#\/change-pass/;
  const DATE_FORMAT = 'DD/MM/YYYY';
  const MAX_ROWS_PER_REQUEST = 10000000000;
+-const usernameSelector = '#emailDesktopHeb';
+-const passwordSelector = '#passwordIDDesktopHEB';
+-const submitButtonSelector = '.form-desktop button';
++const usernameSelector = '#userNumberDesktopHeb';
++const passwordSelector = '#passwordDesktopHeb';
++const submitButtonSelector = 'button.btn.btn-primary';
+ const invalidPasswordSelector = 'a[href*="https://sc.mizrahi-tefahot.co.il/SCServices/SC/P010.aspx"]';
+ const afterLoginSelector = '#dropdownBasic';
+ const loginSpinnerSelector = 'div.ngx-overlay.loading-foreground';
 @@ -64,6 +67,44 @@ function getStartMoment(optionsStartDate) {
    const startDate = optionsStartDate || defaultStartMoment.toDate();
    return _moment.default.max(defaultStartMoment, (0, _moment.default)(startDate));
