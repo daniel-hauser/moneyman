@@ -34,11 +34,11 @@ body:
 
         - [ ] Run `npm ci` to install dependencies and apply existing patches
         - [ ] Verify the existing patch was applied by checking the modified files in node_modules
-        - [ ] Pull the PR branch to a temp folder to understand the changes
+        - [ ] Review the PR changes on GitHub to understand what needs to be changed
         - [ ] Apply the PR changes directly to the files in node_modules (on top of existing patches)
         - [ ] Run `npx patch-package israeli-bank-scrapers` to update the patch file
         - [ ] Verify the updated patch contains both old and new changes
 
-        **Note:** Do NOT copy built files from the temp folder to node_modules as this will replace existing patches. Instead, manually apply the changes from the PR to the existing files in node_modules.
+        **Note:** Review the PR diff on GitHub directly. Do NOT clone/build the PR branch and copy files to node_modules as this will replace existing patches. Instead, manually apply the changes from the PR to the existing files in node_modules.
     validations:
       required: true
