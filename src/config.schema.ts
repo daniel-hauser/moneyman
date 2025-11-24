@@ -71,6 +71,11 @@ export const SqlStorageSchema = z.object({
     .default("moneyman"),
 });
 
+export const LocalJsonSchema = z.object({
+  enabled: z.boolean(),
+  path: z.string().optional(),
+});
+
 // Storage configuration schema
 export const StorageSchema = z
   .object({
@@ -79,7 +84,7 @@ export const StorageSchema = z
     azure: AzureSchema.optional(),
     buxfer: BuxferSchema.optional(),
     actual: ActualSchema.optional(),
-    localJson: z.object({ enabled: z.boolean() }).optional(),
+    localJson: LocalJsonSchema.optional(),
     webPost: WebPostSchema.optional(),
     sql: SqlStorageSchema.optional(),
   })
