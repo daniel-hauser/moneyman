@@ -333,6 +333,8 @@ jobs:
     steps:
       - name: Comment - No image build needed
         if: needs.prepare.outputs.build_needed == 'false'
+        # External PRs from forks don't have write permissions, so we allow this to fail gracefully
+        continue-on-error: true
         uses: actions/github-script@v8
         with:
           script: |
@@ -370,6 +372,15 @@ jobs:
                 body: comment
               });
             }
+
+      - name: Write skip notice to job summary
+        if: needs.prepare.outputs.build_needed == 'false'
+        run: |
+          echo "## 📦 Docker Image Build Skipped" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "No Docker image was built for this PR because it only contains changes to documentation or other non-code files." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Status: Passed (no build required)" >> $GITHUB_STEP_SUMMARY
 
       - name: Checkout repository
         if: needs.prepare.outputs.build_needed == 'true'
@@ -433,8 +444,50 @@ jobs:
           echo "🔧 Load it with: docker load < image.tar"
           echo "🔄 The image will be built and pushed to registry when the PR is merged."
 
+      - name: Write artifact instructions to job summary
+        if: needs.prepare.outputs.build_needed == 'true'
+        env:
+          IMAGE_SIZE: ${{ steps.image-size.outputs.image_size }}
+          TAR_SIZE: ${{ steps.image-size.outputs.tar_size }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          REPOSITORY="${{ github.repository }}"
+          REPO_LOWER=$(echo "$REPOSITORY" | tr '[:upper:]' '[:lower:]')
+          RUN_ID="${{ github.run_id }}"
+
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 🐳 Docker Image Available as Artifact
+
+          Your PR Docker image has been built and is available for download!
+
+          📏 **Image Size**: ${IMAGE_SIZE} (Download size: ${TAR_SIZE})
+
+          ### 📦 Download & Load Instructions (Local Testing)
+
+          **Bash (one-liner):**
+          \`\`\`bash
+          gh run download ${RUN_ID} -n docker-image-pr-${PR_NUMBER} && unzip docker-image-pr-${PR_NUMBER}.zip && docker load < image.tar
+          \`\`\`
+
+          **PowerShell (one-liner):**
+          \`\`\`powershell
+          gh run download ${RUN_ID} -n docker-image-pr-${PR_NUMBER}; Expand-Archive docker-image-pr-${PR_NUMBER}.zip -Force; docker load -i image.tar
+          \`\`\`
+
+          The image will be tagged as: \`ghcr.io/${REPO_LOWER}:pr-${PR_NUMBER}\`
+
+          > **Note**: Requires [GitHub CLI](https://cli.github.com/) to be installed and authenticated.
+
+          ### 🚀 After Merge
+
+          The image will be automatically built and pushed to the registry when this PR is merged, making it available for the regular scrape workflow.
+          EOF
+
       - name: Comment on PR with artifact instructions
         if: needs.prepare.outputs.build_needed == 'true'
+        # External PRs from forks don't have write permissions, so we allow this to fail gracefully
+        # The job summary above provides the same information
+        continue-on-error: true
         uses: actions/github-script@v8
         env:
           IMAGE_SIZE: ${{ steps.image-size.outputs.image_size }}
