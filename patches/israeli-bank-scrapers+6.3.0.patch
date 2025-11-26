@@ -68,7 +68,7 @@ index 843eadb..34f72d0 100644
 +    try {
 +      return JSON.parse(result);
 +    } catch (e) {
-+      if(ignoreErrors) {
++      if (ignoreErrors) {
 +        return undefined;
 +      }
 +      throw new Error(`fetchPostWithinPage error: ${e}, url: ${url}, data: ${JSON.stringify(data)}, extraHeaders: ${JSON.stringify(extraHeaders)}, result: ${result}`);
