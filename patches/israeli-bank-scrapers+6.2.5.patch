@@ -133,103 +133,6 @@ diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js b/node_m
 index 9b988fd..481660b 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
-@@ -12,7 +12,9 @@ var _navigation = require("../helpers/navigation");
- var _transactions = require("../transactions");
- var _baseScraperWithBrowser = require("./base-scraper-with-browser");
- var _errors = require("./errors");
-+var _debug = require("../helpers/debug");
- function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-+const debug = (0, _debug.getDebug)('mizrahi');
- const BASE_WEBSITE_URL = 'https://www.mizrahi-tefahot.co.il';
- const LOGIN_URL = `${BASE_WEBSITE_URL}/login/index.html#/auth-page-he`;
- const BASE_APP_URL = 'https://mto.mizrahi-tefahot.co.il';
-@@ -22,12 +24,13 @@ const TRANSACTIONS_PAGE = '/osh/legacy/root-main-osh-p428New';
- const TRANSACTIONS_REQUEST_URLS = [`${BASE_APP_URL}/OnlinePilot/api/SkyOSH/get428Index`, `${BASE_APP_URL}/Online/api/SkyOSH/get428Index`];
- const PENDING_TRANSACTIONS_PAGE = '/osh/legacy/legacy-Osh-p420';
- const PENDING_TRANSACTIONS_IFRAME = 'p420.aspx';
-+const MORE_DETAILS_URL = `${BASE_APP_URL}/Online/api/OSH/getMaherBerurimSMF`;
- const CHANGE_PASSWORD_URL = /https:\/\/www\.mizrahi-tefahot\.co\.il\/login\/index\.html#\/change-pass/;
- const DATE_FORMAT = 'DD/MM/YYYY';
- const MAX_ROWS_PER_REQUEST = 10000000000;
--const usernameSelector = '#emailDesktopHeb';
--const passwordSelector = '#passwordIDDesktopHEB';
--const submitButtonSelector = '.form-desktop button';
-+const usernameSelector = '#userNumberDesktopHeb';
-+const passwordSelector = '#passwordDesktopHeb';
-+const submitButtonSelector = 'button.btn.btn-primary';
- const invalidPasswordSelector = 'a[href*="https://sc.mizrahi-tefahot.co.il/SCServices/SC/P010.aspx"]';
- const afterLoginSelector = '#dropdownBasic';
- const loginSpinnerSelector = 'div.ngx-overlay.loading-foreground';
-@@ -64,6 +67,44 @@ function getStartMoment(optionsStartDate) {
-   const startDate = optionsStartDate || defaultStartMoment.toDate();
-   return _moment.default.max(defaultStartMoment, (0, _moment.default)(startDate));
- }
-+async function getExtraTransactionDetails(page, item, apiHeaders) {
-+  try {
-+    debug('getExtraTransactionDetails for item:', item);
-+    if (item.MC02ShowDetailsEZ === '1') {
-+      const tarPeula = (0, _moment.default)(item.MC02PeulaTaaEZ);
-+      const tarErech = (0, _moment.default)(item.MC02ErehTaaEZ);
-+      const params = {
-+        inKodGorem: item.MC02KodGoremEZ,
-+        inAsmachta: item.MC02AsmahtaMekoritEZ,
-+        inSchum: item.MC02SchumEZ,
-+        inNakvanit: item.MC02KodGoremEZ,
-+        inSugTnua: item.MC02SugTnuaKaspitEZ,
-+        inAgid: item.MC02AgidEZ,
-+        inTarPeulaFormatted: tarPeula.format(DATE_FORMAT),
-+        inTarErechFormatted: (tarErech.year() > 2000 ? tarErech : tarPeula).format(DATE_FORMAT),
-+        inKodNose: item.MC02SeifMaralEZ,
-+        inKodTatNose: item.MC02NoseMaralEZ,
-+        inTransactionNumber: item.TransactionNumber
-+      };
-+      const response = await (0, _fetch.fetchPostWithinPage)(page, MORE_DETAILS_URL, params, apiHeaders);
-+      const details = response?.body.fields?.[0]?.[0]?.Records?.[0].Fields;
-+      debug('fetch details for', params, 'details:', details);
-+      if (Array.isArray(details) && details.length > 0) {
-+        const entries = details.map(record => [record.Label.trim(), record.Value.trim()]);
-+        return {
-+          entries: Object.fromEntries(entries),
-+          memo: entries.filter(([label]) => ['שם', 'מהות', 'חשבון'].some(key => label.startsWith(key))).map(([label, value]) => `${label} ${value}`).join(', ')
-+        };
-+      }
-+    }
-+  } catch (error) {
-+    debug('Error fetching extra transaction details:', error);
-+  }
-+  return {
-+    entries: {},
-+    memo: undefined
-+  };
-+}
- function createDataFromRequest(request, optionsStartDate) {
-   const data = JSON.parse(request.postData() || '{}');
-   data.inFromDate = getStartMoment(optionsStartDate).format(DATE_FORMAT);
-@@ -77,8 +118,9 @@ function createHeadersFromRequest(request) {
-     'Content-Type': request.headers()['content-type']
-   };
- }
--function convertTransactions(txns) {
--  return txns.map(row => {
-+async function convertTransactions(txns, getMoreDetails) {
-+  return Promise.all(txns.map(async row => {
-+    const moreDetails = await getMoreDetails(row);
-     const txnDate = (0, _moment.default)(row.MC02PeulaTaaEZ, _moment.default.HTML5_FMT.DATETIME_LOCAL_SECONDS).toISOString();
-     return {
-       type: _transactions.TransactionTypes.Normal,
-@@ -89,9 +131,10 @@ function convertTransactions(txns) {
-       originalCurrency: _constants.SHEKEL_CURRENCY,
-       chargedAmount: row.MC02SchumEZ,
-       description: row.MC02TnuaTeurEZ,
--      status: _transactions.TransactionStatuses.Completed
-+      memo: moreDetails?.memo,
-+      status: row.IsTodayTransaction ? _transactions.TransactionStatuses.Pending : _transactions.TransactionStatuses.Completed
-     };
--  });
-+  }));
- }
- async function extractPendingTransactions(page) {
-   const pendingTxn = await (0, _elementsInteractions.pageEvalAll)(page, 'tr.rgRow', [], trs => {
 @@ -99,7 +142,7 @@ async function extractPendingTransactions(page) {
    });
    return pendingTxn.map(txn => {
@@ -239,34 +142,6 @@ index 9b988fd..481660b 100644
      return {
        type: _transactions.TransactionTypes.Normal,
        date,
-@@ -171,17 +214,24 @@ class MizrahiScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
-     if (!accountNumber) {
-       throw new Error('Account number not found');
-     }
--    const response = await Promise.any(TRANSACTIONS_REQUEST_URLS.map(async url => {
-+    const [response, apiHeaders] = await Promise.any(TRANSACTIONS_REQUEST_URLS.map(async url => {
-       const request = await this.page.waitForRequest(url);
-       const data = createDataFromRequest(request, this.options.startDate);
-       const headers = createHeadersFromRequest(request);
--      return (0, _fetch.fetchPostWithinPage)(this.page, url, data, headers);
-+      return [await (0, _fetch.fetchPostWithinPage)(this.page, url, data, headers), headers];
-     }));
-     if (!response || response.header.success === false) {
-       throw new Error(`Error fetching transaction. Response message: ${response ? response.header.messages[0].text : ''}`);
-     }
-     const relevantRows = response.body.table.rows.filter(row => row.RecTypeSpecified);
--    const oshTxn = convertTransactions(relevantRows);
-+    const oshTxn = await convertTransactions(relevantRows, this.options.additionalTransactionInformation ? row => getExtraTransactionDetails(this.page, row, apiHeaders) : () => Promise.resolve({
-+      entries: {},
-+      memo: undefined
-+    }));
-+
-+    oshTxn.filter(tx => !tx.identifier).forEach(tx => {
-+      tx.status = _transactions.TransactionStatuses.Pending;
-+    });
- 
-     // workaround for a bug which the bank's API returns transactions before the requested start date
-     const startMoment = getStartMoment(this.options.startDate);
 @@ -196,4 +246,4 @@ class MizrahiScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
    }
  }
@@ -279,21 +154,6 @@ diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js b/node_
 index f0256bc..e86c532 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
-@@ -109,12 +109,8 @@ function convertParsedDataToTransactions(data, pendingData) {
-       total: numOfPayments
-     } : undefined;
-     const date = (0, _moment.default)(transaction.trnPurchaseDate);
--    let chargedAmount = isPending(transaction) ? transaction.trnAmt * -1 : transaction.amtBeforeConvAndIndex * -1;
--    let originalAmount = transaction.trnAmt * -1;
--    if (transaction.trnTypeCode === TrnTypeCode.credit) {
--      chargedAmount = isPending(transaction) ? transaction.trnAmt : transaction.amtBeforeConvAndIndex;
--      originalAmount = transaction.trnAmt;
--    }
-+    const chargedAmount = (isPending(transaction) ? transaction.trnAmt : transaction.amtBeforeConvAndIndex) * -1;
-+    const originalAmount = transaction.trnAmt * (transaction.trnTypeCode === TrnTypeCode.credit ? 1 : -1);
-     const result = {
-       identifier: !isPending(transaction) ? transaction.trnIntId : undefined,
-       type: [TrnTypeCode.regular, TrnTypeCode.standingOrder].includes(transaction.trnTypeCode) ? _transactions2.TransactionTypes.Normal : _transactions2.TransactionTypes.Installments,
 @@ -240,7 +236,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
        const months = finalMonthToFetchMoment.diff(startMoment, 'months');
        const allMonthsData = [];
