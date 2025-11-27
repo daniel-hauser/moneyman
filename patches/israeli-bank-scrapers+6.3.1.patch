@@ -127,7 +127,7 @@ index b3b708f..32deb0b 100644
    return pendingTxn.map(([dateStr, description, incomeAmountStr, amountStr]) => ({
      date: (0, _moment.default)(dateStr, 'DD/MM/YY').toISOString(),
 -    amount: parseInt(amountStr, 10),
-+    amount: parseFloat(amountStr.replaceAll(",", ""), 10),
++    amount: parseFloat(amountStr.replaceAll(",", "")),
      description,
      incomeAmountStr // TODO: handle incomeAmountStr once we know the sign of it
    })).filter(txn => txn.date).map(({
