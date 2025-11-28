@@ -41,6 +41,8 @@ Since logs are public for public repos, most logs are off by default and the pro
 3. Build and upload the docker image using the "Run workflow" button in [workflows/build.yml](../../actions/workflows/build.yml)
 4. Wait for the [scrape workflow](../../actions/workflows/scrape.yml) to be triggered by github
 
+**Note:** If you encounter MFA (Multi-Factor Authentication) requests on each GitHub Actions run, see [MFA_IN_GITHUB_ACTIONS.md](./MFA_IN_GITHUB_ACTIONS.md) for solutions including using long-term tokens or Telegram OTP.
+
 ### locally
 
 #### From code

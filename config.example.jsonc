@@ -5,11 +5,27 @@
 
   "accounts": [
     // Add your account credentials here
-    // Example:
+    // Example 1: Regular account
     // {
     //   "companyId": "hapoalim",
     //   "password": "your-password",
     //   "userCode": "your-user-code"
+    // },
+    // Example 2: OneZero with long-term OTP token (bypasses MFA)
+    // See MFA_IN_GITHUB_ACTIONS.md for details
+    // {
+    //   "companyId": "oneZero",
+    //   "email": "your-email@example.com",
+    //   "password": "your-password",
+    //   "otpLongTermToken": "your-long-term-token"
+    // },
+    // Example 3: OneZero with Telegram OTP (for interactive MFA)
+    // Requires telegram.enableOtp = true in notifications section
+    // {
+    //   "companyId": "oneZero",
+    //   "email": "your-email@example.com",
+    //   "password": "your-password",
+    //   "phoneNumber": "+972501234567"
     // }
   ],
   "storage": {
@@ -39,7 +55,11 @@
       // Telegram notifications
       // "telegram": {
       //   "apiKey": "your-telegram-api-key",
-      //   "chatId": "your-chat-id"
+      //   "chatId": "your-chat-id",
+      //   // Enable OTP support for 2FA (see MFA_IN_GITHUB_ACTIONS.md)
+      //   "enableOtp": false,
+      //   // Maximum time in seconds to wait for OTP response
+      //   "otpTimeoutSeconds": 300
       // }
     },
   },
