@@ -9,6 +9,7 @@ import { createLogger, logToMetadataFile } from "../utils/logger.js";
 import { initDomainTracking } from "../security/domains.js";
 import { solveTurnstile } from "./cloudflareSolver.js";
 import { config } from "../config.js";
+import { setupCookiePersistence } from "./cookies.js";
 
 export const browserArgs = ["--disable-dev-shm-usage", "--no-sandbox"];
 export const browserExecutablePath =
@@ -33,6 +34,7 @@ export async function createSecureBrowserContext(
   const context = await browser.createBrowserContext();
   await initDomainTracking(context, companyId);
   await initCloudflareSkipping(context);
+  await setupCookiePersistence(context, companyId);
   return context;
 }
 

@@ -85,19 +85,52 @@ When MFA is required during a GitHub Actions run, the bot will send you a messag
 - Not suitable for fully automated workflows
 - Only supported for OneZero accounts currently
 
-### 3. Bank-Specific Solutions
+### 3. Cookie Persistence (Recommended for "Remember This Device")
 
-#### Remember This Device
+Moneyman now supports persisting browser cookies between GitHub Actions runs. This allows banks to "remember" your device and avoid MFA prompts.
 
-Some banks offer a "Remember this device" or "Don't ask again on this device" option. However, this typically doesn't work in GitHub Actions because:
+**How it works:**
 
-- The browser's user data directory is not persisted between runs
-- Each workflow run uses a fresh container
-- Cookies and local storage are cleared
+1. After successful authentication, moneyman saves the browser cookies
+2. On the next run, these cookies are restored before logging in
+3. The bank recognizes the "device" and skips MFA
 
-**Possible workaround (advanced):**
+**Setup:**
 
-You could persist the browser's user data directory between runs using GitHub Actions cache or artifacts, but this is complex and may have security implications. We don't recommend this approach.
+1. Enable cookie persistence in your configuration:
+
+```json
+{
+  "options": {
+    "scraping": {
+      "enableCookiePersistence": true
+    }
+  }
+}
+```
+
+2. Run moneyman locally first to complete the initial authentication
+3. Look for the output between `=== PERSISTED_COOKIES ===` markers in the logs
+4. Copy the JSON output
+5. Add it as a GitHub Secret named `PERSISTED_COOKIES`
+6. Future GitHub Actions runs will automatically use these cookies
+
+**Automatic Updates:**
+
+Each successful scrape updates the cookies. To keep your cookies fresh:
+
+1. Monitor the GitHub Actions logs for updated `PERSISTED_COOKIES` output
+2. Periodically update the `PERSISTED_COOKIES` secret with the new value
+3. This prevents cookie expiration (cookies typically expire after 7 days)
+
+**Important Notes:**
+
+- Cookies are stored encrypted in GitHub Secrets (secure)
+- Cookie expiration varies by bank (usually 7-30 days)
+- If MFA is requested again, cookies may have expired - update them
+- This works with most banks that offer "Remember this device" option
+
+### 4. Bank-Specific Solutions
 
 #### App-Specific Passwords
 
@@ -108,7 +141,7 @@ Some banks allow you to create app-specific passwords or API tokens for automati
 3. Generate a dedicated password/token for moneyman
 4. Use this instead of your regular password
 
-### 4. Reduce Scraping Frequency
+### 5. Reduce Scraping Frequency
 
 If MFA is unavoidable and requires manual intervention:
 
@@ -125,7 +158,7 @@ on:
   #   - cron: "5 10 * * 0"  # Run only once a week
 ```
 
-### 5. Use a Dedicated Server (Alternative to GitHub Actions)
+### 6. Use a Dedicated Server (Alternative to GitHub Actions)
 
 For a more reliable setup without MFA issues:
 
@@ -192,7 +225,41 @@ This approach provides:
 }
 ```
 
-### Example 3: Manual Trigger Only
+### Example 3: Cookie Persistence for All Banks
+
+```json
+{
+  "accounts": [
+    {
+      "companyId": "hapoalim",
+      "userCode": "12345678",
+      "password": "secure-password"
+    },
+    {
+      "companyId": "discount",
+      "username": "user123",
+      "password": "secure-password"
+    }
+  ],
+  "storage": {
+    "googleSheets": {
+      "serviceAccountEmail": "service@account.com",
+      "serviceAccountPrivateKey": "-----BEGIN PRIVATE KEY-----...",
+      "sheetId": "your-sheet-id",
+      "worksheetName": "_moneyman"
+    }
+  },
+  "options": {
+    "scraping": {
+      "enableCookiePersistence": true
+    }
+  }
+}
+```
+
+**Important:** After the first successful local run, copy the `PERSISTED_COOKIES` output from the logs and add it as a GitHub Secret. The workflow file already includes support for this secret.
+
+### Example 4: Manual Trigger Only
 
 ```json
 {

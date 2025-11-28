@@ -6,6 +6,7 @@ import { createBrowser, createSecureBrowserContext } from "./browser.js";
 import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
 import { ScraperOptions } from "israeli-bank-scrapers";
 import { parallelLimit } from "async";
+import { saveCookies } from "./cookies.js";
 
 const logger = createLogger("scraper");
 
@@ -124,6 +125,18 @@ async function scrapeAccount(
   const duration = (performance.now() - scraperStart) / 1000;
   logger(`scraping ended, took ${duration.toFixed(1)}s`);
   await setStatusMessage(`, took ${duration.toFixed(1)}s`, true);
+
+  // Save cookies after successful scraping
+  if (result.success && scraperOptions.browserContext) {
+    try {
+      const pages = await scraperOptions.browserContext.pages();
+      if (pages.length > 0) {
+        await saveCookies(pages[0], account.companyId);
+      }
+    } catch (e) {
+      logger(`Failed to save cookies`, e);
+    }
+  }
 
   return {
     companyId: account.companyId,

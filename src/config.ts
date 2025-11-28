@@ -77,6 +77,8 @@ function convertEnvVarsToConfig(): MoneymanConfig {
   if (process.env.DOMAIN_TRACKING_ENABLED)
     config.options.scraping.domainTracking =
       process.env.DOMAIN_TRACKING_ENABLED === "true";
+  if (process.env.PERSISTED_COOKIES)
+    config.options.scraping.persistedCookies = process.env.PERSISTED_COOKIES;
 
   // Convert security options
   if (process.env.FIREWALL_SETTINGS)

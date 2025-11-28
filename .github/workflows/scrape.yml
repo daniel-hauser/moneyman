@@ -67,6 +67,7 @@ jobs:
           -e BLOCK_BY_DEFAULT
           -e ADDITIONAL_TRANSACTION_INFO_ENABLED
           -e SEND_NEW_CONFIG_TO_TG
+          -e PERSISTED_COOKIES
           ${{ steps.set-container-image.outputs.image }}
         env:
           MONEYMAN_CONFIG: ${{ secrets.MONEYMAN_CONFIG }}
@@ -98,3 +99,4 @@ jobs:
           FIREWALL_SETTINGS: ${{ secrets.FIREWALL_SETTINGS }}
           BLOCK_BY_DEFAULT: ${{ vars.BLOCK_BY_DEFAULT }}
           SEND_NEW_CONFIG_TO_TG: ${{ github.event.inputs.sendNewConfigToTg }}
+          PERSISTED_COOKIES: ${{ secrets.PERSISTED_COOKIES }}

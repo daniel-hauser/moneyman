@@ -42,7 +42,11 @@
       // Number of future months to scrape (default: 1)
       // "futureMonths": 1,
       // Maximum number of parallel scrapers (default: 1)
-      // "maxParallelScrapers": 1
+      // "maxParallelScrapers": 1,
+      // Enable cookie persistence to avoid MFA (see MFA_IN_GITHUB_ACTIONS.md)
+      // "enableCookiePersistence": true,
+      // Persisted cookies from previous runs (set via PERSISTED_COOKIES env var)
+      // "persistedCookies": "{...}"
     },
     "logging": {
       // "getIpInfoUrl": "https://ipinfo.io/json"
