@@ -26,13 +26,19 @@ body:
     attributes:
       label: Instructions
       value: |
-        This issue is to patch the israeli-bank-scrapers package to contain the changes in the PR. Do not modify the patch file, you must use the patch-package package for that.
+        This issue is to patch the israeli-bank-scrapers package to contain the changes in the PR. Do not modify the patch file directly, you must use the patch-package package for that.
 
         ## Steps
 
-        - [ ] Pull the PR branch to a temp folder
-        - [ ] Install dependancies and build
-        - [ ] Copy the built files from the PR to the correct place in the node_modules folder
-        - [ ] run `npx patch-package israeli-bank-scrapers` to generate the patch
+        **Important:** Apply patches to existing node_modules, don't replace them!
+
+        - [ ] Run `npm ci` to install dependencies and apply existing patches
+        - [ ] Verify the existing patch was applied by checking the modified files in node_modules
+        - [ ] Review the PR changes on GitHub to understand what needs to be changed
+        - [ ] Apply the PR changes directly to the files in node_modules (on top of existing patches)
+        - [ ] Run `npx patch-package israeli-bank-scrapers` to update the patch file
+        - [ ] Verify the updated patch contains both old and new changes
+
+        **Note:** Review the PR diff on GitHub directly. Do NOT clone/build the PR branch and copy files to node_modules as this will replace existing patches. Instead, manually apply the changes from the PR to the existing files in node_modules.
     validations:
       required: true

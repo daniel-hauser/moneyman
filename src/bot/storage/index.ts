@@ -86,13 +86,28 @@ function resultsToTransactions(
     if (result.success) {
       for (let account of result.accounts ?? []) {
         for (let tx of account.txns) {
-          txns.push({
-            ...tx,
-            account: account.accountNumber,
-            companyId,
-            hash: transactionHash(tx, companyId, account.accountNumber),
-            uniqueId: transactionUniqueId(tx, companyId, account.accountNumber),
-          });
+          try {
+            txns.push({
+              ...tx,
+              account: account.accountNumber,
+              companyId,
+              hash: transactionHash(tx, companyId, account.accountNumber),
+              uniqueId: transactionUniqueId(
+                tx,
+                companyId,
+                account.accountNumber,
+              ),
+            });
+          } catch (error) {
+            // Skip transactions that fail hash generation and report the error
+            // Note: The full transaction object is intentionally included for debugging
+            // purposes as requested in the issue. This is sent via Telegram to help
+            // diagnose malformed transactions.
+            sendError(
+              error,
+              `Failed to process transaction for ${companyId} account ${account.accountNumber}:\n${JSON.stringify(tx, null, 2)}`,
+            );
+          }
         }
       }
     }

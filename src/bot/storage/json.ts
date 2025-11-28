@@ -8,13 +8,16 @@ import type { MoneymanConfig } from "../../config.js";
 const logger = createLogger("LocalJsonStorage");
 
 export class LocalJsonStorage implements TransactionStorage {
-  static folder = path.join(process.cwd(), `output`);
+  folder: string;
 
-  constructor(private config: MoneymanConfig) {}
+  constructor(private config: MoneymanConfig) {
+    this.folder =
+      this.config.storage.localJson?.path || path.join(process.cwd(), `output`);
+  }
 
   async init() {
     logger("init");
-    await fs.mkdir(LocalJsonStorage.folder, { recursive: true });
+    await fs.mkdir(this.folder, { recursive: true });
   }
 
   canSave() {
@@ -26,7 +29,7 @@ export class LocalJsonStorage implements TransactionStorage {
     await this.init();
 
     const fileName = path.join(
-      LocalJsonStorage.folder,
+      this.folder,
       `${new Date().toISOString().replace(/:/g, "_")}.json`,
     );
 
