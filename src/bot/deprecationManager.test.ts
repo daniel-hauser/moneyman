@@ -8,9 +8,8 @@ describe("deprecationManager", () => {
 
   beforeEach(async () => {
     jest.resetModules();
-    ({ sendDeprecationMessage, assignDeprecationHandler } = await import(
-      "./deprecationManager.js"
-    ));
+    ({ sendDeprecationMessage, assignDeprecationHandler } =
+      await import("./deprecationManager.js"));
   });
 
   afterEach(() => {
