@@ -12,7 +12,7 @@ export class TelegramStorage implements TransactionStorage {
   canSave() {
     // Enable if we enabled in the storage and we have a chat ID, the API key will be checked in notifier
     return Boolean(
-      this.config.storage.telegram?.enabled &&
+      this.config.storage.telegram.enabled &&
         this.config.options.notifications.telegram?.chatId,
     );
   }
