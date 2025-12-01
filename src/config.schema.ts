@@ -71,6 +71,10 @@ export const SqlStorageSchema = z.object({
     .default("moneyman"),
 });
 
+export const TelegramStorageSchema = z.object({
+  enabled: z.boolean(),
+});
+
 export const LocalJsonSchema = z.object({
   enabled: z.boolean(),
   path: z.string().optional(),
@@ -87,6 +91,7 @@ export const StorageSchema = z
     localJson: LocalJsonSchema.optional(),
     webPost: WebPostSchema.optional(),
     sql: SqlStorageSchema.optional(),
+    telegram: TelegramStorageSchema.optional(),
   })
   .refine((data) => Object.values(data).some(Boolean), {
     error: "At least one storage provider must be configured",

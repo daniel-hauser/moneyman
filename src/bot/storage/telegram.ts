@@ -10,8 +10,11 @@ export class TelegramStorage implements TransactionStorage {
   constructor(private config: MoneymanConfig) {}
 
   canSave() {
-    // Enable if we have a chat ID, the API key will be checked in notifier
-    return Boolean(this.config.options.notifications.telegram?.chatId);
+    // Enable if we enabled in the storage and we have a chat ID, the API key will be checked in notifier
+    return Boolean(
+      this.config.storage.telegram?.enabled &&
+        this.config.options.notifications.telegram?.chatId,
+    );
   }
 
   async saveTransactions(
