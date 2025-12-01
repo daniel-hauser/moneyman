@@ -168,7 +168,9 @@ describe("GoogleSheetsStorage", () => {
     it("should return false when GOOGLE_SHEET_ID is missing", () => {
       const configWithoutGoogleSheets: MoneymanConfig = {
         accounts: [],
-        storage: {},
+        storage: {
+          telegram: { enabled: true },
+        },
         options: {
           scraping: {
             daysBack: 10,

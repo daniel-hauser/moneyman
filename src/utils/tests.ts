@@ -41,7 +41,9 @@ export function transactionRow(tx: Partial<TransactionRow>): TransactionRow {
 export function config(): MoneymanConfig {
   return {
     accounts: [],
-    storage: {},
+    storage: {
+      telegram: { enabled: true },
+    },
     options: {
       scraping: ScrapingOptionsSchema.parse({
         transactionHashType: "moneyman",

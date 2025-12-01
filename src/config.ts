@@ -28,7 +28,9 @@ export { config };
 function convertEnvVarsToConfig(): MoneymanConfig {
   const config: MoneymanConfig = {
     accounts: [],
-    storage: {},
+    storage: {
+      telegram: { enabled: true },
+    },
     options: {
       scraping: ScrapingOptionsSchema.parse({}),
       security: SecurityOptionsSchema.parse({}),
@@ -221,7 +223,9 @@ function createConfig() {
   } catch (error) {
     return {
       accounts: [],
-      storage: {},
+      storage: {
+        telegram: { enabled: true },
+      },
       options: {
         scraping: ScrapingOptionsSchema.parse({}),
         security: SecurityOptionsSchema.parse({}),
