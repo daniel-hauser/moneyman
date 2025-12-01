@@ -79,9 +79,8 @@ describe("domains", () => {
           },
         },
       }));
-      const { initDomainTracking, getUsedDomains } = await import(
-        "./domains.js"
-      );
+      const { initDomainTracking, getUsedDomains } =
+        await import("./domains.js");
       await initDomainTracking(browserContext, CompanyTypes.max);
 
       const targetCreatedCallback = browserContext.on.mock.calls[0][1] as (
