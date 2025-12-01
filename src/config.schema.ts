@@ -76,6 +76,17 @@ export const LocalJsonSchema = z.object({
   path: z.string().optional(),
 });
 
+export const TelegramStorageSchema = z.object({
+  /**
+   * Whether to send transactions as a JSON file to the Telegram chat.
+   * When enabled, all scraped transactions will be sent to your Telegram chat.
+   * This is independent of notification messages (errors, progress, etc.) which
+   * are controlled by options.notifications.telegram.
+   * @default true
+   */
+  enabled: z.boolean().default(true),
+});
+
 // Storage configuration schema
 export const StorageSchema = z
   .object({
@@ -87,6 +98,7 @@ export const StorageSchema = z
     localJson: LocalJsonSchema.optional(),
     webPost: WebPostSchema.optional(),
     sql: SqlStorageSchema.optional(),
+    telegram: TelegramStorageSchema.optional(),
   })
   .refine((data) => Object.values(data).some(Boolean), {
     error: "At least one storage provider must be configured",

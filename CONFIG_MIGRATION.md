@@ -199,6 +199,19 @@ Configuration for various storage providers:
 }
 ```
 
+#### Telegram
+
+```json
+"storage": {
+  "telegram": {
+    "enabled": true
+  }
+}
+```
+
+- When Telegram notifications are configured, transaction files will be sent to your chat by default.
+- Set `enabled` to `false` to disable transaction file exports while keeping notifications.
+
 ### `options` (Optional)
 
 Additional configuration options organized by category:
