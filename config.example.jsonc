@@ -17,7 +17,13 @@
     "localJson": {
       "enabled": true,
     },
-    // Other options: googleSheets, ynab, azure, buxfer, actual, webPost
+    // Telegram storage - sends transaction files to your Telegram chat
+    // Requires options.notifications.telegram to be configured
+    // Defaults to enabled when Telegram notifications are set up
+    // "telegram": {
+    //   "enabled": true
+    // },
+    // Other options: googleSheets, ynab, azure, buxfer, actual, webPost, sql
   },
   "options": {
     "scraping": {
