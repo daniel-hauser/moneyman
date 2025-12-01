@@ -424,4 +424,43 @@ describe("config", () => {
     unlinkSync(configPath);
     rmdirSync(tempDir);
   });
+
+  it("should prepopulate telegram options with enabled: true by default", async () => {
+    const validConfig = {
+      accounts: [{ companyId: "test", password: "pass", userCode: "12345" }],
+      storage: { localJson: { enabled: true } },
+      options: {
+        scraping: {
+          daysBack: 15,
+          futureMonths: 1,
+          transactionHashType: "",
+          additionalTransactionInfo: false,
+          hiddenDeprecations: [],
+          maxParallelScrapers: 1,
+          domainTracking: false,
+          accountsToScrape: ["test"],
+        },
+        security: {
+          blockByDefault: false,
+        },
+        notifications: {
+          telegram: {
+            apiKey: "key",
+            chatId: "123",
+          },
+        },
+        logging: {
+          getIpInfoUrl: "https://ipinfo.io/json",
+        },
+      },
+    };
+
+    process.env = {
+      ...originalEnv,
+      MONEYMAN_CONFIG: JSON.stringify(validConfig),
+    };
+
+    const { config } = await import("./config.js");
+    expect(config.storage.telegram.enabled).toBe(true);
+  });
 });
