@@ -27,6 +27,8 @@
       // "futureMonths": 1,
       // Maximum number of parallel scrapers (default: 1)
       // "maxParallelScrapers": 1
+      // Path to export HAR files for debugging network requests
+      // "harExportPath": "/tmp/har-exports"
     },
     "logging": {
       // "getIpInfoUrl": "https://ipinfo.io/json"

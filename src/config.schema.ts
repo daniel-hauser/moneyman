@@ -103,6 +103,11 @@ export const ScrapingOptionsSchema = z.object({
   puppeteerExecutablePath: z.string().optional(),
   maxParallelScrapers: z.number().min(1).max(10).default(1),
   domainTracking: z.boolean().default(false),
+  /**
+   * Enable HAR file export for debugging network requests.
+   * When enabled, HAR files will be saved for each scraper session.
+   */
+  harExportPath: z.string().optional(),
 });
 
 export const SecurityOptionsSchema = z.object({

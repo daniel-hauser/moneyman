@@ -6,6 +6,8 @@ import { createBrowser, createSecureBrowserContext } from "./browser.js";
 import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
 import { ScraperOptions } from "israeli-bank-scrapers";
 import { parallelLimit } from "async";
+import { createHarPreparePage } from "./har.js";
+import { config } from "../config.js";
 
 const logger = createLogger("scraper");
 
@@ -46,6 +48,8 @@ export async function scrapeAccounts(
   const browser = await createBrowser();
   logger(`Browser created, starting to scrape ${accounts.length} accounts`);
 
+  const harExportPath = config.options.scraping.harExportPath;
+
   const results = await parallelLimit<AccountConfig, AccountScrapeResult[]>(
     accounts.map((account, i) => async () => {
       const { companyId } = account;
@@ -60,6 +64,7 @@ export async function scrapeAccounts(
           futureMonthsToScrape: futureMonths,
           storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
           additionalTransactionInformation,
+          preparePage: createHarPreparePage(companyId, harExportPath),
           ...scraperOptions,
         },
         async (message, append = false) => {
