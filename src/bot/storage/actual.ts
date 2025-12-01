@@ -1,6 +1,6 @@
 import * as actualApi from "@actual-app/api";
 import { ImportTransactionEntity } from "@actual-app/api/@types/loot-core/src/types/models/index.js";
-import hash from "hash-it";
+import { hash } from "hash-it";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import assert from "node:assert";
 import fs from "node:fs/promises";
