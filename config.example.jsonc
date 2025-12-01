@@ -29,6 +29,8 @@
       // "maxParallelScrapers": 1
       // Path to export HAR files for debugging network requests
       // "harExportPath": "/tmp/har-exports"
+      // Send HAR files to Telegram chat for debugging (requires Telegram to be configured)
+      // "harSendToTelegram": true
     },
     "logging": {
       // "getIpInfoUrl": "https://ipinfo.io/json"

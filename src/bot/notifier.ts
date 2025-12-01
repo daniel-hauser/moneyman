@@ -82,6 +82,25 @@ export async function sendJSON(json: {}, filename: string) {
   });
 }
 
+export async function sendDocument(
+  content: Buffer,
+  filename: string,
+  caption?: string,
+) {
+  logger(`Sending document`, { filename, caption });
+  if (!bot || !telegramConfig?.chatId) {
+    return;
+  }
+  return await bot.telegram.sendDocument(
+    telegramConfig.chatId,
+    {
+      source: content,
+      filename,
+    },
+    { caption },
+  );
+}
+
 export async function editMessage(
   message: number | undefined,
   newText: string,

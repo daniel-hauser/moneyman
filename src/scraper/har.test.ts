@@ -14,6 +14,11 @@ jest.mock("puppeteer-har", () => {
   }));
 });
 
+// Mock notifier to avoid Telegram calls
+jest.mock("../bot/notifier.js", () => ({
+  sendDocument: jest.fn().mockResolvedValue(undefined),
+}));
+
 import { createHarPreparePage, stopHarRecording } from "./har";
 
 describe("HAR recording", () => {
@@ -40,21 +45,31 @@ describe("HAR recording", () => {
   });
 
   describe("createHarPreparePage", () => {
-    it("should return undefined when harExportPath is undefined", () => {
-      const preparePage = createHarPreparePage(
-        CompanyTypes.hapoalim,
-        undefined,
-      );
+    it("should return undefined when no options are enabled", () => {
+      const preparePage = createHarPreparePage(CompanyTypes.hapoalim, {});
       expect(preparePage).toBeUndefined();
     });
 
-    it("should return undefined when harExportPath is empty string", () => {
-      const preparePage = createHarPreparePage(CompanyTypes.hapoalim, "");
+    it("should return undefined when exportPath is empty and sendToTelegram is false", () => {
+      const preparePage = createHarPreparePage(CompanyTypes.hapoalim, {
+        exportPath: "",
+        sendToTelegram: false,
+      });
       expect(preparePage).toBeUndefined();
     });
 
-    it("should return a function when harExportPath is provided", () => {
-      const preparePage = createHarPreparePage(CompanyTypes.hapoalim, testDir);
+    it("should return a function when exportPath is provided", () => {
+      const preparePage = createHarPreparePage(CompanyTypes.hapoalim, {
+        exportPath: testDir,
+      });
+      expect(preparePage).toBeDefined();
+      expect(typeof preparePage).toBe("function");
+    });
+
+    it("should return a function when sendToTelegram is true", () => {
+      const preparePage = createHarPreparePage(CompanyTypes.hapoalim, {
+        sendToTelegram: true,
+      });
       expect(preparePage).toBeDefined();
       expect(typeof preparePage).toBe("function");
     });
@@ -62,13 +77,17 @@ describe("HAR recording", () => {
     it("should create the HAR export directory if it does not exist", () => {
       expect(existsSync(testDir)).toBe(false);
 
-      const preparePage = createHarPreparePage(CompanyTypes.hapoalim, testDir);
+      const preparePage = createHarPreparePage(CompanyTypes.hapoalim, {
+        exportPath: testDir,
+      });
       expect(preparePage).toBeDefined();
       expect(existsSync(testDir)).toBe(true);
     });
 
     it("should start HAR recording when preparePage is called", async () => {
-      const preparePage = createHarPreparePage(CompanyTypes.hapoalim, testDir);
+      const preparePage = createHarPreparePage(CompanyTypes.hapoalim, {
+        exportPath: testDir,
+      });
 
       expect(preparePage).toBeDefined();
       await preparePage!(mockPage);
@@ -82,7 +101,9 @@ describe("HAR recording", () => {
     });
 
     it("should generate HAR file path with company ID and timestamp", async () => {
-      const preparePage = createHarPreparePage(CompanyTypes.visaCal, testDir);
+      const preparePage = createHarPreparePage(CompanyTypes.visaCal, {
+        exportPath: testDir,
+      });
 
       expect(preparePage).toBeDefined();
       await preparePage!(mockPage);
@@ -90,6 +111,22 @@ describe("HAR recording", () => {
       expect(mockHarStart).toHaveBeenCalledWith(
         expect.objectContaining({
           path: expect.stringMatching(/visaCal-\d{4}-\d{2}-\d{2}.*\.har$/),
+        }),
+      );
+    });
+
+    it("should use temp directory when only sendToTelegram is enabled", async () => {
+      const preparePage = createHarPreparePage(CompanyTypes.hapoalim, {
+        sendToTelegram: true,
+      });
+
+      expect(preparePage).toBeDefined();
+      await preparePage!(mockPage);
+
+      expect(mockHarStart).toHaveBeenCalledTimes(1);
+      expect(mockHarStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: expect.stringContaining("hapoalim-"),
         }),
       );
     });

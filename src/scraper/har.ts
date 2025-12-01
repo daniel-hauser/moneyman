@@ -1,8 +1,9 @@
 import type { Page } from "puppeteer";
 import type { CompanyTypes } from "israeli-bank-scrapers";
 import { createLogger } from "../utils/logger.js";
-import { join } from "path";
-import { existsSync, mkdirSync } from "fs";
+import { join, basename } from "path";
+import { existsSync, mkdirSync, readFileSync, unlinkSync } from "fs";
+import { tmpdir } from "os";
 
 const logger = createLogger("har");
 
@@ -17,32 +18,47 @@ export interface HarRecorder {
   stop(): Promise<void>;
 }
 
+export interface HarExportOptions {
+  /** Directory path to save HAR files */
+  exportPath?: string;
+  /** Whether to send HAR files to Telegram */
+  sendToTelegram?: boolean;
+}
+
 // Store active HAR recorders to stop them later
 const activeRecorders = new Map<Page, HarRecorder>();
 
 /**
  * Creates a preparePage function that starts HAR recording on page creation.
  * @param companyId The company ID for naming the HAR file
- * @param harExportPath The directory path to save HAR files to
+ * @param options HAR export options
  * @returns A function to be passed to the scraper's preparePage option
  */
 export function createHarPreparePage(
   companyId: CompanyTypes,
-  harExportPath: string | undefined,
+  options: HarExportOptions,
 ): ((page: Page) => Promise<void>) | undefined {
-  if (!harExportPath) {
+  const { exportPath, sendToTelegram } = options;
+
+  // Return undefined if neither option is enabled
+  if (!exportPath && !sendToTelegram) {
     return undefined;
   }
 
-  // Ensure the directory exists
-  if (!existsSync(harExportPath)) {
-    logger("Creating HAR export directory: %s", harExportPath);
-    mkdirSync(harExportPath, { recursive: true });
+  // Ensure the export directory exists if path is specified
+  if (exportPath && !existsSync(exportPath)) {
+    logger("Creating HAR export directory: %s", exportPath);
+    mkdirSync(exportPath, { recursive: true });
   }
 
   return async (page: Page) => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const harFilePath = join(harExportPath, `${companyId}-${timestamp}.har`);
+    const filename = `${companyId}-${timestamp}.har`;
+
+    // Determine the file path - use exportPath if provided, otherwise use temp directory
+    const harFilePath = exportPath
+      ? join(exportPath, filename)
+      : join(tmpdir(), filename);
 
     logger(
       "Creating HAR recorder for %s, will save to %s",
@@ -65,6 +81,21 @@ export function createHarPreparePage(
         );
         await har.stop();
         logger("HAR file saved: %s", harFilePath);
+
+        // Send to Telegram if enabled
+        if (sendToTelegram) {
+          try {
+            await sendHarToTelegram(harFilePath, companyId);
+
+            // Clean up temp file if we're only sending to Telegram (no export path)
+            if (!exportPath) {
+              logger("Cleaning up temporary HAR file: %s", harFilePath);
+              unlinkSync(harFilePath);
+            }
+          } catch (e) {
+            logger("Error sending HAR file to Telegram: %o", e);
+          }
+        }
       },
     };
 
@@ -84,6 +115,25 @@ export function createHarPreparePage(
       }
     });
   };
+}
+
+/**
+ * Sends a HAR file to the Telegram chat.
+ * @param harFilePath Path to the HAR file
+ * @param companyId The company ID for the caption
+ */
+async function sendHarToTelegram(
+  harFilePath: string,
+  companyId: CompanyTypes,
+): Promise<void> {
+  // Dynamic import to avoid circular dependencies
+  const { sendDocument } = await import("../bot/notifier.js");
+
+  const harContent = readFileSync(harFilePath);
+  const filename = basename(harFilePath) || `${companyId}.har`;
+
+  logger("Sending HAR file to Telegram: %s", filename);
+  await sendDocument(harContent, filename, `HAR file for ${companyId}`);
 }
 
 /**

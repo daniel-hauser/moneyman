@@ -178,6 +178,7 @@ describe("GoogleSheetsStorage", () => {
             hiddenDeprecations: [],
             maxParallelScrapers: 1,
             domainTracking: false,
+            harSendToTelegram: false,
           },
           security: {
             blockByDefault: false,

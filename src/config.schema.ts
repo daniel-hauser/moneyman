@@ -108,6 +108,11 @@ export const ScrapingOptionsSchema = z.object({
    * When enabled, HAR files will be saved for each scraper session.
    */
   harExportPath: z.string().optional(),
+  /**
+   * Send HAR files to the Telegram chat for debugging.
+   * Requires Telegram notifications to be configured.
+   */
+  harSendToTelegram: z.boolean().optional().default(false),
 });
 
 export const SecurityOptionsSchema = z.object({

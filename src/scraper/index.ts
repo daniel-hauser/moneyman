@@ -49,6 +49,7 @@ export async function scrapeAccounts(
   logger(`Browser created, starting to scrape ${accounts.length} accounts`);
 
   const harExportPath = config.options.scraping.harExportPath;
+  const harSendToTelegram = config.options.scraping.harSendToTelegram;
 
   const results = await parallelLimit<AccountConfig, AccountScrapeResult[]>(
     accounts.map((account, i) => async () => {
@@ -64,7 +65,10 @@ export async function scrapeAccounts(
           futureMonthsToScrape: futureMonths,
           storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
           additionalTransactionInformation,
-          preparePage: createHarPreparePage(companyId, harExportPath),
+          preparePage: createHarPreparePage(companyId, {
+            exportPath: harExportPath,
+            sendToTelegram: harSendToTelegram,
+          }),
           ...scraperOptions,
         },
         async (message, append = false) => {
