@@ -16,6 +16,7 @@ export const scraperOptions: Partial<ScraperOptions> = {
     "mizrahi:pendingIfHasGenericDescription",
     "mizrahi:pendingIfNoIdentifier",
     "mizrahi:pendingIfTodayTransaction",
+    "isracard-amex:skipAdditionalTransactionInformation",
   ],
 };
 
