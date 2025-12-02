@@ -20,37 +20,20 @@ export async function reportRunMetadata(
 ): Promise<void> {
   const telegramConfig = config.options.notifications?.telegram;
 
-  // Check if reportRunMetadata is enabled (opt-in, defaults to false)
+  // Check if reportRunMetadata is enabled (defaults to true)
   if (!telegramConfig?.reportRunMetadata) {
     logger("reportRunMetadata is disabled, skipping");
     return;
   }
 
-  // Collect promises only for enabled options
-  const promises: Promise<unknown>[] = [];
-  if (telegramConfig.reportUsedDomains) {
-    promises.push(getUsedDomains());
-  }
-  if (telegramConfig.reportExternalIp) {
-    promises.push(getExternalIp());
-  }
+  const [domainsByCompany, networkInfo] = await Promise.all([
+    telegramConfig.reportUsedDomains && getUsedDomains(),
+    telegramConfig.reportExternalIp && getExternalIp(),
+  ]);
 
-  // Build metadata based on enabled options
-  let domainsByCompany: RunMetadata["domainsByCompany"] = {};
-  let networkInfo: RunMetadata["networkInfo"] = {};
-
-  if (promises.length > 0) {
-    const results = await Promise.all(promises);
-    let resultIndex = 0;
-    if (telegramConfig.reportUsedDomains) {
-      domainsByCompany = results[
-        resultIndex++
-      ] as RunMetadata["domainsByCompany"];
-    }
-    if (telegramConfig.reportExternalIp) {
-      networkInfo = results[resultIndex] as RunMetadata["networkInfo"];
-    }
-  }
-
-  await report({ domainsByCompany, networkInfo, metadataLogEntries });
+  await report({
+    domainsByCompany: domainsByCompany || {},
+    networkInfo: networkInfo || {},
+    metadataLogEntries,
+  });
 }
