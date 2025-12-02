@@ -54,7 +54,14 @@ jobs:
           TODAY=$(date -u +%Y.%m.%d)
 
           # Count existing releases with today's date prefix to determine sequence number
-          EXISTING_COUNT=$(gh release list --limit 100 | grep -c "^v${TODAY}\." || echo "0")
+          # Use JSON output and jq to reliably count matching tags
+          EXISTING_COUNT=$(gh release list --json tagName --jq "[.[] | select(.tagName | startswith(\"v${TODAY}.\"))] | length")
+
+          # Handle empty result
+          if [ -z "$EXISTING_COUNT" ]; then
+            EXISTING_COUNT=0
+          fi
+
           SEQUENCE=$((EXISTING_COUNT + 1))
 
           # Create version tag (e.g., v2025.12.02.1)
