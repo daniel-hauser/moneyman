@@ -136,6 +136,24 @@ export const NotificationOptionsSchema = z.object({
        * Maximum time in seconds to wait for OTP response from user.
        */
       otpTimeoutSeconds: z.number().min(30).max(600).optional().default(300),
+      /**
+       * Enable sending run metadata to Telegram after each run.
+       * When enabled, a JSON file with run metadata will be sent to the chat.
+       * @default false
+       */
+      reportRunMetadata: z.boolean().optional().default(false),
+      /**
+       * Include used domains in the run metadata report.
+       * Only applies when reportRunMetadata is enabled.
+       * @default false
+       */
+      reportUsedDomains: z.boolean().optional().default(false),
+      /**
+       * Include external IP address in the run metadata report.
+       * Only applies when reportRunMetadata is enabled.
+       * @default false
+       */
+      reportExternalIp: z.boolean().optional().default(false),
     })
     .optional(),
 });

@@ -38,6 +38,9 @@ describe("TelegramStorage", () => {
         chatId: "test-chat-id",
         enableOtp: false,
         otpTimeoutSeconds: 300,
+        reportRunMetadata: false,
+        reportUsedDomains: false,
+        reportExternalIp: false,
       };
 
       const storage = new TelegramStorage(mockConfig);
@@ -51,6 +54,9 @@ describe("TelegramStorage", () => {
         chatId: "test-chat-id",
         enableOtp: false,
         otpTimeoutSeconds: 300,
+        reportRunMetadata: false,
+        reportUsedDomains: false,
+        reportExternalIp: false,
       };
       mockConfig.storage.telegram = { enabled: true };
 
@@ -65,6 +71,9 @@ describe("TelegramStorage", () => {
         chatId: "test-chat-id",
         enableOtp: false,
         otpTimeoutSeconds: 300,
+        reportRunMetadata: false,
+        reportUsedDomains: false,
+        reportExternalIp: false,
       };
       mockConfig.storage.telegram = { enabled: false };
 

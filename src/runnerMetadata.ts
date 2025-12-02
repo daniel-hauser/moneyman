@@ -18,9 +18,18 @@ export async function getExternalIp(): Promise<{ ip: string }> {
 export async function reportRunMetadata(
   report: (metadata: RunMetadata) => Promise<void>,
 ): Promise<void> {
+  const telegramConfig = config.options.notifications?.telegram;
+
+  // Check if reportRunMetadata is enabled (opt-in, defaults to false)
+  if (!telegramConfig?.reportRunMetadata) {
+    logger("reportRunMetadata is disabled, skipping");
+    return;
+  }
+
   const [domainsByCompany, networkInfo] = await Promise.all([
-    getUsedDomains(),
-    getExternalIp(),
+    telegramConfig?.reportUsedDomains ? getUsedDomains() : {},
+    telegramConfig?.reportExternalIp ? getExternalIp() : {},
   ]);
+
   await report({ domainsByCompany, networkInfo, metadataLogEntries });
 }

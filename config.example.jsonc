@@ -45,7 +45,17 @@
       // Telegram notifications
       // "telegram": {
       //   "apiKey": "your-telegram-api-key",
-      //   "chatId": "your-chat-id"
+      //   "chatId": "your-chat-id",
+      //   // Enable OTP (One-Time Password) support for 2FA authentication (default: false)
+      //   "enableOtp": false,
+      //   // Maximum time in seconds to wait for OTP response (default: 300)
+      //   "otpTimeoutSeconds": 300,
+      //   // Enable sending run metadata to Telegram after each run (default: false)
+      //   "reportRunMetadata": false,
+      //   // Include used domains in the run metadata report (default: false)
+      //   "reportUsedDomains": false,
+      //   // Include external IP address in the run metadata report (default: false)
+      //   "reportExternalIp": false
       // }
     },
   },
