@@ -31,7 +31,12 @@ describe("runnerMetadata", () => {
   });
 
   describe("reportRunMetadata", () => {
-    it("should skip reporting when reportRunMetadata is disabled (default)", async () => {
+    it("should report with all metadata when using defaults (backward compatibility)", async () => {
+      // Mock global fetch
+      global.fetch = jest.fn<typeof fetch>().mockResolvedValue({
+        json: () => Promise.resolve({ ip: "1.2.3.4" }),
+      } as Response);
+
       process.env = {
         ...originalEnv,
         MONEYMAN_CONFIG: JSON.stringify({
@@ -44,6 +49,40 @@ describe("runnerMetadata", () => {
               telegram: {
                 apiKey: "test-key",
                 chatId: "test-chat-id",
+              },
+            },
+            logging: {},
+          },
+        }),
+      };
+
+      const { reportRunMetadata } = await import("./runnerMetadata.js");
+      const mockReport = jest.fn<(metadata: RunMetadata) => Promise<void>>();
+
+      await reportRunMetadata(mockReport);
+
+      expect(mockReport).toHaveBeenCalledTimes(1);
+      expect(mockReport).toHaveBeenCalledWith({
+        domainsByCompany: { testCompany: ["domain1.com"] },
+        networkInfo: { ip: "1.2.3.4" },
+        metadataLogEntries: ["log1", "log2"],
+      });
+    });
+
+    it("should skip reporting when reportRunMetadata is explicitly disabled", async () => {
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG: JSON.stringify({
+          accounts: [{ companyId: "test", password: "pass" }],
+          storage: { localJson: { enabled: true } },
+          options: {
+            scraping: {},
+            security: {},
+            notifications: {
+              telegram: {
+                apiKey: "test-key",
+                chatId: "test-chat-id",
+                reportRunMetadata: false,
               },
             },
             logging: {},
@@ -59,7 +98,7 @@ describe("runnerMetadata", () => {
       expect(mockReport).not.toHaveBeenCalled();
     });
 
-    it("should call report with metadata when reportRunMetadata is enabled", async () => {
+    it("should call report with empty metadata when reportRunMetadata is enabled but others are disabled", async () => {
       process.env = {
         ...originalEnv,
         MONEYMAN_CONFIG: JSON.stringify({
@@ -73,6 +112,8 @@ describe("runnerMetadata", () => {
                 apiKey: "test-key",
                 chatId: "test-chat-id",
                 reportRunMetadata: true,
+                reportUsedDomains: false,
+                reportExternalIp: false,
               },
             },
             logging: {},
@@ -93,42 +134,7 @@ describe("runnerMetadata", () => {
       });
     });
 
-    it("should include used domains when reportUsedDomains is enabled", async () => {
-      process.env = {
-        ...originalEnv,
-        MONEYMAN_CONFIG: JSON.stringify({
-          accounts: [{ companyId: "test", password: "pass" }],
-          storage: { localJson: { enabled: true } },
-          options: {
-            scraping: {},
-            security: {},
-            notifications: {
-              telegram: {
-                apiKey: "test-key",
-                chatId: "test-chat-id",
-                reportRunMetadata: true,
-                reportUsedDomains: true,
-              },
-            },
-            logging: {},
-          },
-        }),
-      };
-
-      const { reportRunMetadata } = await import("./runnerMetadata.js");
-      const mockReport = jest.fn<(metadata: RunMetadata) => Promise<void>>();
-
-      await reportRunMetadata(mockReport);
-
-      expect(mockReport).toHaveBeenCalledTimes(1);
-      expect(mockReport).toHaveBeenCalledWith({
-        domainsByCompany: { testCompany: ["domain1.com"] },
-        networkInfo: {},
-        metadataLogEntries: ["log1", "log2"],
-      });
-    });
-
-    it("should include external IP when reportExternalIp is enabled", async () => {
+    it("should exclude used domains when reportUsedDomains is disabled", async () => {
       // Mock global fetch
       global.fetch = jest.fn<typeof fetch>().mockResolvedValue({
         json: () => Promise.resolve({ ip: "1.2.3.4" }),
@@ -147,7 +153,7 @@ describe("runnerMetadata", () => {
                 apiKey: "test-key",
                 chatId: "test-chat-id",
                 reportRunMetadata: true,
-                reportExternalIp: true,
+                reportUsedDomains: false,
               },
             },
             logging: {},
@@ -168,12 +174,7 @@ describe("runnerMetadata", () => {
       });
     });
 
-    it("should include both domains and IP when both are enabled", async () => {
-      // Mock global fetch
-      global.fetch = jest.fn<typeof fetch>().mockResolvedValue({
-        json: () => Promise.resolve({ ip: "1.2.3.4" }),
-      } as Response);
-
+    it("should exclude external IP when reportExternalIp is disabled", async () => {
       process.env = {
         ...originalEnv,
         MONEYMAN_CONFIG: JSON.stringify({
@@ -187,8 +188,7 @@ describe("runnerMetadata", () => {
                 apiKey: "test-key",
                 chatId: "test-chat-id",
                 reportRunMetadata: true,
-                reportUsedDomains: true,
-                reportExternalIp: true,
+                reportExternalIp: false,
               },
             },
             logging: {},
@@ -204,7 +204,7 @@ describe("runnerMetadata", () => {
       expect(mockReport).toHaveBeenCalledTimes(1);
       expect(mockReport).toHaveBeenCalledWith({
         domainsByCompany: { testCompany: ["domain1.com"] },
-        networkInfo: { ip: "1.2.3.4" },
+        networkInfo: {},
         metadataLogEntries: ["log1", "log2"],
       });
     });

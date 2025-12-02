@@ -139,21 +139,21 @@ export const NotificationOptionsSchema = z.object({
       /**
        * Enable sending run metadata to Telegram after each run.
        * When enabled, a JSON file with run metadata will be sent to the chat.
-       * @default false
+       * @default true
        */
-      reportRunMetadata: z.boolean().optional().default(false),
+      reportRunMetadata: z.boolean().optional().default(true),
       /**
        * Include used domains in the run metadata report.
        * Only applies when reportRunMetadata is enabled.
-       * @default false
+       * @default true
        */
-      reportUsedDomains: z.boolean().optional().default(false),
+      reportUsedDomains: z.boolean().optional().default(true),
       /**
        * Include external IP address in the run metadata report.
        * Only applies when reportRunMetadata is enabled.
-       * @default false
+       * @default true
        */
-      reportExternalIp: z.boolean().optional().default(false),
+      reportExternalIp: z.boolean().optional().default(true),
     })
     .optional(),
 });
