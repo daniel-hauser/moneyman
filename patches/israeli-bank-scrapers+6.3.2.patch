@@ -2,15 +2,6 @@ diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.
 index 5f9f3ff..9347392 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
-@@ -191,7 +191,7 @@ async function fetchAllTransactions(page, options, companyServiceOptions, startM
-   const results = await Promise.all(allMonths.map(async monthMoment => {
-     return fetchTransactions(page, options, companyServiceOptions, startMoment, monthMoment);
-   }));
--  const finalResult = options.additionalTransactionInformation ? await getExtraScrap(results, page, companyServiceOptions, allMonths) : results;
-+  const finalResult = false && options.additionalTransactionInformation ? await getExtraScrap(results, page, companyServiceOptions, allMonths) : results;
-   const combinedTxns = {};
-   finalResult.forEach(result => {
-     Object.keys(result).forEach(accountNumber => {
 @@ -234,6 +234,16 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
      });
      await (0, _browser.maskHeadlessUserAgent)(this.page);
