@@ -1,5 +1,5 @@
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
-index b13abfb..72a0be9 100644
+index b13abfb..7b3dbff 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
 @@ -166,12 +166,12 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
@@ -31,3 +31,55 @@ index b13abfb..72a0be9 100644
          } catch (e) {
            const currentUrl = await (0, _navigation.getCurrentUrl)(this.page);
            if (currentUrl.endsWith('dashboard')) return;
+@@ -221,7 +224,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+           throw e;
+         }
+       },
+-      userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36'
++      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36'
+     };
+   }
+   async fetchData() {
+@@ -236,24 +239,38 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+       const months = finalMonthToFetchMoment.diff(startMoment, 'months');
+       const allMonthsData = [];
+       debug(`fetch pending transactions for card ${card.cardUniqueId}`);
+-      let pendingData = await (0, _fetch.fetchPostWithinPage)(this.page, PENDING_TRANSACTIONS_REQUEST_ENDPOINT, {
++      let pendingData = await (0, _fetch.fetchPost)(PENDING_TRANSACTIONS_REQUEST_ENDPOINT, {
+         cardUniqueIDArray: [card.cardUniqueId]
+       }, {
+         Authorization,
+         'X-Site-Id': xSiteId,
+-        'Content-Type': 'application/json'
++        'Content-Type': 'application/json',
++        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
++        'Origin': 'https://www.cal-online.co.il',
++        'Referer': 'https://www.cal-online.co.il/',
++        'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
++        'Sec-Fetch-Site': 'same-site',
++        'Sec-Fetch-Mode': 'cors',
++        'Sec-Fetch-Dest': 'empty'
+       });
+       debug(`fetch completed transactions for card ${card.cardUniqueId}`);
+       for (let i = 0; i <= months; i += 1) {
+         const month = finalMonthToFetchMoment.clone().subtract(i, 'months');
+-        const monthData = await (0, _fetch.fetchPostWithinPage)(this.page, TRANSACTIONS_REQUEST_ENDPOINT, {
++        const monthData = await (0, _fetch.fetchPost)(TRANSACTIONS_REQUEST_ENDPOINT, {
+           cardUniqueId: card.cardUniqueId,
+           month: month.format('M'),
+           year: month.format('YYYY')
+         }, {
+           Authorization,
+           'X-Site-Id': xSiteId,
+-          'Content-Type': 'application/json'
++          'Content-Type': 'application/json',
++          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
++          'Origin': 'https://www.cal-online.co.il',
++          'Referer': 'https://www.cal-online.co.il/',
++          'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
++          'Sec-Fetch-Site': 'same-site',
++          'Sec-Fetch-Mode': 'cors',
++          'Sec-Fetch-Dest': 'empty'
+         });
+         if (monthData?.statusCode !== 1) throw new Error(`failed to fetch transactions for card ${card.last4Digits}. Message: ${monthData?.title || ''}`);
+         if (!isCardTransactionDetails(monthData)) {
