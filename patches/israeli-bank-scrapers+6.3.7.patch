@@ -1,0 +1,30 @@
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
+index 1fb11a7..6baeb2d 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
+@@ -16,7 +16,7 @@ var _transactions2 = require("../transactions");
+ var _baseScraperWithBrowser = require("./base-scraper-with-browser");
+ function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+ const apiHeaders = {
+-  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
++  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
+   Origin: 'https://www.cal-online.co.il',
+   Referer: 'https://www.cal-online.co.il/',
+   'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
+@@ -266,14 +266,14 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+           'Content-Type': 'application/json',
+           ...apiHeaders
+         });
+-        if (monthData?.statusCode !== 1) throw new Error(`failed to fetch transactions for card ${card.last4Digits}. Message: ${monthData?.title || ''}`);
++        if (monthData?.statusCode !== 1) throw new Error(`failed to fetch transactions for card ${card.last4Digits}. Message: ${JSON.stringify(monthData)}`);
+         if (!isCardTransactionDetails(monthData)) {
+           throw new Error('monthData is not of type CardTransactionDetails');
+         }
+         allMonthsData.push(monthData);
+       }
+       if (pendingData?.statusCode !== 1 && pendingData?.statusCode !== 96) {
+-        debug(`failed to fetch pending transactions for card ${card.last4Digits}. Message: ${pendingData?.title || ''}`);
++        debug(`failed to fetch pending transactions for card ${card.last4Digits}. Message: ${JSON.stringify(pendingData)}`);
+         pendingData = null;
+       } else if (!isCardPendingTransactionDetails(pendingData)) {
+         debug('pendingData is not of type CardTransactionDetails');
