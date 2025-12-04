@@ -154,6 +154,12 @@ export const NotificationOptionsSchema = z.object({
        * @default true
        */
       reportExternalIp: z.boolean().optional().default(true),
+      /**
+       * Whether to send the log file to Telegram when using secure logging (MONEYMAN_UNSAFE_STDOUT=false).
+       * Only applies when output redirection is enabled.
+       * @default true
+       */
+      sendLogFileToTelegram: z.boolean().optional().default(true),
     })
     .optional(),
 });
@@ -175,3 +181,8 @@ export const MoneymanConfigSchema = z.object({
 });
 
 export type MoneymanConfig = z.infer<typeof MoneymanConfigSchema>;
+
+export const BooleanEnvVarSchema = z
+  .string()
+  .transform((val) => val.toLowerCase() === "true" || val === "1")
+  .catch(false);

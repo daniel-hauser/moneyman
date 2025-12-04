@@ -2,6 +2,7 @@ import { scrapeAccounts } from "./scraper/index.js";
 import { scraperConfig, sendConfigToTelegramIfRequested } from "./config.js";
 import { sendError } from "./bot/notifier.js";
 import { createLogger } from "./utils/logger.js";
+import { sendAndDeleteLogFile } from "./utils/secure-log.js";
 import { RunnerHooks } from "./types.js";
 import { runWithStorage } from "./bot/index.js";
 import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
@@ -21,6 +22,7 @@ Exception origin: ${origin}`).catch((e) => {});
 monitorNodeConnections();
 await sendConfigToTelegramIfRequested();
 await run();
+await sendAndDeleteLogFile();
 
 // kill internal browsers if stuck
 process.exit(0);
