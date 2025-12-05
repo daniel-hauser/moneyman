@@ -12,8 +12,10 @@ else
   if [ -z "$MONEYMAN_LOG_FILE_PATH" ]; then
     MONEYMAN_LOG_FILE_PATH="/tmp/moneyman.log"
   fi
+  export MONEYMAN_LOG_FILE_PATH
 
-  PUBLIC_LOG_FD="${MONEYMAN_PUBLIC_LOG_FD:-3}"
+  export MONEYMAN_PUBLIC_LOG_FD="${MONEYMAN_PUBLIC_LOG_FD:-3}"
+  PUBLIC_LOG_FD="${MONEYMAN_PUBLIC_LOG_FD}"
 
   # Duplicate stdout to the public log FD so public logs bypass redirection
   eval "exec ${PUBLIC_LOG_FD}>&1"

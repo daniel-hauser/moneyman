@@ -80,11 +80,11 @@ docker run --rm \
 
 docker doesn't support multiline environment variables (i.e. `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`), in that case you can run `docker-compose up` instead
 
-##### Secure Logging in Docker
+##### Logging
 
 By default, the Docker image is configured with `MONEYMAN_UNSAFE_STDOUT=false` to prevent sensitive data from appearing in Docker logs. When enabled, the logs are redirected to `/tmp/moneyman.log` and sent to the Telegram chat automatically (if configured).
 
-Logs sent to `logToPublicLog` bypass the redirection.
+Logs sent to `logToPublicLog` bypass the redirection and will appear in the Docker logs.
 
 ### Debug
 

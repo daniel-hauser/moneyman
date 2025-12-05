@@ -166,6 +166,7 @@ export const NotificationOptionsSchema = z.object({
 
 export const LoggingOptionsSchema = z.object({
   getIpInfoUrl: z.url().default("https://ipinfo.io/json"),
+  debugFilter: z.string().optional(),
 });
 
 // Complete configuration schema

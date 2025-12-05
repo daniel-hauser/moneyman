@@ -2,7 +2,10 @@ import { scrapeAccounts } from "./scraper/index.js";
 import { scraperConfig, sendConfigToTelegramIfRequested } from "./config.js";
 import { sendError } from "./bot/notifier.js";
 import { createLogger } from "./utils/logger.js";
-import { sendAndDeleteLogFile } from "./utils/secure-log.js";
+import {
+  sendAndDeleteLogFile,
+  enableDebugLoggingIfNeeded,
+} from "./utils/secure-log.js";
 import { RunnerHooks } from "./types.js";
 import { runWithStorage } from "./bot/index.js";
 import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
@@ -15,11 +18,12 @@ console.log("Starting...");
 process.on("uncaughtException", (err, origin) => {
   console.error("uncaughtException, sending error");
   sendError(`
-Caught exception: ${err}
-err.stack: ${err.stack}
-Exception origin: ${origin}`).catch((e) => {});
+    Caught exception: ${err}
+    err.stack: ${err.stack}
+    Exception origin: ${origin}`).catch((e) => {});
 });
 
+enableDebugLoggingIfNeeded();
 monitorNodeConnections();
 await sendConfigToTelegramIfRequested();
 await run();
