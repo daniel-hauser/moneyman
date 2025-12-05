@@ -182,6 +182,11 @@ export const MoneymanConfigSchema = z.object({
 
 export type MoneymanConfig = z.infer<typeof MoneymanConfigSchema>;
 
+export const IntEnvVarSchema = z
+  .string()
+  .transform((val) => Number.parseInt(val, 10))
+  .catch(NaN);
+
 export const BooleanEnvVarSchema = z
   .string()
   .transform((val) => val.toLowerCase() === "true" || val === "1")

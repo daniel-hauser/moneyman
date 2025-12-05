@@ -10,6 +10,7 @@ import { monitorNodeConnections } from "./security/domains.js";
 import { reportRunMetadata } from "./runnerMetadata.js";
 
 const logger = createLogger("main");
+console.log("Starting...");
 
 process.on("uncaughtException", (err, origin) => {
   console.error("uncaughtException, sending error");

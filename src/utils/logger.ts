@@ -1,6 +1,6 @@
 import debug from "debug";
-import { writeFileSync, existsSync } from "fs";
-import { BooleanEnvVarSchema } from "../config.schema.js";
+import { writeFileSync, existsSync, writeSync } from "fs";
+import { BooleanEnvVarSchema, IntEnvVarSchema } from "../config.schema.js";
 
 export const logger = debug("moneyman");
 
@@ -12,10 +12,12 @@ export const unsafeStdout = BooleanEnvVarSchema.parse(
   process.env.MONEYMAN_UNSAFE_STDOUT,
 );
 
+const publicLogFd = IntEnvVarSchema.parse(process.env.MONEYMAN_PUBLIC_LOG_FD);
+
 /**
  * Logs a message intended for public visibility.
- * When `MONEYMAN_UNSAFE_STDOUT` is `false` and `/dev/tty` exists, writes to `/dev/tty` to bypass stdout redirection;
- * otherwise falls back to `console.log`.
+ * When `MONEYMAN_UNSAFE_STDOUT` is `false`, prefers the preserved stdout FD (`MONEYMAN_PUBLIC_LOG_FD`),
+ * then `/dev/tty` if present, otherwise falls back to `console.log`.
  * @unsafe
  */
 export function logToPublicLog(
@@ -23,6 +25,15 @@ export function logToPublicLog(
   logger = createLogger("logToPublicLog"),
 ) {
   if (!unsafeStdout) {
+    if (!isNaN(publicLogFd)) {
+      try {
+        writeSync(publicLogFd as number, message + "\n");
+        return;
+      } catch (error) {
+        logger(error);
+      }
+    }
+
     try {
       if (existsSync("/dev/tty")) {
         writeFileSync("/dev/tty", message + "\n");

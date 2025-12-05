@@ -84,7 +84,7 @@ docker doesn't support multiline environment variables (i.e. `GOOGLE_SERVICE_ACC
 
 By default, the Docker image is configured with `MONEYMAN_UNSAFE_STDOUT=false` to prevent sensitive data from appearing in Docker logs. When enabled, the logs are redirected to `/tmp/moneyman.log` and sent to the Telegram chat automatically (if configured).
 
-Logs sent to `logToPublicLog` are written to `/dev/tty`.
+Logs sent to `logToPublicLog` bypass the redirection.
 
 ### Debug
 
