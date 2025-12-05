@@ -47,6 +47,5 @@ export async function runWithStorage(runScraper: Runner) {
     },
   });
 
-  logger("Scraping ended");
-  logToPublicLog("Scraping ended");
+  logToPublicLog("Scraping ended", logger);
 }
