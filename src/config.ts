@@ -49,7 +49,10 @@ function createConfig() {
     }
   }
 
-  logToPublicLog("No config found");
+  logToPublicLog(
+    "No configuration found. Please provide MONEYMAN_CONFIG or MONEYMAN_CONFIG_PATH environment variable.",
+  );
+
   return MoneymanConfigSchema.parse({});
 }
 
