@@ -34,4 +34,4 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Run test-scraper-access script
-        run: docker run --rm --shm-size=2g --security-opt seccomp=unconfined moneyman:test npm run test:scraper-access-without-build
+        run: docker run --rm --shm-size=2g --security-opt seccomp=unconfined -e MONEYMAN_CONFIG_PATH=/app/config.example.jsonc moneyman:test npm run test:scraper-access-without-build
