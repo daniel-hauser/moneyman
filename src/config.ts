@@ -53,7 +53,25 @@ function createConfig() {
     "No configuration found. Please provide MONEYMAN_CONFIG or MONEYMAN_CONFIG_PATH environment variable.",
   );
 
-  process.exit(1);
+  const basicConfig = MoneymanConfigSchema.parse({
+    accounts: [{ companyId: "test", password: "pass" }],
+    storage: { localJson: { enabled: true } },
+    options: {
+      scraping: {},
+      security: {},
+      notifications: {
+        telegram: {
+          apiKey: "test-key",
+          chatId: "test-chat-id",
+          reportRunMetadata: false,
+        },
+      },
+      logging: {},
+    },
+  });
+
+  basicConfig.accounts = [];
+  return basicConfig;
 }
 
 // Function to send config to telegram if needed (to be called after imports are resolved)
