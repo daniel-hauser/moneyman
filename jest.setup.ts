@@ -18,3 +18,5 @@ const defaultConfig = {
     logging: {},
   },
 };
+
+process.env.MONEYMAN_CONFIG = JSON.stringify(defaultConfig);
