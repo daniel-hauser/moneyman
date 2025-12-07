@@ -25,7 +25,7 @@ function createConfig() {
       return MoneymanConfigSchema.parse(parsedConfig);
     } catch (error) {
       logger(
-        "Failed to parse MONEYMAN_CONFIG, falling back to env vars",
+        "Failed to parse MONEYMAN_CONFIG. Unable to continue with invalid configuration",
         error,
       );
       void sendConfigError(error);
@@ -39,7 +39,7 @@ function createConfig() {
       return MoneymanConfigSchema.parse(parsedConfig);
     } catch (error) {
       logger(
-        "Failed to parse config file from MONEYMAN_CONFIG_PATH, falling back to env vars",
+        "Failed to parse config file from MONEYMAN_CONFIG_PATH. Unable to continue with invalid configuration",
         error,
       );
       void sendConfigError(error);
