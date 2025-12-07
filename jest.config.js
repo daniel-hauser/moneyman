@@ -3,6 +3,7 @@ export default {
   preset: "ts-jest",
   testEnvironment: "node",
   rootDir: "./src",
+  setupFilesAfterEnv: ["<rootDir>/../jest.setup.ts"],
   moduleNameMapper: {
     "^(\\.\\.?\\/.+)\\.jsx?$": "$1",
   },

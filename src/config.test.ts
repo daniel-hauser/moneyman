@@ -228,6 +228,7 @@ describe("config", () => {
       ...originalEnv,
       MONEYMAN_CONFIG_PATH: configPath,
     };
+    delete process.env.MONEYMAN_CONFIG;
 
     const { config } = await import("./config.js");
 
@@ -369,6 +370,7 @@ describe("config", () => {
       ...originalEnv,
       MONEYMAN_CONFIG_PATH: configPath,
     };
+    delete process.env.MONEYMAN_CONFIG;
 
     const { config } = await import("./config.js");
 
