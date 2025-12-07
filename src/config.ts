@@ -53,7 +53,7 @@ function createConfig() {
     "No configuration found. Please provide MONEYMAN_CONFIG or MONEYMAN_CONFIG_PATH environment variable.",
   );
 
-  return MoneymanConfigSchema.parse({});
+  process.exit(1);
 }
 
 // Function to send config to telegram if needed (to be called after imports are resolved)
