@@ -59,9 +59,8 @@ describe("deprecationManager", () => {
       assignDeprecationHandler(mockHandler);
 
       sendDeprecationMessage("hashFiledChange");
-      sendDeprecationMessage("removeEnvVars");
 
-      expect(mockHandler).toHaveBeenCalledTimes(2);
+      expect(mockHandler).toHaveBeenCalledTimes(1);
     });
 
     describe.each([
@@ -71,15 +70,6 @@ describe("deprecationManager", () => {
           "⚠️ Deprecation warning:",
           "old transaction hash field",
           "https://github.com/daniel-hauser/moneyman/issues/268",
-        ],
-      },
-      {
-        messageId: "removeEnvVars",
-        expectedContent: [
-          "⚠️ Deprecation warning:",
-          "old environment variables",
-          "MONEYMAN_CONFIG",
-          "SEND_NEW_CONFIG_TO_TG",
         ],
       },
     ] as const)(
@@ -109,18 +99,13 @@ describe("deprecationManager", () => {
 
       // Send deprecations before handler is assigned
       sendDeprecationMessage("hashFiledChange");
-      sendDeprecationMessage("removeEnvVars");
 
       // Assign handler - should immediately process all pending
       assignDeprecationHandler(mockHandler);
 
-      expect(mockHandler).toHaveBeenCalledTimes(2);
+      expect(mockHandler).toHaveBeenCalledTimes(1);
       expect(mockHandler).toHaveBeenCalledWith(
         "hashFiledChange",
-        expect.stringContaining("⚠️ Deprecation warning:"),
-      );
-      expect(mockHandler).toHaveBeenCalledWith(
-        "removeEnvVars",
         expect.stringContaining("⚠️ Deprecation warning:"),
       );
     });
@@ -165,50 +150,6 @@ describe("deprecationManager", () => {
           /⚠️ Deprecation warning:\s*This run is using the old transaction hash field/,
         ),
       );
-    });
-  });
-
-  describe("integration scenarios", () => {
-    it("should handle mixed pending and immediate deprecations", () => {
-      const mockHandler = jest.fn();
-
-      // Send some deprecations before handler
-      sendDeprecationMessage("hashFiledChange");
-      expect(mockHandler).not.toHaveBeenCalled();
-
-      // Assign handler - should process pending
-      assignDeprecationHandler(mockHandler);
-      expect(mockHandler).toHaveBeenCalledTimes(1);
-
-      // Send more after handler assigned - should be immediate
-      sendDeprecationMessage("removeEnvVars");
-      expect(mockHandler).toHaveBeenCalledTimes(2);
-
-      // Duplicate should be ignored
-      sendDeprecationMessage("hashFiledChange");
-      expect(mockHandler).toHaveBeenCalledTimes(2); // Still 2
-    });
-
-    describe.each([
-      { scenario: "before handler assignment", assignFirst: false },
-      { scenario: "after handler assignment", assignFirst: true },
-    ])("duplicate handling $scenario", ({ assignFirst }) => {
-      it("should not process duplicate deprecations", () => {
-        const mockHandler = jest.fn();
-
-        if (assignFirst) {
-          assignDeprecationHandler(mockHandler);
-        }
-
-        sendDeprecationMessage("hashFiledChange");
-        sendDeprecationMessage("hashFiledChange");
-
-        if (!assignFirst) {
-          assignDeprecationHandler(mockHandler);
-        }
-
-        expect(mockHandler).toHaveBeenCalledTimes(1);
-      });
     });
   });
 });

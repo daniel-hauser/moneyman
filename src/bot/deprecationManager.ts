@@ -4,8 +4,6 @@ const logger = createLogger("deprecationManager");
 
 const deprecationMessages = {
   ["hashFiledChange"]: `This run is using the old transaction hash field, please update to the new one (it might require manual de-duping of some transactions). See https://github.com/daniel-hauser/moneyman/issues/268 for more details.`,
-  ["removeEnvVars"]:
-    "This run uses the old environment variables which are about to be removed, please update to the new `MONEYMAN_CONFIG` variable. `SEND_NEW_CONFIG_TO_TG` can be used to send the new config object to Telegram (available in the action when manually triggered).",
 } as const;
 
 export type DeprecationMessageId = keyof typeof deprecationMessages;
