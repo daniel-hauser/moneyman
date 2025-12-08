@@ -1,6 +1,7 @@
 import { jest } from "@jest/globals";
 import { mock } from "jest-mock-extended";
 import type { Telegraf } from "telegraf";
+import { MoneymanConfigSchema } from "./config.schema.js";
 
 jest.mock("dotenv/config", () => ({}));
 jest.mock("telegraf", () => ({ Telegraf: mock<Telegraf>() }));
@@ -17,6 +18,15 @@ describe("config", () => {
     process.env = originalEnv;
   });
 
+  it("should parse empty config using defaults", () => {
+    const parsed = MoneymanConfigSchema.parse({});
+
+    expect(parsed.accounts).toEqual([]);
+    expect(parsed.storage.localJson?.enabled).toBe(true);
+    expect(parsed.options.scraping.daysBack).toBe(10);
+    expect(parsed.options.logging.getIpInfoUrl).toBe("https://ipinfo.io/json");
+  });
+
   it("should use MONEYMAN_CONFIG when provided", async () => {
     const configJson = {
       accounts: [{ companyId: "test", password: "pass", userCode: "12345" }],
@@ -24,26 +34,16 @@ describe("config", () => {
       options: {
         scraping: {
           daysBack: 20,
-          futureMonths: 1,
-          transactionHashType: "",
-          additionalTransactionInfo: false,
-          hiddenDeprecations: [],
-          maxParallelScrapers: 1,
-          domainTracking: false,
           accountsToScrape: ["config1", "config2"],
         },
-        security: {
-          blockByDefault: false,
-        },
+        security: {},
         notifications: {
           telegram: {
             apiKey: "config-key",
             chatId: "config-chat-id",
           },
         },
-        logging: {
-          getIpInfoUrl: "https://ipinfo.io/json",
-        },
+        logging: {},
       },
     };
 
@@ -76,26 +76,16 @@ describe("config", () => {
       options: {
         scraping: {
           daysBack: 15,
-          futureMonths: 1,
-          transactionHashType: "",
-          additionalTransactionInfo: false,
-          hiddenDeprecations: [],
-          maxParallelScrapers: 1,
-          domainTracking: false,
           accountsToScrape: ["test"],
         },
-        security: {
-          blockByDefault: false,
-        },
+        security: {},
         notifications: {
           telegram: {
             apiKey: "key",
             chatId: "123",
           },
         },
-        logging: {
-          getIpInfoUrl: "https://ipinfo.io/json",
-        },
+        logging: {},
       },
     };
 
@@ -118,22 +108,10 @@ describe("config", () => {
   ];
 
   const baseOptions = {
-    scraping: {
-      daysBack: 15,
-      futureMonths: 1,
-      transactionHashType: "",
-      additionalTransactionInfo: false,
-      hiddenDeprecations: [],
-      maxParallelScrapers: 1,
-      domainTracking: false,
-    },
-    security: {
-      blockByDefault: false,
-    },
+    scraping: {},
+    security: {},
     notifications: {},
-    logging: {
-      getIpInfoUrl: "https://ipinfo.io/json",
-    },
+    logging: {},
   };
 
   it.each(internalUrls)(
@@ -194,25 +172,17 @@ describe("config", () => {
         scraping: {
           daysBack: 25,
           futureMonths: 2,
-          transactionHashType: "",
-          additionalTransactionInfo: false,
-          hiddenDeprecations: [],
           maxParallelScrapers: 2,
-          domainTracking: false,
           accountsToScrape: ["path1", "path2"],
         },
-        security: {
-          blockByDefault: true,
-        },
+        security: { blockByDefault: true },
         notifications: {
           telegram: {
             apiKey: "path-key",
             chatId: "path-chat-id",
           },
         },
-        logging: {
-          getIpInfoUrl: "https://ipinfo.io/json",
-        },
+        logging: {},
       },
     };
 
@@ -255,26 +225,16 @@ describe("config", () => {
       options: {
         scraping: {
           daysBack: 30,
-          futureMonths: 1,
-          transactionHashType: "",
-          additionalTransactionInfo: false,
-          hiddenDeprecations: [],
-          maxParallelScrapers: 1,
-          domainTracking: false,
           accountsToScrape: ["env1"],
         },
-        security: {
-          blockByDefault: false,
-        },
+        security: {},
         notifications: {
           telegram: {
             apiKey: "env-key",
             chatId: "env-chat-id",
           },
         },
-        logging: {
-          getIpInfoUrl: "https://ipinfo.io/json",
-        },
+        logging: {},
       },
     };
 
@@ -284,21 +244,11 @@ describe("config", () => {
       options: {
         scraping: {
           daysBack: 50,
-          futureMonths: 1,
-          transactionHashType: "",
-          additionalTransactionInfo: false,
-          hiddenDeprecations: [],
-          maxParallelScrapers: 1,
-          domainTracking: false,
           accountsToScrape: ["file1"],
         },
-        security: {
-          blockByDefault: false,
-        },
+        security: {},
         notifications: {},
-        logging: {
-          getIpInfoUrl: "https://ipinfo.io/json",
-        },
+        logging: {},
       },
     };
 
@@ -340,21 +290,11 @@ describe("config", () => {
       },
       "options": {
         "scraping": {
-          "daysBack": 35, // days to look back
-          "futureMonths": 1,
-          "transactionHashType": "",
-          "additionalTransactionInfo": false,
-          "hiddenDeprecations": [],
-          "maxParallelScrapers": 1,
-          "domainTracking": false
+          "daysBack": 35 // days to look back
         },
-        "security": {
-          "blockByDefault": false
-        },
+        "security": {},
         "notifications": {},
-        "logging": {
-          "getIpInfoUrl": "https://ipinfo.io/json"
-        }
+        "logging": {}
       }
     }`;
 
