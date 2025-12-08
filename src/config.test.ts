@@ -49,10 +49,8 @@ describe("config", () => {
 
     process.env = {
       ...originalEnv,
+      MONEYMAN_CONFIG_PATH: undefined,
       MONEYMAN_CONFIG: JSON.stringify(configJson),
-      // These should be ignored when MONEYMAN_CONFIG is set
-      DAYS_BACK: "30",
-      ACCOUNTS_TO_SCRAPE: "env1,env2",
     };
 
     const { config } = await import("./config.js");
@@ -91,6 +89,7 @@ describe("config", () => {
 
     process.env = {
       ...originalEnv,
+      MONEYMAN_CONFIG_PATH: undefined,
       MONEYMAN_CONFIG: JSON.stringify(validConfig),
     };
 
@@ -132,6 +131,7 @@ describe("config", () => {
 
       process.env = {
         ...originalEnv,
+        MONEYMAN_CONFIG_PATH: undefined,
         MONEYMAN_CONFIG: JSON.stringify(configWithUrl),
       };
 
@@ -156,6 +156,7 @@ describe("config", () => {
 
       process.env = {
         ...originalEnv,
+        MONEYMAN_CONFIG_PATH: undefined,
         MONEYMAN_CONFIG: JSON.stringify(configWithUrl),
       };
 
@@ -308,9 +309,9 @@ describe("config", () => {
 
     process.env = {
       ...originalEnv,
+      MONEYMAN_CONFIG: "",
       MONEYMAN_CONFIG_PATH: configPath,
     };
-    delete process.env.MONEYMAN_CONFIG;
 
     const { config } = await import("./config.js");
 
