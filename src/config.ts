@@ -54,23 +54,16 @@ function createConfig() {
   );
 
   const basicConfig = MoneymanConfigSchema.parse({
-    accounts: [{ companyId: "test", password: "pass" }],
+    accounts: [],
     storage: { localJson: { enabled: true } },
     options: {
       scraping: {},
       security: {},
-      notifications: {
-        telegram: {
-          apiKey: "test-key",
-          chatId: "test-chat-id",
-          reportRunMetadata: false,
-        },
-      },
+      notifications: {},
       logging: {},
     },
   });
 
-  basicConfig.accounts = [];
   return basicConfig;
 }
 
