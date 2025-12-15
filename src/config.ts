@@ -29,9 +29,10 @@ function createConfig() {
         error,
       );
       void sendConfigError(error);
-      throw new Error("Invalid MONEYMAN_CONFIG format");
     }
-  } else if (MONEYMAN_CONFIG_PATH) {
+  }
+
+  if (MONEYMAN_CONFIG_PATH) {
     logger(`Using MONEYMAN_CONFIG_PATH: ${MONEYMAN_CONFIG_PATH}`);
     try {
       const configFileContent = readFileSync(MONEYMAN_CONFIG_PATH, "utf-8");
@@ -43,9 +44,6 @@ function createConfig() {
         error,
       );
       void sendConfigError(error);
-      throw new Error(
-        `Invalid config file at MONEYMAN_CONFIG_PATH: ${MONEYMAN_CONFIG_PATH}`,
-      );
     }
   }
 

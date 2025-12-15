@@ -5,6 +5,7 @@ import type { MoneymanConfig } from "../../config.js";
 // Mock logger
 jest.mock("../../utils/logger.js", () => ({
   createLogger: () => jest.fn(),
+  logToPublicLog: jest.fn(),
 }));
 
 // Mock notifier
