@@ -159,7 +159,7 @@ export const NotificationOptionsSchema = z.object({
        * Only applies when output redirection is enabled.
        * @default true
        */
-      sendLogFileToTelegram: z.boolean().optional().default(true),
+      sendLogFileToTelegram: z.boolean().optional().default(false),
     })
     .optional(),
 });
