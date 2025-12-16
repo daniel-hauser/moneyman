@@ -102,7 +102,8 @@ export const StorageSchema = z
   })
   .refine((data) => Object.values(data).some(Boolean), {
     error: "At least one storage provider must be configured",
-  });
+  })
+  .default({ localJson: { enabled: true } });
 
 // Options schemas
 export const ScrapingOptionsSchema = z.object({
@@ -169,17 +170,21 @@ export const LoggingOptionsSchema = z.object({
   debugFilter: z.string().optional().default("moneyman:*"),
 });
 
-// Complete configuration schema
-export const MoneymanConfigSchema = z.object({
-  accounts: z.array(AccountSchema).default([]),
-  storage: StorageSchema,
-  options: z.object({
-    scraping: ScrapingOptionsSchema,
-    security: SecurityOptionsSchema,
-    notifications: NotificationOptionsSchema,
-    logging: LoggingOptionsSchema,
-  }),
+const OptionsSchemaObject = z.object({
+  scraping: ScrapingOptionsSchema.prefault({}),
+  security: SecurityOptionsSchema.prefault({}),
+  notifications: NotificationOptionsSchema.prefault({}),
+  logging: LoggingOptionsSchema.prefault({}),
 });
+
+// Complete configuration schema
+export const MoneymanConfigSchema = z
+  .object({
+    accounts: z.array(AccountSchema).default([]),
+    storage: StorageSchema,
+    options: OptionsSchemaObject.prefault({}),
+  })
+  .prefault({});
 
 export type MoneymanConfig = z.infer<typeof MoneymanConfigSchema>;
 

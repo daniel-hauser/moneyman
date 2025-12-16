@@ -6,6 +6,7 @@ import { NotificationOptionsSchema } from "../../config.schema.js";
 // Mock logger
 jest.mock("../../utils/logger.js", () => ({
   createLogger: () => jest.fn(),
+  logToPublicLog: jest.fn(),
 }));
 
 // Mock notifier
