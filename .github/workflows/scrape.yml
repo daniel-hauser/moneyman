@@ -12,6 +12,10 @@ on:
         type: boolean
         required: false
         default: false
+      DEBUG:
+        description: "Debug logging namespace (e.g., 'moneyman:*')"
+        required: false
+        default: "moneyman:*"
   schedule:
     # In Israel: [12:05, 00:05] or [13:05, 01:05] on DST
     - cron: "5 10,22 * * *"
@@ -40,6 +44,6 @@ jobs:
           ${{ steps.set-container-image.outputs.image }}
         env:
           MONEYMAN_CONFIG: ${{ secrets.MONEYMAN_CONFIG }}
-          DEBUG: ""
+          DEBUG: ${{ github.event.inputs.DEBUG || '' }}
           TZ: "Asia/Jerusalem"
           SEND_NEW_CONFIG_TO_TG: ${{ github.event.inputs.sendNewConfigToTg }}

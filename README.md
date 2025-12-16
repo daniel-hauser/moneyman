@@ -76,6 +76,12 @@ docker run --rm \
   ghcr.io/daniel-hauser/moneyman:latest
 ```
 
+##### Logging
+
+By default, the Docker image is configured with `MONEYMAN_UNSAFE_STDOUT=false` to prevent sensitive data from appearing in Docker logs. When enabled, the logs are redirected to `/tmp/moneyman.log` and sent to the Telegram chat automatically (if configured).
+
+Logs sent to `logToPublicLog` bypass the redirection and will appear in the Docker logs.
+
 ### Debug
 
 We use the [debug](https://www.npmjs.com/package/debug) package for debug messages under the `moneyman:` namespace.
@@ -111,12 +117,14 @@ accounts: Array<{
 
 #### Other configurations
 
-| env variable name       | default            | description                                                                                           |
-| ----------------------- | ------------------ | ----------------------------------------------------------------------------------------------------- |
-| `TZ`                    | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                 |
-| `MONEYMAN_CONFIG`       |                    | The JSON configuration for the process                                                                |
-| `MONEYMAN_CONFIG_PATH`  |                    | Path to a JSON/JSONC configuration file (used if `MONEYMAN_CONFIG` is not set)                        |
-| `SEND_NEW_CONFIG_TO_TG` | `"false"`          | Set to `"true"` to send the current configuration as `config.txt` via Telegram for debugging purposes |
+| env variable name        | default               | description                                                                                           |
+| ------------------------ | --------------------- | ----------------------------------------------------------------------------------------------------- |
+| `TZ`                     | `'Asia/Jerusalem'`    | A timezone for the process - used for the formatting of the timestamp                                 |
+| `MONEYMAN_CONFIG`        |                       | The JSON configuration for the process                                                                |
+| `MONEYMAN_CONFIG_PATH`   |                       | Path to a JSON/JSONC configuration file (used if `MONEYMAN_CONFIG` is not set)                        |
+| `SEND_NEW_CONFIG_TO_TG`  | `"false"`             | Set to `"true"` to send the current configuration as `config.txt` via Telegram for debugging purposes |
+| `MONEYMAN_UNSAFE_STDOUT` | `"false"`             | Set to `"true"` to allow sensitive data to be printed to stdout instead of a log file                 |
+| `MONEYMAN_LOG_FILE_PATH` | `"/tmp/moneyman.log"` | The file path where logs are stored when `MONEYMAN_UNSAFE_STDOUT` is set to `"false"`                 |
 
 ```typescript
 options: {

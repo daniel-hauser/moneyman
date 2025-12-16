@@ -1,7 +1,7 @@
 import { jest } from "@jest/globals";
 import { mock } from "jest-mock-extended";
 import type { Telegraf } from "telegraf";
-import { MoneymanConfigSchema } from "./config.schema.js";
+import { BooleanEnvVarSchema, MoneymanConfigSchema } from "./config.schema.js";
 
 jest.mock("dotenv/config", () => ({}));
 jest.mock("telegraf", () => ({ Telegraf: mock<Telegraf>() }));
@@ -560,5 +560,24 @@ describe("config", () => {
       expect(config.accounts).toEqual([]);
       expect(config.storage.localJson?.enabled).toBe(true);
     });
+  });
+});
+
+describe("BooleanEnvVarSchema", () => {
+  test.each([
+    ["true", true],
+    ["True", true],
+    ["TRUE", true],
+    ["1", true],
+    ["false", false],
+    ["False", false],
+    ["0", false],
+    ["", false],
+    ["random-value", false],
+    [undefined, false],
+    [null, false],
+  ])("should parse %p as %p", (input, expected) => {
+    const result = BooleanEnvVarSchema.parse(input);
+    expect(result).toBe(expected);
   });
 });

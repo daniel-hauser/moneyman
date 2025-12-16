@@ -5,7 +5,15 @@ import { readFileSync } from "fs";
 import { AccountConfig, ScraperConfig } from "./types.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 import { parseJsoncConfig } from "./utils/jsonc.js";
-import { MoneymanConfigSchema, type MoneymanConfig } from "./config.schema.js";
+import {
+  MoneymanConfigSchema,
+  type MoneymanConfig,
+  ScrapingOptionsSchema,
+  SecurityOptionsSchema,
+  LoggingOptionsSchema,
+  NotificationOptionsSchema,
+  BooleanEnvVarSchema,
+} from "./config.schema.js";
 
 export type { MoneymanConfig } from "./config.schema.js";
 
@@ -56,7 +64,7 @@ function createConfig() {
 
 // Function to send config to telegram if needed (to be called after imports are resolved)
 export async function sendConfigToTelegramIfRequested() {
-  if (process.env.SEND_NEW_CONFIG_TO_TG === "true") {
+  if (BooleanEnvVarSchema.parse(process.env.SEND_NEW_CONFIG_TO_TG)) {
     try {
       const { sendJSON } = await import("./bot/notifier.js");
       await sendJSON(config, "config.txt");
