@@ -12,6 +12,7 @@ import {
   SecurityOptionsSchema,
   LoggingOptionsSchema,
   NotificationOptionsSchema,
+  BooleanEnvVarSchema,
 } from "./config.schema.js";
 import { sendDeprecationMessage } from "./bot/deprecationManager.js";
 
@@ -243,7 +244,7 @@ function createConfig() {
 
 // Function to send config to telegram if needed (to be called after imports are resolved)
 export async function sendConfigToTelegramIfRequested() {
-  if (process.env.SEND_NEW_CONFIG_TO_TG === "true") {
+  if (BooleanEnvVarSchema.parse(process.env.SEND_NEW_CONFIG_TO_TG)) {
     try {
       const { sendJSON } = await import("./bot/notifier.js");
       await sendJSON(config, "config.txt");

@@ -6,6 +6,7 @@ import {
 import { mock, mockClear } from "jest-mock-extended";
 import { config, transactionRow } from "../../utils/tests.js";
 import type { MoneymanConfig } from "../../config.js";
+import { LoggingOptionsSchema } from "../../config.schema.js";
 
 // Create mocks at top level
 const mockSheet = mock<GoogleSpreadsheetWorksheet>({
@@ -183,9 +184,7 @@ describe("GoogleSheetsStorage", () => {
             blockByDefault: false,
           },
           notifications: {},
-          logging: {
-            getIpInfoUrl: "https://ipinfo.io/json",
-          },
+          logging: LoggingOptionsSchema.parse({}),
         },
       };
 
