@@ -475,8 +475,8 @@ describe("config", () => {
         storage: { localJson: { enabled: true } },
         options: {
           scraping: {
-            daysBack: 500, // Exceeds max of 365
-            maxParallelScrapers: 20, // Exceeds max of 10
+            daysBack: 500, // Exceeds schema max constraint
+            maxParallelScrapers: 20, // Exceeds schema max constraint
           },
           security: {},
           notifications: {},
@@ -493,10 +493,10 @@ describe("config", () => {
       // The config module should fall back to default config when validation fails
       const { config } = await import("./config.js");
 
-      // Should return default config with default values
+      // Should return default config with schema default values
       expect(config.accounts).toEqual([]);
-      expect(config.options.scraping.daysBack).toBe(10); // Default value
-      expect(config.options.scraping.maxParallelScrapers).toBe(1); // Default value
+      expect(config.options.scraping.daysBack).toBe(10);
+      expect(config.options.scraping.maxParallelScrapers).toBe(1);
     });
 
     it("should handle missing telegram required fields", async () => {
