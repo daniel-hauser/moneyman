@@ -1,6 +1,7 @@
 import { jest } from "@jest/globals";
 import { mock } from "jest-mock-extended";
 import type { Telegraf } from "telegraf";
+import { BooleanEnvVarSchema, MoneymanConfigSchema } from "./config.schema.js";
 
 jest.mock("dotenv/config", () => ({}));
 jest.mock("telegraf", () => ({ Telegraf: mock<Telegraf>() }));
@@ -17,28 +18,13 @@ describe("config", () => {
     process.env = originalEnv;
   });
 
-  it("should use environment variables when MONEYMAN_CONFIG is not set", async () => {
-    process.env = {
-      ...originalEnv,
-      DAYS_BACK: "15",
-      ACCOUNTS_TO_SCRAPE: "test1,test2",
-      TELEGRAM_API_KEY: "test-key",
-      TELEGRAM_CHAT_ID: "test-chat-id",
-      ACCOUNTS_JSON: JSON.stringify([
-        { companyId: "test", password: "pass", userCode: "12345" },
-      ]),
-      LOCAL_JSON_STORAGE: "true",
-    };
+  it("should parse empty config using defaults", () => {
+    const parsed = MoneymanConfigSchema.parse({});
 
-    const { config } = await import("./config.js");
-
-    expect(config.options.scraping.daysBack).toBe(15);
-    expect(config.options.scraping.accountsToScrape).toEqual([
-      "test1",
-      "test2",
-    ]);
-    expect(config.options.notifications.telegram?.apiKey).toBe("test-key");
-    expect(config.options.notifications.telegram?.chatId).toBe("test-chat-id");
+    expect(parsed.accounts).toEqual([]);
+    expect(parsed.storage.localJson?.enabled).toBe(true);
+    expect(parsed.options.scraping.daysBack).toBe(10);
+    expect(parsed.options.logging.getIpInfoUrl).toBe("https://ipinfo.io/json");
   });
 
   it("should use MONEYMAN_CONFIG when provided", async () => {
@@ -48,35 +34,23 @@ describe("config", () => {
       options: {
         scraping: {
           daysBack: 20,
-          futureMonths: 1,
-          transactionHashType: "",
-          additionalTransactionInfo: false,
-          hiddenDeprecations: [],
-          maxParallelScrapers: 1,
-          domainTracking: false,
           accountsToScrape: ["config1", "config2"],
         },
-        security: {
-          blockByDefault: false,
-        },
+        security: {},
         notifications: {
           telegram: {
             apiKey: "config-key",
             chatId: "config-chat-id",
           },
         },
-        logging: {
-          getIpInfoUrl: "https://ipinfo.io/json",
-        },
+        logging: {},
       },
     };
 
     process.env = {
       ...originalEnv,
+      MONEYMAN_CONFIG_PATH: undefined,
       MONEYMAN_CONFIG: JSON.stringify(configJson),
-      // These should be ignored when MONEYMAN_CONFIG is set
-      DAYS_BACK: "30",
-      ACCOUNTS_TO_SCRAPE: "env1,env2",
     };
 
     const { config } = await import("./config.js");
@@ -92,23 +66,6 @@ describe("config", () => {
     );
   });
 
-  it("should use default values when neither config nor env vars are provided", async () => {
-    process.env = {
-      ...originalEnv,
-      ACCOUNTS_JSON: JSON.stringify([
-        { companyId: "test", password: "pass", userCode: "12345" },
-      ]),
-      LOCAL_JSON_STORAGE: "true",
-    };
-    delete process.env.DAYS_BACK;
-    delete process.env.ACCOUNTS_TO_SCRAPE;
-
-    const { config } = await import("./config.js");
-
-    expect(config.options.scraping.daysBack).toBe(10); // default value
-    expect(config.options.scraping.accountsToScrape).toBeUndefined(); // default value
-  });
-
   it("should validate config with zod schema", async () => {
     // This should pass validation
     const validConfig = {
@@ -117,31 +74,22 @@ describe("config", () => {
       options: {
         scraping: {
           daysBack: 15,
-          futureMonths: 1,
-          transactionHashType: "",
-          additionalTransactionInfo: false,
-          hiddenDeprecations: [],
-          maxParallelScrapers: 1,
-          domainTracking: false,
           accountsToScrape: ["test"],
         },
-        security: {
-          blockByDefault: false,
-        },
+        security: {},
         notifications: {
           telegram: {
             apiKey: "key",
             chatId: "123",
           },
         },
-        logging: {
-          getIpInfoUrl: "https://ipinfo.io/json",
-        },
+        logging: {},
       },
     };
 
     process.env = {
       ...originalEnv,
+      MONEYMAN_CONFIG_PATH: undefined,
       MONEYMAN_CONFIG: JSON.stringify(validConfig),
     };
 
@@ -159,22 +107,10 @@ describe("config", () => {
   ];
 
   const baseOptions = {
-    scraping: {
-      daysBack: 15,
-      futureMonths: 1,
-      transactionHashType: "",
-      additionalTransactionInfo: false,
-      hiddenDeprecations: [],
-      maxParallelScrapers: 1,
-      domainTracking: false,
-    },
-    security: {
-      blockByDefault: false,
-    },
+    scraping: {},
+    security: {},
     notifications: {},
-    logging: {
-      getIpInfoUrl: "https://ipinfo.io/json",
-    },
+    logging: {},
   };
 
   it.each(internalUrls)(
@@ -195,6 +131,7 @@ describe("config", () => {
 
       process.env = {
         ...originalEnv,
+        MONEYMAN_CONFIG_PATH: undefined,
         MONEYMAN_CONFIG: JSON.stringify(configWithUrl),
       };
 
@@ -219,6 +156,7 @@ describe("config", () => {
 
       process.env = {
         ...originalEnv,
+        MONEYMAN_CONFIG_PATH: undefined,
         MONEYMAN_CONFIG: JSON.stringify(configWithUrl),
       };
 
@@ -235,25 +173,17 @@ describe("config", () => {
         scraping: {
           daysBack: 25,
           futureMonths: 2,
-          transactionHashType: "",
-          additionalTransactionInfo: false,
-          hiddenDeprecations: [],
           maxParallelScrapers: 2,
-          domainTracking: false,
           accountsToScrape: ["path1", "path2"],
         },
-        security: {
-          blockByDefault: true,
-        },
+        security: { blockByDefault: true },
         notifications: {
           telegram: {
             apiKey: "path-key",
             chatId: "path-chat-id",
           },
         },
-        logging: {
-          getIpInfoUrl: "https://ipinfo.io/json",
-        },
+        logging: {},
       },
     };
 
@@ -268,10 +198,8 @@ describe("config", () => {
     process.env = {
       ...originalEnv,
       MONEYMAN_CONFIG_PATH: configPath,
-      // These should be ignored when MONEYMAN_CONFIG_PATH is set
-      DAYS_BACK: "30",
-      ACCOUNTS_TO_SCRAPE: "env1,env2",
     };
+    delete process.env.MONEYMAN_CONFIG;
 
     const { config } = await import("./config.js");
 
@@ -298,26 +226,16 @@ describe("config", () => {
       options: {
         scraping: {
           daysBack: 30,
-          futureMonths: 1,
-          transactionHashType: "",
-          additionalTransactionInfo: false,
-          hiddenDeprecations: [],
-          maxParallelScrapers: 1,
-          domainTracking: false,
           accountsToScrape: ["env1"],
         },
-        security: {
-          blockByDefault: false,
-        },
+        security: {},
         notifications: {
           telegram: {
             apiKey: "env-key",
             chatId: "env-chat-id",
           },
         },
-        logging: {
-          getIpInfoUrl: "https://ipinfo.io/json",
-        },
+        logging: {},
       },
     };
 
@@ -327,21 +245,11 @@ describe("config", () => {
       options: {
         scraping: {
           daysBack: 50,
-          futureMonths: 1,
-          transactionHashType: "",
-          additionalTransactionInfo: false,
-          hiddenDeprecations: [],
-          maxParallelScrapers: 1,
-          domainTracking: false,
           accountsToScrape: ["file1"],
         },
-        security: {
-          blockByDefault: false,
-        },
+        security: {},
         notifications: {},
-        logging: {
-          getIpInfoUrl: "https://ipinfo.io/json",
-        },
+        logging: {},
       },
     };
 
@@ -383,21 +291,11 @@ describe("config", () => {
       },
       "options": {
         "scraping": {
-          "daysBack": 35, // days to look back
-          "futureMonths": 1,
-          "transactionHashType": "",
-          "additionalTransactionInfo": false,
-          "hiddenDeprecations": [],
-          "maxParallelScrapers": 1,
-          "domainTracking": false
+          "daysBack": 35 // days to look back
         },
-        "security": {
-          "blockByDefault": false
-        },
+        "security": {},
         "notifications": {},
-        "logging": {
-          "getIpInfoUrl": "https://ipinfo.io/json"
-        }
+        "logging": {}
       }
     }`;
 
@@ -411,6 +309,7 @@ describe("config", () => {
 
     process.env = {
       ...originalEnv,
+      MONEYMAN_CONFIG: "",
       MONEYMAN_CONFIG_PATH: configPath,
     };
 
@@ -423,5 +322,262 @@ describe("config", () => {
     const { unlinkSync, rmdirSync } = await import("fs");
     unlinkSync(configPath);
     rmdirSync(tempDir);
+  });
+
+  describe("error scenarios", () => {
+    it("should handle invalid JSON in MONEYMAN_CONFIG", async () => {
+      const invalidJson = '{ "accounts": [ invalid json }';
+
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG_PATH: undefined,
+        MONEYMAN_CONFIG: invalidJson,
+      };
+
+      // The config module should fall back to default config when parsing fails
+      const { config } = await import("./config.js");
+
+      // Should return default config with empty accounts
+      expect(config.accounts).toEqual([]);
+      expect(config.storage.localJson?.enabled).toBe(true);
+    });
+
+    it("should handle invalid JSON in config file", async () => {
+      const invalidJsonc = '{ "accounts": [ invalid json }';
+
+      // Create a temporary config file with invalid JSON
+      const { mkdtempSync, writeFileSync } = await import("fs");
+      const { join } = await import("path");
+      const { tmpdir } = await import("os");
+      const tempDir = mkdtempSync(join(tmpdir(), "moneyman-test-"));
+      const configPath = join(tempDir, "config.json");
+      writeFileSync(configPath, invalidJsonc);
+
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG: undefined,
+        MONEYMAN_CONFIG_PATH: configPath,
+      };
+
+      // The config module should fall back to default config when parsing fails
+      const { config } = await import("./config.js");
+
+      // Should return default config with empty accounts
+      expect(config.accounts).toEqual([]);
+      expect(config.storage.localJson?.enabled).toBe(true);
+
+      // Cleanup
+      const { unlinkSync, rmdirSync } = await import("fs");
+      unlinkSync(configPath);
+      rmdirSync(tempDir);
+    });
+
+    it("should handle missing required fields in account config", async () => {
+      const configWithMissingFields = {
+        accounts: [
+          {
+            companyId: "test",
+            // Missing required 'password' field
+          },
+        ],
+        storage: { localJson: { enabled: true } },
+        options: {
+          scraping: {},
+          security: {},
+          notifications: {},
+          logging: {},
+        },
+      };
+
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG_PATH: undefined,
+        MONEYMAN_CONFIG: JSON.stringify(configWithMissingFields),
+      };
+
+      // The config module should fall back to default config when validation fails
+      const { config } = await import("./config.js");
+
+      // Should return default config with empty accounts
+      expect(config.accounts).toEqual([]);
+      expect(config.storage.localJson?.enabled).toBe(true);
+    });
+
+    it("should handle invalid email format in Google Sheets config", async () => {
+      const configWithInvalidEmail = {
+        accounts: [{ companyId: "test", password: "pass", userCode: "12345" }],
+        storage: {
+          googleSheets: {
+            serviceAccountPrivateKey: "test-key",
+            serviceAccountEmail: "not-a-valid-email", // Invalid email format
+            sheetId: "test-sheet-id",
+            worksheetName: "test-worksheet",
+          },
+        },
+        options: {
+          scraping: {},
+          security: {},
+          notifications: {},
+          logging: {},
+        },
+      };
+
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG_PATH: undefined,
+        MONEYMAN_CONFIG: JSON.stringify(configWithInvalidEmail),
+      };
+
+      // The config module should fall back to default config when validation fails
+      const { config } = await import("./config.js");
+
+      // Should return default config
+      expect(config.accounts).toEqual([]);
+      expect(config.storage.localJson?.enabled).toBe(true);
+    });
+
+    it("should handle invalid URL format in storage providers", async () => {
+      const configWithInvalidUrl = {
+        accounts: [{ companyId: "test", password: "pass", userCode: "12345" }],
+        storage: {
+          actual: {
+            serverUrl: "not-a-valid-url", // Invalid URL format
+            password: "test-password",
+            budgetId: "test-budget-id",
+            accounts: {},
+          },
+        },
+        options: {
+          scraping: {},
+          security: {},
+          notifications: {},
+          logging: {},
+        },
+      };
+
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG_PATH: undefined,
+        MONEYMAN_CONFIG: JSON.stringify(configWithInvalidUrl),
+      };
+
+      // The config module should fall back to default config when validation fails
+      const { config } = await import("./config.js");
+
+      // Should return default config
+      expect(config.accounts).toEqual([]);
+      expect(config.storage.localJson?.enabled).toBe(true);
+    });
+
+    it("should handle out-of-range values in scraping options", async () => {
+      const configWithInvalidRange = {
+        accounts: [{ companyId: "test", password: "pass", userCode: "12345" }],
+        storage: { localJson: { enabled: true } },
+        options: {
+          scraping: {
+            daysBack: 500, // Exceeds schema max constraint
+            maxParallelScrapers: 20, // Exceeds schema max constraint
+          },
+          security: {},
+          notifications: {},
+          logging: {},
+        },
+      };
+
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG_PATH: undefined,
+        MONEYMAN_CONFIG: JSON.stringify(configWithInvalidRange),
+      };
+
+      // The config module should fall back to default config when validation fails
+      const { config } = await import("./config.js");
+
+      // Should return default config with schema default values
+      expect(config.accounts).toEqual([]);
+      expect(config.options.scraping.daysBack).toBe(10);
+      expect(config.options.scraping.maxParallelScrapers).toBe(1);
+    });
+
+    it("should handle missing telegram required fields", async () => {
+      const configWithMissingTelegramFields = {
+        accounts: [{ companyId: "test", password: "pass", userCode: "12345" }],
+        storage: { localJson: { enabled: true } },
+        options: {
+          scraping: {},
+          security: {},
+          notifications: {
+            telegram: {
+              apiKey: "test-key",
+              // Missing required 'chatId' field
+            },
+          },
+          logging: {},
+        },
+      };
+
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG_PATH: undefined,
+        MONEYMAN_CONFIG: JSON.stringify(configWithMissingTelegramFields),
+      };
+
+      // The config module should fall back to default config when validation fails
+      const { config } = await import("./config.js");
+
+      // Should return default config
+      expect(config.accounts).toEqual([]);
+      expect(config.options.notifications.telegram).toBeUndefined();
+    });
+
+    it("should handle empty string values in required fields", async () => {
+      const configWithEmptyStrings = {
+        accounts: [
+          {
+            companyId: "", // Empty string (min 1 character required)
+            password: "pass",
+          },
+        ],
+        storage: { localJson: { enabled: true } },
+        options: {
+          scraping: {},
+          security: {},
+          notifications: {},
+          logging: {},
+        },
+      };
+
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG_PATH: undefined,
+        MONEYMAN_CONFIG: JSON.stringify(configWithEmptyStrings),
+      };
+
+      // The config module should fall back to default config when validation fails
+      const { config } = await import("./config.js");
+
+      // Should return default config with empty accounts
+      expect(config.accounts).toEqual([]);
+      expect(config.storage.localJson?.enabled).toBe(true);
+    });
+  });
+});
+
+describe("BooleanEnvVarSchema", () => {
+  test.each([
+    ["true", true],
+    ["True", true],
+    ["TRUE", true],
+    ["1", true],
+    ["false", false],
+    ["False", false],
+    ["0", false],
+    ["", false],
+    ["random-value", false],
+    [undefined, false],
+    [null, false],
+  ])("should parse %p as %p", (input, expected) => {
+    const result = BooleanEnvVarSchema.parse(input);
+    expect(result).toBe(expected);
   });
 });

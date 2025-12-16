@@ -15,6 +15,7 @@ logToPublicLog(
   bot
     ? "Telegram logger initialized, status and errors will be sent"
     : "No Telegram bot info, status and errors will not be sent",
+  logger,
 );
 
 logger(`Telegram bot initialized: ${Boolean(bot)}`);
@@ -80,6 +81,18 @@ export async function sendJSON(json: {}, filename: string) {
     source: buffer,
     filename,
   });
+}
+
+export async function sendTextFile(filePath: string, caption?: string) {
+  logger(`Sending file`, { filePath, caption });
+  if (!bot || !telegramConfig?.chatId) {
+    return;
+  }
+  return await bot.telegram.sendDocument(
+    telegramConfig.chatId,
+    { source: filePath, filename: `${filePath}.txt` },
+    caption ? { caption } : undefined,
+  );
 }
 
 export async function editMessage(

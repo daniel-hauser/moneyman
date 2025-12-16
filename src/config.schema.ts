@@ -102,7 +102,8 @@ export const StorageSchema = z
   })
   .refine((data) => Object.values(data).some(Boolean), {
     error: "At least one storage provider must be configured",
-  });
+  })
+  .default({ localJson: { enabled: true } });
 
 // Options schemas
 export const ScrapingOptionsSchema = z.object({
@@ -154,24 +155,45 @@ export const NotificationOptionsSchema = z.object({
        * @default true
        */
       reportExternalIp: z.boolean().optional().default(true),
+      /**
+       * Whether to send the log file to Telegram when using secure logging (MONEYMAN_UNSAFE_STDOUT=false).
+       * Only applies when output redirection is enabled.
+       * @default true
+       */
+      sendLogFileToTelegram: z.boolean().optional().default(true),
     })
     .optional(),
 });
 
 export const LoggingOptionsSchema = z.object({
   getIpInfoUrl: z.url().default("https://ipinfo.io/json"),
+  debugFilter: z.string().optional().default("moneyman:*"),
+});
+
+const OptionsSchemaObject = z.object({
+  scraping: ScrapingOptionsSchema.prefault({}),
+  security: SecurityOptionsSchema.prefault({}),
+  notifications: NotificationOptionsSchema.prefault({}),
+  logging: LoggingOptionsSchema.prefault({}),
 });
 
 // Complete configuration schema
-export const MoneymanConfigSchema = z.object({
-  accounts: z.array(AccountSchema).default([]),
-  storage: StorageSchema,
-  options: z.object({
-    scraping: ScrapingOptionsSchema,
-    security: SecurityOptionsSchema,
-    notifications: NotificationOptionsSchema,
-    logging: LoggingOptionsSchema,
-  }),
-});
+export const MoneymanConfigSchema = z
+  .object({
+    accounts: z.array(AccountSchema).default([]),
+    storage: StorageSchema,
+    options: OptionsSchemaObject.prefault({}),
+  })
+  .prefault({});
 
 export type MoneymanConfig = z.infer<typeof MoneymanConfigSchema>;
+
+export const IntEnvVarSchema = z
+  .string()
+  .transform((val) => Number.parseInt(val, 10))
+  .catch(NaN);
+
+export const BooleanEnvVarSchema = z
+  .string()
+  .transform((val) => val.toLowerCase() === "true" || val === "1")
+  .catch(false);

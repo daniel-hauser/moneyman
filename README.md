@@ -48,13 +48,13 @@ Since logs are public for public repos, most logs are off by default and the pro
 1. Clone this repo
 2. Run `npm install`
 3. Run `npm run build`
-4. Add your env variables (you can add them in a `.env` file in the project's root directory)
+4. Provide your configuration via `MONEYMAN_CONFIG` (inline JSON) or point `MONEYMAN_CONFIG_PATH` to a JSON/JSONC file
 5. Run `npm run start`
 
 #### From docker
 
-1. Define the environment variables in a `.env` file
-2. `docker run --rm --env-file ".env" ghcr.io/daniel-hauser/moneyman:latest`.
+1. Provide configuration via `MONEYMAN_CONFIG` (inline JSON) or mount a config file (recommended below)
+2. `docker run --rm -e MONEYMAN_CONFIG="$(cat config.json)" ghcr.io/daniel-hauser/moneyman:latest`.
 
 ##### Using a configuration file (recommended for Docker)
 
@@ -76,9 +76,11 @@ docker run --rm \
   ghcr.io/daniel-hauser/moneyman:latest
 ```
 
-##### Note
+##### Logging
 
-docker doesn't support multiline environment variables (i.e. `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`), in that case you can run `docker-compose up` instead
+By default, the Docker image is configured with `MONEYMAN_UNSAFE_STDOUT=false` to prevent sensitive data from appearing in Docker logs. When enabled, the logs are redirected to `/tmp/moneyman.log` and sent to the Telegram chat automatically (if configured).
+
+Logs sent to `logToPublicLog` bypass the redirection and will appear in the Docker logs.
 
 ### Debug
 
@@ -104,9 +106,6 @@ The configuration file approach is recommended for Docker/Kubernetes environment
 A json array of accounts following [this](https://github.com/eshaham/israeli-bank-scrapers#specific-definitions-per-scraper) schema with an additional `companyId` field with a [companyType](https://github.com/eshaham/israeli-bank-scrapers/blob/master/src/definitions.ts#L5:L23) as the value.
 
 ```typescript
-/**
- * Previously configured via ACCOUNTS_JSON environment variable
- */
 accounts: Array<{
   companyId: string;
   password: string;
@@ -118,12 +117,14 @@ accounts: Array<{
 
 #### Other configurations
 
-| env variable name       | default            | description                                                                                           |
-| ----------------------- | ------------------ | ----------------------------------------------------------------------------------------------------- |
-| `TZ`                    | `'Asia/Jerusalem'` | A timezone for the process - used for the formatting of the timestamp                                 |
-| `MONEYMAN_CONFIG`       |                    | The JSON configuration for the process                                                                |
-| `MONEYMAN_CONFIG_PATH`  |                    | Path to a JSON/JSONC configuration file (used if `MONEYMAN_CONFIG` is not set)                        |
-| `SEND_NEW_CONFIG_TO_TG` | `"false"`          | Set to `"true"` to send the current configuration as `config.txt` via Telegram for debugging purposes |
+| env variable name        | default               | description                                                                                           |
+| ------------------------ | --------------------- | ----------------------------------------------------------------------------------------------------- |
+| `TZ`                     | `'Asia/Jerusalem'`    | A timezone for the process - used for the formatting of the timestamp                                 |
+| `MONEYMAN_CONFIG`        |                       | The JSON configuration for the process                                                                |
+| `MONEYMAN_CONFIG_PATH`   |                       | Path to a JSON/JSONC configuration file (used if `MONEYMAN_CONFIG` is not set)                        |
+| `SEND_NEW_CONFIG_TO_TG`  | `"false"`             | Set to `"true"` to send the current configuration as `config.txt` via Telegram for debugging purposes |
+| `MONEYMAN_UNSAFE_STDOUT` | `"false"`             | Set to `"true"` to allow sensitive data to be printed to stdout instead of a log file                 |
+| `MONEYMAN_LOG_FILE_PATH` | `"/tmp/moneyman.log"` | The file path where logs are stored when `MONEYMAN_UNSAFE_STDOUT` is set to `"false"`                 |
 
 ```typescript
 options: {
@@ -131,54 +132,45 @@ options: {
     /**
      * A comma separated list of providers to take from `accounts`. if empty, all accounts will be used
      * @default all accounts
-     * @replaces ACCOUNTS_TO_SCRAPE environment variable
      */
     accountsToScrape?: string[];
     /**
      * The amount of days back to scrape
      * @default 10
-     * @replaces DAYS_BACK environment variable
      */
     daysBack?: number;
     /**
      * The amount of months that will be scrapped in the future, starting from the day calculated using `daysBack`
      * @default 1
-     * @replaces FUTURE_MONTHS environment variable
      */
     futureMonths?: number;
     /**
      * The hash type to use for the transaction hash. Can be `moneyman` or empty. The default will be changed to `moneyman` in the upcoming versions
      * @default ""
-     * @replaces TRANSACTION_HASH_TYPE environment variable
      */
     transactionHashType?: "" | "moneyman";
     /**
      * If set to `'true'`, enables the `additionalTransactionInformation` option in the underlying scraper, which may provide more detailed transaction data for some providers.
      * @default false
-     * @replaces ADDITIONAL_TRANSACTION_INFO_ENABLED environment variable
      */
     additionalTransactionInfo?: boolean;
     /**
      * A comma separated list of deprecations to hide
      * @default []
-     * @replaces HIDDEN_DEPRECATIONS environment variable
      */
     hiddenDeprecations?: string[];
     /**
      * An ExecutablePath for the scraper. if undefined defaults to system.
-     * @replaces PUPPETEER_EXECUTABLE_PATH environment variable
      */
     puppeteerExecutablePath?: string;
     /**
      * The maximum number of parallel scrapers to run
      * @default 1
-     * @replaces MAX_PARALLEL_SCRAPERS environment variable
      */
     maxParallelScrapers?: number;
     /**
      * Enable tracking of all domains accessed during scraping
      * @default false
-     * @replaces DOMAIN_TRACKING_ENABLED environment variable
      */
     domainTracking?: boolean;
   },
@@ -186,7 +178,6 @@ options: {
     /**
      * The URL to get IP information from
      * @default "https://ipinfo.io/json"
-     * @replaces GET_IP_INFO_URL environment variable
      */
     getIpInfoUrl?: string;
   };
@@ -217,12 +208,10 @@ options: {
   security: {
     /**
      * A list of domain rules. Each line should follow the format `<companyId> <ALLOW|BLOCK> <domain>`
-     * @replaces FIREWALL_SETTINGS environment variable (newline-separated rules, or pipe-separated for single-line env vars)
      */
     firewallSettings?: string[];
     /**
      * If truthy, all domains with no rule will be blocked by default. If falsy, all domains will be allowed by default
-     * @replaces BLOCK_BY_DEFAULT environment variable
      */
     blockByDefault?: boolean;
   };
@@ -269,12 +258,10 @@ options: {
     telegram?: {
       /**
        * The super secret api key you got from BotFather
-       * @replaces TELEGRAM_API_KEY environment variable
        */
       apiKey: string;
       /**
        * The chat id
-       * @replaces TELEGRAM_CHAT_ID environment variable
        */
       chatId: string;
       /**
@@ -417,37 +404,30 @@ storage: {
   azure?: {
     /**
      * The azure application ID
-     * @replaces AZURE_APP_ID environment variable
      */
     appId: string;
     /**
      * The azure application secret key
-     * @replaces AZURE_APP_KEY environment variable
      */
     appKey: string;
     /**
      * The tenant ID of your azure application
-     * @replaces AZURE_TENANT_ID environment variable
      */
     tenantId: string;
     /**
      * The name of the database
-     * @replaces ADE_DATABASE_NAME environment variable
      */
     databaseName: string;
     /**
      * The name of the table
-     * @replaces ADE_TABLE_NAME environment variable
      */
     tableName: string;
     /**
      * The name of the JSON ingestion mapping
-     * @replaces ADE_INGESTION_MAPPING environment variable
      */
     ingestionMapping: string;
     /**
      * The ingest URI of the cluster
-     * @replaces ADE_INGEST_URI environment variable
      */
     ingestUri: string;
   };
@@ -465,7 +445,6 @@ storage: {
   localJson?: {
     /**
      * If truthy, all transaction will be saved to a `<process cwd>/output/<ISO timestamp>.json` file
-     * @replaces LOCAL_JSON_STORAGE environment variable
      */
     enabled: boolean;
     /**
@@ -515,12 +494,10 @@ storage: {
   webPost?: {
     /**
      * The URL to post to
-     * @replaces WEB_POST_URL environment variable
      */
     url: string;
     /**
      * The Authorization header value (i.e. `Bearer *****`, but can use any schema)
-     * @replaces WEB_POST_AUTHORIZATION_TOKEN environment variable
      */
     authorizationToken: string;
   };
@@ -581,23 +558,19 @@ storage: {
   googleSheets?: {
     /**
      * The super secret api key of your service account
-     * @replaces GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY environment variable
      */
     serviceAccountPrivateKey: string;
     /**
      * The service account's email address
-     * @replaces GOOGLE_SERVICE_ACCOUNT_EMAIL environment variable
      */
     serviceAccountEmail: string;
     /**
      * The id of the spreadsheet you shared with the service account
-     * @replaces GOOGLE_SHEET_ID environment variable
      */
     sheetId: string;
     /**
      * The name of the sheet you want to add the transactions to
-     * @default "_moneyman" (when using environment variables)
-     * @replaces WORKSHEET_NAME environment variable
+     * @default "_moneyman"
      */
     worksheetName: string;
   };
@@ -613,17 +586,14 @@ storage: {
   ynab?: {
     /**
      * The `YNAB` access token. Check [YNAB documentation](https://api.ynab.com/#authentication) about how to obtain it
-     * @replaces YNAB_TOKEN environment variable
      */
     token: string;
     /**
      * The `YNAB` budget ID where you want to import the data. You can obtain it opening [YNAB application](https://app.ynab.com/) on a browser and taking the budget `UUID` in the `URL`
-     * @replaces YNAB_BUDGET_ID environment variable
      */
     budgetId: string;
     /**
      * A key-value list to correlate each account with the `YNAB` account `UUID`
-     * @replaces YNAB_ACCOUNTS environment variable
      */
     accounts: Record<string, string>;
   };
@@ -654,17 +624,14 @@ storage: {
   buxfer?: {
     /**
      * The `Buxfer` user name. Check [Buxfer settings](https://www.buxfer.com/settings?type=login) about how to obtain it
-     * @replaces BUXFER_USER_NAME environment variable
      */
     userName: string;
     /**
      * The `Buxfer` user password. Check [Buxfer settings](https://www.buxfer.com/settings?type=login) about how to obtain it
-     * @replaces BUXFER_PASSWORD environment variable
      */
     password: string;
     /**
      * A key-value list to correlate each account with the `Buxfer` account `UUID`
-     * @replaces BUXFER_ACCOUNTS environment variable
      */
     accounts: Record<string, string>;
   };
@@ -697,22 +664,18 @@ storage: {
   actual?: {
     /**
      * The URL of your Actual Budget server
-     * @replaces ACTUAL_SERVER_URL environment variable
      */
     serverUrl: string;
     /**
      * The password for your Actual Budget server
-     * @replaces ACTUAL_PASSWORD environment variable
      */
     password: string;
     /**
      * The ID of the budget where you want to import the data
-     * @replaces ACTUAL_BUDGET_ID environment variable
      */
     budgetId: string;
     /**
      * A key-value list to correlate each account with the Actual Budget account ID
-     * @replaces ACTUAL_ACCOUNTS environment variable
      */
     accounts: Record<string, string>;
   };

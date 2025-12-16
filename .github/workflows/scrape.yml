@@ -12,12 +12,15 @@ on:
         type: boolean
         required: false
         default: false
+      DEBUG:
+        description: "Debug logging namespace (e.g., 'moneyman:*')"
+        required: false
+        default: "moneyman:*"
   schedule:
     # In Israel: [12:05, 00:05] or [13:05, 01:05] on DST
     - cron: "5 10,22 * * *"
 env:
   REGISTRY: ghcr.io
-  MAX_PARALLEL_SCRAPERS: 8
 jobs:
   scrape:
     runs-on: ubuntu-latest
@@ -36,65 +39,11 @@ jobs:
           docker run --rm
           -e MONEYMAN_CONFIG
           -e DEBUG
-          -e DAYS_BACK
           -e TZ
-          -e WORKSHEET_NAME
-          -e ACCOUNTS_JSON
-          -e TELEGRAM_API_KEY
-          -e TELEGRAM_CHAT_ID
-          -e GOOGLE_SHEET_ID
-          -e GOOGLE_SERVICE_ACCOUNT_EMAIL
-          -e GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
-          -e ACCOUNTS_TO_SCRAPE
-          -e ADE_DATABASE_NAME
-          -e ADE_TABLE_NAME
-          -e ADE_INGESTION_MAPPING
-          -e ADE_INGEST_URI
-          -e AZURE_TENANT_ID
-          -e AZURE_APP_ID
-          -e AZURE_APP_KEY
-          -e YNAB_TOKEN
-          -e YNAB_BUDGET_ID
-          -e YNAB_ACCOUNTS
-          -e BUXFER_USER_NAME
-          -e BUXFER_PASSWORD
-          -e BUXFER_ACCOUNTS
-          -e TRANSACTION_HASH_TYPE
-          -e WEB_POST_URL
-          -e MAX_PARALLEL_SCRAPERS
-          -e DOMAIN_TRACKING_ENABLED
-          -e FIREWALL_SETTINGS
-          -e BLOCK_BY_DEFAULT
-          -e ADDITIONAL_TRANSACTION_INFO_ENABLED
           -e SEND_NEW_CONFIG_TO_TG
           ${{ steps.set-container-image.outputs.image }}
         env:
           MONEYMAN_CONFIG: ${{ secrets.MONEYMAN_CONFIG }}
-          DEBUG: ""
+          DEBUG: ${{ github.event.inputs.DEBUG || '' }}
           TZ: "Asia/Jerusalem"
-          ACCOUNTS_JSON: ${{ secrets.ACCOUNTS_JSON }}
-          TELEGRAM_API_KEY: ${{ secrets.TELEGRAM_API_KEY }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
-          GOOGLE_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
-          GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY }}
-          ADE_DATABASE_NAME: ${{ secrets.ADE_DATABASE_NAME }}
-          ADE_TABLE_NAME: ${{ secrets.ADE_TABLE_NAME }}
-          ADE_INGESTION_MAPPING: ${{ secrets.ADE_INGESTION_MAPPING }}
-          ADE_INGEST_URI: ${{ secrets.ADE_INGEST_URI }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_APP_ID: ${{ secrets.AZURE_APP_ID }}
-          AZURE_APP_KEY: ${{ secrets.AZURE_APP_KEY }}
-          YNAB_TOKEN: ${{ secrets.YNAB_TOKEN }}
-          YNAB_BUDGET_ID: ${{ secrets.YNAB_BUDGET_ID }}
-          YNAB_ACCOUNTS: ${{ secrets.YNAB_ACCOUNTS }}
-          BUXFER_USER_NAME: ${{ secrets.BUXFER_USER_NAME }}
-          BUXFER_PASSWORD: ${{ secrets.BUXFER_PASSWORD }}
-          BUXFER_ACCOUNTS: ${{ secrets.BUXFER_ACCOUNTS }}
-          TRANSACTION_HASH_TYPE: ${{ secrets.TRANSACTION_HASH_TYPE }}
-          WEB_POST_URL: ${{ secrets.WEB_POST_URL }}
-          MAX_PARALLEL_SCRAPERS: ${{ env.MAX_PARALLEL_SCRAPERS }}
-          DOMAIN_TRACKING_ENABLED: ${{ vars.DOMAIN_TRACKING_ENABLED }}
-          FIREWALL_SETTINGS: ${{ secrets.FIREWALL_SETTINGS }}
-          BLOCK_BY_DEFAULT: ${{ vars.BLOCK_BY_DEFAULT }}
           SEND_NEW_CONFIG_TO_TG: ${{ github.event.inputs.sendNewConfigToTg }}
