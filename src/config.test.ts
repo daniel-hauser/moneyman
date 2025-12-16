@@ -323,4 +323,242 @@ describe("config", () => {
     unlinkSync(configPath);
     rmdirSync(tempDir);
   });
+
+  describe("error scenarios", () => {
+    it("should handle invalid JSON in MONEYMAN_CONFIG", async () => {
+      const invalidJson = '{ "accounts": [ invalid json }';
+
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG_PATH: undefined,
+        MONEYMAN_CONFIG: invalidJson,
+      };
+
+      // The config module should fall back to default config when parsing fails
+      const { config } = await import("./config.js");
+
+      // Should return default config with empty accounts
+      expect(config.accounts).toEqual([]);
+      expect(config.storage.localJson?.enabled).toBe(true);
+    });
+
+    it("should handle invalid JSON in config file", async () => {
+      const invalidJsonc = '{ "accounts": [ invalid json }';
+
+      // Create a temporary config file with invalid JSON
+      const { mkdtempSync, writeFileSync } = await import("fs");
+      const { join } = await import("path");
+      const { tmpdir } = await import("os");
+      const tempDir = mkdtempSync(join(tmpdir(), "moneyman-test-"));
+      const configPath = join(tempDir, "config.json");
+      writeFileSync(configPath, invalidJsonc);
+
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG: undefined,
+        MONEYMAN_CONFIG_PATH: configPath,
+      };
+
+      // The config module should fall back to default config when parsing fails
+      const { config } = await import("./config.js");
+
+      // Should return default config with empty accounts
+      expect(config.accounts).toEqual([]);
+      expect(config.storage.localJson?.enabled).toBe(true);
+
+      // Cleanup
+      const { unlinkSync, rmdirSync } = await import("fs");
+      unlinkSync(configPath);
+      rmdirSync(tempDir);
+    });
+
+    it("should handle missing required fields in account config", async () => {
+      const configWithMissingFields = {
+        accounts: [
+          {
+            companyId: "test",
+            // Missing required 'password' field
+          },
+        ],
+        storage: { localJson: { enabled: true } },
+        options: {
+          scraping: {},
+          security: {},
+          notifications: {},
+          logging: {},
+        },
+      };
+
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG_PATH: undefined,
+        MONEYMAN_CONFIG: JSON.stringify(configWithMissingFields),
+      };
+
+      // The config module should fall back to default config when validation fails
+      const { config } = await import("./config.js");
+
+      // Should return default config with empty accounts
+      expect(config.accounts).toEqual([]);
+      expect(config.storage.localJson?.enabled).toBe(true);
+    });
+
+    it("should handle invalid email format in Google Sheets config", async () => {
+      const configWithInvalidEmail = {
+        accounts: [{ companyId: "test", password: "pass", userCode: "12345" }],
+        storage: {
+          googleSheets: {
+            serviceAccountPrivateKey: "test-key",
+            serviceAccountEmail: "not-a-valid-email", // Invalid email format
+            sheetId: "test-sheet-id",
+            worksheetName: "test-worksheet",
+          },
+        },
+        options: {
+          scraping: {},
+          security: {},
+          notifications: {},
+          logging: {},
+        },
+      };
+
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG_PATH: undefined,
+        MONEYMAN_CONFIG: JSON.stringify(configWithInvalidEmail),
+      };
+
+      // The config module should fall back to default config when validation fails
+      const { config } = await import("./config.js");
+
+      // Should return default config
+      expect(config.accounts).toEqual([]);
+      expect(config.storage.localJson?.enabled).toBe(true);
+    });
+
+    it("should handle invalid URL format in storage providers", async () => {
+      const configWithInvalidUrl = {
+        accounts: [{ companyId: "test", password: "pass", userCode: "12345" }],
+        storage: {
+          actual: {
+            serverUrl: "not-a-valid-url", // Invalid URL format
+            password: "test-password",
+            budgetId: "test-budget-id",
+            accounts: {},
+          },
+        },
+        options: {
+          scraping: {},
+          security: {},
+          notifications: {},
+          logging: {},
+        },
+      };
+
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG_PATH: undefined,
+        MONEYMAN_CONFIG: JSON.stringify(configWithInvalidUrl),
+      };
+
+      // The config module should fall back to default config when validation fails
+      const { config } = await import("./config.js");
+
+      // Should return default config
+      expect(config.accounts).toEqual([]);
+      expect(config.storage.localJson?.enabled).toBe(true);
+    });
+
+    it("should handle out-of-range values in scraping options", async () => {
+      const configWithInvalidRange = {
+        accounts: [{ companyId: "test", password: "pass", userCode: "12345" }],
+        storage: { localJson: { enabled: true } },
+        options: {
+          scraping: {
+            daysBack: 500, // Exceeds max of 365
+            maxParallelScrapers: 20, // Exceeds max of 10
+          },
+          security: {},
+          notifications: {},
+          logging: {},
+        },
+      };
+
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG_PATH: undefined,
+        MONEYMAN_CONFIG: JSON.stringify(configWithInvalidRange),
+      };
+
+      // The config module should fall back to default config when validation fails
+      const { config } = await import("./config.js");
+
+      // Should return default config with default values
+      expect(config.accounts).toEqual([]);
+      expect(config.options.scraping.daysBack).toBe(10); // Default value
+      expect(config.options.scraping.maxParallelScrapers).toBe(1); // Default value
+    });
+
+    it("should handle missing telegram required fields", async () => {
+      const configWithMissingTelegramFields = {
+        accounts: [{ companyId: "test", password: "pass", userCode: "12345" }],
+        storage: { localJson: { enabled: true } },
+        options: {
+          scraping: {},
+          security: {},
+          notifications: {
+            telegram: {
+              apiKey: "test-key",
+              // Missing required 'chatId' field
+            },
+          },
+          logging: {},
+        },
+      };
+
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG_PATH: undefined,
+        MONEYMAN_CONFIG: JSON.stringify(configWithMissingTelegramFields),
+      };
+
+      // The config module should fall back to default config when validation fails
+      const { config } = await import("./config.js");
+
+      // Should return default config
+      expect(config.accounts).toEqual([]);
+      expect(config.options.notifications.telegram).toBeUndefined();
+    });
+
+    it("should handle empty string values in required fields", async () => {
+      const configWithEmptyStrings = {
+        accounts: [
+          {
+            companyId: "", // Empty string (min 1 character required)
+            password: "pass",
+          },
+        ],
+        storage: { localJson: { enabled: true } },
+        options: {
+          scraping: {},
+          security: {},
+          notifications: {},
+          logging: {},
+        },
+      };
+
+      process.env = {
+        ...originalEnv,
+        MONEYMAN_CONFIG_PATH: undefined,
+        MONEYMAN_CONFIG: JSON.stringify(configWithEmptyStrings),
+      };
+
+      // The config module should fall back to default config when validation fails
+      const { config } = await import("./config.js");
+
+      // Should return default config with empty accounts
+      expect(config.accounts).toEqual([]);
+      expect(config.storage.localJson?.enabled).toBe(true);
+    });
+  });
 });
