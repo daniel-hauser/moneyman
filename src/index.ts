@@ -29,7 +29,7 @@ process.on("uncaughtException", (err, origin) => {
 
 enableDebugLoggingIfNeeded();
 monitorNodeConnections();
-logger("External IP info:", await getExternalIp());
+getExternalIp().then((ipInfo) => logger("External IP info:", ipInfo));
 await sendConfigToTelegramIfRequested();
 await run();
 await sendAndDeleteLogFile();
