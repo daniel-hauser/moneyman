@@ -10,6 +10,7 @@ on:
       - "package-lock.json"
       - "tsconfig.json"
       - "Dockerfile"
+      - ".github/workflows/test-connections.yml"
 jobs:
   test-connections:
     runs-on: ubuntu-latest
@@ -34,4 +35,12 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Run test-scraper-access script
-        run: docker run --rm --shm-size=2g --security-opt seccomp=unconfined moneyman:test npm run test:scraper-access-without-build
+        env:
+          MONEYMAN_UNSAFE_STDOUT: "true"
+        run: |
+          docker run \
+            --rm \
+            --shm-size=2g \
+            --security-opt seccomp=unconfined \
+            -e MONEYMAN_UNSAFE_STDOUT \
+            moneyman:test npm run test:scraper-access-without-build
