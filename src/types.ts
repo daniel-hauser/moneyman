@@ -51,18 +51,11 @@ export type ImageWithCaption = {
   caption: string;
 };
 
-export type RunMetadata = {
-  domainsByCompany: Partial<Record<CompanyTypes, unknown>>;
-  networkInfo: unknown;
-  metadataLogEntries: Array<string>;
-};
-
 export interface RunnerHooks {
   onBeforeStart(): Promise<void>;
   onStatusChanged(rows: string[], totalTime?: number): Promise<void>;
   onResultsReady(results: AccountScrapeResult[]): Promise<void>;
   onError(e: Error, caller?: string): Promise<void>;
   failureScreenshotsHandler: (photos: ImageWithCaption[]) => Promise<unknown>;
-  reportRunMetadata(metadata: RunMetadata): Promise<void>;
 }
 export type Runner = (hooks: RunnerHooks) => Promise<void>;

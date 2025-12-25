@@ -42,9 +42,6 @@ export async function runWithStorage(runScraper: Runner) {
     async failureScreenshotsHandler(photos) {
       await sendPhotos(photos);
     },
-    async reportRunMetadata(metadata) {
-      await sendJSON(metadata, "run-metadata.txt");
-    },
   });
 
   logToPublicLog("Scraping ended", logger);
