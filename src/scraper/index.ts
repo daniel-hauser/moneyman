@@ -57,7 +57,6 @@ export async function scrapeAccounts(
       const { companyId } = account;
       return scraperContextStore.run({ index: i, companyId }, async () =>
         scrapeAccount(
-          i,
           account,
           {
             browserContext: await createSecureBrowserContext(
@@ -116,7 +115,6 @@ function getStats(results: Array<AccountScrapeResult>) {
 }
 
 async function scrapeAccount(
-  index: number,
   account: AccountConfig,
   scraperOptions: ScraperOptions,
   setStatusMessage: (message: string, append?: boolean) => Promise<void>,
