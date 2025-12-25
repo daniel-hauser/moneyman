@@ -5,7 +5,7 @@ import puppeteer, {
   type BrowserContext,
   type PuppeteerLaunchOptions,
 } from "puppeteer";
-import { createLogger, logToMetadataFile } from "../utils/logger.js";
+import { createLogger } from "../utils/logger.js";
 import {
   bindScraperContext,
   scraperContextStore,
@@ -73,20 +73,14 @@ async function initCloudflareSkipping(
               url,
               parentFrameUrl: frame.parentFrame()?.url(),
             });
-            logToMetadataFile(`Frame navigated: ${frame.url()}`);
             if (url.includes(cfParam)) {
               logger("Cloudflare challenge detected");
-              logToMetadataFile(`Cloudflare challenge detected`);
               solveTurnstile(page).then(
                 (res) => {
                   logger(`Cloudflare challenge ended with ${res} for ${url}`);
-                  logToMetadataFile(
-                    `Cloudflare challenge ended with ${res} for ${url}`,
-                  );
                 },
                 (error) => {
                   logger(`Cloudflare challenge failed for ${url}`, error);
-                  logToMetadataFile(`Cloudflare challenge failed for ${url}`);
                 },
               );
             }

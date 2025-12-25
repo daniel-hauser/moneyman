@@ -1,5 +1,5 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
-import { createLogger, logToMetadataFile } from "../utils/logger.js";
+import { createLogger } from "../utils/logger.js";
 import {
   bindScraperContext,
   scraperContextStore,
@@ -82,10 +82,9 @@ export async function initDomainTracking(
                   const reqKey = `${request.method()} ${url.hostname}`;
 
                   if (request.isInterceptResolutionHandled()) {
-                    const message = `[${companyId}] Request already handled ${reqKey} ${resourceType}`;
-                    logger(message);
-                    logToMetadataFile(message);
-                    return;
+                    logger(
+                      `[${companyId}] Request already handled ${reqKey} ${resourceType}`,
+                    );
                   }
 
                   if (!resourceTypesByCompany.has(reqKey)) {

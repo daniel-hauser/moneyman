@@ -1,7 +1,7 @@
 import { performance } from "perf_hooks";
 import { getAccountTransactions } from "./scrape.js";
 import { AccountConfig, AccountScrapeResult, ScraperConfig } from "../types.js";
-import { createLogger, logToMetadataFile } from "../utils/logger.js";
+import { createLogger } from "../utils/logger.js";
 import { scraperContextStore } from "../utils/asyncContext.js";
 import { createBrowser, createSecureBrowserContext } from "./browser.js";
 import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
@@ -49,14 +49,12 @@ export async function scrapeAccounts(
   const status: Array<string> = [];
 
   logger("Creating a browser");
-  logToMetadataFile("Creating a browser");
   const browser = await createBrowser();
   logger(`Browser created, starting to scrape ${accounts.length} accounts`);
 
   const results = await parallelLimit<AccountConfig, AccountScrapeResult[]>(
     accounts.map((account, i) => async () => {
       const { companyId } = account;
-      logToMetadataFile(`Scraping account #${i} (${companyId})`);
       return scraperContextStore.run({ index: i, companyId }, async () =>
         scrapeAccount(
           i,
@@ -82,7 +80,6 @@ export async function scrapeAccounts(
     }),
     Number(parallelScrapers),
   );
-  logToMetadataFile("All accounts scraped");
   const duration = (performance.now() - start) / 1000;
   logger(`scraping ended, total duration: ${duration.toFixed(1)}s`);
   await scrapeStatusChanged?.(status, duration);
