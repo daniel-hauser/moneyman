@@ -41,6 +41,7 @@ export async function initDomainTracking(
     const context = scraperContextStore.getStore();
 
     const rules = new DomainRuleManager(
+      companyId,
       securityConfig.firewallSettings ?? [],
       securityConfig.blockByDefault,
     );
@@ -67,7 +68,7 @@ export async function initDomainTracking(
               }, context),
             );
 
-            const canIntercept = rules.hasAnyRule(companyId);
+            const canIntercept = rules.hasAnyRule();
             if (canIntercept) {
               logger(`[${companyId}] Setting request interception`);
               await page.setRequestInterception(true);
@@ -97,10 +98,7 @@ export async function initDomainTracking(
                     resourceType,
                   );
 
-                  if (
-                    ignoreUrl(url.hostname) ||
-                    !rules.isBlocked(url, companyId)
-                  ) {
+                  if (ignoreUrl(url.hostname) || !rules.isBlocked(url)) {
                     addToKeyedSet(allowedByCompany, companyId, reqKey);
                     logger(
                       `[${companyId}] Allowing ${pageUrl.hostname}->${reqKey}`,
