@@ -1,5 +1,9 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { createLogger, logToMetadataFile } from "../utils/logger.js";
+import {
+  bindScraperContext,
+  scraperContextStore,
+} from "../utils/asyncContext.js";
 import { type BrowserContext, TargetType } from "puppeteer";
 import { ClientRequestInterceptor } from "@mswjs/interceptors/ClientRequest";
 import { DomainRuleManager } from "./domainRules.js";
@@ -34,89 +38,106 @@ export async function initDomainTracking(
   companyId: CompanyTypes,
 ): Promise<void> {
   if (scrapingConfig.domainTracking) {
+    const context = scraperContextStore.getStore();
+
     const rules = new DomainRuleManager(
       securityConfig.firewallSettings ?? [],
       securityConfig.blockByDefault,
     );
-    browserContext.on("targetcreated", async (target) => {
-      switch (target.type()) {
-        case TargetType.PAGE:
-        case TargetType.WEBVIEW:
-        case TargetType.BACKGROUND_PAGE: {
-          logger(`Target created`, target.type());
-          const page = await target.page();
-          if (!page) {
-            logger(`No page found for target, unexpected`);
-            return;
-          }
+    browserContext.on(
+      "targetcreated",
+      bindScraperContext(async (target) => {
+        switch (target.type()) {
+          case TargetType.PAGE:
+          case TargetType.WEBVIEW:
+          case TargetType.BACKGROUND_PAGE: {
+            logger(`Target created`, target.type());
+            const page = await target.page();
+            if (!page) {
+              logger(`No page found for target, unexpected`);
+              return;
+            }
 
-          page.on("framenavigated", (frame) => {
-            logger(`Frame navigated: ${frame.url()}`);
-            const { hostname, pathname } = new URL(page.url());
-            addToKeyedSet(pagesByCompany, companyId, hostname + pathname);
-          });
+            page.on(
+              "framenavigated",
+              bindScraperContext((frame) => {
+                logger(`Frame navigated: ${frame.url()}`);
+                const { hostname, pathname } = new URL(page.url());
+                addToKeyedSet(pagesByCompany, companyId, hostname + pathname);
+              }, context),
+            );
 
-          const canIntercept = rules.hasAnyRule(companyId);
-          if (canIntercept) {
-            logger(`[${companyId}] Setting request interception`);
-            await page.setRequestInterception(true);
+            const canIntercept = rules.hasAnyRule(companyId);
+            if (canIntercept) {
+              logger(`[${companyId}] Setting request interception`);
+              await page.setRequestInterception(true);
 
-            page.on("request", async (request) => {
-              const url = new URL(request.url());
-              const pageUrl = new URL(page.url());
+              page.on(
+                "request",
+                bindScraperContext(async (request) => {
+                  const url = new URL(request.url());
+                  const pageUrl = new URL(page.url());
 
-              const resourceType = request.resourceType();
-              const reqKey = `${request.method()} ${url.hostname}`;
+                  const resourceType = request.resourceType();
+                  const reqKey = `${request.method()} ${url.hostname}`;
 
-              if (request.isInterceptResolutionHandled()) {
-                const message = `[${companyId}] Request already handled ${reqKey} ${resourceType}`;
-                logger(message);
-                logToMetadataFile(message);
-                return;
-              }
+                  if (request.isInterceptResolutionHandled()) {
+                    const message = `[${companyId}] Request already handled ${reqKey} ${resourceType}`;
+                    logger(message);
+                    logToMetadataFile(message);
+                    return;
+                  }
 
-              if (!resourceTypesByCompany.has(reqKey)) {
-                resourceTypesByCompany.set(reqKey, new Map());
-              }
+                  if (!resourceTypesByCompany.has(reqKey)) {
+                    resourceTypesByCompany.set(reqKey, new Map());
+                  }
 
-              addToKeyedSet(
-                resourceTypesByCompany.get(reqKey)!,
-                companyId,
-                resourceType,
+                  addToKeyedSet(
+                    resourceTypesByCompany.get(reqKey)!,
+                    companyId,
+                    resourceType,
+                  );
+
+                  if (
+                    ignoreUrl(url.hostname) ||
+                    !rules.isBlocked(url, companyId)
+                  ) {
+                    addToKeyedSet(allowedByCompany, companyId, reqKey);
+                    logger(
+                      `[${companyId}] Allowing ${pageUrl.hostname}->${reqKey}`,
+                    );
+                    await request.continue(undefined, 100);
+                  } else {
+                    addToKeyedSet(blockedByCompany, companyId, reqKey);
+                    logger(
+                      `[${companyId}] Blocking ${pageUrl.hostname}->${reqKey}`,
+                    );
+                    await request.abort(undefined, 100);
+                  }
+                }, context),
               );
+            } else {
+              page.on(
+                "request",
+                bindScraperContext(async (request) => {
+                  const { hostname } = new URL(request.url());
+                  const reqKey = `${request.method()}(${request.resourceType()}) ${hostname}`;
+                  if (!ignoreUrl(hostname)) {
+                    addToKeyedSet(allowedByCompany, companyId, reqKey);
+                  }
+                  const pageUrl = new URL(page.url());
+                  logger(`[${companyId}] ${pageUrl.hostname}->${reqKey}`);
+                }, context),
+              );
+            }
 
-              if (ignoreUrl(url.hostname) || !rules.isBlocked(url, companyId)) {
-                addToKeyedSet(allowedByCompany, companyId, reqKey);
-                logger(
-                  `[${companyId}] Allowing ${pageUrl.hostname}->${reqKey}`,
-                );
-                await request.continue(undefined, 100);
-              } else {
-                addToKeyedSet(blockedByCompany, companyId, reqKey);
-                logger(
-                  `[${companyId}] Blocking ${pageUrl.hostname}->${reqKey}`,
-                );
-                await request.abort(undefined, 100);
-              }
-            });
-          } else {
-            page.on("request", async (request) => {
-              const { hostname } = new URL(request.url());
-              const reqKey = `${request.method()}(${request.resourceType()}) ${hostname}`;
-              if (!ignoreUrl(hostname)) {
-                addToKeyedSet(allowedByCompany, companyId, reqKey);
-              }
-              const pageUrl = new URL(page.url());
-              logger(`[${companyId}] ${pageUrl.hostname}->${reqKey}`);
-            });
+            break;
           }
-
-          break;
+          default:
+            break;
         }
-        default:
-          break;
-      }
-    });
+      }, context),
+    );
   }
 }
 

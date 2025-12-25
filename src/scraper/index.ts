@@ -2,6 +2,7 @@ import { performance } from "perf_hooks";
 import { getAccountTransactions } from "./scrape.js";
 import { AccountConfig, AccountScrapeResult, ScraperConfig } from "../types.js";
 import { createLogger, logToMetadataFile } from "../utils/logger.js";
+import { scraperContextStore } from "../utils/asyncContext.js";
 import { createBrowser, createSecureBrowserContext } from "./browser.js";
 import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
 import { ScraperOptions } from "israeli-bank-scrapers";
@@ -56,22 +57,27 @@ export async function scrapeAccounts(
     accounts.map((account, i) => async () => {
       const { companyId } = account;
       logToMetadataFile(`Scraping account #${i} (${companyId})`);
-      return scrapeAccount(
-        logger.extend(`#${i} (${companyId})`),
-        account,
-        {
-          browserContext: await createSecureBrowserContext(browser, companyId),
-          startDate,
-          companyId,
-          futureMonthsToScrape: futureMonths,
-          storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
-          additionalTransactionInformation,
-          ...scraperOptions,
-        },
-        async (message, append = false) => {
-          status[i] = append ? `${status[i]} ${message}` : message;
-          return scrapeStatusChanged?.(status);
-        },
+      return scraperContextStore.run({ index: i, companyId }, async () =>
+        scrapeAccount(
+          i,
+          account,
+          {
+            browserContext: await createSecureBrowserContext(
+              browser,
+              companyId,
+            ),
+            startDate,
+            companyId,
+            futureMonthsToScrape: futureMonths,
+            storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
+            additionalTransactionInformation,
+            ...scraperOptions,
+          },
+          async (message, append = false) => {
+            status[i] = append ? `${status[i]} ${message}` : message;
+            return scrapeStatusChanged?.(status);
+          },
+        ),
       );
     }),
     Number(parallelScrapers),
@@ -113,11 +119,12 @@ function getStats(results: Array<AccountScrapeResult>) {
 }
 
 async function scrapeAccount(
-  logger: debug.IDebugger,
+  index: number,
   account: AccountConfig,
   scraperOptions: ScraperOptions,
   setStatusMessage: (message: string, append?: boolean) => Promise<void>,
 ) {
+  const logger = createLogger(`scraper`);
   logger(`scraping`);
 
   const scraperStart = performance.now();
