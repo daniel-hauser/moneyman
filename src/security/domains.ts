@@ -70,7 +70,7 @@ export async function initDomainTracking(
 
             const canIntercept = rules.hasAnyRule();
             if (canIntercept) {
-              logger(`[${companyId}] Setting request interception`);
+              logger(`Setting request interception`);
               await page.setRequestInterception(true);
 
               page.on(
@@ -83,9 +83,7 @@ export async function initDomainTracking(
                   const reqKey = `${request.method()} ${url.hostname}`;
 
                   if (request.isInterceptResolutionHandled()) {
-                    logger(
-                      `[${companyId}] Request already handled ${reqKey} ${resourceType}`,
-                    );
+                    logger(`Request already handled ${reqKey} ${resourceType}`);
                   }
 
                   if (!resourceTypesByCompany.has(reqKey)) {
@@ -100,15 +98,11 @@ export async function initDomainTracking(
 
                   if (ignoreUrl(url.hostname) || !rules.isBlocked(url)) {
                     addToKeyedSet(allowedByCompany, companyId, reqKey);
-                    logger(
-                      `[${companyId}] Allowing ${pageUrl.hostname}->${reqKey}`,
-                    );
+                    logger(`Allowing ${pageUrl.hostname}->${reqKey}`);
                     await request.continue(undefined, 100);
                   } else {
                     addToKeyedSet(blockedByCompany, companyId, reqKey);
-                    logger(
-                      `[${companyId}] Blocking ${pageUrl.hostname}->${reqKey}`,
-                    );
+                    logger(`Blocking ${pageUrl.hostname}->${reqKey}`);
                     await request.abort(undefined, 100);
                   }
                 }, context),
@@ -123,7 +117,7 @@ export async function initDomainTracking(
                     addToKeyedSet(allowedByCompany, companyId, reqKey);
                   }
                   const pageUrl = new URL(page.url());
-                  logger(`[${companyId}] ${pageUrl.hostname}->${reqKey}`);
+                  logger(`${pageUrl.hostname}->${reqKey}`);
                 }, context),
               );
             }

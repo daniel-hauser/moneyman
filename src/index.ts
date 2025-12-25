@@ -1,9 +1,5 @@
 import { scrapeAccounts } from "./scraper/index.js";
-import {
-  config,
-  scraperConfig,
-  sendConfigToTelegramIfRequested,
-} from "./config.js";
+import { scraperConfig, sendConfigToTelegramIfRequested } from "./config.js";
 import { sendError } from "./bot/notifier.js";
 import { createLogger } from "./utils/logger.js";
 import {
