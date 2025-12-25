@@ -10,6 +10,7 @@ on:
       - "package-lock.json"
       - "tsconfig.json"
       - "Dockerfile"
+      - ".github/workflows/test-connections.yml"
 jobs:
   test-connections:
     runs-on: ubuntu-latest
