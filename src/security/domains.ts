@@ -1,7 +1,7 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { createLogger } from "../utils/logger.js";
 import {
-  bindScraperContext,
+  runInScraperContext,
   scraperContextStore,
 } from "../utils/asyncContext.js";
 import { type BrowserContext, TargetType } from "puppeteer";
@@ -46,7 +46,7 @@ export async function initDomainTracking(
     );
     browserContext.on(
       "targetcreated",
-      bindScraperContext(async (target) => {
+      runInScraperContext(async (target) => {
         switch (target.type()) {
           case TargetType.PAGE:
           case TargetType.WEBVIEW:
@@ -60,7 +60,7 @@ export async function initDomainTracking(
 
             page.on(
               "framenavigated",
-              bindScraperContext((frame) => {
+              runInScraperContext((frame) => {
                 logger(`Frame navigated: ${frame.url()}`);
                 const { hostname, pathname } = new URL(page.url());
                 addToKeyedSet(pagesByCompany, companyId, hostname + pathname);
@@ -74,7 +74,7 @@ export async function initDomainTracking(
 
               page.on(
                 "request",
-                bindScraperContext(async (request) => {
+                runInScraperContext(async (request) => {
                   const url = new URL(request.url());
                   const pageUrl = new URL(page.url());
 
@@ -118,7 +118,7 @@ export async function initDomainTracking(
             } else {
               page.on(
                 "request",
-                bindScraperContext(async (request) => {
+                runInScraperContext(async (request) => {
                   const { hostname } = new URL(request.url());
                   const reqKey = `${request.method()}(${request.resourceType()}) ${hostname}`;
                   if (!ignoreUrl(hostname)) {

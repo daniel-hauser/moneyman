@@ -7,7 +7,7 @@ export type ScraperContext = {
 
 export const scraperContextStore = new AsyncLocalStorage<ScraperContext>();
 
-export function bindScraperContext<T extends (...args: any[]) => any>(
+export function runInScraperContext<T extends (...args: any[]) => any>(
   fn: T,
   context: ScraperContext | undefined = scraperContextStore.getStore(),
 ): T {

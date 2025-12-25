@@ -7,7 +7,7 @@ import puppeteer, {
 } from "puppeteer";
 import { createLogger } from "../utils/logger.js";
 import {
-  bindScraperContext,
+  runInScraperContext,
   scraperContextStore,
 } from "../utils/asyncContext.js";
 import { initDomainTracking } from "../security/domains.js";
@@ -34,26 +34,21 @@ export async function createSecureBrowserContext(
   browser: Browser,
   companyId: CompanyTypes,
 ): Promise<BrowserContext> {
-  const activeContext = scraperContextStore.getStore();
-  const bind = <T extends (...args: any[]) => any>(fn: T) =>
-    bindScraperContext(fn, activeContext);
-
   const context = await browser.createBrowserContext();
   await initDomainTracking(context, companyId);
-  await initCloudflareSkipping(context, bind);
+  await initCloudflareSkipping(context);
   return context;
 }
 
-async function initCloudflareSkipping(
-  browserContext: BrowserContext,
-  bind: <T extends (...args: any[]) => any>(fn: T) => T,
-) {
+async function initCloudflareSkipping(browserContext: BrowserContext) {
+  const activeContext = scraperContextStore.getStore();
+
   const cfParam = "__cf_chl_rt_tk";
 
   logger("Setting up Cloudflare skipping");
   browserContext.on(
     "targetcreated",
-    bind(async (target) => {
+    runInScraperContext(async (target) => {
       if (target.type() === TargetType.PAGE) {
         logger("Target created %o", target.type());
         const page = await target.page();
@@ -66,7 +61,7 @@ async function initCloudflareSkipping(
 
         page.on(
           "framenavigated",
-          bind((frame) => {
+          runInScraperContext((frame) => {
             const url = frame.url();
             if (!url || url === "about:blank") return;
             logger("Frame navigated", {
@@ -84,9 +79,9 @@ async function initCloudflareSkipping(
                 },
               );
             }
-          }),
+          }, activeContext),
         );
       }
-    }),
+    }, activeContext),
   );
 }
