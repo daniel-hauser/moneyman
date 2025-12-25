@@ -119,8 +119,7 @@ async function scrapeAccount(
   scraperOptions: ScraperOptions,
   setStatusMessage: (message: string, append?: boolean) => Promise<void>,
 ) {
-  const logger = createLogger(`scraper`);
-  logger(`scraping`);
+  logger(`scraping started`);
 
   const scraperStart = performance.now();
   const result = await getAccountTransactions(
