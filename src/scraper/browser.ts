@@ -5,7 +5,11 @@ import puppeteer, {
   type BrowserContext,
   type PuppeteerLaunchOptions,
 } from "puppeteer";
-import { createLogger, logToMetadataFile } from "../utils/logger.js";
+import { createLogger } from "../utils/logger.js";
+import {
+  runInScraperContext,
+  scraperContextStore,
+} from "../utils/asyncContext.js";
 import { initDomainTracking } from "../security/domains.js";
 import { solveTurnstile } from "./cloudflareSolver.js";
 import { config } from "../config.js";
@@ -37,45 +41,47 @@ export async function createSecureBrowserContext(
 }
 
 async function initCloudflareSkipping(browserContext: BrowserContext) {
+  const activeContext = scraperContextStore.getStore();
+
   const cfParam = "__cf_chl_rt_tk";
 
   logger("Setting up Cloudflare skipping");
-  browserContext.on("targetcreated", async (target) => {
-    if (target.type() === TargetType.PAGE) {
-      logger("Target created %o", target.type());
-      const page = await target.page();
-      if (!page) return;
+  browserContext.on(
+    "targetcreated",
+    runInScraperContext(async (target) => {
+      if (target.type() === TargetType.PAGE) {
+        logger("Target created %o", target.type());
+        const page = await target.page();
+        if (!page) return;
 
-      const userAgent = await page.evaluate(() => navigator.userAgent);
-      const newUA = userAgent.replace("HeadlessChrome/", "Chrome/");
-      logger("Replacing user agent", { userAgent, newUA });
-      await page.setUserAgent(newUA);
+        const userAgent = await page.evaluate(() => navigator.userAgent);
+        const newUA = userAgent.replace("HeadlessChrome/", "Chrome/");
+        logger("Replacing user agent", { userAgent, newUA });
+        await page.setUserAgent(newUA);
 
-      page.on("framenavigated", (frame) => {
-        const url = frame.url();
-        if (!url || url === "about:blank") return;
-        logger("Frame navigated", {
-          url,
-          parentFrameUrl: frame.parentFrame()?.url(),
-        });
-        logToMetadataFile(`Frame navigated: ${frame.url()}`);
-        if (url.includes(cfParam)) {
-          logger("Cloudflare challenge detected");
-          logToMetadataFile(`Cloudflare challenge detected`);
-          solveTurnstile(page).then(
-            (res) => {
-              logger(`Cloudflare challenge ended with ${res} for ${url}`);
-              logToMetadataFile(
-                `Cloudflare challenge ended with ${res} for ${url}`,
+        page.on(
+          "framenavigated",
+          runInScraperContext((frame) => {
+            const url = frame.url();
+            if (!url || url === "about:blank") return;
+            logger("Frame navigated", {
+              url,
+              parentFrameUrl: frame.parentFrame()?.url(),
+            });
+            if (url.includes(cfParam)) {
+              logger("Cloudflare challenge detected");
+              solveTurnstile(page).then(
+                (res) => {
+                  logger(`Cloudflare challenge ended with ${res} for ${url}`);
+                },
+                (error) => {
+                  logger(`Cloudflare challenge failed for ${url}`, error);
+                },
               );
-            },
-            (error) => {
-              logger(`Cloudflare challenge failed for ${url}`, error);
-              logToMetadataFile(`Cloudflare challenge failed for ${url}`);
-            },
-          );
-        }
-      });
-    }
-  });
+            }
+          }, activeContext),
+        );
+      }
+    }, activeContext),
+  );
 }

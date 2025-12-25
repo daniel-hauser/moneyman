@@ -10,7 +10,7 @@ import { RunnerHooks } from "./types.js";
 import { runWithStorage } from "./bot/index.js";
 import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
 import { monitorNodeConnections } from "./security/domains.js";
-import { reportRunMetadata } from "./runnerMetadata.js";
+import { getExternalIp, logRunMetadata } from "./runnerMetadata.js";
 
 const logger = createLogger("main");
 console.log("Starting...");
@@ -25,6 +25,7 @@ process.on("uncaughtException", (err, origin) => {
 
 enableDebugLoggingIfNeeded();
 monitorNodeConnections();
+getExternalIp().then((ipInfo) => logger("External IP info:", ipInfo));
 await sendConfigToTelegramIfRequested();
 await run();
 await sendAndDeleteLogFile();
@@ -55,10 +56,7 @@ async function runScraper(hooks: RunnerHooks) {
       sendFailureScreenShots(hooks.failureScreenshotsHandler),
     ]);
 
-    await reportRunMetadata((metadata) => {
-      logger("Reporting run metadata", metadata);
-      return hooks.reportRunMetadata(metadata);
-    });
+    await logRunMetadata();
   } catch (e) {
     logger("Error", e);
     await hooks.onError(e);

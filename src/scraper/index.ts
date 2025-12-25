@@ -1,7 +1,8 @@
 import { performance } from "perf_hooks";
 import { getAccountTransactions } from "./scrape.js";
 import { AccountConfig, AccountScrapeResult, ScraperConfig } from "../types.js";
-import { createLogger, logToMetadataFile } from "../utils/logger.js";
+import { createLogger } from "../utils/logger.js";
+import { scraperContextStore } from "../utils/asyncContext.js";
 import { createBrowser, createSecureBrowserContext } from "./browser.js";
 import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
 import { ScraperOptions } from "israeli-bank-scrapers";
@@ -48,35 +49,36 @@ export async function scrapeAccounts(
   const status: Array<string> = [];
 
   logger("Creating a browser");
-  logToMetadataFile("Creating a browser");
   const browser = await createBrowser();
   logger(`Browser created, starting to scrape ${accounts.length} accounts`);
 
   const results = await parallelLimit<AccountConfig, AccountScrapeResult[]>(
     accounts.map((account, i) => async () => {
       const { companyId } = account;
-      logToMetadataFile(`Scraping account #${i} (${companyId})`);
-      return scrapeAccount(
-        logger.extend(`#${i} (${companyId})`),
-        account,
-        {
-          browserContext: await createSecureBrowserContext(browser, companyId),
-          startDate,
-          companyId,
-          futureMonthsToScrape: futureMonths,
-          storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
-          additionalTransactionInformation,
-          ...scraperOptions,
-        },
-        async (message, append = false) => {
-          status[i] = append ? `${status[i]} ${message}` : message;
-          return scrapeStatusChanged?.(status);
-        },
+      return scraperContextStore.run({ index: i, companyId }, async () =>
+        scrapeAccount(
+          account,
+          {
+            browserContext: await createSecureBrowserContext(
+              browser,
+              companyId,
+            ),
+            startDate,
+            companyId,
+            futureMonthsToScrape: futureMonths,
+            storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
+            additionalTransactionInformation,
+            ...scraperOptions,
+          },
+          async (message, append = false) => {
+            status[i] = append ? `${status[i]} ${message}` : message;
+            return scrapeStatusChanged?.(status);
+          },
+        ),
       );
     }),
     Number(parallelScrapers),
   );
-  logToMetadataFile("All accounts scraped");
   const duration = (performance.now() - start) / 1000;
   logger(`scraping ended, total duration: ${duration.toFixed(1)}s`);
   await scrapeStatusChanged?.(status, duration);
@@ -113,12 +115,11 @@ function getStats(results: Array<AccountScrapeResult>) {
 }
 
 async function scrapeAccount(
-  logger: debug.IDebugger,
   account: AccountConfig,
   scraperOptions: ScraperOptions,
   setStatusMessage: (message: string, append?: boolean) => Promise<void>,
 ) {
-  logger(`scraping`);
+  logger(`scraping started`);
 
   const scraperStart = performance.now();
   const result = await getAccountTransactions(
