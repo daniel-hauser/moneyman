@@ -1,4 +1,4 @@
-FROM node:latest AS builder
+FROM node:24 AS builder
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
@@ -16,7 +16,7 @@ RUN npm run build && \
     npm cache clean --force && \
     rm -rf src
 
-FROM node:slim AS runner
+FROM node:24-slim AS runner
 
 ENV NODE_ENV=production
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true

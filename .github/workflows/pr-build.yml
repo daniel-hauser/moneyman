@@ -90,7 +90,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [20, latest]
+        node-version: [24, latest]
 
     steps:
       - uses: actions/checkout@v6
@@ -119,7 +119,7 @@ jobs:
     if: always() && needs.check-changes.result == 'success'
     strategy:
       matrix:
-        node-version: [20, latest]
+        node-version: [24, latest]
 
     steps:
       - name: Skip build - no relevant changes

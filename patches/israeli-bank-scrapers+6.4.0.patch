@@ -1,17 +1,17 @@
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
-index 1fb11a7..6baeb2d 100644
+index 09768ac..3f9875f 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
-@@ -16,7 +16,7 @@ var _transactions2 = require("../transactions");
- var _baseScraperWithBrowser = require("./base-scraper-with-browser");
+@@ -17,7 +17,7 @@ var _baseScraperWithBrowser = require("./base-scraper-with-browser");
+ var _lodash = _interopRequireDefault(require("lodash"));
  function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
  const apiHeaders = {
 -  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
 +  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
-   Origin: 'https://www.cal-online.co.il',
-   Referer: 'https://www.cal-online.co.il/',
+   Origin: 'https://digital-web.cal-online.co.il',
+   Referer: 'https://digital-web.cal-online.co.il',
    'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
-@@ -266,14 +266,14 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+@@ -284,14 +284,14 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
            'Content-Type': 'application/json',
            ...apiHeaders
          });
