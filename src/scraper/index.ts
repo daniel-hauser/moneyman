@@ -2,7 +2,7 @@ import { performance } from "perf_hooks";
 import { getAccountTransactions } from "./scrape.js";
 import { AccountConfig, AccountScrapeResult, ScraperConfig } from "../types.js";
 import { createLogger } from "../utils/logger.js";
-import { scraperContextStore } from "../utils/asyncContext.js";
+import { loggerContextStore } from "../utils/asyncContext.js";
 import { createBrowser, createSecureBrowserContext } from "./browser.js";
 import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
 import { ScraperOptions } from "israeli-bank-scrapers";
@@ -55,26 +55,28 @@ export async function scrapeAccounts(
   const results = await parallelLimit<AccountConfig, AccountScrapeResult[]>(
     accounts.map((account, i) => async () => {
       const { companyId } = account;
-      return scraperContextStore.run({ index: i, companyId }, async () =>
-        scrapeAccount(
-          account,
-          {
-            browserContext: await createSecureBrowserContext(
-              browser,
+      return loggerContextStore.run(
+        { prefix: `[#${i} ${companyId}]` },
+        async () =>
+          scrapeAccount(
+            account,
+            {
+              browserContext: await createSecureBrowserContext(
+                browser,
+                companyId,
+              ),
+              startDate,
               companyId,
-            ),
-            startDate,
-            companyId,
-            futureMonthsToScrape: futureMonths,
-            storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
-            additionalTransactionInformation,
-            ...scraperOptions,
-          },
-          async (message, append = false) => {
-            status[i] = append ? `${status[i]} ${message}` : message;
-            return scrapeStatusChanged?.(status);
-          },
-        ),
+              futureMonthsToScrape: futureMonths,
+              storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
+              additionalTransactionInformation,
+              ...scraperOptions,
+            },
+            async (message, append = false) => {
+              status[i] = append ? `${status[i]} ${message}` : message;
+              return scrapeStatusChanged?.(status);
+            },
+          ),
       );
     }),
     Number(parallelScrapers),

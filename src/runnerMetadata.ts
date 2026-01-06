@@ -15,6 +15,6 @@ export async function getExternalIp(): Promise<{ ip: string }> {
 }
 
 export async function logRunMetadata(): Promise<void> {
-  const domainsByCompany = await getUsedDomains();
-  logger("Used domains by company:", domainsByCompany);
+  const usedDomains = await getUsedDomains();
+  logger("Used domains:", usedDomains);
 }
