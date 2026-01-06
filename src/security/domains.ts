@@ -15,7 +15,7 @@ const logger = createLogger("domain-security");
 
 type CompanyToSet = Map<CompanyTypes, Set<string>>;
 
-const domainsFromNode: Set<string> = new Set();
+const domainsFromNode: Map<string, Set<string>> = new Map();
 const pagesByCompany: CompanyToSet = new Map();
 const blockedByCompany: CompanyToSet = new Map();
 const allowedByCompany: CompanyToSet = new Map();
@@ -30,7 +30,9 @@ export function monitorNodeConnections() {
       runInLoggerContext(({ request }) => {
         logger(`Outgoing request: ${request.method} ${request.url}`);
         const { hostname } = new URL(request.url);
-        domainsFromNode.add(hostname);
+        const context = loggerContextStore.getStore() ?? { prefix: "node" };
+        const reqKey = `${request.method} ${hostname}`;
+        addToKeyedSet(domainsFromNode, context.prefix, reqKey);
       }),
     );
   }
@@ -130,7 +132,7 @@ function ignoreUrl(url: string): boolean {
 }
 
 export async function getUsedDomains(): Promise<
-  Partial<Record<CompanyTypes | "infra", unknown>>
+  Partial<Record<CompanyTypes | "node", unknown>>
 > {
   const allCompanies = new Set([
     ...allowedByCompany.keys(),
@@ -160,6 +162,11 @@ export async function getUsedDomains(): Promise<
       ];
     }),
   );
-  const infraDomains = Array.from(domainsFromNode);
-  return { ...domainsRecord, infra: infraDomains };
+  const nodeDomains = Object.fromEntries(
+    Array.from(domainsFromNode.entries()).map(([context, domains]) => [
+      context,
+      Array.from(domains),
+    ]),
+  );
+  return { ...domainsRecord, node: nodeDomains };
 }
