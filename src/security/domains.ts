@@ -72,55 +72,45 @@ export async function initDomainTracking(
             if (canIntercept) {
               logger(`Setting request interception`);
               await page.setRequestInterception(true);
+            }
 
-              page.on(
-                "request",
-                runInScraperContext(async (request) => {
-                  const url = new URL(request.url());
-                  const pageUrl = new URL(page.url());
+            page.on(
+              "request",
+              runInScraperContext(async (request) => {
+                const url = new URL(request.url());
+                const pageUrl = new URL(page.url());
+                const hostname = url.hostname;
+                const reqKey = `${request.method()} ${hostname}`;
 
-                  const resourceType = request.resourceType();
-                  const reqKey = `${request.method()} ${url.hostname}`;
+                if (!resourceTypesByCompany.has(reqKey)) {
+                  resourceTypesByCompany.set(reqKey, new Map());
+                }
 
+                const resourceType = request.resourceType();
+                addToKeyedSet(
+                  resourceTypesByCompany.get(reqKey)!,
+                  companyId,
+                  resourceType,
+                );
+
+                if (canIntercept) {
                   if (request.isInterceptResolutionHandled()) {
                     logger(`Request already handled ${reqKey} ${resourceType}`);
                   }
-
-                  if (!resourceTypesByCompany.has(reqKey)) {
-                    resourceTypesByCompany.set(reqKey, new Map());
-                  }
-
-                  addToKeyedSet(
-                    resourceTypesByCompany.get(reqKey)!,
-                    companyId,
-                    resourceType,
-                  );
-
-                  if (ignoreUrl(url.hostname) || !rules.isBlocked(url)) {
-                    addToKeyedSet(allowedByCompany, companyId, reqKey);
-                    logger(`Allowing ${pageUrl.hostname}->${reqKey}`);
-                    await request.continue(undefined, 100);
-                  } else {
+                  if (!(ignoreUrl(hostname) || !rules.isBlocked(url))) {
                     addToKeyedSet(blockedByCompany, companyId, reqKey);
                     logger(`Blocking ${pageUrl.hostname}->${reqKey}`);
                     await request.abort(undefined, 100);
+                    return;
                   }
-                }, context),
-              );
-            } else {
-              page.on(
-                "request",
-                runInScraperContext(async (request) => {
-                  const { hostname } = new URL(request.url());
-                  const reqKey = `${request.method()}(${request.resourceType()}) ${hostname}`;
-                  if (!ignoreUrl(hostname)) {
-                    addToKeyedSet(allowedByCompany, companyId, reqKey);
-                  }
-                  const pageUrl = new URL(page.url());
-                  logger(`${pageUrl.hostname}->${reqKey}`);
-                }, context),
-              );
-            }
+                }
+
+                addToKeyedSet(allowedByCompany, companyId, reqKey);
+                if (canIntercept) {
+                  await request.continue(undefined, 100);
+                }
+              }, context),
+            );
 
             break;
           }
