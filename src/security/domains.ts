@@ -1,8 +1,8 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { createLogger } from "../utils/logger.js";
 import {
-  runInScraperContext,
-  scraperContextStore,
+  runInLoggerContext,
+  loggerContextStore,
 } from "../utils/asyncContext.js";
 import { type BrowserContext, TargetType } from "puppeteer";
 import { ClientRequestInterceptor } from "@mswjs/interceptors/ClientRequest";
@@ -25,11 +25,14 @@ export function monitorNodeConnections() {
   if (scrapingConfig.domainTracking) {
     const interceptor = new ClientRequestInterceptor();
     interceptor.apply();
-    interceptor.on("request", ({ request }) => {
-      logger(`Outgoing request: ${request.method} ${request.url}`);
-      const { hostname } = new URL(request.url);
-      domainsFromNode.add(hostname);
-    });
+    interceptor.on(
+      "request",
+      runInLoggerContext(({ request }) => {
+        logger(`Outgoing request: ${request.method} ${request.url}`);
+        const { hostname } = new URL(request.url);
+        domainsFromNode.add(hostname);
+      }),
+    );
   }
 }
 
@@ -38,7 +41,7 @@ export async function initDomainTracking(
   companyId: CompanyTypes,
 ): Promise<void> {
   if (scrapingConfig.domainTracking) {
-    const context = scraperContextStore.getStore();
+    const context = loggerContextStore.getStore();
 
     const rules = new DomainRuleManager(
       companyId,
@@ -47,7 +50,7 @@ export async function initDomainTracking(
     );
     browserContext.on(
       "targetcreated",
-      runInScraperContext(async (target) => {
+      runInLoggerContext(async (target) => {
         switch (target.type()) {
           case TargetType.PAGE:
           case TargetType.WEBVIEW:
@@ -61,7 +64,7 @@ export async function initDomainTracking(
 
             page.on(
               "framenavigated",
-              runInScraperContext((frame) => {
+              runInLoggerContext((frame) => {
                 logger(`Frame navigated: ${frame.url()}`);
                 const { hostname, pathname } = new URL(page.url());
                 addToKeyedSet(pagesByCompany, companyId, hostname + pathname);
@@ -76,7 +79,7 @@ export async function initDomainTracking(
 
             page.on(
               "request",
-              runInScraperContext(async (request) => {
+              runInLoggerContext(async (request) => {
                 const url = new URL(request.url());
                 const pageUrl = new URL(page.url());
                 const hostname = url.hostname;

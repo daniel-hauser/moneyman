@@ -5,6 +5,7 @@ import {
   TransactionStorage,
 } from "../../types.js";
 import { createLogger } from "../../utils/logger.js";
+import { loggerContextStore } from "../../utils/asyncContext.js";
 import { Timer } from "../../utils/Timer.js";
 import { saving } from "../messages.js";
 import { editMessage, send, sendError } from "../notifier.js";
@@ -53,26 +54,28 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
       const logger = baseLogger.extend(name);
       const steps: Array<Timer> = [];
 
-      try {
-        logger(`saving ${txns.length} transactions`);
-        const message = await send(saving(name));
-        const start = performance.now();
-        const stats = await storage.saveTransactions(txns, async (step) => {
+      return loggerContextStore.run({ prefix: `[${name}]` }, async () => {
+        try {
+          logger(`saving ${txns.length} transactions`);
+          const message = await send(saving(name));
+          const start = performance.now();
+          const stats = await storage.saveTransactions(txns, async (step) => {
+            steps.at(-1)?.end();
+            steps.push(new Timer(step));
+            await editMessage(message?.message_id, saving(name, steps));
+          });
+          const duration = performance.now() - start;
           steps.at(-1)?.end();
-          steps.push(new Timer(step));
-          await editMessage(message?.message_id, saving(name, steps));
-        });
-        const duration = performance.now() - start;
-        steps.at(-1)?.end();
-        logger(`saved`);
-        await editMessage(
-          message?.message_id,
-          statsString(stats, duration, steps),
-        );
-      } catch (e) {
-        logger(`error saving transactions`, e);
-        sendError(e, `saveTransactions::${name}`);
-      }
+          logger(`saved`);
+          await editMessage(
+            message?.message_id,
+            statsString(stats, duration, steps),
+          );
+        } catch (e) {
+          logger(`error saving transactions`, e);
+          sendError(e, `saveTransactions::${name}`);
+        }
+      });
     }),
   );
 }

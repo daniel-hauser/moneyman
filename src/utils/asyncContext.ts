@@ -1,17 +1,16 @@
 import { AsyncLocalStorage } from "async_hooks";
 
-export type ScraperContext = {
-  index: number;
-  companyId: string;
+export type LoggerContext = {
+  prefix: string;
 };
 
-export const scraperContextStore = new AsyncLocalStorage<ScraperContext>();
+export const loggerContextStore = new AsyncLocalStorage<LoggerContext>();
 
-export function runInScraperContext<T extends (...args: any[]) => any>(
+export function runInLoggerContext<T extends (...args: any[]) => any>(
   fn: T,
-  context: ScraperContext | undefined = scraperContextStore.getStore(),
+  context: LoggerContext | undefined = loggerContextStore.getStore(),
 ): T {
   if (!context) return fn;
   return ((...args: Parameters<T>) =>
-    scraperContextStore.run(context, () => fn(...args))) as T;
+    loggerContextStore.run(context, () => fn(...args))) as T;
 }

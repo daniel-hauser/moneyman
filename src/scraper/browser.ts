@@ -7,8 +7,8 @@ import puppeteer, {
 } from "puppeteer";
 import { createLogger } from "../utils/logger.js";
 import {
-  runInScraperContext,
-  scraperContextStore,
+  runInLoggerContext,
+  loggerContextStore,
 } from "../utils/asyncContext.js";
 import { initDomainTracking } from "../security/domains.js";
 import { solveTurnstile } from "./cloudflareSolver.js";
@@ -41,14 +41,14 @@ export async function createSecureBrowserContext(
 }
 
 async function initCloudflareSkipping(browserContext: BrowserContext) {
-  const activeContext = scraperContextStore.getStore();
+  const activeContext = loggerContextStore.getStore();
 
   const cfParam = "__cf_chl_rt_tk";
 
   logger("Setting up Cloudflare skipping");
   browserContext.on(
     "targetcreated",
-    runInScraperContext(async (target) => {
+    runInLoggerContext(async (target) => {
       if (target.type() === TargetType.PAGE) {
         logger("Target created %o", target.type());
         const page = await target.page();
@@ -61,7 +61,7 @@ async function initCloudflareSkipping(browserContext: BrowserContext) {
 
         page.on(
           "framenavigated",
-          runInScraperContext((frame) => {
+          runInLoggerContext((frame) => {
             const url = frame.url();
             if (!url || url === "about:blank") return;
             logger("Frame navigated", {
