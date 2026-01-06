@@ -1,20 +1,19 @@
 import debug from "debug";
 import { writeFileSync, existsSync, writeSync } from "fs";
 import { BooleanEnvVarSchema, IntEnvVarSchema } from "../config.schema.js";
-import { scraperContextStore } from "./asyncContext.js";
+import { loggerContextStore } from "./asyncContext.js";
 
 export const logger = debug("moneyman");
 
-// Hook into debug.log to inject scraper context
+// Hook into debug.log to inject logger context
 const originalLog = debug.log;
 debug.log = function (...args: unknown[]) {
-  const context = scraperContextStore.getStore();
+  const context = loggerContextStore.getStore();
   if (context) {
-    const prefix = `[#${context.index} ${context.companyId}]`;
     if (typeof args[0] === "string") {
-      args[0] = `${prefix} ${args[0]}`;
+      args[0] = `${context.prefix} ${args[0]}`;
     } else {
-      args.unshift(prefix);
+      args.unshift(context.prefix);
     }
   }
   return originalLog.apply(this, args);
