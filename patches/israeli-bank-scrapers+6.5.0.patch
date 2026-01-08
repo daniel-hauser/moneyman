@@ -1,5 +1,5 @@
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
-index 09768ac..3f9875f 100644
+index e570ea9..64ece0d 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
 @@ -17,7 +17,7 @@ var _baseScraperWithBrowser = require("./base-scraper-with-browser");
@@ -11,7 +11,7 @@ index 09768ac..3f9875f 100644
    Origin: 'https://digital-web.cal-online.co.il',
    Referer: 'https://digital-web.cal-online.co.il',
    'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
-@@ -284,14 +284,14 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+@@ -287,14 +287,14 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
            'Content-Type': 'application/json',
            ...apiHeaders
          });
