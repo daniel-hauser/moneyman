@@ -99,6 +99,7 @@ export const scraperConfig: ScraperConfig = {
   futureMonthsToScrape: config.options.scraping.futureMonths,
   additionalTransactionInformation:
     config.options.scraping.additionalTransactionInfo,
+  includeRawTransaction: config.options.scraping.includeRawTransaction,
 };
 
 /**
