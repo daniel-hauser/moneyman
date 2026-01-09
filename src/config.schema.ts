@@ -112,6 +112,7 @@ export const ScrapingOptionsSchema = z.object({
   futureMonths: z.number().min(0).max(12).default(1),
   transactionHashType: z.enum(["", "moneyman"]).default(""),
   additionalTransactionInfo: z.boolean().default(false),
+  includeRawTransaction: z.boolean().default(false),
   hiddenDeprecations: z.array(z.string()).default([]),
   puppeteerExecutablePath: z.string().optional(),
   maxParallelScrapers: z.number().min(1).max(10).default(1),

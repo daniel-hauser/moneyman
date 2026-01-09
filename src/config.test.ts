@@ -24,6 +24,7 @@ describe("config", () => {
     expect(parsed.accounts).toEqual([]);
     expect(parsed.storage.localJson?.enabled).toBe(true);
     expect(parsed.options.scraping.daysBack).toBe(10);
+    expect(parsed.options.scraping.includeRawTransaction).toBe(false);
     expect(parsed.options.logging.getIpInfoUrl).toBe("https://ipinfo.io/json");
   });
 
@@ -217,6 +218,56 @@ describe("config", () => {
     const { unlinkSync, rmdirSync } = await import("fs");
     unlinkSync(configPath);
     rmdirSync(tempDir);
+  });
+
+  it("should support includeRawTransaction option", async () => {
+    const configWithRawTransaction = {
+      accounts: [{ companyId: "test", password: "pass", userCode: "12345" }],
+      storage: { localJson: { enabled: true } },
+      options: {
+        scraping: {
+          includeRawTransaction: true,
+        },
+        security: {},
+        notifications: {},
+        logging: {},
+      },
+    };
+
+    process.env = {
+      ...originalEnv,
+      MONEYMAN_CONFIG_PATH: undefined,
+      MONEYMAN_CONFIG: JSON.stringify(configWithRawTransaction),
+    };
+
+    const { config } = await import("./config.js");
+
+    expect(config.options.scraping.includeRawTransaction).toBe(true);
+  });
+
+  it("should default includeRawTransaction to false when not specified", async () => {
+    const configWithoutRawTransaction = {
+      accounts: [{ companyId: "test", password: "pass", userCode: "12345" }],
+      storage: { localJson: { enabled: true } },
+      options: {
+        scraping: {
+          daysBack: 15,
+        },
+        security: {},
+        notifications: {},
+        logging: {},
+      },
+    };
+
+    process.env = {
+      ...originalEnv,
+      MONEYMAN_CONFIG_PATH: undefined,
+      MONEYMAN_CONFIG: JSON.stringify(configWithoutRawTransaction),
+    };
+
+    const { config } = await import("./config.js");
+
+    expect(config.options.scraping.includeRawTransaction).toBe(false);
   });
 
   it("should prioritize MONEYMAN_CONFIG over MONEYMAN_CONFIG_PATH", async () => {

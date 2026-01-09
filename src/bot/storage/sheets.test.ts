@@ -176,6 +176,7 @@ describe("GoogleSheetsStorage", () => {
             futureMonths: 1,
             transactionHashType: "",
             additionalTransactionInfo: false,
+            includeRawTransaction: false,
             hiddenDeprecations: [],
             maxParallelScrapers: 1,
             domainTracking: false,
