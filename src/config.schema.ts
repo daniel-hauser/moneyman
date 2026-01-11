@@ -149,7 +149,9 @@ export const NotificationOptionsSchema = z.object({
 });
 
 export const LoggingOptionsSchema = z.object({
-  getIpInfoUrl: z.url().default("https://ipinfo.io/json"),
+  getIpInfoUrl: z
+    .union([z.literal(false), z.string().url()])
+    .default("https://ipinfo.io/json"),
   debugFilter: z.string().optional().default("moneyman:*"),
 });
 

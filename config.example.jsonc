@@ -37,7 +37,9 @@
       // "includeRawTransaction": false
     },
     "logging": {
+      // URL to fetch external IP information, or false to disable
       // "getIpInfoUrl": "https://ipinfo.io/json"
+      // "getIpInfoUrl": false
     },
     "security": {
       // Block domains by default (default: false)
