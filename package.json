@@ -47,7 +47,7 @@
     "hash-it": "^7.0.2",
     "israeli-bank-scrapers": "^6.6.0",
     "jsonc-parser": "^3.3.1",
-    "pg": "^8.13.1",
+    "pg": "^8.17.1",
     "pg-format": "^1.0.4",
     "telegraf": "^4.16.3",
     "ynab": "^2.10.0",
