@@ -57,7 +57,7 @@
     "@types/async": "^3.2.25",
     "@types/debug": "^4.1.12",
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.0.9",
+    "@types/node": "^25.0.10",
     "@types/pg": "^8.16.0",
     "@types/pg-format": "^1.0.3",
     "husky": "^9.1.7",
@@ -65,7 +65,7 @@
     "jest-mock-extended": "^4.0.0",
     "patch-package": "^8.0.1",
     "pg-mem": "^3.0.5",
-    "prettier": "^3.8.0",
+    "prettier": "^3.8.1",
     "pretty-quick": "^4.2.2",
     "ts-jest": "^29.4.6",
     "typescript": "^5.9.3"
