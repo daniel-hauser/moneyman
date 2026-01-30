@@ -401,11 +401,7 @@ describe("transactionUniqueId", () => {
         },
       } as any;
 
-      const id = transactionUniqueId(
-        tx,
-        CompanyTypes.mizrahi,
-        accountNumber,
-      );
+      const id = transactionUniqueId(tx, CompanyTypes.mizrahi, accountNumber);
 
       // Should not append anything since TransactionNumber is missing
       expect(id).not.toContain("undefined");
@@ -421,11 +417,7 @@ describe("transactionUniqueId", () => {
         },
       } as any;
 
-      const id = transactionUniqueId(
-        tx,
-        CompanyTypes.mizrahi,
-        accountNumber,
-      );
+      const id = transactionUniqueId(tx, CompanyTypes.mizrahi, accountNumber);
 
       // Should not append anything since TransactionNumber is null
       expect(id).not.toContain("undefined");

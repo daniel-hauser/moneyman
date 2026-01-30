@@ -53,19 +53,18 @@ export function transactionUniqueId(
 
   // For mizrahi bank, include TransactionNumber when != "1"
   // to handle duplicate identifiers that can occur within the same batch
-  const rawTx = tx as Transaction & { rawTransaction?: Record<string, unknown> };
+  const rawTx = tx as Transaction & {
+    rawTransaction?: Record<string, unknown>;
+  };
   if (companyId === "mizrahi" && rawTx.rawTransaction) {
     const txNum = rawTx.rawTransaction.TransactionNumber;
     if (txNum && txNum !== "1") {
-      logger(
-        `Using TransactionNumber differentiator for mizrahi transaction`,
-        {
-          identifier: tx.identifier,
-          amount: tx.chargedAmount,
-          date: tx.date,
-          transactionNumber: txNum,
-        },
-      );
+      logger(`Using TransactionNumber differentiator for mizrahi transaction`, {
+        identifier: tx.identifier,
+        amount: tx.chargedAmount,
+        date: tx.date,
+        transactionNumber: txNum,
+      });
       parts.push(String(txNum));
     }
   }
