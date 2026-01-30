@@ -1,5 +1,17 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
+exports[`messages getSummaryMessages should detect duplicate uniqueId in batch 1`] = `
+"6 transactions scraped from 1 account.
+(0 pending, 6 completed)
+
+<blockquote expandable>⚠️ Duplicate uniqueId detected (2 unique keys affected)
+	2025-01-15_mizrahi_account1_-20_Duplicate transaction 1_memo1
+	2025-01-15_mizrahi_account1_-50_Another duplicate_memo2</blockquote>
+
+<blockquote expandable>Accounts updated
+	✔️ [mizrahi] account1: 6</blockquote>"
+`;
+
 exports[`messages getSummaryMessages should not add empty groups 1`] = `
 [
   "📝 Storage (TheTable)
@@ -23,6 +35,9 @@ exports[`messages getSummaryMessages should return a summary message 1`] = `
 "8 transactions scraped from 2 accounts.
 (3 pending, 5 completed)
 From completed, 3 not originally in ILS and 1 not charged in ILS
+
+<blockquote expandable>⚠️ Duplicate uniqueId detected (1 unique keys affected)
+	2026-01-30_max_account2_0_description1_undefined</blockquote>
 
 <blockquote expandable>Accounts updated
 	✔️ [max] account1: 1
@@ -136,6 +151,10 @@ exports[`messages getSummaryMessages should use expandable block quotation for m
 "8 transactions scraped from 2 accounts.
 (0 pending, 8 completed)
 
+<blockquote expandable>⚠️ Duplicate uniqueId detected (2 unique keys affected)
+	2026-01-30_hapoalim_12345_10_description1_undefined
+	2026-01-30_hapoalim_67890_10_description1_undefined</blockquote>
+
 <blockquote expandable>Failed Account Updates
 	❌ [max] GENERIC
 		Connection failed</blockquote>
@@ -148,6 +167,9 @@ exports[`messages getSummaryMessages should use expandable block quotation for m
 exports[`messages getSummaryMessages should use expandable block quotation for successful accounts only (HTML) 1`] = `
 "3 transactions scraped from 2 accounts.
 (0 pending, 3 completed)
+
+<blockquote expandable>⚠️ Duplicate uniqueId detected (1 unique keys affected)
+	2026-01-30_max_account2_10_description1_undefined</blockquote>
 
 <blockquote expandable>Accounts updated
 	✔️ [max] account1: 1
