@@ -249,6 +249,72 @@ describe("messages", () => {
       expect(saveSummaries).toMatchSnapshot();
     });
 
+    it("should detect duplicate uniqueId in batch", () => {
+      const baseDate = "2025-01-15T10:00:00.000Z";
+      const transactions = [
+        // These two will have the same uniqueId
+        transaction({
+          date: baseDate,
+          chargedAmount: -20,
+          description: "Duplicate transaction 1",
+          memo: "memo1",
+        }),
+        transaction({
+          date: baseDate,
+          chargedAmount: -20,
+          description: "Duplicate transaction 1",
+          memo: "memo1",
+        }),
+        // Unique transaction
+        transaction({
+          date: baseDate,
+          chargedAmount: -40,
+          description: "Unique transaction",
+        }),
+        // These three will have the same uniqueId
+        transaction({
+          date: baseDate,
+          chargedAmount: -50,
+          description: "Another duplicate",
+          memo: "memo2",
+        }),
+        transaction({
+          date: baseDate,
+          chargedAmount: -50,
+          description: "Another duplicate",
+          memo: "memo2",
+        }),
+        transaction({
+          date: baseDate,
+          chargedAmount: -50,
+          description: "Another duplicate",
+          memo: "memo2",
+        }),
+      ];
+
+      const results: Array<AccountScrapeResult> = [
+        {
+          companyId: CompanyTypes.mizrahi,
+          result: {
+            success: true,
+            accounts: [
+              {
+                accountNumber: "account1",
+                txns: transactions,
+              },
+            ],
+          },
+        },
+      ];
+
+      const summary = getSummaryMessages(results);
+      expect(summary).toMatchSnapshot();
+      expect(summary).toContain("Duplicate uniqueId detected");
+      // Check that the actual uniqueIds are shown (not descriptions)
+      expect(summary).toMatch(/2025-01-15_mizrahi_account1_-20/);
+      expect(summary).toMatch(/2025-01-15_mizrahi_account1_-50/);
+    });
+
     it("should not add empty groups", () => {
       const stats: Array<SaveStats> = [
         createSaveStats("Storage", "TheTable", [], {

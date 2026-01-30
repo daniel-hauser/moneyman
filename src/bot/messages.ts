@@ -6,6 +6,7 @@ import { AccountScrapeResult, Transaction } from "../types.js";
 import { normalizeCurrency } from "../utils/currency.js";
 import { Timer } from "../utils/Timer.js";
 import { escapers } from "@telegraf/entity";
+import { transactionUniqueId } from "./storage/utils.js";
 
 function blockquote(title: string, lines: string[], expandable = true): string {
   const content = lines.join("\n");
@@ -69,6 +70,7 @@ export function getSummaryMessages(results: Array<AccountScrapeResult>) {
 
   const sections = [
     transactionsString(pending, completed, results),
+    getDuplicateUniqueIdSummary(results),
     getAccountsSummary(results),
     getPendingTransactionsSummary(pending),
   ];
@@ -119,6 +121,44 @@ function foreignTransactionsSummary(completed: Array<Transaction>) {
   return `From completed, ${original} not originally in ILS${
     charged ? ` and ${charged} not charged in ILS` : ""
   }`;
+}
+
+function getDuplicateUniqueIdSummary(
+  results: Array<AccountScrapeResult>,
+): string {
+  const seen = new Set<string>();
+  const duplicateIds = new Set<string>();
+
+  for (const { result, companyId } of results) {
+    if (result.success && result.accounts) {
+      for (const account of result.accounts) {
+        for (const tx of account.txns) {
+          const uniqueId = transactionUniqueId(
+            tx,
+            companyId,
+            account.accountNumber,
+          );
+          if (seen.has(uniqueId)) {
+            duplicateIds.add(uniqueId);
+          }
+          seen.add(uniqueId);
+        }
+      }
+    }
+  }
+
+  if (duplicateIds.size === 0) {
+    return "";
+  }
+
+  const duplicateLines = Array.from(duplicateIds).map(
+    (id) => `\t${escapers.HTML(id)}`,
+  );
+
+  return blockquote(
+    `⚠️ Duplicate uniqueId detected (${duplicateIds.size} unique keys affected)`,
+    duplicateLines,
+  );
 }
 
 function transactionAmount(t: Transaction): number {
