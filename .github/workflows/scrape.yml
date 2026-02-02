@@ -19,6 +19,8 @@ on:
   schedule:
     # In Israel: [12:05, 00:05] or [13:05, 01:05] on DST
     - cron: "5 10,22 * * *"
+permissions:
+  contents: read
 env:
   REGISTRY: ghcr.io
 jobs:
