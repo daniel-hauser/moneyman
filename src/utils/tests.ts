@@ -15,8 +15,8 @@ import { CompanyTypes } from "israeli-bank-scrapers";
 export function transaction(t: Partial<Transaction>): Transaction {
   return {
     type: TransactionTypes.Normal,
-    date: new Date().toISOString(),
-    processedDate: new Date().toISOString(),
+    date: new Date("2026-01-30").toISOString(),
+    processedDate: new Date("2026-01-30").toISOString(),
     description: "description1",
     originalAmount: 10,
     originalCurrency: "ILS",
