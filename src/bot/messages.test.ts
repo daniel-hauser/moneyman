@@ -16,6 +16,17 @@ import {
 import { Timer } from "../utils/Timer.js";
 import { transaction } from "../utils/tests.js";
 
+// Mock Date to return a fixed date for consistent snapshots
+const MOCK_DATE = new Date("2026-01-30T12:00:00.000Z");
+beforeAll(() => {
+  jest.useFakeTimers();
+  jest.setSystemTime(MOCK_DATE);
+});
+
+afterAll(() => {
+  jest.useRealTimers();
+});
+
 describe("messages", () => {
   describe("getSummaryMessages", () => {
     it("should return a summary message", () => {
