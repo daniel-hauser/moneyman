@@ -51,6 +51,7 @@ interface IngestionResponse {
 export class MoneymanDashStorage implements TransactionStorage {
   private endpoint?: string;
   private token?: string;
+  private lastRunId?: string;
 
   constructor(private config: MoneymanConfig) {
     if (this.canSave()) {
@@ -67,15 +68,22 @@ export class MoneymanDashStorage implements TransactionStorage {
     assert(tokenConfig, "Moneyman storage configuration not found");
 
     const tokenString = tokenConfig.token;
-    const parts = tokenString.split(".");
+    const dotIndex = tokenString.indexOf(".");
 
-    if (parts.length !== 2) {
+    if (dotIndex === -1) {
       throw new Error(
         "Invalid token format: expected base64(url).tokenstring"
       );
     }
 
-    const [encodedUrl, token] = parts;
+    const encodedUrl = tokenString.slice(0, dotIndex);
+    const token = tokenString.slice(dotIndex + 1);
+
+    if (!encodedUrl || !token) {
+      throw new Error(
+        "Invalid token format: both URL and token parts are required"
+      );
+    }
 
     try {
       const url = Buffer.from(encodedUrl, "base64").toString("utf-8");
@@ -109,7 +117,9 @@ export class MoneymanDashStorage implements TransactionStorage {
     const runContext = runContextStore.getStore();
     const runId = runContext?.runId;
 
-    if (!runId) {
+    if (runId) {
+      this.lastRunId = runId;
+    } else {
       logger("Warning: No runId found in context");
     }
 
@@ -125,7 +135,7 @@ export class MoneymanDashStorage implements TransactionStorage {
       },
       body: JSON.stringify({
         ...payload,
-        ...(runId && { runId }),
+        ...(this.lastRunId && { runId: this.lastRunId }),
       }),
     });
 
@@ -155,11 +165,10 @@ export class MoneymanDashStorage implements TransactionStorage {
       return;
     }
 
-    const runContext = runContextStore.getStore();
-    const runId = runContext?.runId;
+    const runId = this.lastRunId ?? runContextStore.getStore()?.runId;
 
     if (!runId) {
-      logger("Warning: No runId found in context, skipping log upload");
+      logger("Warning: No runId available, skipping log upload");
       return;
     }
 
@@ -191,23 +200,39 @@ export class MoneymanDashStorage implements TransactionStorage {
     }
   }
 
-  private buildIngestionPayload(txns: IngestionTransactionRow[]): IngestionPayload {
+  private toIngestionRow(txn: TransactionRow): IngestionTransactionRow {
+    return {
+      account: txn.account,
+      companyId: txn.companyId,
+      hash: txn.hash,
+      uniqueId: txn.uniqueId,
+      date: txn.date,
+      description: txn.description,
+      memo: txn.memo,
+      originalAmount: txn.originalAmount,
+      originalCurrency: txn.originalCurrency,
+      chargedAmount: txn.chargedAmount,
+      chargedCurrency: txn.chargedCurrency,
+      type: txn.type,
+      status: txn.status,
+      category: txn.category,
+    };
+  }
+
+  private buildIngestionPayload(txns: TransactionRow[]): IngestionPayload {
     const uniqueAccounts = new Set(txns.map((t) => t.account));
-    const addedCount = txns.length;
-    const pendingCount = 0;
-    const skippedCount = 0;
 
     return {
       metadata: {
         scrapedAt: new Date().toISOString(),
         scrapedBy: "moneyman",
         accounts: uniqueAccounts.size,
-        added: addedCount,
-        pending: pendingCount,
-        skipped: skippedCount,
+        added: txns.length,
+        pending: 0,
+        skipped: 0,
         highlightedTransactions: 0,
       },
-      transactions: txns,
+      transactions: txns.map((t) => this.toIngestionRow(t)),
     };
   }
 }
