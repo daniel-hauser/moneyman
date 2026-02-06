@@ -9,6 +9,8 @@ import {
   sendJSON,
   sendPhotos,
 } from "./notifier.js";
+import { runContextStore } from "../utils/asyncContext.js";
+import { randomUUID } from "crypto";
 
 const logger = createLogger("bot");
 
@@ -20,29 +22,33 @@ export async function runWithStorage(runScraper: Runner) {
     return;
   }
 
-  await runScraper({
-    async onStatusChanged(status: Array<string>, totalTime?: number) {
-      const text = status.join("\n");
-      await editMessage(
-        message?.message_id,
-        totalTime
-          ? text + `\n\nTotal time: ${totalTime.toFixed(1)} seconds`
-          : text,
-      );
-    },
-    async onResultsReady(results: AccountScrapeResult[]) {
-      const summaryMessage = getSummaryMessages(results);
-      await send(summaryMessage, "HTML");
-      await saveResults(results);
-    },
-    async onError(e: Error, caller: string = "unknown") {
-      await sendError(e, caller);
-    },
-    async onBeforeStart() {},
-    async failureScreenshotsHandler(photos) {
-      await sendPhotos(photos);
-    },
-  });
+  const runId = randomUUID();
 
-  logToPublicLog("Scraping ended", logger);
+  await runContextStore.run({ runId }, async () => {
+    await runScraper({
+      async onStatusChanged(status: Array<string>, totalTime?: number) {
+        const text = status.join("\n");
+        await editMessage(
+          message?.message_id,
+          totalTime
+            ? text + `\n\nTotal time: ${totalTime.toFixed(1)} seconds`
+            : text,
+        );
+      },
+      async onResultsReady(results: AccountScrapeResult[]) {
+        const summaryMessage = getSummaryMessages(results);
+        await send(summaryMessage, "HTML");
+        await saveResults(results);
+      },
+      async onError(e: Error, caller: string = "unknown") {
+        await sendError(e, caller);
+      },
+      async onBeforeStart() {},
+      async failureScreenshotsHandler(photos) {
+        await sendPhotos(photos);
+      },
+    });
+
+    logToPublicLog("Scraping ended", logger);
+  });
 }
