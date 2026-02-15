@@ -32,7 +32,7 @@
   "homepage": "https://github.com/daniel-hauser/moneyman#readme",
   "dependencies": {
     "@actual-app/api": "^26.2.0",
-    "@mswjs/interceptors": "^0.41.1",
+    "@mswjs/interceptors": "^0.41.2",
     "@telegraf/entity": "^0.7.0",
     "async": "^3.2.6",
     "azure-kusto-data": "^7.0.4",
@@ -40,7 +40,7 @@
     "buxfer-ts-client": "^1.1.4",
     "date-fns": "^4.1.0",
     "debug": "^4.4.3",
-    "dotenv": "^17.2.4",
+    "dotenv": "^17.3.1",
     "glob": "^13.0.1",
     "google-auth-library": "^10.5.0",
     "google-spreadsheet": "^5.0.2",
