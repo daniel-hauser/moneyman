@@ -112,7 +112,7 @@ describe("MoneymanDashStorage", () => {
           headers: expect.objectContaining({
             Authorization: `Bearer ${jwtToken}`,
           }),
-        })
+        }),
       );
     });
 
@@ -131,7 +131,9 @@ describe("MoneymanDashStorage", () => {
       const txns = [transactionRow({}), transactionRow({ account: "5678" })];
       const runId = randomUUID();
 
-      fetchMock.mockResolvedValue(mockSuccessResponse({ transactionsAdded: 2 }));
+      fetchMock.mockResolvedValue(
+        mockSuccessResponse({ transactionsAdded: 2 }),
+      );
 
       const storage = new MoneymanDashStorage(mockConfig(token));
 
@@ -150,7 +152,7 @@ describe("MoneymanDashStorage", () => {
             Authorization: `Bearer ${tokenString}`,
             "Content-Type": "application/json",
           }),
-        })
+        }),
       );
 
       const callArg = fetchMock.mock.calls[0][1];
@@ -200,9 +202,20 @@ describe("MoneymanDashStorage", () => {
       const txn = body.transactions[0];
 
       const expectedKeys = [
-        "account", "companyId", "hash", "uniqueId", "date",
-        "description", "memo", "originalAmount", "originalCurrency",
-        "chargedAmount", "chargedCurrency", "type", "status", "category",
+        "account",
+        "companyId",
+        "hash",
+        "uniqueId",
+        "date",
+        "description",
+        "memo",
+        "originalAmount",
+        "originalCurrency",
+        "chargedAmount",
+        "chargedCurrency",
+        "type",
+        "status",
+        "category",
       ];
 
       // Should not contain extra fields like processedDate, identifier, etc.
@@ -221,7 +234,9 @@ describe("MoneymanDashStorage", () => {
         status: TransactionStatuses.Pending,
       });
 
-      fetchMock.mockResolvedValue(mockSuccessResponse({ added: 1, pending: 1 }));
+      fetchMock.mockResolvedValue(
+        mockSuccessResponse({ added: 1, pending: 1 }),
+      );
 
       const storage = new MoneymanDashStorage(mockConfig(token));
 
@@ -229,7 +244,7 @@ describe("MoneymanDashStorage", () => {
         runContextStore.run({ runId: randomUUID() }, async () => {
           await storage.saveTransactions(
             [completedTx, pendingTx],
-            async () => {}
+            async () => {},
           );
           resolve(undefined);
         });
@@ -259,14 +274,14 @@ describe("MoneymanDashStorage", () => {
             try {
               await storage.saveTransactions(
                 [transactionRow({})],
-                async () => {}
+                async () => {},
               );
               resolve(undefined);
             } catch (e) {
               reject(e);
             }
           });
-        })
+        }),
       ).rejects.toThrow("Failed to post transactions");
     });
 
@@ -342,7 +357,7 @@ describe("MoneymanDashStorage", () => {
             "X-Run-Id": runId,
           }),
           body: logs,
-        })
+        }),
       );
     });
 
@@ -377,7 +392,7 @@ describe("MoneymanDashStorage", () => {
             "X-Run-Id": runId,
           }),
           body: "test logs",
-        })
+        }),
       );
     });
 
@@ -471,7 +486,7 @@ describe("MoneymanDashStorage", () => {
       const body = JSON.parse(callArg.body);
 
       expect(body.metadata.scrapedAt).toMatch(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
       );
     });
   });

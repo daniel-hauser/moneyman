@@ -76,7 +76,9 @@ export class MoneymanDashStorage implements TransactionStorage {
         .replace(/-/g, "+")
         .replace(/_/g, "/")
         .padEnd(encoded.length + ((4 - (encoded.length % 4)) % 4), "=");
-      const decoded = JSON.parse(Buffer.from(base64, "base64").toString("utf-8"));
+      const decoded = JSON.parse(
+        Buffer.from(base64, "base64").toString("utf-8"),
+      );
       this.endpoint = decoded.u; // full ingest URL, e.g. https://...convex.site/ingest
       this.token = decoded.k; // bearer secret
       return;
@@ -114,19 +116,17 @@ export class MoneymanDashStorage implements TransactionStorage {
 
   async saveTransactions(
     txns: Array<TransactionRow>,
-    onProgress: (status: string) => Promise<void>
+    onProgress: (status: string) => Promise<void>,
   ) {
     logger("saveTransactions");
 
     assert(this.endpoint && this.token, "Token not properly parsed");
 
     const nonPendingTxns = txns.filter(
-      (txn) => txn.status !== TransactionStatuses.Pending
+      (txn) => txn.status !== TransactionStatuses.Pending,
     );
 
-    logger(
-      `Posting ${nonPendingTxns.length} transactions to ${this.endpoint}`
-    );
+    logger(`Posting ${nonPendingTxns.length} transactions to ${this.endpoint}`);
 
     const runContext = runContextStore.getStore();
     const runId = runContext?.runId;
@@ -158,10 +158,10 @@ export class MoneymanDashStorage implements TransactionStorage {
 
     if (!response.ok) {
       logger(
-        `Failed to post transactions: ${response.status} ${response.statusText}`
+        `Failed to post transactions: ${response.status} ${response.statusText}`,
       );
       throw new Error(
-        `Failed to post transactions: ${response.status} ${response.statusText}`
+        `Failed to post transactions: ${response.status} ${response.statusText}`,
       );
     }
 
