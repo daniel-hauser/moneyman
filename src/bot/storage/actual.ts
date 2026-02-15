@@ -133,7 +133,7 @@ export class ActualBudgetStorage implements TransactionStorage {
       }
     } catch (error) {
       throw new Error(
-        `Failed to send transactions to Actual: ${error instanceof Error ? error.message : error}`,
+        `Failed to send transactions to Actual: ${error.message || error}`,
       );
     }
   }
