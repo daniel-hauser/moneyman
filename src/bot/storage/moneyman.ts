@@ -33,6 +33,7 @@ interface IngestionMetadata {
   pending: number;
   skipped: number;
   highlightedTransactions: number;
+  runId?: string;
 }
 
 interface IngestionPayload {
@@ -41,11 +42,9 @@ interface IngestionPayload {
 }
 
 interface IngestionResponse {
-  id: string;
-  added: number;
-  pending: number;
-  skipped: number;
-  status: "success" | "partial" | "failed";
+  success: boolean;
+  ingestionId: string;
+  transactionsAdded: number;
 }
 
 export class MoneymanDashStorage implements TransactionStorage {
@@ -68,11 +67,26 @@ export class MoneymanDashStorage implements TransactionStorage {
     assert(tokenConfig, "Moneyman storage configuration not found");
 
     const tokenString = tokenConfig.token;
-    const dotIndex = tokenString.indexOf(".");
 
+    // mm_ token format: mm_<base64url({ u: ingestUrl, k: bearerSecret })>
+    if (tokenString.startsWith("mm_")) {
+      const encoded = tokenString.slice(3);
+      // Restore base64 padding and standard chars
+      const base64 = encoded
+        .replace(/-/g, "+")
+        .replace(/_/g, "/")
+        .padEnd(encoded.length + ((4 - (encoded.length % 4)) % 4), "=");
+      const decoded = JSON.parse(Buffer.from(base64, "base64").toString("utf-8"));
+      this.endpoint = decoded.u; // full ingest URL, e.g. https://...convex.site/ingest
+      this.token = decoded.k; // bearer secret
+      return;
+    }
+
+    // Legacy format: base64(url).tokenstring
+    const dotIndex = tokenString.indexOf(".");
     if (dotIndex === -1) {
       throw new Error(
-        "Invalid token format: expected base64(url).tokenstring"
+        "Invalid token format: expected mm_<base64> or base64(url).tokenstring",
       );
     }
 
@@ -81,7 +95,7 @@ export class MoneymanDashStorage implements TransactionStorage {
 
     if (!encodedUrl || !token) {
       throw new Error(
-        "Invalid token format: both URL and token parts are required"
+        "Invalid token format: both URL and token parts are required",
       );
     }
 
@@ -125,18 +139,21 @@ export class MoneymanDashStorage implements TransactionStorage {
 
     const payload = this.buildIngestionPayload(nonPendingTxns);
 
+    // Include runId in metadata for server-side correlation
+    if (this.lastRunId) {
+      payload.metadata.runId = this.lastRunId;
+    }
+
     await onProgress("Sending transactions");
 
-    const response = await fetch(`${this.endpoint}/api/ingest`, {
+    // endpoint is the full ingest URL from the mm_ token
+    const response = await fetch(this.endpoint, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${this.token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        ...payload,
-        ...(this.lastRunId && { runId: this.lastRunId }),
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -150,11 +167,10 @@ export class MoneymanDashStorage implements TransactionStorage {
 
     const result = (await response.json()) as IngestionResponse;
 
-    logger(`Transactions posted successfully: ${result.id}`);
+    logger(`Ingestion created: ${result.ingestionId}`);
 
     const stats = createSaveStats("MoneymanDashStorage", "moneyman", txns);
-    stats.added = result.added;
-    stats.otherSkipped = result.skipped;
+    stats.added = result.transactionsAdded;
 
     return stats;
   }
@@ -174,22 +190,23 @@ export class MoneymanDashStorage implements TransactionStorage {
 
     logger("Sending logs");
 
-    const formData = new FormData();
-    formData.append("log", new Blob([logs], { type: "text/plain" }), "scraper.log");
-    formData.append("runId", runId);
+    // Derive /logs URL from /ingest URL
+    const logsUrl = this.endpoint.replace(/\/ingest$/, "/logs");
 
     try {
-      const response = await fetch(`${this.endpoint}/api/ingest/logs`, {
+      const response = await fetch(logsUrl, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${this.token}`,
+          "Content-Type": "text/plain",
+          "X-Run-Id": runId,
         },
-        body: formData,
+        body: logs,
       });
 
       if (!response.ok) {
         logger(
-          `Failed to upload logs: ${response.status} ${response.statusText}`
+          `Failed to upload logs: ${response.status} ${response.statusText}`,
         );
         return;
       }
