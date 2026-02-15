@@ -23,14 +23,22 @@ const makeToken = (url: string, tokenString: string) => {
   return `${encodedUrl}.${tokenString}`;
 };
 
+const makeMmToken = (url: string, secret: string) => {
+  const payload = JSON.stringify({ u: url, k: secret });
+  const b64 = Buffer.from(payload)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+  return `mm_${b64}`;
+};
+
 const mockSuccessResponse = (overrides?: Record<string, unknown>) => ({
   ok: true,
   json: async () => ({
-    id: "ing_123",
-    added: 1,
-    pending: 0,
-    skipped: 0,
-    status: "success",
+    success: true,
+    ingestionId: "ing_123",
+    transactionsAdded: 1,
     ...overrides,
   }),
 });
@@ -48,14 +56,41 @@ describe("MoneymanDashStorage", () => {
   });
 
   describe("token parsing", () => {
-    it("should parse valid token format", () => {
+    it("should parse valid legacy token format", () => {
       const token = makeToken("https://api.example.com", "secret123");
       const storage = new MoneymanDashStorage(mockConfig(token));
       expect(storage.canSave()).toBe(true);
     });
 
+    it("should parse mm_ token format", async () => {
+      const url = "https://example.convex.site/ingest";
+      const secret = "abc123secret";
+      const token = makeMmToken(url, secret);
+
+      fetchMock.mockResolvedValue(mockSuccessResponse());
+
+      const storage = new MoneymanDashStorage(mockConfig(token));
+      expect(storage.canSave()).toBe(true);
+
+      await new Promise((resolve) => {
+        runContextStore.run({ runId: randomUUID() }, async () => {
+          await storage.saveTransactions([transactionRow({})], async () => {});
+          resolve(undefined);
+        });
+      });
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        url,
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${secret}`,
+          }),
+        }),
+      );
+    });
+
     it("should handle token string containing dots (JWT-style)", async () => {
-      const url = "https://api.example.com";
+      const url = "https://api.example.com/ingest";
       const jwtToken = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc";
       const token = makeToken(url, jwtToken);
 
@@ -72,7 +107,7 @@ describe("MoneymanDashStorage", () => {
 
       // Verify the full JWT token (with dots) was used as bearer
       expect(fetchMock).toHaveBeenCalledWith(
-        `${url}/api/ingest`,
+        url,
         expect.objectContaining({
           headers: expect.objectContaining({
             Authorization: `Bearer ${jwtToken}`,
@@ -89,14 +124,14 @@ describe("MoneymanDashStorage", () => {
 
   describe("saveTransactions", () => {
     it("should send transactions with correct payload", async () => {
-      const url = "https://api.example.com";
+      const url = "https://api.example.com/ingest";
       const tokenString = "secret123";
       const token = makeToken(url, tokenString);
 
       const txns = [transactionRow({}), transactionRow({ account: "5678" })];
       const runId = randomUUID();
 
-      fetchMock.mockResolvedValue(mockSuccessResponse({ added: 2 }));
+      fetchMock.mockResolvedValue(mockSuccessResponse({ transactionsAdded: 2 }));
 
       const storage = new MoneymanDashStorage(mockConfig(token));
 
@@ -108,7 +143,7 @@ describe("MoneymanDashStorage", () => {
       });
 
       expect(fetchMock).toHaveBeenCalledWith(
-        `${url}/api/ingest`,
+        url,
         expect.objectContaining({
           method: "POST",
           headers: expect.objectContaining({
@@ -122,7 +157,6 @@ describe("MoneymanDashStorage", () => {
       const body = JSON.parse(callArg.body);
 
       expect(body).toMatchObject({
-        runId,
         metadata: expect.objectContaining({
           scrapedBy: "moneyman",
           accounts: 2,
@@ -130,6 +164,7 @@ describe("MoneymanDashStorage", () => {
           pending: 0,
           skipped: 0,
           highlightedTransactions: 0,
+          runId,
         }),
         transactions: expect.arrayContaining([
           expect.objectContaining({
@@ -143,7 +178,6 @@ describe("MoneymanDashStorage", () => {
 
       expect(stats).toMatchObject({
         added: 2,
-        otherSkipped: 0,
       });
     });
 
@@ -274,7 +308,7 @@ describe("MoneymanDashStorage", () => {
 
   describe("sendLogs", () => {
     it("should send logs using lastRunId from saveTransactions", async () => {
-      const url = "https://api.example.com";
+      const url = "https://api.example.com/ingest";
       const tokenString = "secret123";
       const token = makeToken(url, tokenString);
 
@@ -299,17 +333,52 @@ describe("MoneymanDashStorage", () => {
       await storage.sendLogs(logs);
 
       expect(fetchMock).toHaveBeenCalledWith(
-        `${url}/api/ingest/logs`,
+        "https://api.example.com/logs",
         expect.objectContaining({
           method: "POST",
           headers: expect.objectContaining({
             Authorization: `Bearer ${tokenString}`,
+            "Content-Type": "text/plain",
+            "X-Run-Id": runId,
           }),
+          body: logs,
         })
       );
+    });
 
-      const formData = fetchMock.mock.calls[0][1].body;
-      expect(formData).toBeInstanceOf(FormData);
+    it("should derive /logs URL from mm_ token's /ingest URL", async () => {
+      const ingestUrl = "https://myapp.convex.site/ingest";
+      const secret = "my-secret";
+      const token = makeMmToken(ingestUrl, secret);
+
+      const storage = new MoneymanDashStorage(mockConfig(token));
+      const runId = randomUUID();
+
+      fetchMock.mockResolvedValue(mockSuccessResponse());
+
+      await new Promise((resolve) => {
+        runContextStore.run({ runId }, async () => {
+          await storage.saveTransactions([transactionRow({})], async () => {});
+          resolve(undefined);
+        });
+      });
+
+      fetchMock.mockClear();
+      fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) });
+
+      await storage.sendLogs("test logs");
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://myapp.convex.site/logs",
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${secret}`,
+            "X-Run-Id": runId,
+          }),
+          body: "test logs",
+        })
+      );
     });
 
     it("should skip logs if no token parsed", async () => {
