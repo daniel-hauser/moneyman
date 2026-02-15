@@ -20,6 +20,7 @@ import { WebPostStorage } from "./web-post.js";
 import { TelegramStorage } from "./telegram.js";
 import { YNABStorage } from "./ynab.js";
 import { SqlStorage } from "./sql.js";
+import { MoneymanDashStorage } from "./moneyman.js";
 import { config } from "../../config.js";
 
 const baseLogger = createLogger("storage");
@@ -34,6 +35,7 @@ export const storages = [
   new TelegramStorage(config),
   new ActualBudgetStorage(config),
   new SqlStorage(config),
+  new MoneymanDashStorage(config),
 ].filter((s) => s.canSave());
 
 export async function saveResults(results: Array<AccountScrapeResult>) {
