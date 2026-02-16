@@ -89,6 +89,18 @@ describe("MoneymanDashStorage", () => {
       );
     });
 
+    it("should handle mm_ token with missing fields gracefully", () => {
+      // Token with only URL, no secret — parseToken throws, constructor catches
+      const base64 = Buffer.from(JSON.stringify({ u: "https://example.com" }))
+        .toString("base64url");
+      const token = `mm_${base64}`;
+
+      // Should not throw (constructor catches), but endpoint won't be set
+      const storage = new MoneymanDashStorage(mockConfig(token));
+      // canSave() checks config, not parsed result — still true
+      expect(storage.canSave()).toBe(true);
+    });
+
     it("should handle token string containing dots (JWT-style)", async () => {
       const url = "https://api.example.com/ingest";
       const jwtToken = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc";
@@ -302,7 +314,7 @@ describe("MoneymanDashStorage", () => {
       const body = JSON.parse(callArg.body);
 
       // Should not include runId if not in context
-      expect(body.runId).toBeUndefined();
+      expect(body.metadata.runId).toBeUndefined();
     });
   });
 
@@ -395,6 +407,32 @@ describe("MoneymanDashStorage", () => {
 
       // Call without ever calling saveTransactions or being in runContext
       await storage.sendLogs("some logs");
+
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("should skip logs when endpoint does not end with /ingest", async () => {
+      const token = makeToken(
+        "https://api.example.com/transactions",
+        "secret123",
+      );
+      const storage = new MoneymanDashStorage(mockConfig(token));
+      const runId = randomUUID();
+
+      fetchMock.mockResolvedValue(mockSuccessResponse());
+
+      // Save transactions to populate lastRunId
+      await new Promise((resolve) => {
+        runContextStore.run({ runId }, async () => {
+          await storage.saveTransactions([transactionRow({})], async () => {});
+          resolve(undefined);
+        });
+      });
+
+      fetchMock.mockClear();
+
+      // sendLogs should skip since endpoint doesn't end with /ingest
+      await storage.sendLogs("test logs");
 
       expect(fetchMock).not.toHaveBeenCalled();
     });

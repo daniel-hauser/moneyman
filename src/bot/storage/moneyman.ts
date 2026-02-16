@@ -77,6 +77,11 @@ export class MoneymanDashStorage implements TransactionStorage {
         .replace(/_/g, "/")
         .padEnd(encoded.length + ((4 - (encoded.length % 4)) % 4), "=");
       const decoded = JSON.parse(Buffer.from(base64, "base64").toString("utf-8"));
+      if (!decoded.u || !decoded.k) {
+        throw new Error(
+          "Invalid mm_ token: missing required fields 'u' (URL) or 'k' (secret)",
+        );
+      }
       this.endpoint = decoded.u; // full ingest URL, e.g. https://...convex.site/ingest
       this.token = decoded.k; // bearer secret
       return;
@@ -192,6 +197,13 @@ export class MoneymanDashStorage implements TransactionStorage {
 
     // Derive /logs URL from /ingest URL
     const logsUrl = this.endpoint.replace(/\/ingest$/, "/logs");
+
+    if (logsUrl === this.endpoint) {
+      logger(
+        "Warning: endpoint does not end with /ingest, cannot derive /logs URL — skipping log upload",
+      );
+      return;
+    }
 
     try {
       const response = await fetch(logsUrl, {
