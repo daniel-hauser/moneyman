@@ -7,6 +7,7 @@ import { runContextStore } from "../../utils/asyncContext.js";
 import assert from "node:assert";
 
 const logger = createLogger("MoneymanDashStorage");
+const MM_PREFIX = "mm_";
 
 interface IngestionMetadata {
   scrapedAt: string;
@@ -26,7 +27,6 @@ interface IngestionPayload {
 
 interface IngestionResponse {
   success: boolean;
-  ingestionId: string;
   transactionsAdded: number;
 }
 
@@ -52,16 +52,14 @@ export class MoneymanDashStorage implements TransactionStorage {
     const tokenString = tokenConfig.token;
 
     // mm_ token format: mm_<base64url({ u: ingestUrl, k: bearerSecret })>
-    if (tokenString.startsWith("mm_")) {
-      const encoded = tokenString.slice(3);
+    if (tokenString.startsWith(MM_PREFIX)) {
+      const encoded = tokenString.slice(MM_PREFIX.length);
       // Restore base64 padding and standard chars
       const base64 = encoded
         .replace(/-/g, "+")
         .replace(/_/g, "/")
         .padEnd(encoded.length + ((4 - (encoded.length % 4)) % 4), "=");
-      const raw = JSON.parse(
-        Buffer.from(base64, "base64").toString("utf-8"),
-      );
+      const raw = JSON.parse(Buffer.from(base64, "base64").toString("utf-8"));
       // Protect against prototype pollution — only extract known fields
       const decoded = { u: raw.u, k: raw.k };
       if (!decoded.u || !decoded.k) {
@@ -103,13 +101,11 @@ export class MoneymanDashStorage implements TransactionStorage {
   }
 
   private validateEndpointUrl(url: string) {
-    let parsed: URL;
-    try {
-      parsed = new URL(url);
-    } catch {
+    if (!URL.canParse(url)) {
       throw new Error("Invalid endpoint URL in token");
     }
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    const { protocol } = new URL(url);
+    if (protocol !== "https:" && protocol !== "http:") {
       throw new Error("Endpoint URL must use http(s) protocol");
     }
   }
@@ -124,13 +120,16 @@ export class MoneymanDashStorage implements TransactionStorage {
   ) {
     logger("saveTransactions");
 
-    assert(this.endpoint && this.token, "Token not properly parsed");
+    assert(this.canSave(), "Token not properly parsed");
+    // canSave() guarantees these are set
+    const endpoint = this.endpoint!;
+    const token = this.token!;
 
     const nonPendingTxns = txns.filter(
       (txn) => txn.status !== TransactionStatuses.Pending,
     );
 
-    logger(`Posting ${nonPendingTxns.length} transactions to ${this.endpoint}`);
+    logger(`Posting ${nonPendingTxns.length} transactions to ${endpoint}`);
 
     const runContext = runContextStore.getStore();
     const runId = runContext?.runId;
@@ -150,10 +149,10 @@ export class MoneymanDashStorage implements TransactionStorage {
 
     // Run progress update in parallel with the network request
     const [response] = await Promise.all([
-      fetch(this.endpoint, {
+      fetch(endpoint, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${this.token}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
@@ -172,7 +171,15 @@ export class MoneymanDashStorage implements TransactionStorage {
 
     const result = (await response.json()) as IngestionResponse;
 
-    logger(`Ingestion created: ${result.ingestionId}`);
+    if (typeof result.transactionsAdded !== "number") {
+      throw new Error(
+        `Unexpected ingestion response shape: ${JSON.stringify(result)}`,
+      );
+    }
+
+    logger(
+      `Ingestion complete: ${result.transactionsAdded} transactions added`,
+    );
 
     const stats = createSaveStats("MoneymanDashStorage", "moneyman", txns);
     stats.added = result.transactionsAdded;
@@ -195,15 +202,7 @@ export class MoneymanDashStorage implements TransactionStorage {
 
     logger("Sending logs");
 
-    // Derive /logs URL from /ingest URL
-    const logsUrl = this.endpoint.replace(/\/ingest$/, "/logs");
-
-    if (logsUrl === this.endpoint) {
-      logger(
-        "Warning: endpoint does not end with /ingest, cannot derive /logs URL — skipping log upload",
-      );
-      return;
-    }
+    const logsUrl = `${this.endpoint}/logs`;
 
     try {
       const response = await fetch(logsUrl, {

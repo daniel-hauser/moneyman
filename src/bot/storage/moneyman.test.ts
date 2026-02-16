@@ -37,7 +37,6 @@ const mockSuccessResponse = (overrides?: Record<string, unknown>) => ({
   ok: true,
   json: async () => ({
     success: true,
-    ingestionId: "ing_123",
     transactionsAdded: 1,
     ...overrides,
   }),
@@ -311,6 +310,33 @@ describe("MoneymanDashStorage", () => {
       ).rejects.toThrow("Failed to post transactions");
     });
 
+    it("should throw on unexpected response shape", async () => {
+      const token = makeToken("https://api.example.com", "secret123");
+
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => ({ error: "quota exceeded" }),
+      });
+
+      const storage = new MoneymanDashStorage(mockConfig(token));
+
+      await expect(
+        new Promise((resolve, reject) => {
+          runContextStore.run({ runId: randomUUID() }, async () => {
+            try {
+              await storage.saveTransactions(
+                [transactionRow({})],
+                async () => {},
+              );
+              resolve(undefined);
+            } catch (e) {
+              reject(e);
+            }
+          });
+        }),
+      ).rejects.toThrow("Unexpected ingestion response shape");
+    });
+
     it("should call onProgress callback", async () => {
       const token = makeToken("https://api.example.com", "secret123");
 
@@ -374,7 +400,7 @@ describe("MoneymanDashStorage", () => {
       await storage.sendLogs(logs);
 
       expect(fetchMock).toHaveBeenCalledWith(
-        "https://api.example.com/logs",
+        "https://api.example.com/ingest/logs",
         expect.objectContaining({
           method: "POST",
           headers: expect.objectContaining({
@@ -387,7 +413,7 @@ describe("MoneymanDashStorage", () => {
       );
     });
 
-    it("should derive /logs URL from mm_ token's /ingest URL", async () => {
+    it("should derive /ingest/logs URL from mm_ token's /ingest URL", async () => {
       const ingestUrl = "https://myapp.example.com/ingest";
       const secret = "my-secret";
       const token = makeMmToken(ingestUrl, secret);
@@ -410,7 +436,7 @@ describe("MoneymanDashStorage", () => {
       await storage.sendLogs("test logs");
 
       expect(fetchMock).toHaveBeenCalledWith(
-        "https://myapp.example.com/logs",
+        "https://myapp.example.com/ingest/logs",
         expect.objectContaining({
           method: "POST",
           headers: expect.objectContaining({
@@ -436,32 +462,6 @@ describe("MoneymanDashStorage", () => {
 
       // Call without ever calling saveTransactions or being in runContext
       await storage.sendLogs("some logs");
-
-      expect(fetchMock).not.toHaveBeenCalled();
-    });
-
-    it("should skip logs when endpoint does not end with /ingest", async () => {
-      const token = makeToken(
-        "https://api.example.com/transactions",
-        "secret123",
-      );
-      const storage = new MoneymanDashStorage(mockConfig(token));
-      const runId = randomUUID();
-
-      fetchMock.mockResolvedValue(mockSuccessResponse());
-
-      // Save transactions to populate lastRunId
-      await new Promise((resolve) => {
-        runContextStore.run({ runId }, async () => {
-          await storage.saveTransactions([transactionRow({})], async () => {});
-          resolve(undefined);
-        });
-      });
-
-      fetchMock.mockClear();
-
-      // sendLogs should skip since endpoint doesn't end with /ingest
-      await storage.sendLogs("test logs");
 
       expect(fetchMock).not.toHaveBeenCalled();
     });
