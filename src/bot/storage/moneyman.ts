@@ -8,23 +8,6 @@ import assert from "node:assert";
 
 const logger = createLogger("MoneymanDashStorage");
 
-interface IngestionTransactionRow {
-  account: string;
-  companyId: string;
-  hash: string;
-  uniqueId: string;
-  date: string;
-  description: string;
-  memo?: string;
-  originalAmount: number;
-  originalCurrency: string;
-  chargedAmount: number;
-  chargedCurrency?: string;
-  type: string;
-  status: string;
-  category?: string;
-}
-
 interface IngestionMetadata {
   scrapedAt: string;
   scrapedBy: string;
@@ -38,7 +21,7 @@ interface IngestionMetadata {
 
 interface IngestionPayload {
   metadata: IngestionMetadata;
-  transactions: IngestionTransactionRow[];
+  transactions: TransactionRow[];
 }
 
 interface IngestionResponse {
@@ -53,7 +36,7 @@ export class MoneymanDashStorage implements TransactionStorage {
   private lastRunId?: string;
 
   constructor(private config: MoneymanConfig) {
-    if (this.canSave()) {
+    if (this.config.storage.moneyman?.token) {
       try {
         this.parseToken();
       } catch (e) {
@@ -76,14 +59,16 @@ export class MoneymanDashStorage implements TransactionStorage {
         .replace(/-/g, "+")
         .replace(/_/g, "/")
         .padEnd(encoded.length + ((4 - (encoded.length % 4)) % 4), "=");
-      const decoded = JSON.parse(Buffer.from(base64, "base64").toString("utf-8"));
+      const decoded = JSON.parse(
+        Buffer.from(base64, "base64").toString("utf-8"),
+      );
       if (!decoded.u || !decoded.k) {
         throw new Error(
           "Invalid mm_ token: missing required fields 'u' (URL) or 'k' (secret)",
         );
       }
-      this.endpoint = decoded.u; // full ingest URL, e.g. https://...convex.site/ingest
-      this.token = decoded.k; // bearer secret
+      this.endpoint = decoded.u;
+      this.token = decoded.k;
       return;
     }
 
@@ -114,24 +99,22 @@ export class MoneymanDashStorage implements TransactionStorage {
   }
 
   canSave() {
-    return Boolean(this.config.storage.moneyman?.token);
+    return Boolean(this.endpoint && this.token);
   }
 
   async saveTransactions(
     txns: Array<TransactionRow>,
-    onProgress: (status: string) => Promise<void>
+    onProgress: (status: string) => Promise<void>,
   ) {
     logger("saveTransactions");
 
     assert(this.endpoint && this.token, "Token not properly parsed");
 
     const nonPendingTxns = txns.filter(
-      (txn) => txn.status !== TransactionStatuses.Pending
+      (txn) => txn.status !== TransactionStatuses.Pending,
     );
 
-    logger(
-      `Posting ${nonPendingTxns.length} transactions to ${this.endpoint}`
-    );
+    logger(`Posting ${nonPendingTxns.length} transactions to ${this.endpoint}`);
 
     const runContext = runContextStore.getStore();
     const runId = runContext?.runId;
@@ -149,24 +132,25 @@ export class MoneymanDashStorage implements TransactionStorage {
       payload.metadata.runId = this.lastRunId;
     }
 
-    await onProgress("Sending transactions");
-
-    // endpoint is the full ingest URL from the mm_ token
-    const response = await fetch(this.endpoint, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    // Run progress update in parallel with the network request
+    const [response] = await Promise.all([
+      fetch(this.endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      }),
+      onProgress("Sending transactions"),
+    ]);
 
     if (!response.ok) {
       logger(
-        `Failed to post transactions: ${response.status} ${response.statusText}`
+        `Failed to post transactions: ${response.status} ${response.statusText}`,
       );
       throw new Error(
-        `Failed to post transactions: ${response.status} ${response.statusText}`
+        `Failed to post transactions: ${response.status} ${response.statusText}`,
       );
     }
 
@@ -229,25 +213,6 @@ export class MoneymanDashStorage implements TransactionStorage {
     }
   }
 
-  private toIngestionRow(txn: TransactionRow): IngestionTransactionRow {
-    return {
-      account: txn.account,
-      companyId: txn.companyId,
-      hash: txn.hash,
-      uniqueId: txn.uniqueId,
-      date: txn.date,
-      description: txn.description,
-      memo: txn.memo,
-      originalAmount: txn.originalAmount,
-      originalCurrency: txn.originalCurrency,
-      chargedAmount: txn.chargedAmount,
-      chargedCurrency: txn.chargedCurrency,
-      type: txn.type,
-      status: txn.status,
-      category: txn.category,
-    };
-  }
-
   private buildIngestionPayload(txns: TransactionRow[]): IngestionPayload {
     const uniqueAccounts = new Set(txns.map((t) => t.account));
 
@@ -257,11 +222,13 @@ export class MoneymanDashStorage implements TransactionStorage {
         scrapedBy: "moneyman",
         accounts: uniqueAccounts.size,
         added: txns.length,
+        // txns is already filtered to non-pending (see caller).
+        // Moneyman doesn't track pending/skipped/highlighted at this level.
         pending: 0,
         skipped: 0,
         highlightedTransactions: 0,
       },
-      transactions: txns.map((t) => this.toIngestionRow(t)),
+      transactions: txns,
     };
   }
 }
