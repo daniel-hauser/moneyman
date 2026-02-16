@@ -132,6 +132,33 @@ describe("MoneymanDashStorage", () => {
       const storage = new MoneymanDashStorage(mockConfig());
       expect(storage.canSave()).toBe(false);
     });
+
+    it("should reject non-http(s) URLs", () => {
+      const token = makeMmToken("file:///etc/passwd", "secret");
+      const storage = new MoneymanDashStorage(mockConfig(token));
+      expect(storage.canSave()).toBe(false);
+    });
+
+    it("should reject invalid URLs", () => {
+      const token = makeMmToken("not-a-url", "secret");
+      const storage = new MoneymanDashStorage(mockConfig(token));
+      expect(storage.canSave()).toBe(false);
+    });
+
+    it("should not be vulnerable to prototype pollution", () => {
+      const malicious = Buffer.from(
+        JSON.stringify({
+          u: "https://example.com/ingest",
+          k: "secret",
+          __proto__: { polluted: true },
+        }),
+      ).toString("base64url");
+      const token = `mm_${malicious}`;
+      const storage = new MoneymanDashStorage(mockConfig(token));
+      expect(storage.canSave()).toBe(true);
+      expect((storage as any).polluted).toBeUndefined();
+      expect(({} as any).polluted).toBeUndefined();
+    });
   });
 
   describe("saveTransactions", () => {
@@ -476,7 +503,9 @@ describe("MoneymanDashStorage", () => {
         transactionRow({ account: "9012" }),
       ];
 
-      fetchMock.mockResolvedValue(mockSuccessResponse({ transactionsAdded: 4 }));
+      fetchMock.mockResolvedValue(
+        mockSuccessResponse({ transactionsAdded: 4 }),
+      );
 
       const storage = new MoneymanDashStorage(mockConfig(token));
 

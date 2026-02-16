@@ -59,14 +59,17 @@ export class MoneymanDashStorage implements TransactionStorage {
         .replace(/-/g, "+")
         .replace(/_/g, "/")
         .padEnd(encoded.length + ((4 - (encoded.length % 4)) % 4), "=");
-      const decoded = JSON.parse(
+      const raw = JSON.parse(
         Buffer.from(base64, "base64").toString("utf-8"),
       );
+      // Protect against prototype pollution — only extract known fields
+      const decoded = { u: raw.u, k: raw.k };
       if (!decoded.u || !decoded.k) {
         throw new Error(
           "Invalid mm_ token: missing required fields 'u' (URL) or 'k' (secret)",
         );
       }
+      this.validateEndpointUrl(decoded.u);
       this.endpoint = decoded.u;
       this.token = decoded.k;
       return;
@@ -91,10 +94,23 @@ export class MoneymanDashStorage implements TransactionStorage {
 
     try {
       const url = Buffer.from(encodedUrl, "base64").toString("utf-8");
+      this.validateEndpointUrl(url);
       this.endpoint = url;
       this.token = token;
     } catch (e) {
       throw new Error("Failed to decode token URL from base64", { cause: e });
+    }
+  }
+
+  private validateEndpointUrl(url: string) {
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new Error("Invalid endpoint URL in token");
+    }
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      throw new Error("Endpoint URL must use http(s) protocol");
     }
   }
 

@@ -3,6 +3,7 @@ import { config } from "../config.js";
 import { sendTextFile } from "../bot/notifier.js";
 import { logToPublicLog, unsafeStdout, createLogger } from "./logger.js";
 import { storages } from "../bot/storage/index.js";
+import type { TransactionStorage } from "../types.js";
 import debug from "debug";
 
 const logger = createLogger("secure-log");
@@ -31,7 +32,10 @@ export async function sendAndDeleteLogFile() {
   if (!logFilePath || !existsSync(logFilePath)) return;
 
   const telegram = config.options.notifications?.telegram;
-  const logStorages = storages.filter((s) => typeof s.sendLogs === "function");
+  const logStorages = (storages as TransactionStorage[]).filter(
+    (s): s is TransactionStorage & { sendLogs(logs: string): Promise<void> } =>
+      typeof s.sendLogs === "function",
+  );
   const hasAnyLogDest =
     (telegram?.chatId && telegram?.sendLogFileToTelegram) ||
     logStorages.length > 0;
@@ -57,7 +61,7 @@ export async function sendAndDeleteLogFile() {
         const name = storage.constructor.name;
         logToPublicLog(`Sending logs to ${name}`, logger);
         try {
-          await storage.sendLogs!(logContent);
+          await storage.sendLogs(logContent);
         } catch (error) {
           logger(`Failed to send logs to ${name}:`, error);
         }
