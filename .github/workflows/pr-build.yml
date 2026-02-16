@@ -261,6 +261,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          provenance: false
+          sbom: false
 
       - name: Get image size
         if: needs.prepare.outputs.build_needed == 'true'
