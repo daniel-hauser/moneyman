@@ -99,6 +99,8 @@ The application supports multiple storage backends:
 - **Actual Budget**: Open-source budgeting tool
 - **Web Post**: Generic HTTP endpoint
 - **Local JSON**: File-based storage
+- **SQL (PostgreSQL)**: Relational database storage via `pg` driver
+- **Telegram**: Send transactions as Telegram messages
 
 ## Development Notes
 
@@ -119,7 +121,7 @@ Key environment variables include:
 
 ## Common Development Tasks
 
-1. **Adding a new storage provider**: Implement the `StorageBase` interface in `src/bot/storage/`
+1. **Adding a new storage provider**: Implement the `TransactionStorage` interface from `src/types.ts` in `src/bot/storage/`
 2. **Modifying configuration**: Update Zod schemas in `src/config.ts`
 3. **Adding new scrapers**: Extend the israeli-bank-scrapers integration
 4. **Testing changes**: Run `npm test` and validate with `npm run test:config`
