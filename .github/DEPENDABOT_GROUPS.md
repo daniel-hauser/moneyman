@@ -19,87 +19,109 @@ Based on analysis of 473 Dependabot PRs, the following packages were identified 
 ## Group Definitions
 
 ### 1. `development-dependencies`
+
 **Type-based group**: All development dependencies
 
 Automatically groups all devDependencies together, including:
-- TypeScript types (@types/*)
+
+- TypeScript types (@types/\*)
 - Testing tools (jest, ts-jest, jest-mock-extended)
 - Build tools (prettier, husky, patch-package)
 
 ### 2. `scraper`
+
 **Purpose**: Core bank scraping functionality
 
 Most frequently updated package in the project. Isolated into its own group due to:
+
 - High update frequency (11 updates tracked)
 - Critical functionality for the application
 - Breaking changes may require careful testing
 
 **Packages**:
+
 - israeli-bank-scrapers
 
 ### 3. `storage-apis`
+
 **Purpose**: External service integrations for storing transactions
 
 Groups APIs for various budget/finance platforms:
+
 - @actual-app/api - Actual Budget integration
 - ynab - YNAB (You Need A Budget) integration
 - buxfer-ts-client - Buxfer personal finance integration
 
 ### 4. `kusto`
+
 **Purpose**: Azure Data Explorer (Kusto) integration
 
 **Packages**:
+
 - azure-kusto-data
 - azure-kusto-ingest
 
 ### 5. `google`
+
 **Purpose**: Google services integration
 
 **Packages**:
+
 - google-spreadsheet - Google Sheets integration
 - google-auth-library - Google authentication
 
 ### 6. `database`
+
 **Purpose**: PostgreSQL database functionality
 
 Groups all PostgreSQL-related packages:
+
 - pg - PostgreSQL client
 - pg-format - SQL formatting
 - @types/pg - TypeScript types for pg
 - @types/pg-format - TypeScript types for pg-format
 
 ### 7. `security`
+
 **Purpose**: Security and network interception
 
 **Packages**:
+
 - @mswjs/interceptors - Network request interception for testing/security
 - dotenv - Environment variable management for secrets
 
 ### 8. `telegram`
+
 **Purpose**: Telegram bot notifications
 
 **Packages**:
+
 - telegraf - Telegram bot framework
 - @telegraf/entity - Telegram entity utilities
 
 ### 9. `utilities`
+
 **Purpose**: General utility libraries
 
 **Packages**:
+
 - hash-it - Hashing utility
 - date-fns - Date manipulation
 - async - Async flow control
 
 ### 10. `infra-packages`
+
 **Purpose**: Infrastructure and configuration utilities
 
 **Packages**:
+
 - debug - Debug logging
 - zod - Schema validation
 - glob - File pattern matching
 - jsonc-parser - JSON with comments parser
 
 ### 11. `github-actions-updates`
+
 **Purpose**: GitHub Actions workflow dependencies
 
 Groups all GitHub Actions updates together.
