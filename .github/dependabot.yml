@@ -16,18 +16,44 @@ updates:
     groups:
       development-dependencies:
         dependency-type: "development"
+      scraper:
+        patterns:
+          - "israeli-bank-scrapers"
+      storage-apis:
+        patterns:
+          - "@actual-app/api"
+          - "ynab"
+          - "buxfer-ts-client"
       kusto:
         patterns:
           - "azure-kusto*"
       google:
         patterns:
           - "google*"
+      database:
+        patterns:
+          - "pg"
+          - "pg-format"
+          - "@types/pg*"
+      security:
+        patterns:
+          - "@mswjs/interceptors"
+          - "dotenv"
+      telegram:
+        patterns:
+          - "telegraf"
+          - "@telegraf/entity"
+      utilities:
+        patterns:
+          - "hash-it"
+          - "date-fns"
+          - "async"
       infra-packages:
         patterns:
           - "debug"
-          - "async"
           - "zod"
           - "glob"
+          - "jsonc-parser"
 
   - package-ecosystem: "docker"
     directory: "/"
