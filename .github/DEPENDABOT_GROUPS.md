@@ -52,16 +52,7 @@ Groups APIs for various budget/finance platforms:
 - ynab - YNAB (You Need A Budget) integration
 - buxfer-ts-client - Buxfer personal finance integration
 
-### 4. `kusto`
-
-**Purpose**: Azure Data Explorer (Kusto) integration
-
-**Packages**:
-
-- azure-kusto-data
-- azure-kusto-ingest
-
-### 5. `google`
+### 4. `google`
 
 **Purpose**: Google services integration
 
@@ -70,27 +61,20 @@ Groups APIs for various budget/finance platforms:
 - google-spreadsheet - Google Sheets integration
 - google-auth-library - Google authentication
 
-### 6. `database`
+### 5. `database`
 
-**Purpose**: PostgreSQL database functionality
+**Purpose**: Database functionality and data storage backends
 
-Groups all PostgreSQL-related packages:
+Groups all database-related packages including PostgreSQL and Azure Data Explorer (Kusto):
 
+- azure-kusto-data - Azure Data Explorer client
+- azure-kusto-ingest - Azure Data Explorer ingestion
 - pg - PostgreSQL client
 - pg-format - SQL formatting
 - @types/pg - TypeScript types for pg
 - @types/pg-format - TypeScript types for pg-format
 
-### 7. `security`
-
-**Purpose**: Security and network interception
-
-**Packages**:
-
-- @mswjs/interceptors - Network request interception for testing/security
-- dotenv - Environment variable management for secrets
-
-### 8. `telegram`
+### 6. `telegram`
 
 **Purpose**: Telegram bot notifications
 
@@ -99,28 +83,23 @@ Groups all PostgreSQL-related packages:
 - telegraf - Telegram bot framework
 - @telegraf/entity - Telegram entity utilities
 
-### 9. `utilities`
+### 7. `infra`
 
-**Purpose**: General utility libraries
+**Purpose**: Infrastructure, utilities, security, and configuration packages
 
-**Packages**:
+Groups all infrastructure utilities, security tools, and general-purpose libraries:
 
-- hash-it - Hashing utility
-- date-fns - Date manipulation
+- @mswjs/interceptors - Network request interception for testing/security
 - async - Async flow control
-
-### 10. `infra-packages`
-
-**Purpose**: Infrastructure and configuration utilities
-
-**Packages**:
-
+- date-fns - Date manipulation
 - debug - Debug logging
-- zod - Schema validation
+- dotenv - Environment variable management for secrets
 - glob - File pattern matching
+- hash-it - Hashing utility
 - jsonc-parser - JSON with comments parser
+- zod - Schema validation
 
-### 11. `github-actions-updates`
+### 8. `github-actions-updates`
 
 **Purpose**: GitHub Actions workflow dependencies
 

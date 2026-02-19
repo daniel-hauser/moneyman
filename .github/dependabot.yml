@@ -24,36 +24,30 @@ updates:
           - "@actual-app/api"
           - "ynab"
           - "buxfer-ts-client"
-      kusto:
-        patterns:
-          - "azure-kusto*"
       google:
         patterns:
           - "google*"
       database:
         patterns:
+          - "azure-kusto*"
           - "pg"
           - "pg-format"
           - "@types/pg*"
-      security:
-        patterns:
-          - "@mswjs/interceptors"
-          - "dotenv"
       telegram:
         patterns:
           - "telegraf"
           - "@telegraf/entity"
-      utilities:
+      infra:
         patterns:
-          - "hash-it"
-          - "date-fns"
+          - "@mswjs/interceptors"
           - "async"
-      infra-packages:
-        patterns:
+          - "date-fns"
           - "debug"
-          - "zod"
+          - "dotenv"
           - "glob"
+          - "hash-it"
           - "jsonc-parser"
+          - "zod"
 
   - package-ecosystem: "docker"
     directory: "/"
