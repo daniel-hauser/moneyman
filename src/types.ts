@@ -36,6 +36,7 @@ export interface TransactionStorage {
     txns: Array<TransactionRow>,
     onProgress: (status: string) => Promise<void>,
   ): Promise<SaveStats>;
+  sendLogs?(logs: string): Promise<void>;
 }
 
 export type ScraperConfig = {

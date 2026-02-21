@@ -4,7 +4,12 @@ export type LoggerContext = {
   prefix: string;
 };
 
+export type RunContext = {
+  runId: string;
+};
+
 export const loggerContextStore = new AsyncLocalStorage<LoggerContext>();
+export const runContextStore = new AsyncLocalStorage<RunContext>();
 
 export function runInLoggerContext<T extends (...args: any[]) => any>(
   fn: T,

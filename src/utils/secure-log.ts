@@ -1,7 +1,9 @@
-import { existsSync, unlinkSync } from "fs";
+import { existsSync, unlinkSync, readFileSync } from "fs";
 import { config } from "../config.js";
 import { sendTextFile } from "../bot/notifier.js";
 import { logToPublicLog, unsafeStdout, createLogger } from "./logger.js";
+import { storages } from "../bot/storage/index.js";
+import type { TransactionStorage } from "../types.js";
 import debug from "debug";
 
 const logger = createLogger("secure-log");
@@ -30,9 +32,17 @@ export async function sendAndDeleteLogFile() {
   if (!logFilePath || !existsSync(logFilePath)) return;
 
   const telegram = config.options.notifications?.telegram;
-  if (!telegram || !telegram.chatId || !telegram.sendLogFileToTelegram) {
+  const logStorages = (storages as TransactionStorage[]).filter(
+    (s): s is TransactionStorage & { sendLogs(logs: string): Promise<void> } =>
+      typeof s.sendLogs === "function",
+  );
+  const hasAnyLogDest =
+    (telegram?.chatId && telegram?.sendLogFileToTelegram) ||
+    logStorages.length > 0;
+
+  if (!hasAnyLogDest) {
     logToPublicLog(
-      "⚠️  WARNING: Output is redirected to a log file but Telegram is not configured. Errors and logs will not be visible",
+      "⚠️  WARNING: Output is redirected to a log file but no log destinations are configured. Errors and logs will not be visible",
       logger,
     );
   }
@@ -42,6 +52,22 @@ export async function sendAndDeleteLogFile() {
       logToPublicLog(`Sending log file`, logger);
       await sendTextFile(logFilePath);
     }
+
+    // Send logs to all storages that support it
+    if (logStorages.length > 0) {
+      const logContent = readFileSync(logFilePath, "utf-8");
+
+      for (const storage of logStorages) {
+        const name = storage.constructor.name;
+        logToPublicLog(`Sending logs to ${name}`, logger);
+        try {
+          await storage.sendLogs(logContent);
+        } catch (error) {
+          logger(`Failed to send logs to ${name}:`, error);
+        }
+      }
+    }
+
     logToPublicLog(`Deleting log file`, logger);
     unlinkSync(logFilePath);
   } catch (error) {
