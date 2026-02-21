@@ -1,0 +1,107 @@
+name: "Validate Copilot Instructions"
+
+# Run on every PR to ensure copilot-instructions.md stays accurate
+on:
+  pull_request:
+    branches: [main]
+  push:
+    paths:
+      - .github/copilot-instructions.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate file exists and is non-empty
+        run: |
+          if [ ! -s .github/copilot-instructions.md ]; then
+            echo "❌ .github/copilot-instructions.md is missing or empty"
+            exit 1
+          fi
+          echo "✅ .github/copilot-instructions.md exists"
+
+      - name: Validate required sections are present
+        run: |
+          errors=0
+          check_section() {
+            if ! grep -qF "$1" .github/copilot-instructions.md; then
+              echo "❌ Required section missing: $1"
+              errors=$((errors + 1))
+            else
+              echo "✅ Section found: $1"
+            fi
+          }
+
+          check_section "## Project Overview"
+          check_section "## Development Workflow"
+          check_section "## Key Dependencies"
+          check_section "## Storage Providers"
+          check_section "## Common Development Tasks"
+
+          if [ $errors -gt 0 ]; then
+            echo "❌ $errors required section(s) missing from copilot-instructions.md"
+            exit 1
+          fi
+
+      - name: Validate referenced file paths exist
+        run: |
+          errors=0
+          check_path() {
+            if [ ! -e "$1" ]; then
+              echo "❌ Referenced path does not exist: $1"
+              errors=$((errors + 1))
+            else
+              echo "✅ $1"
+            fi
+          }
+
+          check_path "src/index.ts"
+          check_path "src/config.ts"
+          check_path "src/scraper"
+          check_path "src/bot"
+          check_path "src/bot/storage"
+          check_path "src/security"
+          check_path "jest.config.js"
+
+          if [ $errors -gt 0 ]; then
+            echo "❌ $errors path(s) referenced in copilot-instructions.md do not exist"
+            exit 1
+          fi
+
+      - name: Validate referenced interfaces exist in codebase
+        run: |
+          if ! grep -q "TransactionStorage" src/types.ts; then
+            echo "❌ TransactionStorage interface not found in src/types.ts"
+            exit 1
+          fi
+          echo "✅ TransactionStorage interface found in src/types.ts"
+
+      - name: Validate npm scripts referenced in instructions exist
+        run: |
+          errors=0
+          check_script() {
+            if ! node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts['$1'] ? 0 : 1)"; then
+              echo "❌ npm script not found: $1"
+              errors=$((errors + 1))
+            else
+              echo "✅ npm run $1"
+            fi
+          }
+
+          check_script "build"
+          check_script "test"
+          check_script "lint"
+          check_script "lint:fix"
+          check_script "test:config"
+          check_script "test:scraper-access"
+
+          if [ $errors -gt 0 ]; then
+            echo "❌ $errors npm script(s) referenced in copilot-instructions.md do not exist"
+            exit 1
+          fi
