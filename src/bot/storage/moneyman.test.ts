@@ -1,6 +1,7 @@
 import { MoneymanDashStorage } from "./moneyman.js";
 import { transactionRow, config } from "../../utils/tests.js";
 import type { MoneymanConfig } from "../../config.js";
+import type { SaveContext } from "../../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { runContextStore } from "../../utils/asyncContext.js";
 import { randomUUID } from "crypto";
@@ -542,6 +543,125 @@ describe("MoneymanDashStorage", () => {
       expect(body.metadata.scrapedAt).toMatch(
         /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
       );
+    });
+  });
+
+  describe("account statuses", () => {
+    it("should include account statuses from context in metadata", async () => {
+      const token = makeToken("https://api.example.com", "secret123");
+
+      fetchMock.mockResolvedValue(mockSuccessResponse());
+
+      const storage = new MoneymanDashStorage(mockConfig(token));
+
+      const context: SaveContext = {
+        accountResults: [
+          {
+            companyId: "hapoalim",
+            success: true,
+            accountCount: 2,
+            txnCount: 15,
+          },
+          {
+            companyId: "leumi",
+            success: false,
+            errorType: "TIMEOUT",
+            errorMessage: "Navigation timeout",
+            accountCount: 0,
+            txnCount: 0,
+          },
+        ],
+      };
+
+      await new Promise((resolve) => {
+        runContextStore.run({ runId: randomUUID() }, async () => {
+          await storage.saveTransactions(
+            [transactionRow({})],
+            async () => {},
+            context,
+          );
+          resolve(undefined);
+        });
+      });
+
+      const callArg = fetchMock.mock.calls[0][1];
+      const body = JSON.parse(callArg.body);
+
+      expect(body.metadata.accountStatuses).toHaveLength(2);
+      expect(body.metadata.accountStatuses[0]).toEqual({
+        companyId: "hapoalim",
+        success: true,
+        accountCount: 2,
+        txnCount: 15,
+      });
+      expect(body.metadata.accountStatuses[1]).toMatchObject({
+        companyId: "leumi",
+        success: false,
+        errorType: "TIMEOUT",
+      });
+    });
+
+    it("should omit account statuses when context is not provided", async () => {
+      const token = makeToken("https://api.example.com", "secret123");
+
+      fetchMock.mockResolvedValue(mockSuccessResponse());
+
+      const storage = new MoneymanDashStorage(mockConfig(token));
+
+      await new Promise((resolve) => {
+        runContextStore.run({ runId: randomUUID() }, async () => {
+          await storage.saveTransactions(
+            [transactionRow({})],
+            async () => {},
+          );
+          resolve(undefined);
+        });
+      });
+
+      const callArg = fetchMock.mock.calls[0][1];
+      const body = JSON.parse(callArg.body);
+
+      expect(body.metadata.accountStatuses).toBeUndefined();
+    });
+
+    it("should include all accounts including failed ones in metadata", async () => {
+      const token = makeToken("https://api.example.com", "secret123");
+
+      fetchMock.mockResolvedValue(mockSuccessResponse());
+
+      const storage = new MoneymanDashStorage(mockConfig(token));
+
+      const context: SaveContext = {
+        accountResults: [
+          { companyId: "hapoalim", success: true, txnCount: 10 },
+          { companyId: "leumi", success: false, errorType: "INVALID_PASSWORD" },
+          { companyId: "discount", success: true, txnCount: 5 },
+        ],
+      };
+
+      await new Promise((resolve) => {
+        runContextStore.run({ runId: randomUUID() }, async () => {
+          await storage.saveTransactions(
+            [transactionRow({})],
+            async () => {},
+            context,
+          );
+          resolve(undefined);
+        });
+      });
+
+      const callArg = fetchMock.mock.calls[0][1];
+      const body = JSON.parse(callArg.body);
+
+      expect(body.metadata.accountStatuses).toHaveLength(3);
+
+      const failed = body.metadata.accountStatuses.find(
+        (a: { companyId: string }) => a.companyId === "leumi",
+      );
+      expect(failed).toMatchObject({
+        success: false,
+        errorType: "INVALID_PASSWORD",
+      });
     });
   });
 });

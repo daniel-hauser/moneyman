@@ -1,5 +1,5 @@
 import { createLogger } from "../../utils/logger.js";
-import type { TransactionRow, TransactionStorage } from "../../types.js";
+import type { TransactionRow, TransactionStorage, SaveContext } from "../../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { createSaveStats } from "../saveStats.js";
 import type { MoneymanConfig } from "../../config.js";
@@ -18,6 +18,14 @@ interface IngestionMetadata {
   skipped: number;
   highlightedTransactions: number;
   runId?: string;
+  accountStatuses?: Array<{
+    companyId: string;
+    success: boolean;
+    errorType?: string;
+    errorMessage?: string;
+    accountCount?: number;
+    txnCount?: number;
+  }>;
 }
 
 interface IngestionPayload {
@@ -117,6 +125,7 @@ export class MoneymanDashStorage implements TransactionStorage {
   async saveTransactions(
     txns: Array<TransactionRow>,
     onProgress: (status: string) => Promise<void>,
+    context?: SaveContext,
   ) {
     logger("saveTransactions");
 
@@ -140,7 +149,7 @@ export class MoneymanDashStorage implements TransactionStorage {
       logger("Warning: No runId found in context");
     }
 
-    const payload = this.buildIngestionPayload(nonPendingTxns);
+    const payload = this.buildIngestionPayload(nonPendingTxns, context);
 
     // Include runId in metadata for server-side correlation
     if (this.lastRunId) {
@@ -228,7 +237,10 @@ export class MoneymanDashStorage implements TransactionStorage {
     }
   }
 
-  private buildIngestionPayload(txns: TransactionRow[]): IngestionPayload {
+  private buildIngestionPayload(
+    txns: TransactionRow[],
+    context?: SaveContext,
+  ): IngestionPayload {
     const uniqueAccounts = new Set(txns.map((t) => t.account));
 
     return {
@@ -242,6 +254,8 @@ export class MoneymanDashStorage implements TransactionStorage {
         pending: 0,
         skipped: 0,
         highlightedTransactions: 0,
+        // Per-account scraping results (success/failure per bank/credit card)
+        accountStatuses: context?.accountResults,
       },
       transactions: txns,
     };
