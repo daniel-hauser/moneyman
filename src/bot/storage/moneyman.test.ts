@@ -268,7 +268,8 @@ describe("MoneymanDashStorage", () => {
         ok: false,
         status: 429,
         statusText: "Too Many Requests",
-        text: async () => '{"error":"Daily ingestion limit reached (max 20 per day)"}',
+        text: async () =>
+          '{"error":"Daily ingestion limit reached (max 20 per day)"}',
       });
 
       const storage = new MoneymanDashStorage(mockConfig(token));
@@ -447,10 +448,7 @@ describe("MoneymanDashStorage", () => {
     });
 
     it("should handle log upload errors gracefully", async () => {
-      const token = makeMmToken(
-        "https://api.example.com/ingest",
-        "secret123",
-      );
+      const token = makeMmToken("https://api.example.com/ingest", "secret123");
 
       // First save to populate lastRunId
       fetchMock.mockResolvedValue(mockSuccessResponse());
