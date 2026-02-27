@@ -1,5 +1,9 @@
 import { createLogger } from "../../utils/logger.js";
-import type { TransactionRow, TransactionStorage, SaveContext } from "../../types.js";
+import type {
+  TransactionRow,
+  TransactionStorage,
+  SaveContext,
+} from "../../types.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { createSaveStats } from "../saveStats.js";
 import type { MoneymanConfig } from "../../config.js";

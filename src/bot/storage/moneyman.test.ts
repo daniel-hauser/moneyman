@@ -610,10 +610,7 @@ describe("MoneymanDashStorage", () => {
 
       await new Promise((resolve) => {
         runContextStore.run({ runId: randomUUID() }, async () => {
-          await storage.saveTransactions(
-            [transactionRow({})],
-            async () => {},
-          );
+          await storage.saveTransactions([transactionRow({})], async () => {});
           resolve(undefined);
         });
       });
