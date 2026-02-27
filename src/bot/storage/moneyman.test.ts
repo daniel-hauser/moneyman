@@ -352,6 +352,24 @@ describe("MoneymanDashStorage", () => {
       // Should not include runId if not in context
       expect(body.metadata.runId).toBeUndefined();
     });
+
+    it("should pass AbortSignal for timeout protection", async () => {
+      const token = makeMmToken("https://api.example.com", "secret123");
+
+      fetchMock.mockResolvedValue(mockSuccessResponse());
+
+      const storage = new MoneymanDashStorage(mockConfig(token));
+
+      await new Promise((resolve) => {
+        runContextStore.run({ runId: randomUUID() }, async () => {
+          await storage.saveTransactions([transactionRow({})], async () => {});
+          resolve(undefined);
+        });
+      });
+
+      const callArg = fetchMock.mock.calls[0][1];
+      expect(callArg.signal).toBeInstanceOf(AbortSignal);
+    });
   });
 
   describe("sendLogs", () => {

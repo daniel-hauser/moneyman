@@ -132,6 +132,8 @@ export class MoneymanDashStorage implements TransactionStorage {
     }
 
     // Run progress update in parallel with the network request
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
     const [response] = await Promise.all([
       fetch(endpoint, {
         method: "POST",
@@ -140,7 +142,8 @@ export class MoneymanDashStorage implements TransactionStorage {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
-      }),
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeout)),
       onProgress("Sending transactions"),
     ]);
 
@@ -191,6 +194,8 @@ export class MoneymanDashStorage implements TransactionStorage {
     const logsUrl = `${this.endpoint}/logs`;
 
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15_000);
       const response = await fetch(logsUrl, {
         method: "POST",
         headers: {
@@ -199,7 +204,8 @@ export class MoneymanDashStorage implements TransactionStorage {
           "X-Run-Id": runId,
         },
         body: logs,
-      });
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeout));
 
       if (!response.ok) {
         const body = await response.text().catch(() => "");

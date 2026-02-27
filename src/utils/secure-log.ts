@@ -57,13 +57,18 @@ export async function sendAndDeleteLogFile() {
     if (logStorages.length > 0) {
       const logContent = readFileSync(logFilePath, "utf-8");
 
-      for (const storage of logStorages) {
-        const name = storage.constructor.name;
-        logToPublicLog(`Sending logs to ${name}`, logger);
-        try {
+      const results = await Promise.allSettled(
+        logStorages.map(async (storage) => {
+          const name = storage.constructor.name;
+          logToPublicLog(`Sending logs to ${name}`, logger);
           await storage.sendLogs(logContent);
-        } catch (error) {
-          logger(`Failed to send logs to ${name}:`, error);
+        }),
+      );
+
+      for (const [i, result] of results.entries()) {
+        if (result.status === "rejected") {
+          const name = logStorages[i].constructor.name;
+          logger(`Failed to send logs to ${name}:`, result.reason);
         }
       }
     }
