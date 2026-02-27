@@ -19,11 +19,6 @@ const mockConfig = (token?: string): MoneymanConfig => {
   return cfg;
 };
 
-const makeToken = (url: string, tokenString: string) => {
-  const encodedUrl = Buffer.from(url).toString("base64");
-  return `${encodedUrl}.${tokenString}`;
-};
-
 const makeMmToken = (url: string, secret: string) => {
   const payload = JSON.stringify({ u: url, k: secret });
   const b64 = Buffer.from(payload)
@@ -56,12 +51,6 @@ describe("MoneymanDashStorage", () => {
   });
 
   describe("token parsing", () => {
-    it("should parse valid legacy token format", () => {
-      const token = makeToken("https://api.example.com", "secret123");
-      const storage = new MoneymanDashStorage(mockConfig(token));
-      expect(storage.canSave()).toBe(true);
-    });
-
     it("should parse mm_ token format", async () => {
       const url = "https://api.example.com/ingest";
       const secret = "abc123secret";
@@ -101,31 +90,20 @@ describe("MoneymanDashStorage", () => {
       expect(storage.canSave()).toBe(false);
     });
 
-    it("should handle token string containing dots (JWT-style)", async () => {
-      const url = "https://api.example.com/ingest";
-      const jwtToken = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc";
-      const token = makeToken(url, jwtToken);
-
-      fetchMock.mockResolvedValue(mockSuccessResponse());
-
-      const storage = new MoneymanDashStorage(mockConfig(token));
-
-      await new Promise((resolve) => {
-        runContextStore.run({ runId: randomUUID() }, async () => {
-          await storage.saveTransactions([transactionRow({})], async () => {});
-          resolve(undefined);
-        });
-      });
-
-      // Verify the full JWT token (with dots) was used as bearer
-      expect(fetchMock).toHaveBeenCalledWith(
-        url,
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            Authorization: `Bearer ${jwtToken}`,
-          }),
-        }),
+    it("should reject tokens without mm_ prefix", () => {
+      const storage = new MoneymanDashStorage(
+        mockConfig("some-random-token-string"),
       );
+      expect(storage.canSave()).toBe(false);
+    });
+
+    it("should reject base64.token legacy format", () => {
+      const encodedUrl = Buffer.from("https://api.example.com").toString(
+        "base64",
+      );
+      const token = `${encodedUrl}.secret123`;
+      const storage = new MoneymanDashStorage(mockConfig(token));
+      expect(storage.canSave()).toBe(false);
     });
 
     it("should return false when no token configured", () => {
@@ -164,8 +142,8 @@ describe("MoneymanDashStorage", () => {
   describe("saveTransactions", () => {
     it("should send transactions with correct payload", async () => {
       const url = "https://api.example.com/ingest";
-      const tokenString = "secret123";
-      const token = makeToken(url, tokenString);
+      const secret = "secret123";
+      const token = makeMmToken(url, secret);
 
       const txns = [transactionRow({}), transactionRow({ account: "5678" })];
       const runId = randomUUID();
@@ -188,7 +166,7 @@ describe("MoneymanDashStorage", () => {
         expect.objectContaining({
           method: "POST",
           headers: expect.objectContaining({
-            Authorization: `Bearer ${tokenString}`,
+            Authorization: `Bearer ${secret}`,
             "Content-Type": "application/json",
           }),
         }),
@@ -223,7 +201,7 @@ describe("MoneymanDashStorage", () => {
     });
 
     it("should send full transaction objects including raw fields", async () => {
-      const token = makeToken("https://api.example.com", "secret123");
+      const token = makeMmToken("https://api.example.com", "secret123");
 
       fetchMock.mockResolvedValue(mockSuccessResponse());
 
@@ -251,7 +229,7 @@ describe("MoneymanDashStorage", () => {
     });
 
     it("should filter pending transactions", async () => {
-      const token = makeToken("https://api.example.com", "secret123");
+      const token = makeMmToken("https://api.example.com", "secret123");
 
       const completedTx = transactionRow({
         status: TransactionStatuses.Completed,
@@ -284,12 +262,13 @@ describe("MoneymanDashStorage", () => {
     });
 
     it("should handle API errors", async () => {
-      const token = makeToken("https://api.example.com", "secret123");
+      const token = makeMmToken("https://api.example.com", "secret123");
 
       fetchMock.mockResolvedValue({
         ok: false,
-        status: 500,
-        statusText: "Internal Server Error",
+        status: 429,
+        statusText: "Too Many Requests",
+        text: async () => '{"error":"Daily ingestion limit reached (max 20 per day)"}',
       });
 
       const storage = new MoneymanDashStorage(mockConfig(token));
@@ -308,11 +287,11 @@ describe("MoneymanDashStorage", () => {
             }
           });
         }),
-      ).rejects.toThrow("Failed to post transactions");
+      ).rejects.toThrow("Daily ingestion limit reached");
     });
 
     it("should throw on unexpected response shape", async () => {
-      const token = makeToken("https://api.example.com", "secret123");
+      const token = makeMmToken("https://api.example.com", "secret123");
 
       fetchMock.mockResolvedValue({
         ok: true,
@@ -339,7 +318,7 @@ describe("MoneymanDashStorage", () => {
     });
 
     it("should call onProgress callback", async () => {
-      const token = makeToken("https://api.example.com", "secret123");
+      const token = makeMmToken("https://api.example.com", "secret123");
 
       fetchMock.mockResolvedValue(mockSuccessResponse());
 
@@ -357,7 +336,7 @@ describe("MoneymanDashStorage", () => {
     });
 
     it("should handle missing runId gracefully", async () => {
-      const token = makeToken("https://api.example.com", "secret123");
+      const token = makeMmToken("https://api.example.com", "secret123");
 
       fetchMock.mockResolvedValue(mockSuccessResponse());
 
@@ -377,8 +356,8 @@ describe("MoneymanDashStorage", () => {
   describe("sendLogs", () => {
     it("should send logs using lastRunId from saveTransactions", async () => {
       const url = "https://api.example.com/ingest";
-      const tokenString = "secret123";
-      const token = makeToken(url, tokenString);
+      const secret = "secret123";
+      const token = makeMmToken(url, secret);
 
       const storage = new MoneymanDashStorage(mockConfig(token));
       const logs = "2024-01-15 10:00:00 Starting scrape...";
@@ -405,7 +384,7 @@ describe("MoneymanDashStorage", () => {
         expect.objectContaining({
           method: "POST",
           headers: expect.objectContaining({
-            Authorization: `Bearer ${tokenString}`,
+            Authorization: `Bearer ${secret}`,
             "Content-Type": "text/plain",
             "X-Run-Id": runId,
           }),
@@ -414,7 +393,7 @@ describe("MoneymanDashStorage", () => {
       );
     });
 
-    it("should derive /ingest/logs URL from mm_ token's /ingest URL", async () => {
+    it("should derive /logs URL from endpoint", async () => {
       const ingestUrl = "https://myapp.example.com/ingest";
       const secret = "my-secret";
       const token = makeMmToken(ingestUrl, secret);
@@ -458,7 +437,7 @@ describe("MoneymanDashStorage", () => {
     });
 
     it("should skip logs if no runId ever stored", async () => {
-      const token = makeToken("https://api.example.com", "secret123");
+      const token = makeMmToken("https://api.example.com", "secret123");
       const storage = new MoneymanDashStorage(mockConfig(token));
 
       // Call without ever calling saveTransactions or being in runContext
@@ -468,7 +447,10 @@ describe("MoneymanDashStorage", () => {
     });
 
     it("should handle log upload errors gracefully", async () => {
-      const token = makeToken("https://api.example.com/ingest", "secret123");
+      const token = makeMmToken(
+        "https://api.example.com/ingest",
+        "secret123",
+      );
 
       // First save to populate lastRunId
       fetchMock.mockResolvedValue(mockSuccessResponse());
@@ -495,7 +477,7 @@ describe("MoneymanDashStorage", () => {
 
   describe("metadata calculation", () => {
     it("should calculate correct account count", async () => {
-      const token = makeToken("https://api.example.com", "secret123");
+      const token = makeMmToken("https://api.example.com", "secret123");
 
       const txns = [
         transactionRow({ account: "1234" }),
@@ -524,7 +506,7 @@ describe("MoneymanDashStorage", () => {
     });
 
     it("should include proper ISO timestamp", async () => {
-      const token = makeToken("https://api.example.com", "secret123");
+      const token = makeMmToken("https://api.example.com", "secret123");
 
       fetchMock.mockResolvedValue(mockSuccessResponse());
 
@@ -548,7 +530,7 @@ describe("MoneymanDashStorage", () => {
 
   describe("account statuses", () => {
     it("should include account statuses from context in metadata", async () => {
-      const token = makeToken("https://api.example.com", "secret123");
+      const token = makeMmToken("https://api.example.com", "secret123");
 
       fetchMock.mockResolvedValue(mockSuccessResponse());
 
@@ -602,7 +584,7 @@ describe("MoneymanDashStorage", () => {
     });
 
     it("should omit account statuses when context is not provided", async () => {
-      const token = makeToken("https://api.example.com", "secret123");
+      const token = makeMmToken("https://api.example.com", "secret123");
 
       fetchMock.mockResolvedValue(mockSuccessResponse());
 
@@ -622,7 +604,7 @@ describe("MoneymanDashStorage", () => {
     });
 
     it("should include all accounts including failed ones in metadata", async () => {
-      const token = makeToken("https://api.example.com", "secret123");
+      const token = makeMmToken("https://api.example.com", "secret123");
 
       fetchMock.mockResolvedValue(mockSuccessResponse());
 

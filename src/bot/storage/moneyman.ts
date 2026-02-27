@@ -1,5 +1,6 @@
 import { createLogger } from "../../utils/logger.js";
 import type {
+  AccountStatus,
   TransactionRow,
   TransactionStorage,
   SaveContext,
@@ -22,14 +23,7 @@ interface IngestionMetadata {
   skipped: number;
   highlightedTransactions: number;
   runId?: string;
-  accountStatuses?: Array<{
-    companyId: string;
-    success: boolean;
-    errorType?: string;
-    errorMessage?: string;
-    accountCount?: number;
-    txnCount?: number;
-  }>;
+  accountStatuses?: AccountStatus[];
 }
 
 interface IngestionPayload {
@@ -64,52 +58,29 @@ export class MoneymanDashStorage implements TransactionStorage {
     const tokenString = tokenConfig.token;
 
     // mm_ token format: mm_<base64url({ u: ingestUrl, k: bearerSecret })>
-    if (tokenString.startsWith(MM_PREFIX)) {
-      const encoded = tokenString.slice(MM_PREFIX.length);
-      // Restore base64 padding and standard chars
-      const base64 = encoded
-        .replace(/-/g, "+")
-        .replace(/_/g, "/")
-        .padEnd(encoded.length + ((4 - (encoded.length % 4)) % 4), "=");
-      const raw = JSON.parse(Buffer.from(base64, "base64").toString("utf-8"));
-      // Protect against prototype pollution — only extract known fields
-      const decoded = { u: raw.u, k: raw.k };
-      if (!decoded.u || !decoded.k) {
-        throw new Error(
-          "Invalid mm_ token: missing required fields 'u' (URL) or 'k' (secret)",
-        );
-      }
-      this.validateEndpointUrl(decoded.u);
-      this.endpoint = decoded.u;
-      this.token = decoded.k;
-      return;
-    }
-
-    // Legacy format: base64(url).tokenstring
-    const dotIndex = tokenString.indexOf(".");
-    if (dotIndex === -1) {
+    if (!tokenString.startsWith(MM_PREFIX)) {
       throw new Error(
-        "Invalid token format: expected mm_<base64> or base64(url).tokenstring",
+        "Invalid token format: expected mm_<base64url encoded token>",
       );
     }
 
-    const encodedUrl = tokenString.slice(0, dotIndex);
-    const token = tokenString.slice(dotIndex + 1);
-
-    if (!encodedUrl || !token) {
+    const encoded = tokenString.slice(MM_PREFIX.length);
+    // Restore base64 padding and standard chars
+    const base64 = encoded
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .padEnd(encoded.length + ((4 - (encoded.length % 4)) % 4), "=");
+    const raw = JSON.parse(Buffer.from(base64, "base64").toString("utf-8"));
+    // Protect against prototype pollution — only extract known fields
+    const decoded = { u: raw.u, k: raw.k };
+    if (!decoded.u || !decoded.k) {
       throw new Error(
-        "Invalid token format: both URL and token parts are required",
+        "Invalid mm_ token: missing required fields 'u' (URL) or 'k' (secret)",
       );
     }
-
-    try {
-      const url = Buffer.from(encodedUrl, "base64").toString("utf-8");
-      this.validateEndpointUrl(url);
-      this.endpoint = url;
-      this.token = token;
-    } catch (e) {
-      throw new Error("Failed to decode token URL from base64", { cause: e });
-    }
+    this.validateEndpointUrl(decoded.u);
+    this.endpoint = decoded.u;
+    this.token = decoded.k;
   }
 
   private validateEndpointUrl(url: string) {
@@ -174,11 +145,13 @@ export class MoneymanDashStorage implements TransactionStorage {
     ]);
 
     if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      const detail = body ? `: ${body}` : "";
       logger(
-        `Failed to post transactions: ${response.status} ${response.statusText}`,
+        `Failed to post transactions: ${response.status} ${response.statusText}${detail}`,
       );
       throw new Error(
-        `Failed to post transactions: ${response.status} ${response.statusText}`,
+        `Failed to post transactions: ${response.status} ${response.statusText}${detail}`,
       );
     }
 
@@ -229,8 +202,10 @@ export class MoneymanDashStorage implements TransactionStorage {
       });
 
       if (!response.ok) {
+        const body = await response.text().catch(() => "");
+        const detail = body ? `: ${body}` : "";
         logger(
-          `Failed to upload logs: ${response.status} ${response.statusText}`,
+          `Failed to upload logs: ${response.status} ${response.statusText}${detail}`,
         );
         return;
       }
