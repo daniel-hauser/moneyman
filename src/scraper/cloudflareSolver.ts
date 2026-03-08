@@ -26,13 +26,7 @@ export function isCloudflareBlock(text: string): boolean {
     /cf-error-details/i,
   ];
 
-  export function isCloudflareBlock(text: string): boolean {
-    if (!text || typeof text !== "string") {
-      return false;
-    }
-
-    return cloudflarePatterns.some((pattern) => pattern.test(text));
-  }
+  return cloudflarePatterns.some((pattern) => pattern.test(text));
 }
 
 type Point = [number, number];
