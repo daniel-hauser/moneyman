@@ -17,16 +17,22 @@ export function isCloudflareBlock(text: string): boolean {
     return false;
   }
 
-  const cloudflarePatterns = [
-    /Attention Required.*Cloudflare/i,
-    /Sorry, you have been blocked/i,
-    /Please enable cookies.*cloudflare/i,
-    /Ray ID:/i,
-    /cloudflare.*security/i,
-    /cf-error-details/i,
-  ];
+const cloudflarePatterns = [
+  /Attention Required[\s\S]*Cloudflare/i,
+  /Sorry, you have been blocked/i,
+  /Please enable cookies[\s\S]*cloudflare/i,
+  /Ray ID:/i,
+  /cloudflare[\s\S]*security/i,
+  /cf-error-details/i,
+];
+
+export function isCloudflareBlock(text: string): boolean {
+  if (!text || typeof text !== "string") {
+    return false;
+  }
 
   return cloudflarePatterns.some((pattern) => pattern.test(text));
+}
 }
 
 type Point = [number, number];
