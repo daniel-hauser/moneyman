@@ -32,8 +32,25 @@ if (bot && telegramConfig) {
 
 export async function send(message: string, parseMode?: "HTML") {
   if (message.length > 4096) {
-    send(`Next message is too long (${message.length} characters), truncating`);
-    return send(message.slice(0, 4096));
+    await send(
+      `Next message is too long (${message.length} characters), truncating`,
+    );
+    await send(message.slice(0, 4096));
+
+    if (bot && telegramConfig?.chatId) {
+      const buffer = Buffer.from(message, "utf-8");
+      await bot.telegram.sendDocument(
+        telegramConfig.chatId,
+        {
+          source: buffer,
+          filename: `message-${new Date().toISOString().replaceAll(":", "-")}.txt`,
+        },
+        {
+          caption: "Full message attached",
+        },
+      );
+    }
+    return;
   }
   logger(message);
   if (!bot || !telegramConfig?.chatId) {
