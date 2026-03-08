@@ -32,7 +32,9 @@ if (bot && telegramConfig) {
 
 export async function send(message: string, parseMode?: "HTML") {
   if (message.length > 4096) {
-    await send(`Next message is too long (${message.length} characters), truncating`);
+    await send(
+      `Next message is too long (${message.length} characters), truncating`,
+    );
     await send(message.slice(0, 4096));
 
     if (bot && telegramConfig?.chatId) {
