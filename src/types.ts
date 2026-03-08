@@ -30,12 +30,27 @@ export type CategoryDef = {
   eq?: Array<string>;
 };
 
+export interface AccountStatus {
+  companyId: string;
+  success: boolean;
+  errorType?: string;
+  errorMessage?: string;
+  accountCount?: number;
+  txnCount?: number;
+}
+
+export interface SaveContext {
+  accountResults?: AccountStatus[];
+}
+
 export interface TransactionStorage {
   canSave(): boolean;
   saveTransactions(
     txns: Array<TransactionRow>,
     onProgress: (status: string) => Promise<void>,
+    context?: SaveContext,
   ): Promise<SaveStats>;
+  sendLogs?(logs: string): Promise<void>;
 }
 
 export type ScraperConfig = {
