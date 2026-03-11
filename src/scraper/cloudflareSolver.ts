@@ -4,6 +4,31 @@ import { sleep } from "../utils/utils.js";
 
 const logger = createLogger("cloudflare-solver");
 
+/**
+ * Detects if a response/error contains Cloudflare block patterns.
+ * Common patterns include:
+ * - "Attention Required! | Cloudflare"
+ * - "Sorry, you have been blocked"
+ * - "Please enable cookies" (Cloudflare challenge)
+ * - "Ray ID:" (Cloudflare error identifier)
+ */
+export function isCloudflareBlock(text: string): boolean {
+  if (!text || typeof text !== "string") {
+    return false;
+  }
+
+  const cloudflarePatterns = [
+    /Attention Required[\s\S]*Cloudflare/i,
+    /Sorry, you have been blocked/i,
+    /Please enable cookies[\s\S]*cloudflare/i,
+    /Ray ID:/i,
+    /cloudflare[\s\S]*security/i,
+    /cf-error-details/i,
+  ];
+
+  return cloudflarePatterns.some((pattern) => pattern.test(text));
+}
+
 type Point = [number, number];
 
 function* getMousePath(from: Point, to: Point): Generator<Point> {

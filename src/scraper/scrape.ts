@@ -7,6 +7,7 @@ import { AccountConfig } from "../types.js";
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
 import { createLogger } from "../utils/logger.js";
 import { prepareAccountCredentials } from "./otp.js";
+import { isCloudflareBlock } from "./cloudflareSolver.js";
 
 const logger = createLogger("scrape");
 
@@ -30,6 +31,15 @@ export async function getAccountTransactions(
     });
 
     if (!result.success) {
+      const errorMessage = result.errorMessage || "";
+      if (isCloudflareBlock(errorMessage)) {
+        logger(`Cloudflare block detected: ${result.errorType}`);
+        return {
+          success: false,
+          errorType: ScraperErrorTypes.Generic,
+          errorMessage: `CloudflareBlocked: ${errorMessage.substring(0, 200)}...`,
+        };
+      }
       logger(`error: ${result.errorType} ${result.errorMessage}`);
     }
     logger(`ended`);
@@ -37,10 +47,22 @@ export async function getAccountTransactions(
     return result;
   } catch (e) {
     logger(e);
+    const errorString = String(e);
+
+    // Detect Cloudflare blocks in exceptions
+    if (isCloudflareBlock(errorString)) {
+      logger("Cloudflare block detected in exception");
+      return {
+        success: false,
+        errorType: ScraperErrorTypes.Generic,
+        errorMessage: `CloudflareBlocked: The scraper was blocked by Cloudflare. Try running from a different network/IP or wait before retrying.`,
+      };
+    }
+
     return {
       success: false,
       errorType: ScraperErrorTypes.Generic,
-      errorMessage: String(e),
+      errorMessage: errorString,
     };
   }
 }
