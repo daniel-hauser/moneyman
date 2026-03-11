@@ -34,6 +34,16 @@ jobs:
           tag: pr-${{ github.event.pull_request.number }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Delete kernel Docker image
+        if: steps.pr-check.outputs.is_external == 'false'
+        uses: chipkent/action-cleanup-package@v1.0.3
+        continue-on-error: true
+        id: delete-kernel-image
+        with:
+          package-name: ${{ github.event.repository.name }}-kernel
+          tag: pr-${{ github.event.pull_request.number }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Update original comment about image push
         if: steps.pr-check.outputs.is_external == 'false'
         uses: actions/github-script@v8

@@ -40,6 +40,7 @@ jobs:
             ".eslintrc.js"
             ".prettierrc.js"
             "Dockerfile"
+            "Dockerfile.kernel"
             "docker-compose.yml"
             ".github/workflows/pr-build.yml"
           )
@@ -264,6 +265,26 @@ jobs:
           provenance: false
           sbom: false
 
+      - name: Extract Docker metadata for kernel PR image
+        if: needs.prepare.outputs.build_needed == 'true'
+        id: meta-kernel
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ needs.prepare.outputs.repository }}-kernel
+          tags: type=ref,event=pr
+
+      - name: Build and push kernel Docker image
+        if: needs.prepare.outputs.build_needed == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.kernel
+          push: true
+          tags: ${{ steps.meta-kernel.outputs.tags }}
+          labels: ${{ steps.meta-kernel.outputs.labels }}
+          provenance: false
+          sbom: false
+
       - name: Get image size
         if: needs.prepare.outputs.build_needed == 'true'
         id: image-size
@@ -290,7 +311,9 @@ jobs:
 
             const imageSize = process.env.IMAGE_SIZE || 'Unknown';
 
-            const comment = `🐳 Docker image built and pushed: \`${imageName}\`
+            const comment = `🐳 Docker images built and pushed:
+            - \`${imageName}\`
+            - \`ghcr.io/${owner}/${repository}-kernel:${imageTag}\`
 
             📏 **Size**: ${imageSize}
             🔗 [View on GitHub Container Registry](${ghcrUrl})`;
@@ -409,6 +432,16 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=docker,dest=/tmp/image.tar
+
+      - name: Build kernel Docker image
+        if: needs.prepare.outputs.build_needed == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.kernel
+          push: false
+          tags: ghcr.io/${{ needs.prepare.outputs.repository }}-kernel:pr-${{ github.event.pull_request.number }}
+          outputs: type=docker,dest=/tmp/image-kernel.tar
 
       - name: Get image and artifact sizes
         if: needs.prepare.outputs.build_needed == 'true'

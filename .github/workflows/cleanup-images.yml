@@ -13,19 +13,26 @@ jobs:
     permissions:
       contents: read
       packages: write
+    strategy:
+      matrix:
+        package-name:
+          - ${{ github.event.repository.name }}
+          - ${{ github.event.repository.name }}-kernel
     steps:
       - name: Delete old Docker images
+        continue-on-error: true
         uses: actions/github-script@v8
         with:
           script: |
             const repo = context.repo.repo;
             const owner = context.repo.owner;
+            const packageName = '${{ matrix.package-name }}';
 
             try {
               // Get all package versions for the repository
               const packages = await github.rest.packages.getAllPackageVersionsForPackageOwnedByOrg({
                 package_type: 'container',
-                package_name: repo,
+                package_name: packageName,
                 org: owner,
                 per_page: 100
               });
@@ -47,7 +54,7 @@ jobs:
                   try {
                     await github.rest.packages.deletePackageVersionForOrg({
                       package_type: 'container',
-                      package_name: repo,
+                      package_name: packageName,
                       org: owner,
                       package_version_id: pkg.id
                     });
@@ -85,7 +92,7 @@ jobs:
                 try {
                   await github.rest.packages.deletePackageVersionForOrg({
                     package_type: 'container',
-                    package_name: repo,
+                    package_name: packageName,
                     org: owner,
                     package_version_id: pkg.id
                   });
@@ -107,7 +114,7 @@ jobs:
                 try {
                   const packages = await github.rest.packages.getAllPackageVersionsForPackageOwnedByUser({
                     package_type: 'container',
-                    package_name: repo,
+                    package_name: packageName,
                     username: owner,
                     per_page: 100
                   });
@@ -129,7 +136,7 @@ jobs:
                       try {
                         await github.rest.packages.deletePackageVersionForUser({
                           package_type: 'container',
-                          package_name: repo,
+                          package_name: packageName,
                           username: owner,
                           package_version_id: pkg.id
                         });
@@ -167,7 +174,7 @@ jobs:
                     try {
                       await github.rest.packages.deletePackageVersionForUser({
                         package_type: 'container',
-                        package_name: repo,
+                        package_name: packageName,
                         username: owner,
                         package_version_id: pkg.id
                       });
