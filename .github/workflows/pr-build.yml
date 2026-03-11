@@ -290,10 +290,12 @@ jobs:
         id: image-size
         run: |
           IMAGE_TAG="${{ steps.meta.outputs.tags }}"
+          docker pull "$IMAGE_TAG" >/dev/null
           IMAGE_SIZE=$(docker images --format "{{.Size}}" "$IMAGE_TAG")
           echo "size=$IMAGE_SIZE" >> $GITHUB_OUTPUT
 
           KERNEL_TAG="${{ steps.meta-kernel.outputs.tags }}"
+          docker pull "$KERNEL_TAG" >/dev/null
           KERNEL_SIZE=$(docker images --format "{{.Size}}" "$KERNEL_TAG")
           echo "kernel_size=$KERNEL_SIZE" >> $GITHUB_OUTPUT
 
@@ -441,16 +443,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=docker,dest=/tmp/image.tar
-
-      - name: Build kernel Docker image
-        if: needs.prepare.outputs.build_needed == 'true'
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: Dockerfile.kernel
-          push: false
-          tags: ghcr.io/${{ needs.prepare.outputs.repository }}-kernel:pr-${{ github.event.pull_request.number }}
-          outputs: type=docker,dest=/tmp/image-kernel.tar
 
       - name: Get image and artifact sizes
         if: needs.prepare.outputs.build_needed == 'true'

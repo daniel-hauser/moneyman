@@ -65,14 +65,18 @@ jobs:
 
               // Find the comment about Docker image being built
               const imageComment = comments.data.find(comment =>
-                comment.body.includes('🐳 Docker image built and pushed:') &&
+                comment.body.includes('🐳 Docker image') &&
                 comment.body.includes(imageName)
               );
 
               if (imageComment) {
-                const deletionStatus = '${{ steps.delete-image.outcome }}' === 'success' ?
-                  '🗑️ **Image deleted** from registry' :
-                  '⚠️ **Image cleanup attempted** (may not have existed)';
+                const imageStatus = '${{ steps.delete-image.outcome }}' === 'success';
+                const kernelStatus = '${{ steps.delete-kernel-image.outcome }}' === 'success';
+                const allSuccess = imageStatus && kernelStatus;
+
+                const deletionStatus = allSuccess ?
+                  '🗑️ **Images deleted** from registry' :
+                  '⚠️ **Image cleanup attempted** (some may not have existed)';
 
                 // Extract just the first line (image info) for strikethrough, exclude the link
                 const firstLine = imageComment.body.split('\n')[0];
