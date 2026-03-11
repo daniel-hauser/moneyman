@@ -3,7 +3,11 @@ import { getAccountTransactions } from "./scrape.js";
 import { AccountConfig, AccountScrapeResult, ScraperConfig } from "../types.js";
 import { createLogger } from "../utils/logger.js";
 import { loggerContextStore } from "../utils/asyncContext.js";
-import { createBrowser, createSecureBrowserContext } from "./browser.js";
+import {
+  createBrowser,
+  createSecureBrowserContext,
+  useKernelBrowser,
+} from "./browser.js";
 import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
 import { ScraperOptions } from "israeli-bank-scrapers";
 import { parallelLimit } from "async";
@@ -89,7 +93,11 @@ export async function scrapeAccounts(
 
   try {
     logger(`closing browser`);
-    await browser?.close();
+    if (useKernelBrowser) {
+      await browser?.disconnect();
+    } else {
+      await browser?.close();
+    }
   } catch (e) {
     onError?.(e, "browser.close");
     logger(`failed to close browser`, e);

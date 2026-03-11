@@ -12,6 +12,7 @@ on:
       - ".eslintrc.js"
       - ".prettierrc.js"
       - "Dockerfile"
+      - "Dockerfile.kernel"
       - "docker-compose.yml"
       - ".github/workflows/build.yml"
   workflow_dispatch:
@@ -98,6 +99,27 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          provenance: false
+          sbom: false
+
+      - name: Extract Docker metadata for kernel image
+        id: meta-kernel
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}-kernel
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ steps.version.outputs.version }}
+            type=sha,format=short
+
+      - name: Build and push kernel Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.kernel
+          push: true
+          tags: ${{ steps.meta-kernel.outputs.tags }}
+          labels: ${{ steps.meta-kernel.outputs.labels }}
           provenance: false
           sbom: false
 

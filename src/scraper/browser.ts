@@ -25,7 +25,23 @@ export const browserExecutablePath =
 
 const logger = createLogger("browser");
 
-export async function createBrowser(): Promise<Browser> {
+async function createKernelBrowser(): Promise<Browser> {
+  const Kernel = (await import("@onkernel/sdk")).default;
+  const kernel = new Kernel();
+  const kernelBrowser = await kernel.browsers.create({
+    stealth: true,
+    viewport: { width: 1920, height: 1080 },
+  });
+  logger("Connecting to Kernel cloud browser", {
+    cdp_ws_url: kernelBrowser.cdp_ws_url,
+  });
+  return puppeteer.connect({
+    browserWSEndpoint: kernelBrowser.cdp_ws_url,
+    defaultViewport: null,
+  });
+}
+
+function createLocalBrowser(): Promise<Browser> {
   const options = {
     args: browserArgs,
     executablePath: browserExecutablePath,
@@ -33,8 +49,18 @@ export async function createBrowser(): Promise<Browser> {
     ignoreDefaultArgs: ["--enable-automation"],
   } satisfies PuppeteerLaunchOptions;
 
-  logger("Creating browser", options);
+  logger("Creating local browser", options);
   return puppeteer.launch(options);
+}
+
+export const useKernelBrowser = Boolean(process.env.KERNEL_API_KEY);
+
+export async function createBrowser(): Promise<Browser> {
+  if (useKernelBrowser) {
+    logger("Using Kernel cloud browser");
+    return createKernelBrowser();
+  }
+  return createLocalBrowser();
 }
 
 export async function createSecureBrowserContext(

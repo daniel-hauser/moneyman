@@ -40,6 +40,7 @@ jobs:
             ".eslintrc.js"
             ".prettierrc.js"
             "Dockerfile"
+            "Dockerfile.kernel"
             "docker-compose.yml"
             ".github/workflows/pr-build.yml"
           )
@@ -264,21 +265,48 @@ jobs:
           provenance: false
           sbom: false
 
-      - name: Get image size
+      - name: Extract Docker metadata for kernel PR image
+        if: needs.prepare.outputs.build_needed == 'true'
+        id: meta-kernel
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ needs.prepare.outputs.repository }}-kernel
+          tags: type=ref,event=pr
+
+      - name: Build and push kernel Docker image
+        if: needs.prepare.outputs.build_needed == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.kernel
+          push: true
+          tags: ${{ steps.meta-kernel.outputs.tags }}
+          labels: ${{ steps.meta-kernel.outputs.labels }}
+          provenance: false
+          sbom: false
+
+      - name: Get image sizes
         if: needs.prepare.outputs.build_needed == 'true'
         id: image-size
         run: |
           IMAGE_TAG="${{ steps.meta.outputs.tags }}"
-          # Get image size in human-readable format
+          docker pull "$IMAGE_TAG" >/dev/null
           IMAGE_SIZE=$(docker images --format "{{.Size}}" "$IMAGE_TAG")
           echo "size=$IMAGE_SIZE" >> $GITHUB_OUTPUT
-          echo "Image size: $IMAGE_SIZE"
+
+          KERNEL_TAG="${{ steps.meta-kernel.outputs.tags }}"
+          docker pull "$KERNEL_TAG" >/dev/null
+          KERNEL_SIZE=$(docker images --format "{{.Size}}" "$KERNEL_TAG")
+          echo "kernel_size=$KERNEL_SIZE" >> $GITHUB_OUTPUT
+
+          echo "Image size: $IMAGE_SIZE, Kernel size: $KERNEL_SIZE"
 
       - name: Comment on PR with image information
         if: needs.prepare.outputs.build_needed == 'true'
         uses: actions/github-script@v8
         env:
           IMAGE_SIZE: ${{ steps.image-size.outputs.size }}
+          KERNEL_SIZE: ${{ steps.image-size.outputs.kernel_size }}
         with:
           script: |
             const prNumber = context.payload.pull_request.number;
@@ -286,13 +314,19 @@ jobs:
             const owner = context.repo.owner.toLowerCase();
             const imageTag = `pr-${prNumber}`;
             const imageName = `ghcr.io/${owner}/${repository}:${imageTag}`;
+            const kernelImageName = `ghcr.io/${owner}/${repository}-kernel:${imageTag}`;
             const ghcrUrl = `https://github.com/${owner}/${repository}/pkgs/container/${repository}`;
 
             const imageSize = process.env.IMAGE_SIZE || 'Unknown';
+            const kernelSize = process.env.KERNEL_SIZE || 'Unknown';
 
-            const comment = `🐳 Docker image built and pushed: \`${imageName}\`
+            const comment = `🐳 Docker images built and pushed:
 
-            📏 **Size**: ${imageSize}
+            | Image | Tag | Size |
+            |-------|-----|------|
+            | \`${repository}\` | \`${imageTag}\` | ${imageSize} |
+            | \`${repository}-kernel\` | \`${imageTag}\` | ${kernelSize} |
+
             🔗 [View on GitHub Container Registry](${ghcrUrl})`;
 
             // Find existing comment about Docker image to update instead of creating new one
@@ -303,7 +337,7 @@ jobs:
             });
 
             const existingComment = comments.data.find(c =>
-              c.body.includes('🐳 Docker image built and pushed:') &&
+              c.body.includes('🐳 Docker image') &&
               c.body.includes(`pr-${prNumber}`)
             );
 

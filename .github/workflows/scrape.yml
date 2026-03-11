@@ -7,6 +7,11 @@ on:
         default: "latest"
         required: false
         description: "Container tag to use (e.g., 'latest', 'pr-123' for PR #123)"
+      useKernelBrowser:
+        description: "Use kernel cloud browser container (no local Chromium)"
+        type: boolean
+        required: false
+        default: false
       sendNewConfigToTg:
         description: "Send current config as config.txt via Telegram (true/false)"
         type: boolean
@@ -29,7 +34,13 @@ jobs:
         run: echo "repository=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - id: set-container-image
-        run: echo "image=${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:${{ github.event.inputs.containerTag || 'latest' }}" >> $GITHUB_OUTPUT
+        run: |
+          TAG="${{ github.event.inputs.containerTag || 'latest' }}"
+          if [ "${{ github.event.inputs.useKernelBrowser }}" = "true" ]; then
+            echo "image=${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}-kernel:${TAG}" >> $GITHUB_OUTPUT
+          else
+            echo "image=${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:${TAG}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Pull container image
         run: docker pull ${{ steps.set-container-image.outputs.image }}
@@ -41,9 +52,11 @@ jobs:
           -e DEBUG
           -e TZ
           -e SEND_NEW_CONFIG_TO_TG
+          ${{ github.event.inputs.useKernelBrowser == 'true' && '-e KERNEL_API_KEY' || '' }}
           ${{ steps.set-container-image.outputs.image }}
         env:
           MONEYMAN_CONFIG: ${{ secrets.MONEYMAN_CONFIG }}
           DEBUG: ${{ github.event.inputs.DEBUG || '' }}
           TZ: "Asia/Jerusalem"
           SEND_NEW_CONFIG_TO_TG: ${{ github.event.inputs.sendNewConfigToTg }}
+          KERNEL_API_KEY: ${{ secrets.KERNEL_API_KEY }}

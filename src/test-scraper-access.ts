@@ -6,6 +6,7 @@ import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js"
 import {
   createBrowser,
   createSecureBrowserContext,
+  useKernelBrowser,
 } from "./scraper/browser.js";
 import { createLogger } from "./utils/logger.js";
 import { getExternalIp } from "./runnerMetadata.js";
@@ -42,7 +43,11 @@ describe("Sites access tests", () => {
   });
 
   after(async () => {
-    await browser.close();
+    if (useKernelBrowser) {
+      await browser.disconnect();
+    } else {
+      await browser.close();
+    }
   });
 
   describe("basic access", () => {
