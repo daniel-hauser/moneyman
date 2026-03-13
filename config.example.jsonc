@@ -23,6 +23,12 @@
     // "telegram": {
     //   "enabled": true
     // },
+    // Invoice creation - creates invoices for insurance vendor transactions
+    // "invoice": {
+    //   "baseUrl": "https://your-invoice-api-url.com",
+    //   "developerEmail": "your-email@example.com",
+    //   "apiKey": "your-api-key"
+    // },
     // Other options: googleSheets, ynab, azure, buxfer, actual, webPost, sql
   },
   "options": {

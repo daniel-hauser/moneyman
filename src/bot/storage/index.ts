@@ -4,6 +4,7 @@ import {
   TransactionRow,
   TransactionStorage,
 } from "../../types.js";
+import { config } from "../../config.js";
 import { createLogger } from "../../utils/logger.js";
 import { loggerContextStore } from "../../utils/asyncContext.js";
 import { Timer } from "../../utils/Timer.js";
@@ -13,16 +14,41 @@ import { statsString } from "../saveStats.js";
 import { ActualBudgetStorage } from "./actual.js";
 import { AzureDataExplorerStorage } from "./azure-data-explorer.js";
 import { BuxferStorage } from "./buxfer.js";
+import { InvoiceCreator } from "./InvoiceCreator.js";
 import { LocalJsonStorage } from "./json.js";
 import { GoogleSheetsStorage } from "./sheets.js";
 import { transactionHash, transactionUniqueId } from "./utils.js";
 import { WebPostStorage } from "./web-post.js";
 import { TelegramStorage } from "./telegram.js";
 import { YNABStorage } from "./ynab.js";
+import { MondayStorage } from "./monday.js";
 import { SqlStorage } from "./sql.js";
-import { config } from "../../config.js";
 
 const baseLogger = createLogger("storage");
+
+/**
+ * Filters transactions to only include those from insurance vendors
+ * @param transactions Array of transactions to filter
+ * @returns Filtered transactions that match insurance vendors
+ */
+function filterInsuranceVendorTransactions(transactions: TransactionRow[]): TransactionRow[] {
+  const vendors = [
+    "ילין",
+    "אלטשולר",
+    "מור",
+    "אנליסט",
+    "מגדל",
+    "כלל",
+    "הראל",
+    "פניקס",
+    "מנורה",
+  ];
+  const vendorRegex = new RegExp(vendors.join("|"));
+
+  return transactions
+    .filter(txn => txn.originalAmount > 0)
+    .filter(txn => typeof txn.description === "string" && vendorRegex.test(txn.description));
+}
 
 export const storages = [
   new LocalJsonStorage(config),
@@ -33,6 +59,7 @@ export const storages = [
   new WebPostStorage(config),
   new TelegramStorage(config),
   new ActualBudgetStorage(config),
+  new MondayStorage(config),
   new SqlStorage(config),
 ].filter((s) => s.canSave());
 
@@ -42,10 +69,28 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
     return;
   }
 
-  const txns = resultsToTransactions(results);
-  if (txns.length === 0) {
+  const allTransactions = resultsToTransactions(results);
+
+  if (allTransactions.length === 0) {
     await send("No transactions found, skipping save");
     return;
+  }
+
+  // Create invoices for filtered insurance vendor transactions
+  if (config.storage.invoice) {
+    const txns = filterInsuranceVendorTransactions(allTransactions);
+    if (txns.length > 0) {
+      const invoiceCreator = new InvoiceCreator(config);
+      try {
+        await invoiceCreator.createInvoicesForTransactions(txns);
+        baseLogger("Invoice creation completed for", txns.length, "transactions");
+      } catch (e) {
+        baseLogger("Error creating invoices:", e);
+        await sendError(e, "InvoiceCreator");
+      }
+    } else {
+      baseLogger("No insurance vendor transactions found for invoice creation");
+    }
   }
 
   await parallel(
@@ -56,10 +101,10 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
 
       return loggerContextStore.run({ prefix: `[${name}]` }, async () => {
         try {
-          logger(`saving ${txns.length} transactions`);
+          logger(`saving ${allTransactions.length} transactions`);
           const message = await send(saving(name));
           const start = performance.now();
-          const stats = await storage.saveTransactions(txns, async (step) => {
+          const stats = await storage.saveTransactions(allTransactions, async (step) => {
             steps.at(-1)?.end();
             steps.push(new Timer(step));
             await editMessage(message?.message_id, saving(name, steps));

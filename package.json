@@ -1,8 +1,8 @@
 {
-  "name": "moneyman",
+  "name": "invoices-bot",
   "version": "1.0.0",
   "description": "",
-  "main": "dst/index.ts",
+  "main": "dst/index.js",
   "type": "module",
   "engines": {
     "node": ">=24"
@@ -11,7 +11,6 @@
     "act": "go run github.com/nektos/act@latest",
     "start": "node dst/index.js",
     "start:container": "docker compose up",
-    "postinstall": "patch-package",
     "build": "tsc",
     "lint": "prettier --check .",
     "lint:fix": "prettier --write .",

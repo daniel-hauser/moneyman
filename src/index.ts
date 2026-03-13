@@ -33,7 +33,7 @@ await sendAndDeleteLogFile();
 // kill internal browsers if stuck
 process.exit(0);
 
-async function runScraper(hooks: RunnerHooks) {
+export async function runScraper(hooks: RunnerHooks) {
   try {
     logger("About to start");
     await hooks.onBeforeStart();

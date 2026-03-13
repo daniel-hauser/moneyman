@@ -38,7 +38,7 @@ export async function runWithStorage(runScraper: Runner) {
     async onError(e: Error, caller: string = "unknown") {
       await sendError(e, caller);
     },
-    async onBeforeStart() {},
+    async onBeforeStart() { },
     async failureScreenshotsHandler(photos) {
       await sendPhotos(photos);
     },

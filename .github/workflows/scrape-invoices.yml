@@ -1,4 +1,4 @@
-name: Scrape
+name: Scrape - Invoices
 
 on:
   workflow_dispatch:
@@ -17,10 +17,10 @@ on:
         required: false
         default: "moneyman:*"
   schedule:
-    # In Israel: [12:05, 00:05] or [13:05, 01:05] on DST
-    - cron: "5 10,22 * * *"
+    # In Israel: [12:10, 00:10] or [13:10, 01:10] on DST - offset 5 minutes from main scrape
+    - cron: "10 10,22 * * *"
   push:
-    branches-ignore: [monday-storage, invoices]
+    branches: [invoices]
 env:
   REGISTRY: ghcr.io
 jobs:
@@ -45,7 +45,7 @@ jobs:
           -e SEND_NEW_CONFIG_TO_TG
           ${{ steps.set-container-image.outputs.image }}
         env:
-          MONEYMAN_CONFIG: ${{ secrets.MONEYMAN_CONFIG }}
+          MONEYMAN_CONFIG: ${{ secrets.MONEYMAN_CONFIG_INVOICES }}
           DEBUG: ${{ github.event.inputs.DEBUG || '' }}
           TZ: "Asia/Jerusalem"
           SEND_NEW_CONFIG_TO_TG: ${{ github.event.inputs.sendNewConfigToTg }}

@@ -3,6 +3,7 @@ import puppeteer, {
   TargetType,
   type Browser,
   type BrowserContext,
+  type Page,
   type PuppeteerLaunchOptions,
 } from "puppeteer";
 import { createLogger } from "../utils/logger.js";
@@ -25,6 +26,10 @@ export const browserExecutablePath =
 
 const logger = createLogger("browser");
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function createBrowser(): Promise<Browser> {
   const options = {
     args: browserArgs,
@@ -44,6 +49,7 @@ export async function createSecureBrowserContext(
   const context = await browser.createBrowserContext();
   await initDomainTracking(context, companyId);
   await initCloudflareSkipping(context);
+  await initBannerDismissal(context);
   return context;
 }
 
@@ -107,4 +113,100 @@ async function initCloudflareSkipping(browserContext: BrowserContext) {
       }
     }, activeContext),
   );
+}
+
+async function initBannerDismissal(browserContext: BrowserContext) {
+  logger("Setting up banner dismissal");
+  browserContext.on("targetcreated", async (target) => {
+    if (target.type() === TargetType.PAGE) {
+      const page = await target.page();
+      if (!page) return;
+
+      // Try to dismiss banner after page loads
+      page.on("framenavigated", async (frame) => {
+        const url = frame.url();
+        if (!url || url === "about:blank") return;
+
+        // Only handle main frame navigations
+        if (frame.parentFrame()) return;
+
+        // Wait a bit for the page to render
+        try {
+          await sleep(2000);
+          await dismissPrivacyBanner(page);
+        } catch (error) {
+          // Silently fail - banner might not be present
+          logger("Banner dismissal check failed (might not be present)", error);
+        }
+      });
+    }
+  });
+}
+
+async function dismissPrivacyBanner(page: Page): Promise<void> {
+  try {
+    // First, try to find by text content - this is the most reliable method
+    const buttonFound = await page.evaluate(() => {
+      // Look for buttons containing the dismiss text
+      const buttons = Array.from(document.querySelectorAll('button, a'));
+      for (const button of buttons) {
+        const text = button.textContent?.trim() || '';
+        if (text.includes('הבנתי') && text.includes('תודה')) {
+          (button as HTMLElement).click();
+          return true;
+        }
+      }
+      return false;
+    });
+
+    if (buttonFound) {
+      logger("Privacy banner dismissed using text search");
+      await sleep(500); // Wait for modal to close
+      return;
+    }
+
+    // Try finding cookie/privacy consent banners specifically
+    const modalDismissed = await page.evaluate(() => {
+      // Only target actual cookie/privacy consent banners, not login forms or other modals.
+      // Use IDs/classes that are specific to consent banners to avoid false positives.
+      const consentSelectors = [
+        '[id*="cookie"]', '[id*="consent"]', '[id*="gdpr"]', '[id*="privacy"]',
+        '[class*="cookie"]', '[class*="consent"]', '[class*="gdpr"]',
+        '[aria-label*="cookie"]', '[aria-label*="consent"]',
+      ];
+
+      for (const selector of consentSelectors) {
+        const banner = document.querySelector(selector);
+        if (!banner) continue;
+
+        const style = window.getComputedStyle(banner as Element);
+        if (style.display === 'none' || style.visibility === 'hidden') continue;
+
+        const buttons = banner.querySelectorAll('button, a[class*="button"], a[role="button"]');
+        for (const button of Array.from(buttons).reverse()) {
+          const text = button.textContent?.trim() || '';
+          const className = button.className || '';
+
+          if (text.includes('הבנתי') || text.includes('תודה') || text.includes('אישור') ||
+            className.includes('close') || className.includes('dismiss') ||
+            className.includes('accept') || className.includes('ok')) {
+            (button as HTMLElement).click();
+            return true;
+          }
+        }
+      }
+      return false;
+    });
+
+    if (modalDismissed) {
+      logger("Privacy banner dismissed using consent banner detection");
+      await sleep(500); // Wait for modal to close
+      return;
+    }
+
+    logger("Privacy banner not found or already dismissed");
+  } catch (error) {
+    logger("Error dismissing privacy banner", error);
+    // Don't throw - banner might not be present, and we don't want to break scraping
+  }
 }

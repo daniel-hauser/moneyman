@@ -37,7 +37,7 @@ exports[`messages getSummaryMessages should return a summary message 1`] = `
 From completed, 3 not originally in ILS and 1 not charged in ILS
 
 <blockquote expandable>⚠️ Duplicate uniqueId detected (1 unique keys affected)
-	2026-01-30_max_account2_0_description1_undefined</blockquote>
+	2026-02-28_max_account2_0_description1_undefined</blockquote>
 
 <blockquote expandable>Accounts updated
 	✔️ [max] account1: 1
@@ -152,8 +152,8 @@ exports[`messages getSummaryMessages should use expandable block quotation for m
 (0 pending, 8 completed)
 
 <blockquote expandable>⚠️ Duplicate uniqueId detected (2 unique keys affected)
-	2026-01-30_hapoalim_12345_10_description1_undefined
-	2026-01-30_hapoalim_67890_10_description1_undefined</blockquote>
+	2026-02-28_hapoalim_12345_10_description1_undefined
+	2026-02-28_hapoalim_67890_10_description1_undefined</blockquote>
 
 <blockquote expandable>Failed Account Updates
 	❌ [max] GENERIC
@@ -169,7 +169,7 @@ exports[`messages getSummaryMessages should use expandable block quotation for s
 (0 pending, 3 completed)
 
 <blockquote expandable>⚠️ Duplicate uniqueId detected (1 unique keys affected)
-	2026-01-30_max_account2_10_description1_undefined</blockquote>
+	2026-02-28_max_account2_10_description1_undefined</blockquote>
 
 <blockquote expandable>Accounts updated
 	✔️ [max] account1: 1

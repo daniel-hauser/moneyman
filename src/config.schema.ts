@@ -87,6 +87,12 @@ export const TelegramStorageSchema = z.object({
   enabled: z.boolean().default(true),
 });
 
+export const InvoiceSchema = z.object({
+  baseUrl: z.url({ error: "Invalid invoice base URL" }),
+  developerEmail: z.string().email({ error: "Invalid developer email" }),
+  apiKey: z.string().min(1, { error: "Invoice API key is required" }),
+});
+
 // Storage configuration schema
 export const StorageSchema = z
   .object({
@@ -99,6 +105,7 @@ export const StorageSchema = z
     webPost: WebPostSchema.optional(),
     sql: SqlStorageSchema.optional(),
     telegram: TelegramStorageSchema.optional(),
+    invoice: InvoiceSchema.optional(),
   })
   .refine((data) => Object.values(data).some(Boolean), {
     error: "At least one storage provider must be configured",
