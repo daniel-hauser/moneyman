@@ -165,43 +165,41 @@ async function dismissPrivacyBanner(page: Page): Promise<void> {
       return;
     }
 
-    // Try finding modal by looking for common modal patterns and clicking the primary action
+    // Try finding cookie/privacy consent banners specifically
     const modalDismissed = await page.evaluate(() => {
-      // Look for common modal/banner containers
-      const modals = Array.from(document.querySelectorAll('[role="dialog"], .modal, [class*="modal"], [class*="banner"], [class*="popup"]'));
-      for (const modal of modals) {
-        // Check if modal is visible
-        const style = window.getComputedStyle(modal as Element);
+      // Only target actual cookie/privacy consent banners, not login forms or other modals.
+      // Use IDs/classes that are specific to consent banners to avoid false positives.
+      const consentSelectors = [
+        '[id*="cookie"]', '[id*="consent"]', '[id*="gdpr"]', '[id*="privacy"]',
+        '[class*="cookie"]', '[class*="consent"]', '[class*="gdpr"]',
+        '[aria-label*="cookie"]', '[aria-label*="consent"]',
+      ];
+
+      for (const selector of consentSelectors) {
+        const banner = document.querySelector(selector);
+        if (!banner) continue;
+
+        const style = window.getComputedStyle(banner as Element);
         if (style.display === 'none' || style.visibility === 'hidden') continue;
 
-        // Find buttons in the modal
-        const buttons = modal.querySelectorAll('button, a[class*="button"], a[role="button"]');
-        // Try to find the dismiss/accept button (usually the last button or one with specific text)
+        const buttons = banner.querySelectorAll('button, a[class*="button"], a[role="button"]');
         for (const button of Array.from(buttons).reverse()) {
           const text = button.textContent?.trim() || '';
           const className = button.className || '';
 
-          // Prioritize buttons with dismiss-like text or classes
-          if (text.includes('הבנתי') || text.includes('תודה') ||
+          if (text.includes('הבנתי') || text.includes('תודה') || text.includes('אישור') ||
             className.includes('close') || className.includes('dismiss') ||
             className.includes('accept') || className.includes('ok')) {
             (button as HTMLElement).click();
             return true;
           }
         }
-
-        // If no specific button found, try the last button (often the dismiss button)
-        if (buttons.length > 0) {
-          const lastButton = buttons[buttons.length - 1];
-          (lastButton as HTMLElement).click();
-          return true;
-        }
       }
       return false;
     });
 
     if (modalDismissed) {
-      logger("Privacy banner dismissed using modal pattern detection");
+      logger("Privacy banner dismissed using consent banner detection");
       await sleep(500); // Wait for modal to close
       return;
     }

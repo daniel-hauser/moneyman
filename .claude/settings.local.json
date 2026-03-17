@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(gh run:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)",
+      "Bash(git:*)",
+      "Bash(npm install:*)",
+      "Bash(gh secret:*)",
+      "Bash(cat /Users/Edoz/Development/moneyman/tsconfig.json && cat /Users/Edoz/Development/moneyman/package.json | python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('type:', d.get\\('type'\\)\\); print\\('name:', d.get\\('name'\\)\\)\")",
+      "Bash(npm run:*)",
+      "Bash(MONEYMAN_CONFIG_PATH=moneyman.conf.jsonc MONEYMAN_UNSAFE_STDOUT=true npm run start 2>&1)",
+      "Bash(MONEYMAN_CONFIG_PATH=moneyman.invoices.conf.jsonc MONEYMAN_UNSAFE_STDOUT=true npm run start 2>&1)",
+      "Bash(find /Users/Edoz/Development/moneyman/node_modules/israeli-bank-scrapers/lib -name \"max*\" -o -name \"visa-cal*\" -o -name \"cal*\" 2>/dev/null | head -20)",
+      "Bash(npm view:*)",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__new_page",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__wait_for",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_pages",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__take_screenshot",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__evaluate_script",
+      "Skill(commit-commands:commit-push-pr)"
+    ]
+  }
+}
