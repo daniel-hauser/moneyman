@@ -353,6 +353,34 @@ describe("MoneymanDashStorage", () => {
       expect(body.metadata.runId).toBeUndefined();
     });
 
+    it("should not reuse stale runId when current context is missing", async () => {
+      const token = makeMmToken("https://api.example.com", "secret123");
+
+      fetchMock.mockResolvedValue(mockSuccessResponse());
+
+      const storage = new MoneymanDashStorage(mockConfig(token));
+
+      const previousRunId = randomUUID();
+
+      await new Promise((resolve) => {
+        runContextStore.run({ runId: previousRunId }, async () => {
+          await storage.saveTransactions([transactionRow({})], async () => {});
+          resolve(undefined);
+        });
+      });
+
+      fetchMock.mockClear();
+      fetchMock.mockResolvedValue(mockSuccessResponse());
+
+      // Second call without runContext should not carry previous runId forward
+      await storage.saveTransactions([transactionRow({})], async () => {});
+
+      const callArg = fetchMock.mock.calls[0][1];
+      const body = JSON.parse(callArg.body);
+
+      expect(body.metadata.runId).toBeUndefined();
+    });
+
     it("should pass AbortSignal for timeout protection", async () => {
       const token = makeMmToken("https://api.example.com", "secret123");
 
