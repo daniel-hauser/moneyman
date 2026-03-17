@@ -9,3 +9,4 @@ local_config/
 dst/
 output
 moneyman.invoices.conf.jsonc
+firebase-debug.log
