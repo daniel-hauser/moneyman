@@ -3,6 +3,7 @@ import {
   AccountScrapeResult,
   TransactionRow,
   TransactionStorage,
+  SaveContext,
 } from "../../types.js";
 import { createLogger } from "../../utils/logger.js";
 import { loggerContextStore } from "../../utils/asyncContext.js";
@@ -20,6 +21,7 @@ import { WebPostStorage } from "./web-post.js";
 import { TelegramStorage } from "./telegram.js";
 import { YNABStorage } from "./ynab.js";
 import { SqlStorage } from "./sql.js";
+import { MoneymanDashStorage } from "./moneyman.js";
 import { config } from "../../config.js";
 
 const baseLogger = createLogger("storage");
@@ -34,6 +36,7 @@ export const storages = [
   new TelegramStorage(config),
   new ActualBudgetStorage(config),
   new SqlStorage(config),
+  new MoneymanDashStorage(config),
 ].filter((s) => s.canSave());
 
 export async function saveResults(results: Array<AccountScrapeResult>) {
@@ -48,6 +51,19 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
     return;
   }
 
+  // Build context with per-account scraping results
+  const context: SaveContext = {
+    accountResults: results.map((r) => ({
+      companyId: r.companyId,
+      success: r.result.success,
+      errorType: r.result.errorType,
+      errorMessage: r.result.errorMessage,
+      accountCount: r.result.accounts?.length ?? 0,
+      txnCount:
+        r.result.accounts?.reduce((sum, a) => sum + a.txns.length, 0) ?? 0,
+    })),
+  };
+
   await parallel(
     storages.map((storage: TransactionStorage) => async () => {
       const { name } = storage.constructor;
@@ -59,11 +75,15 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
           logger(`saving ${txns.length} transactions`);
           const message = await send(saving(name));
           const start = performance.now();
-          const stats = await storage.saveTransactions(txns, async (step) => {
-            steps.at(-1)?.end();
-            steps.push(new Timer(step));
-            await editMessage(message?.message_id, saving(name, steps));
-          });
+          const stats = await storage.saveTransactions(
+            txns,
+            async (step) => {
+              steps.at(-1)?.end();
+              steps.push(new Timer(step));
+              await editMessage(message?.message_id, saving(name, steps));
+            },
+            context,
+          );
           const duration = performance.now() - start;
           steps.at(-1)?.end();
           logger(`saved`);
