@@ -55,7 +55,7 @@
   },
   "devDependencies": {
     "@types/async": "^3.2.25",
-    "@types/debug": "^4.1.12",
+    "@types/debug": "^4.1.13",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.5.0",
     "@types/pg": "^8.18.0",
