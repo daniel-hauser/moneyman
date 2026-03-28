@@ -37,7 +37,7 @@ exports[`messages getSummaryMessages should return a summary message 1`] = `
 From completed, 3 not originally in ILS and 1 not charged in ILS
 
 <blockquote expandable>⚠️ Duplicate uniqueId detected (1 unique keys affected)
-	2026-01-30_max_account2_0_description1_undefined</blockquote>
+	2026-01-30_max_account2_20_description1_undefined</blockquote>
 
 <blockquote expandable>Accounts updated
 	✔️ [max] account1: 1
