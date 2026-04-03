@@ -69,7 +69,10 @@ export async function createSecureBrowserContext(
 ): Promise<BrowserContext> {
   const context = await browser.createBrowserContext();
   await initDomainTracking(context, companyId);
-  await initCloudflareSkipping(context);
+  // Kernel cloud browsers have managed stealth mode, skip local bot evasion.
+  if (!useKernelBrowser) {
+    await initCloudflareSkipping(context);
+  }
   return context;
 }
 
