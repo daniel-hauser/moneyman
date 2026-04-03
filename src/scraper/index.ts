@@ -11,6 +11,7 @@ import {
 import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
 import { ScraperOptions } from "israeli-bank-scrapers";
 import { parallelLimit } from "async";
+import type { Browser } from "puppeteer";
 
 const logger = createLogger("scraper");
 
@@ -53,17 +54,29 @@ export async function scrapeAccounts(
 
   const status: Array<string> = [];
 
-  logger("Creating a browser");
-  const browser = await createBrowser();
-  logger(`Browser created, starting to scrape ${accounts.length} accounts`);
+  // Kernel cloud browsers use separate instances per company to avoid
+  // same-bank fingerprint detection when scraping multiple accounts.
+  // Local mode uses a single shared browser as before.
+  const browsers = new Map<string, Browser>();
+  const getBrowser = async (companyId: string): Promise<Browser> => {
+    const key = useKernelBrowser ? companyId : "shared";
+    let browser = browsers.get(key);
+    if (!browser) {
+      logger(`Creating browser for %s`, key);
+      browser = await createBrowser();
+      browsers.set(key, browser);
+    }
+    return browser;
+  };
 
   const results = await parallelLimit<AccountConfig, AccountScrapeResult[]>(
     accounts.map((account, i) => async () => {
       const { companyId } = account;
       return loggerContextStore.run(
         { prefix: `[#${i} ${companyId}]` },
-        async () =>
-          scrapeAccount(
+        async () => {
+          const browser = await getBrowser(companyId);
+          return scrapeAccount(
             account,
             {
               browserContext: await createSecureBrowserContext(
@@ -82,7 +95,8 @@ export async function scrapeAccounts(
               status[i] = append ? `${status[i]} ${message}` : message;
               return scrapeStatusChanged?.(status);
             },
-          ),
+          );
+        },
       );
     }),
     Number(parallelScrapers),
@@ -91,16 +105,17 @@ export async function scrapeAccounts(
   logger(`scraping ended, total duration: ${duration.toFixed(1)}s`);
   await scrapeStatusChanged?.(status, duration);
 
-  try {
-    logger(`closing browser`);
-    if (useKernelBrowser) {
-      await browser?.disconnect();
-    } else {
-      await browser?.close();
+  for (const browser of browsers.values()) {
+    try {
+      if (useKernelBrowser) {
+        await browser.disconnect();
+      } else {
+        await browser.close();
+      }
+    } catch (e) {
+      onError?.(e as Error, "browser.close");
+      logger(`failed to close browser`, e);
     }
-  } catch (e) {
-    onError?.(e, "browser.close");
-    logger(`failed to close browser`, e);
   }
 
   logger(getStats(results));
