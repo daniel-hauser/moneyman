@@ -55,7 +55,10 @@ export async function scrapeAccounts(
 
   // Group accounts by companyId so same-company accounts run sequentially
   // (they share a browser/IP and may conflict if run in parallel)
-  const companyGroups = new Map<string, Array<{ account: AccountConfig; index: number }>>();
+  const companyGroups = new Map<
+    string,
+    Array<{ account: AccountConfig; index: number }>
+  >();
   accounts.forEach((account, i) => {
     const group = companyGroups.get(account.companyId) ?? [];
     group.push({ account, index: i });
@@ -103,18 +106,19 @@ export async function scrapeAccounts(
 
   // Each company group is a single task that runs its accounts sequentially
   const groupTasks = [...companyGroups.entries()].map(
-    ([, members]) => async () => {
-      const groupResults: AccountScrapeResult[] = [];
-      for (let j = 0; j < members.length; j++) {
-        const { account, index } = members[j];
-        if (j > 0) {
-          status[index] = `[${account.companyId}] ⏳ Waiting`;
-          await scrapeStatusChanged?.(status);
+    ([, members]) =>
+      async () => {
+        const groupResults: AccountScrapeResult[] = [];
+        for (let j = 0; j < members.length; j++) {
+          const { account, index } = members[j];
+          if (j > 0) {
+            status[index] = `[${account.companyId}] ⏳ Waiting`;
+            await scrapeStatusChanged?.(status);
+          }
+          groupResults.push(await scrapeOne(account, index));
         }
-        groupResults.push(await scrapeOne(account, index));
-      }
-      return groupResults;
-    },
+        return groupResults;
+      },
   );
 
   const groupResults = await parallelLimit<
