@@ -6,10 +6,12 @@ import { loggerContextStore } from "../utils/asyncContext.js";
 import { createBrowser, createSecureBrowserContext } from "./browser.js";
 import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
 import { ScraperOptions } from "israeli-bank-scrapers";
+import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
 import { parallelLimit } from "async";
 import { setTimeout } from "timers/promises";
 
-const SAME_COMPANY_DELAY_MS = 10_000;
+const SAME_COMPANY_DELAY_MS = 1_000;
+const RETRY_DELAY_MS = 5_000;
 
 const logger = createLogger("scraper");
 
@@ -30,6 +32,7 @@ export async function scrapeAccounts(
     startDate,
     futureMonthsToScrape,
     parallelScrapers,
+    retryFailedScrapes,
     additionalTransactionInformation,
     includeRawTransaction,
   }: ScraperConfig,
@@ -76,35 +79,55 @@ export async function scrapeAccounts(
 
   const scrapeOne = async (account: AccountConfig, i: number) => {
     const { companyId } = account;
-    const browserContext = await createSecureBrowserContext(browser, companyId);
+
+    const attemptScrape = async () => {
+      const browserContext = await createSecureBrowserContext(
+        browser,
+        companyId,
+      );
+      try {
+        return await scrapeAccount(
+          account,
+          {
+            browserContext,
+            startDate,
+            companyId,
+            futureMonthsToScrape: futureMonths,
+            storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
+            additionalTransactionInformation,
+            includeRawTransaction,
+            ...scraperOptions,
+          },
+          async (message, append = false) => {
+            status[i] = append ? `${status[i]} ${message}` : message;
+            return scrapeStatusChanged?.(status);
+          },
+        );
+      } finally {
+        try {
+          await browserContext.close();
+        } catch (e) {
+          logger(`failed to close browser context`, e);
+        }
+      }
+    };
+
     return loggerContextStore.run(
       { prefix: `[#${i} ${companyId}]` },
       async () => {
-        try {
-          return await scrapeAccount(
-            account,
-            {
-              browserContext,
-              startDate,
-              companyId,
-              futureMonthsToScrape: futureMonths,
-              storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
-              additionalTransactionInformation,
-              includeRawTransaction,
-              ...scraperOptions,
-            },
-            async (message, append = false) => {
-              status[i] = append ? `${status[i]} ${message}` : message;
-              return scrapeStatusChanged?.(status);
-            },
-          );
-        } finally {
-          try {
-            await browserContext.close();
-          } catch (e) {
-            logger(`failed to close browser context`, e);
-          }
+        const result = await attemptScrape();
+        if (
+          retryFailedScrapes &&
+          !result.result.success &&
+          result.result.errorType === ScraperErrorTypes.Generic
+        ) {
+          logger(`scrape failed with GENERIC error, retrying in ${RETRY_DELAY_MS}ms`);
+          status[i] = `[${companyId}] 🔄 Retrying`;
+          await scrapeStatusChanged?.(status);
+          await setTimeout(RETRY_DELAY_MS);
+          return attemptScrape();
         }
+        return result;
       },
     );
   };
