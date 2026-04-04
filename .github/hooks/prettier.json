@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "postToolUse": [
+      {
+        "type": "command",
+        "bash": "INPUT=$(cat); TOOL=$(echo \"$INPUT\" | jq -r '.toolName'); if [ \"$TOOL\" = \"edit\" ] || [ \"$TOOL\" = \"create\" ]; then npm run lint:fix 2>/dev/null || true; fi",
+        "comment": "Auto-format files after edit/create"
+      }
+    ]
+  }
+}

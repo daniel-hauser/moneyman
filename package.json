@@ -11,6 +11,7 @@
     "act": "go run github.com/nektos/act@latest",
     "start": "node dst/index.js",
     "start:container": "docker compose up",
+    "prepare": "husky",
     "postinstall": "patch-package",
     "build": "tsc",
     "lint": "prettier --check .",
@@ -69,11 +70,6 @@
     "pretty-quick": "^4.2.2",
     "ts-jest": "^29.4.6",
     "typescript": "^5.9.3"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "pretty-quick --staged"
-    }
   },
   "overrides": {
     "google-spreadsheet": {
