@@ -121,7 +121,9 @@ export async function scrapeAccounts(
           !result.result.success &&
           result.result.errorType === ScraperErrorTypes.Generic
         ) {
-          logger(`scrape failed with GENERIC error, retrying in ${RETRY_DELAY_MS}ms`);
+          logger(
+            `scrape failed with GENERIC error, retrying in ${RETRY_DELAY_MS}ms`,
+          );
           status[i] = `[${companyId}] 🔄 Retrying`;
           await scrapeStatusChanged?.(status);
           await setTimeout(RETRY_DELAY_MS);
