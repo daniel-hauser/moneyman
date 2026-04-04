@@ -1,62 +1,63 @@
 # moneyman
 
-Automatically add transactions from all major Israeli banks and credit card companies to a online worksheet
+Automatically save transactions from all major Israeli banks and credit card companies, using GitHub Actions (or a self-hosted Docker image).
 
-Internally we use [israeli-bank-scrapers](https://github.com/eshaham/israeli-bank-scrapers) to scrape the data.
+Powered by [israeli-bank-scrapers](https://github.com/eshaham/israeli-bank-scrapers).
 
 ## Why?
 
-Having all your data in one place lets you view all of your expenses in a beautiful dashboard like [Google Data Studio](https://datastudio.google.com), [Azure Data Explorer dashboards](https://docs.microsoft.com/en-us/azure/data-explorer/azure-data-explorer-dashboards), [Microsoft Power BI](https://powerbi.microsoft.com/) and [YNAB](https://www.ynab.com/).
+Having all your data in one place lets you view all of your expenses in a beautiful dashboard like [Looker Studio](https://lookerstudio.google.com), [Azure Data Explorer dashboards](https://docs.microsoft.com/en-us/azure/data-explorer/azure-data-explorer-dashboards), [Microsoft Power BI](https://powerbi.microsoft.com/) and [YNAB](https://www.ynab.com/).
 
 ## Important notes
 
-This app requires some technical skills, if you prefer a GUI app you can use [Caspion](https://github.com/brafdlog/caspion) instead.
+This app requires some technical skills. If you prefer a GUI app you can use [Caspion](https://github.com/brafdlog/caspion) instead.
 
-**Important:**
-The current implementation assumes that you run the code on secure and trusted computers.
-
-**It's a bad idea**
-to put all your financial data and passwords in one place, especially with more than read-only access.
-
-By using moneyman, you acknowledge that you are taking full responsibility for the code quality and will use it only after you review the code and validate that it's secure.
-
-**Please use a proper secret management solution to save and pass the environment variables**
+> [!WARNING]
+> The current implementation assumes that you run the code on secure and trusted computers. Storing all your financial data and passwords in one place is risky — especially with more than read-only access.
+>
+> By using moneyman, you acknowledge that you are taking full responsibility for the code quality and will use it only after you review the code and validate that it's secure.
+>
+> **Please use a proper secret management solution to store and pass credentials.**
 
 ## How to run
 
 ### Cloud (GitHub Actions)
 
-Moneyman can be configured to periodically run automatically, using the [`scrape`](./.github/workflows/scrape.yml) github workflow.
+Moneyman can be configured to periodically run automatically, using the [`scrape`](./.github/workflows/scrape.yml) GitHub workflow.
 
 By default, this workflow will run twice daily at 10:05 and 22:05 UTC (12:05 and 00:05 or 13:05 and 01:05 in Israel time, depending on DST).
 
-Since logs are public for public repos, most logs are off by default and the progress and error messages will be sent in telegram.
+Since logs are public for public repos, most logs are off by default and the progress and error messages will be sent via Telegram.
 
 #### Setup
 
 1. Fork the [moneyman](https://github.com/daniel-hauser/moneyman) repo to your account
 2. Add the `MONEYMAN_CONFIG` to the [actions secrets](../../settings/secrets/actions) of the forked repo
-   - Use the config in `.env.public` as a starting point and add configurations for your selected storage
-   - For better logging, add the [telegram configuration](#get-notified-in-telegram) So moneyman can send private logs and errors
-3. Build and upload the docker image using the "Run workflow" button in [workflows/build.yml](../../actions/workflows/build.yml)
-4. Wait for the [scrape workflow](../../actions/workflows/scrape.yml) to be triggered by github
+   - Use [`config.example.jsonc`](./config.example.jsonc) as a starting point and add configurations for your selected storage
+   - For better logging, add the [Telegram configuration](./docs/telegram-notifications.md) so moneyman can send private logs and errors
+3. Build and upload the Docker image using the "Run workflow" button in [workflows/build.yml](../../actions/workflows/build.yml)
+4. Wait for the [scrape workflow](../../actions/workflows/scrape.yml) to be triggered by GitHub
 
-### locally
+### Locally
 
-#### From code
+<details>
+<summary><b>From code</b></summary>
 
 1. Clone this repo
 2. Run `npm install`
 3. Run `npm run build`
 4. Provide your configuration via `MONEYMAN_CONFIG` (inline JSON) or point `MONEYMAN_CONFIG_PATH` to a JSON/JSONC file
-5. Run `npm run start`
+5. Run `npm start`
 
-#### From docker
+</details>
+
+<details>
+<summary><b>From Docker</b></summary>
 
 1. Provide configuration via `MONEYMAN_CONFIG` (inline JSON) or mount a config file (recommended below)
-2. `docker run --rm -e MONEYMAN_CONFIG="$(cat config.json)" ghcr.io/daniel-hauser/moneyman:latest`.
+2. `docker run --rm -e MONEYMAN_CONFIG="$(cat config.json)" ghcr.io/daniel-hauser/moneyman:latest`
 
-##### Using a configuration file (recommended for Docker)
+#### Using a configuration file (recommended)
 
 Instead of passing the configuration as an environment variable, you can mount a configuration file:
 
@@ -76,21 +77,23 @@ docker run --rm \
   ghcr.io/daniel-hauser/moneyman:latest
 ```
 
-##### Logging
+#### Logging
 
 By default, the Docker image is configured with `MONEYMAN_UNSAFE_STDOUT=false` to prevent sensitive data from appearing in Docker logs. When enabled, the logs are redirected to `/tmp/moneyman.log` and sent to the Telegram chat automatically (if configured).
 
 Logs sent to `logToPublicLog` bypass the redirection and will appear in the Docker logs.
 
+</details>
+
 ### Debug
 
-We use the [debug](https://www.npmjs.com/package/debug) package for debug messages under the `moneyman:` namespace.
+Moneyman uses the [debug](https://www.npmjs.com/package/debug) package for debug messages under the `moneyman:` namespace.
 
-If you want to see them, use the `DEBUG` environment variable with the value `moneyman:*`
+To enable debug output, set the `DEBUG` environment variable to `moneyman:*`.
 
 ## Settings
 
-### Add accounts and scrape
+### Accounts
 
 Moneyman uses a JSON configuration for all settings. You can provide configuration in two ways:
 
@@ -99,11 +102,12 @@ Moneyman uses a JSON configuration for all settings. You can provide configurati
 
 The configuration file approach is recommended for Docker/Kubernetes environments and supports JSON with Comments (JSONC) for better readability.
 
-> **Tip:** See [`config.example.jsonc`](./config.example.jsonc) for a complete example configuration file with comments.
+> [!TIP]
+> See [`config.example.jsonc`](./config.example.jsonc) for a complete example configuration file with comments.
 
 #### Accounts Configuration
 
-A json array of accounts following [this](https://github.com/eshaham/israeli-bank-scrapers#specific-definitions-per-scraper) schema with an additional `companyId` field with a [companyType](https://github.com/eshaham/israeli-bank-scrapers/blob/master/src/definitions.ts#L5:L23) as the value.
+A JSON array of accounts following [this](https://github.com/eshaham/israeli-bank-scrapers#specific-definitions-per-scraper) schema with an additional `companyId` field set to a [companyType](https://github.com/eshaham/israeli-bank-scrapers/blob/master/src/definitions.ts#L5:L23) value.
 
 ```typescript
 accounts: Array<{
@@ -186,518 +190,23 @@ options: {
 
 ### Domain Security
 
-Given the nature of the scraping process, it's important to keep track of the domains accessed during the scraping process and ensure we connect only to the domains we expect.
-
-#### Domain Tracking
-
-After enabling the domain tracking setting, the process will keep track of all domains accessed during the scraping process.
-When the scraping process is done, a message will be sent to the telegram chat with the list of domains accessed.
-
-#### Domain Whitelisting
-
-You can control which domains each scraper can access by configuring firewall rules. Each rule follows the format:
-
-```
-<companyId> <ALLOW|BLOCK> <domain>
-```
-
-Use the following configuration to setup:
-
-```typescript
-options: {
-  security: {
-    /**
-     * A list of domain rules. Each line should follow the format `<companyId> <ALLOW|BLOCK> <domain>`
-     */
-    firewallSettings?: string[];
-    /**
-     * If truthy, all domains with no rule will be blocked by default. If falsy, all domains will be allowed by default
-     */
-    blockByDefault?: boolean;
-  };
-};
-```
-
-Example:
-
-```typescript
-options: {
-  security: {
-    firewallSettings: [
-      "hapoalim ALLOW bankhapoalim.co.il",
-      "visaCal BLOCK suspicious-domain.com",
-    ];
-  }
-}
-```
-
-When a rule exists for a specific domain, the scraper will:
-
-- `ALLOW` - Allow the connection to proceed
-- `BLOCK` - Block the connection
-- If no rule exists for a domain, the default behavior is to allow the connection
-
-> [!IMPORTANT]
-> All rules apply only if there is at least one rule for the scraper. scrapers with no rules will allow all connections
-
-Rules support parent domain matching, so a rule for `example.com` will apply to `api.example.com` and `www.example.com` as well.
-
-### Get notified in telegram
-
-We use telegram to send you the update status.
-
-Setup instructions:
-
-1. Create your bot following [this](https://core.telegram.org/bots#creating-a-new-bot)
-2. Open this url `https://api.telegram.org/bot<TELEGRAM_API_KEY>/getUpdates`
-3. Send a message to your bot and find the chat id
-
-```typescript
-options: {
-  notifications: {
-    telegram?: {
-      /**
-       * The super secret api key you got from BotFather
-       */
-      apiKey: string;
-      /**
-       * The chat id
-       */
-      chatId: string;
-      /**
-       * Enable OTP (One-Time Password) support for 2FA authentication.
-       * When enabled, the bot will ask for OTP codes via Telegram during scraping.
-       * @default false
-       */
-      enableOtp?: boolean;
-      /**
-       * Maximum time in seconds to wait for OTP response from user.
-       * @default 300 (5 minutes)
-       */
-      otpTimeoutSeconds?: number;
-    };
-  };
-};
-```
-
-#### Using OTP 2FA with OneZero Accounts
-
-If you have OneZero accounts that require 2FA authentication, you can enable OTP support:
-
-1. **Enable OTP in your configuration**:
-
-   ```json
-   {
-     "options": {
-       "notifications": {
-         "telegram": {
-           "apiKey": "your-telegram-bot-token",
-           "chatId": "your-chat-id",
-           "enableOtp": true,
-           "otpTimeoutSeconds": 300
-         }
-       }
-     }
-   }
-   ```
-
-2. **Configure your OneZero account with phone number**:
-
-   ```json
-   {
-     "accounts": [
-       {
-         "companyId": "oneZero",
-         "email": "your-email@example.com",
-         "password": "your-password",
-         "phoneNumber": "+972501234567"
-       }
-     ]
-   }
-   ```
-
-3. **During scraping**: When a OneZero account requires 2FA, the bot will:
-   - Send a message asking for the OTP code
-   - Wait for you to reply with the code (4-8 digits)
-   - Continue the scraping process automatically
-
-### Export to Telegram
-
-By default, when Telegram notifications are configured, moneyman will also send all scraped transactions as a JSON file to your Telegram chat. This behavior can be controlled independently from the notification messages.
-
-Use the following configuration to setup:
-
-```typescript
-storage: {
-  telegram?: {
-    /**
-     * Whether to send transactions as a JSON file to the Telegram chat.
-     * When enabled, all scraped transactions will be sent to your Telegram chat.
-     * This is independent of notification messages (errors, progress, etc.) which
-     * are controlled by options.notifications.telegram.
-     * @default true
-     */
-    enabled: boolean;
-  };
-};
-```
-
-**Note:** This requires Telegram notifications to be configured in `options.notifications.telegram`. The `enabled` setting only controls whether transaction files are sent; notification messages (progress, errors, etc.) are always sent when Telegram is configured.
-
-To disable transaction file exports while keeping notifications:
-
-```json
-{
-  "storage": {
-    "telegram": {
-      "enabled": false
-    }
-  },
-  "options": {
-    "notifications": {
-      "telegram": {
-        "apiKey": "your-telegram-bot-token",
-        "chatId": "your-chat-id"
-      }
-    }
-  }
-}
-```
-
-### Export to Azure Data Explorer
-
-Setup instructions:
-
-1. Create a new data explorer cluster (can be done for free [here](https://docs.microsoft.com/en-us/azure/data-explorer/start-for-free))
-2. Create a database within your cluster
-3. Create a azure Service Principal following steps 1-7 [here](https://docs.microsoft.com/en-us/azure/data-explorer/provision-azure-ad-app#create-azure-ad-application-registration)
-4. Allow the service to ingest data to the database by running this:
-
-   ```kql
-   .execute database script <|
-   .add database ['<ADE_DATABASE_NAME>'] ingestors ('aadapp=<AZURE_APP_ID>;<AZURE_TENANT_ID>')
-   ```
-
-5. Create a table and ingestion mapping by running this: (Replace `<ADE_TABLE_NAME>` and `<ADE_INGESTION_MAPPING>`)
-
-   ````kql
-   .execute database script <|
-   .drop table <ADE_TABLE_NAME> ifexists
-   .create table <ADE_TABLE_NAME> (
-      metadata: dynamic,
-      transaction: dynamic
-   )
-   .create table <ADE_TABLE_NAME> ingestion json mapping '<ADE_INGESTION_MAPPING>' ```
-   [
-      { "column": "transaction", "path": "$.transaction" },
-      { "column": "metadata", "path": "$.metadata" }
-   ]
-   ```
-   ````
-
-   Feel free to add more columns to the table and ingestion json mapping
-
-Use the following configuration to setup:
-
-```typescript
-storage: {
-  azure?: {
-    /**
-     * The azure application ID
-     */
-    appId: string;
-    /**
-     * The azure application secret key
-     */
-    appKey: string;
-    /**
-     * The tenant ID of your azure application
-     */
-    tenantId: string;
-    /**
-     * The name of the database
-     */
-    databaseName: string;
-    /**
-     * The name of the table
-     */
-    tableName: string;
-    /**
-     * The name of the JSON ingestion mapping
-     */
-    ingestionMapping: string;
-    /**
-     * The ingest URI of the cluster
-     */
-    ingestUri: string;
-  };
-};
-```
-
-### Export JSON files
-
-Export transactions to json file.
-
-Use the following configuration to setup:
-
-```typescript
-storage: {
-  localJson?: {
-    /**
-     * If truthy, all transaction will be saved to a `<process cwd>/output/<ISO timestamp>.json` file
-     */
-    enabled: boolean;
-    /**
-     * Optional: a filesystem path where JSON files will be saved.
-     * If not provided, files are written to `<process.cwd()>/output`.
-     * Files are named using an ISO timestamp (colons are replaced with `_`),
-     * for example: `2025-11-23T12_34_56.789Z.json`.
-     */
-    path?: string;
-  };
-};
-```
-
-### Export to web address
-
-Export transactions as a POST request to a web address.
-
-The transactions will be sent as a JSON array in the body of the request with the following structure:
-
-```
-{
-    /**
-     * Date in "dd/mm/yyyy" format
-     */
-    date: string,
-    amount: number,
-    description: string,
-    memo: string,
-    category: string,
-    account: string,
-    hash: string,
-    comment: string | undefined,
-    /**
-     * Scraped date in "YYYY-MM-DD" format
-     */
-    "scraped at": string,
-    "scraped by": string,
-    identifier: string,
-    chargedCurrency: string | undefined,
-}
-```
-
-Use the following configuration to setup:
-
-```typescript
-storage: {
-  webPost?: {
-    /**
-     * The URL to post to
-     */
-    url: string;
-    /**
-     * The Authorization header value (i.e. `Bearer *****`, but can use any schema)
-     */
-    authorizationToken: string;
-  };
-};
-```
-
-> [!IMPORTANT]
-> Be sure to post only to a trusted server.
-
-### Export to PostgreSQL
-
-Persist transactions in a PostgreSQL database for analytics or downstream integrations.
-
-- moneyman creates (or reuses) a dedicated schema named `moneyman` by default. You can override the schema name with the `schema` property if you prefer a different dedicated schema.
-- Within that schema two tables are maintained:
-  - `transactions` – one row per completed transaction, upserted by `unique_id`.
-  - `transactions_raw` – an append-only log that stores every scrape (including pending transactions) together with the original JSON payload.
-
-Use the following configuration to setup:
-
-```typescript
-storage: {
-  sql?: {
-    /**
-     * PostgreSQL connection string (for example: "postgresql://user:pass@host:5432/moneyman")
-     */
-    connectionString: string;
-    /**
-     * Optional dedicated schema for moneyman data. Defaults to "moneyman".
-     */
-    schema?: string;
-  };
-};
-```
-
-> [!TIP]
-> Grant the configured user rights to create the schema (first run) and manage the two tables.
-
-### Export to excel on OneDrive
-
-WIP
-
-### Export to google sheets
-
-Export transactions to a Google Sheets spreadsheet.
-
-Setup instructions:
-
-1. Follow the instructions [here](https://theoephraim.github.io/node-google-spreadsheet/#/guides/authentication?id=setting-up-your-quotapplicationquot) to create a google service account.
-2. Create a [new sheet](https://sheets.new/) and share it with your service account using the `serviceAccountEmail`.
-3. Create a sheet named `_moneyman` with the following headers in the first row:
-   | date | amount | description | memo | category | account | hash | comment | scraped at | scraped by | identifier | chargedCurrency | raw |
-
-Use the following configuration to setup:
-
-```typescript
-storage: {
-  googleSheets?: {
-    /**
-     * The super secret api key of your service account
-     */
-    serviceAccountPrivateKey: string;
-    /**
-     * The service account's email address
-     */
-    serviceAccountEmail: string;
-    /**
-     * The id of the spreadsheet you shared with the service account
-     */
-    sheetId: string;
-    /**
-     * The name of the sheet you want to add the transactions to
-     * @default "_moneyman"
-     */
-    worksheetName: string;
-  };
-};
-```
-
-### Export to YNAB (YouNeedABudget)
-
-To export your transactions directly to `YNAB` you need to use the following configuration to setup:
-
-```typescript
-storage: {
-  ynab?: {
-    /**
-     * The `YNAB` access token. Check [YNAB documentation](https://api.ynab.com/#authentication) about how to obtain it
-     */
-    token: string;
-    /**
-     * The `YNAB` budget ID where you want to import the data. You can obtain it opening [YNAB application](https://app.ynab.com/) on a browser and taking the budget `UUID` in the `URL`
-     */
-    budgetId: string;
-    /**
-     * A key-value list to correlate each account with the `YNAB` account `UUID`
-     */
-    accounts: Record<string, string>;
-  };
-};
-```
-
-#### accounts
-
-A `JSON` key-value pair structure representing a mapping between two identifiers. The `key` represent the account ID as is understood by moneyman and the `value` it's the `UUID` visible in the YNAB URL when an account is selected.
-
-For example, in the URL:
-`https://app.ynab.com/22aa9fcd-93a9-47e9-8ff6-33036b7c6242/accounts/ba2dd3a9-b7d4-46d6-8413-8327203e2b82` the account UUID is the second `UUID`.
-
-Example:
-
-```json
-{
-  "5897": "ba2dd3a9-b7d4-46d6-8413-8327203e2b82"
-}
-```
-
-### Export to [Buxfer](https://www.buxfer.com/features)
-
-To export your transactions directly to `Buxfer` you need to use the following configuration to setup:
-
-```typescript
-storage: {
-  buxfer?: {
-    /**
-     * The `Buxfer` user name. Check [Buxfer settings](https://www.buxfer.com/settings?type=login) about how to obtain it
-     */
-    userName: string;
-    /**
-     * The `Buxfer` user password. Check [Buxfer settings](https://www.buxfer.com/settings?type=login) about how to obtain it
-     */
-    password: string;
-    /**
-     * A key-value list to correlate each account with the `Buxfer` account `UUID`
-     */
-    accounts: Record<string, string>;
-  };
-};
-```
-
-#### accounts
-
-A `JSON` key-value pair structure representing a mapping between two identifiers. The `key` represent the account ID as is understood by moneyman (as obtained from web scrapping the financial institutions) and the `value` it's the `UUID` visible in the Buxfer URL when an account is selected.
-
-For example, in the URL:
-`https://www.buxfer.com/account?id=123456` the account UUID is the account id query parameter.
-
-Example:
-
-```json
-{
-  "5897": "123456"
-}
-```
-
-### Export to [Actual Budget](https://actualbudget.org/)
-
-Export transactions directly to your Actual Budget server.
-
-Use the following configuration to setup:
-
-```typescript
-storage: {
-  actual?: {
-    /**
-     * The URL of your Actual Budget server
-     */
-    serverUrl: string;
-    /**
-     * The password for your Actual Budget server
-     */
-    password: string;
-    /**
-     * The ID of the budget where you want to import the data
-     */
-    budgetId: string;
-    /**
-     * A key-value list to correlate each account with the Actual Budget account ID
-     */
-    accounts: Record<string, string>;
-  };
-};
-```
-
-#### accounts
-
-A `JSON` key-value pair structure representing a mapping between two identifiers. The `key` represents the account ID as understood by moneyman (from web scraping the financial institutions) and the `value` is the account ID from your Actual Budget server.
-
-Example:
-
-```json
-{
-  "5897": "actual-account-id-123"
-}
-```
-
-**Note:** Pending transactions will be skipped during import.
-
-#### Troubleshooting
-
-- **`out-of-sync-migrations` error** — The budget database and the `@actual-app/api` version are out of sync. Ensure your Actual Budget server and moneyman's `@actual-app/api` dependency use compatible versions. Update both to their latest releases, or pin them to matching versions. See [actualbudget/actual#3656](https://github.com/actualbudget/actual/issues/3656) for context.
-
-  You may see a generic error in the logs (e.g. `Failed to initialize Actual Budget: No budget file is open`). The underlying cause appears earlier in the console as `Error updating Error: out-of-sync-migrations` — look for that when diagnosing.
+Moneyman supports domain tracking and firewall rules to control which domains each scraper can access. See [Domain Security](./docs/domain-security.md) for setup instructions.
+
+### Get notified in Telegram
+
+We use Telegram to send you the update status, including support for OTP 2FA with OneZero accounts. See [Telegram Notifications](./docs/telegram-notifications.md) for setup instructions.
+
+### Destinations
+
+| Destination                                          | Description                                            |
+| ---------------------------------------------------- | ------------------------------------------------------ |
+| [Telegram](./docs/telegram.md)                       | Send transactions as a JSON file to your Telegram chat |
+| [Google Sheets](./docs/google-sheets.md)             | Export transactions to a Google Sheets spreadsheet     |
+| [Azure Data Explorer](./docs/azure-data-explorer.md) | Export transactions to an Azure Data Explorer cluster  |
+| [YNAB](./docs/ynab.md)                               | Export transactions to YNAB (YouNeedABudget)           |
+| [Buxfer](./docs/buxfer.md)                           | Export transactions to Buxfer                          |
+| [Actual Budget](./docs/actual-budget.md)             | Export transactions to Actual Budget                   |
+| [PostgreSQL](./docs/postgresql.md)                   | Persist transactions in a PostgreSQL database          |
+| [Web Post](./docs/web-post.md)                       | Export transactions as a POST request to a web address |
+| [JSON files](./docs/json.md)                         | Export transactions to local JSON files                |
+| [Excel on OneDrive](./docs/excel-onedrive.md)        | Export transactions to Excel on OneDrive (WIP)         |
