@@ -40,7 +40,7 @@ export async function runWithStorage(runScraper: Runner) {
         await send(summaryMessage, "HTML");
         await saveResults(results);
       },
-      async onError(e: Error, caller: string = "unknown") {
+      async onError(e: unknown, caller: string = "unknown") {
         await sendError(e, caller);
       },
       async onBeforeStart() {},

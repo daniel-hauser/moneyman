@@ -3,11 +3,15 @@
     "sourceMap": true,
     "skipLibCheck": true,
     "strictNullChecks": true,
+    "strictPropertyInitialization": false,
     "esModuleInterop": true,
     "moduleResolution": "Node",
     "target": "es2022",
+    "rootDir": "src",
     "outDir": "dst",
-    "module": "ESNext"
+    "module": "ESNext",
+    "types": ["jest", "node"],
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src/**/*"]
 }

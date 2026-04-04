@@ -1,4 +1,4 @@
-const symbolToCurrency = {
+const symbolToCurrency: Record<string, string> = {
   $: "USD",
   "€": "EUR",
   "₪": "ILS",

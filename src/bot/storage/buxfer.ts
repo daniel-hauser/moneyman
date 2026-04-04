@@ -12,7 +12,7 @@ const logger = createLogger("BuxferStorage");
 
 export class BuxferStorage implements TransactionStorage {
   private buxferClient: BuxferApiClient;
-  private accountToBuxferAccount: Map<string, string>;
+  private accountToBuxferAccount = new Map<string, string>();
 
   constructor(private config: MoneymanConfig) {}
   async init() {

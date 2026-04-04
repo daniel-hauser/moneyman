@@ -183,12 +183,12 @@ exports[`messages saving should return a saving message with not finished steps 
 	Step1, took 0.01s
 	Step2, took 0.10s
 	Step3, took 10.00s
-	Step4"
+	Step4, took 0.00s"
 `;
 
 exports[`messages saving should return a saving message with one not finished step 1`] = `
 "📝 Storage Saving...
-	Step4"
+	Step4, took 0.00s"
 `;
 
 exports[`messages saving should return a saving message with steps 1`] = `

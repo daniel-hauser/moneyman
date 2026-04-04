@@ -14,8 +14,8 @@ import { createSaveStats, SaveStats } from "../saveStats.js";
 const logger = createLogger("ActualBudgetStorage");
 
 export class ActualBudgetStorage implements TransactionStorage {
-  private bankToActualAccountMap: Map<string, string>;
-  private accountIdToNameMap: Map<string, string>;
+  private bankToActualAccountMap = new Map<string, string>();
+  private accountIdToNameMap = new Map<string, string>();
 
   constructor(private config: MoneymanConfig) {}
 
@@ -132,9 +132,8 @@ export class ActualBudgetStorage implements TransactionStorage {
         logger("Warning: transactionHashType should be set to 'moneyman'");
       }
     } catch (error) {
-      throw new Error(
-        `Failed to send transactions to Actual: ${error.message || error}`,
-      );
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to send transactions to Actual: ${message}`);
     }
   }
 

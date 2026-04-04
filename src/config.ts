@@ -107,7 +107,7 @@ export const scraperConfig: ScraperConfig = {
  * We can't use the notifier module here because it needs the config to be loaded
  * @param error The error that occurred while loading the config
  */
-async function sendConfigError(error: Error): Promise<void> {
+async function sendConfigError(error: unknown): Promise<void> {
   const message = `Failed to load config\n${JSON.stringify(error, null, 2)}`;
   const { MONEYMAN_CONFIG, MONEYMAN_CONFIG_PATH } = process.env;
   if (MONEYMAN_CONFIG) {
