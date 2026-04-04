@@ -7,6 +7,9 @@ import { createBrowser, createSecureBrowserContext } from "./browser.js";
 import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
 import { ScraperOptions } from "israeli-bank-scrapers";
 import { parallelLimit } from "async";
+import { setTimeout } from "timers/promises";
+
+const SAME_COMPANY_DELAY_MS = 3000;
 
 const logger = createLogger("scraper");
 
@@ -60,10 +63,9 @@ export async function scrapeAccounts(
 
   // Show initial "Waiting" status for queued same-company accounts
   for (const members of Object.values(companyGroups)) {
-    for (let j = 1; j < members!.length; j++) {
-      const { account, index } = members![j];
+    members!.slice(1).forEach(({ account, index }) => {
       status[index] = `[${account.companyId}] ⏳ Waiting`;
-    }
+    });
   }
   if (Object.keys(companyGroups).length < accounts.length) {
     await scrapeStatusChanged?.(status);
@@ -101,12 +103,12 @@ export async function scrapeAccounts(
   const groupTasks = Object.values(companyGroups).map(
     (members) => async () => {
       const groupResults: AccountScrapeResult[] = [];
-      for (let j = 0; j < members!.length; j++) {
-        const { account, index } = members![j];
-        if (j > 0) {
-          status[index] = `[${account.companyId}] ⏳ Waiting`;
-          await scrapeStatusChanged?.(status);
-        }
+      const [first, ...rest] = members!;
+      groupResults.push(await scrapeOne(first.account, first.index));
+      for (const { account, index } of rest) {
+        status[index] = `[${account.companyId}] ⏳ Waiting`;
+        await scrapeStatusChanged?.(status);
+        await setTimeout(SAME_COMPANY_DELAY_MS);
         groupResults.push(await scrapeOne(account, index));
       }
       return groupResults;
