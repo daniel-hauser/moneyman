@@ -1,5 +1,5 @@
 export class Timer {
-  duration: number;
+  duration = 0;
   startTime: number;
 
   constructor(public name: string) {

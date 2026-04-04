@@ -74,6 +74,9 @@
   "overrides": {
     "google-spreadsheet": {
       "google-auth-library": "^10.3.0"
+    },
+    "jest-mock-extended": {
+      "typescript": "$typescript"
     }
   }
 }

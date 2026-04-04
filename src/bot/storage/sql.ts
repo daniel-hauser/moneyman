@@ -287,11 +287,11 @@ function toRow(tx: TransactionRow) {
   } satisfies Record<TransactionColumnName, unknown>;
 }
 
-function buildInsertStatement<TColumns extends string[]>(
+function buildInsertStatement(
   schema: string,
   table: string,
-  columns: TColumns,
-  rows: Array<Record<TColumns[number], unknown>>,
+  columns: string[],
+  rows: Array<Record<string, unknown>>,
 ) {
   const columnNames = columns.map((column) => pgFormat("%I", column));
   const values: Array<unknown> = [];

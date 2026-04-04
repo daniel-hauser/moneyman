@@ -34,7 +34,7 @@ export async function scrapeAccounts(
     status: Array<string>,
     totalTime?: number,
   ) => Promise<void>,
-  onError?: (e: Error, caller: string) => void,
+  onError?: (e: unknown, caller: string) => void,
 ) {
   const start = performance.now();
 

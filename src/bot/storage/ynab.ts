@@ -14,8 +14,8 @@ const logger = createLogger("YNABStorage");
 
 export class YNABStorage implements TransactionStorage {
   private ynabAPI: ynab.API;
-  private budgetName: string;
-  private accountToYnabAccount: Map<string, string>;
+  private budgetName = "";
+  private accountToYnabAccount = new Map<string, string>();
 
   constructor(private config: MoneymanConfig) {}
 

@@ -146,7 +146,7 @@ export async function editMessage(
   }
 }
 
-function canIgnoreTelegramError(e: Error) {
+function canIgnoreTelegramError(e: unknown) {
   return (
     e instanceof TelegramError &&
     e.response.description.startsWith("Bad Request: message is not modified")
