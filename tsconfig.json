@@ -6,7 +6,7 @@
     "strictPropertyInitialization": false,
     "esModuleInterop": true,
     "moduleResolution": "Node",
-    "target": "es2022",
+    "target": "es2024",
     "rootDir": "src",
     "outDir": "dst",
     "module": "ESNext",

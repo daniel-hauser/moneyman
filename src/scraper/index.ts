@@ -55,24 +55,17 @@ export async function scrapeAccounts(
 
   // Group accounts by companyId so same-company accounts run sequentially
   // (they share a browser/IP and may conflict if run in parallel)
-  const companyGroups = new Map<
-    string,
-    Array<{ account: AccountConfig; index: number }>
-  >();
-  accounts.forEach((account, i) => {
-    const group = companyGroups.get(account.companyId) ?? [];
-    group.push({ account, index: i });
-    companyGroups.set(account.companyId, group);
-  });
+  const indexed = accounts.map((account, index) => ({ account, index }));
+  const companyGroups = Object.groupBy(indexed, ({ account }) => account.companyId);
 
   // Show initial "Waiting" status for queued same-company accounts
-  for (const [, members] of companyGroups) {
-    for (let j = 1; j < members.length; j++) {
-      const { account, index } = members[j];
+  for (const members of Object.values(companyGroups)) {
+    for (let j = 1; j < members!.length; j++) {
+      const { account, index } = members![j];
       status[index] = `[${account.companyId}] ⏳ Waiting`;
     }
   }
-  if (companyGroups.size < accounts.length) {
+  if (Object.keys(companyGroups).length < accounts.length) {
     await scrapeStatusChanged?.(status);
   }
 
@@ -105,20 +98,19 @@ export async function scrapeAccounts(
   };
 
   // Each company group is a single task that runs its accounts sequentially
-  const groupTasks = [...companyGroups.entries()].map(
-    ([, members]) =>
-      async () => {
-        const groupResults: AccountScrapeResult[] = [];
-        for (let j = 0; j < members.length; j++) {
-          const { account, index } = members[j];
-          if (j > 0) {
-            status[index] = `[${account.companyId}] ⏳ Waiting`;
-            await scrapeStatusChanged?.(status);
-          }
-          groupResults.push(await scrapeOne(account, index));
+  const groupTasks = Object.values(companyGroups).map(
+    (members) => async () => {
+      const groupResults: AccountScrapeResult[] = [];
+      for (let j = 0; j < members!.length; j++) {
+        const { account, index } = members![j];
+        if (j > 0) {
+          status[index] = `[${account.companyId}] ⏳ Waiting`;
+          await scrapeStatusChanged?.(status);
         }
-        return groupResults;
-      },
+        groupResults.push(await scrapeOne(account, index));
+      }
+      return groupResults;
+    },
   );
 
   const groupResults = await parallelLimit<
