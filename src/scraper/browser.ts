@@ -3,7 +3,7 @@ import puppeteer, {
   TargetType,
   type Browser,
   type BrowserContext,
-  type PuppeteerLaunchOptions,
+  type LaunchOptions,
 } from "puppeteer";
 import { createLogger } from "../utils/logger.js";
 import {
@@ -31,7 +31,7 @@ export async function createBrowser(): Promise<Browser> {
     executablePath: browserExecutablePath,
     // Hide the "Chrome is being controlled by automated software" marker.
     ignoreDefaultArgs: ["--enable-automation"],
-  } satisfies PuppeteerLaunchOptions;
+  } satisfies LaunchOptions;
 
   logger("Creating browser", options);
   return puppeteer.launch(options);
