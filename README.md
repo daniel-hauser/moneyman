@@ -40,7 +40,8 @@ Since logs are public for public repos, most logs are off by default and the pro
 
 ### Locally
 
-#### From code
+<details>
+<summary><b>From code</b></summary>
 
 1. Clone this repo
 2. Run `npm install`
@@ -48,12 +49,15 @@ Since logs are public for public repos, most logs are off by default and the pro
 4. Provide your configuration via `MONEYMAN_CONFIG` (inline JSON) or point `MONEYMAN_CONFIG_PATH` to a JSON/JSONC file
 5. Run `npm start`
 
-#### From Docker
+</details>
+
+<details>
+<summary><b>From Docker</b></summary>
 
 1. Provide configuration via `MONEYMAN_CONFIG` (inline JSON) or mount a config file (recommended below)
-2. `docker run --rm -e MONEYMAN_CONFIG="$(cat config.json)" ghcr.io/daniel-hauser/moneyman:latest`.
+2. `docker run --rm -e MONEYMAN_CONFIG="$(cat config.json)" ghcr.io/daniel-hauser/moneyman:latest`
 
-##### Using a configuration file (recommended for Docker)
+#### Using a configuration file (recommended)
 
 Instead of passing the configuration as an environment variable, you can mount a configuration file:
 
@@ -73,11 +77,13 @@ docker run --rm \
   ghcr.io/daniel-hauser/moneyman:latest
 ```
 
-##### Logging
+#### Logging
 
 By default, the Docker image is configured with `MONEYMAN_UNSAFE_STDOUT=false` to prevent sensitive data from appearing in Docker logs. When enabled, the logs are redirected to `/tmp/moneyman.log` and sent to the Telegram chat automatically (if configured).
 
 Logs sent to `logToPublicLog` bypass the redirection and will appear in the Docker logs.
+
+</details>
 
 ### Debug
 
