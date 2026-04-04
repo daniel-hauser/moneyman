@@ -37,7 +37,7 @@ Since logs are public for public repos, most logs are off by default and the pro
 1. Fork the [moneyman](https://github.com/daniel-hauser/moneyman) repo to your account
 2. Add the `MONEYMAN_CONFIG` to the [actions secrets](../../settings/secrets/actions) of the forked repo
    - Use the config in `.env.public` as a starting point and add configurations for your selected storage
-   - For better logging, add the [telegram configuration](#get-notified-in-telegram) So moneyman can send private logs and errors
+   - For better logging, add the [telegram configuration](./docs/telegram-notifications.md) so moneyman can send private logs and errors
 3. Build and upload the docker image using the "Run workflow" button in [workflows/build.yml](../../actions/workflows/build.yml)
 4. Wait for the [scrape workflow](../../actions/workflows/scrape.yml) to be triggered by github
 
@@ -186,140 +186,11 @@ options: {
 
 ### Domain Security
 
-Given the nature of the scraping process, it's important to keep track of the domains accessed during the scraping process and ensure we connect only to the domains we expect.
+Moneyman supports domain tracking and firewall rules to control which domains each scraper can access. See [Domain Security](./docs/domain-security.md) for setup instructions.
 
-#### Domain Tracking
+### Get notified in Telegram
 
-After enabling the domain tracking setting, the process will keep track of all domains accessed during the scraping process.
-When the scraping process is done, a message will be sent to the telegram chat with the list of domains accessed.
-
-#### Domain Whitelisting
-
-You can control which domains each scraper can access by configuring firewall rules. Each rule follows the format:
-
-```
-<companyId> <ALLOW|BLOCK> <domain>
-```
-
-Use the following configuration to setup:
-
-```typescript
-options: {
-  security: {
-    /**
-     * A list of domain rules. Each line should follow the format `<companyId> <ALLOW|BLOCK> <domain>`
-     */
-    firewallSettings?: string[];
-    /**
-     * If truthy, all domains with no rule will be blocked by default. If falsy, all domains will be allowed by default
-     */
-    blockByDefault?: boolean;
-  };
-};
-```
-
-Example:
-
-```typescript
-options: {
-  security: {
-    firewallSettings: [
-      "hapoalim ALLOW bankhapoalim.co.il",
-      "visaCal BLOCK suspicious-domain.com",
-    ];
-  }
-}
-```
-
-When a rule exists for a specific domain, the scraper will:
-
-- `ALLOW` - Allow the connection to proceed
-- `BLOCK` - Block the connection
-- If no rule exists for a domain, the default behavior is to allow the connection
-
-> [!IMPORTANT]
-> All rules apply only if there is at least one rule for the scraper. scrapers with no rules will allow all connections
-
-Rules support parent domain matching, so a rule for `example.com` will apply to `api.example.com` and `www.example.com` as well.
-
-### Get notified in telegram
-
-We use telegram to send you the update status.
-
-Setup instructions:
-
-1. Create your bot following [this](https://core.telegram.org/bots#creating-a-new-bot)
-2. Open this url `https://api.telegram.org/bot<TELEGRAM_API_KEY>/getUpdates`
-3. Send a message to your bot and find the chat id
-
-```typescript
-options: {
-  notifications: {
-    telegram?: {
-      /**
-       * The super secret api key you got from BotFather
-       */
-      apiKey: string;
-      /**
-       * The chat id
-       */
-      chatId: string;
-      /**
-       * Enable OTP (One-Time Password) support for 2FA authentication.
-       * When enabled, the bot will ask for OTP codes via Telegram during scraping.
-       * @default false
-       */
-      enableOtp?: boolean;
-      /**
-       * Maximum time in seconds to wait for OTP response from user.
-       * @default 300 (5 minutes)
-       */
-      otpTimeoutSeconds?: number;
-    };
-  };
-};
-```
-
-#### Using OTP 2FA with OneZero Accounts
-
-If you have OneZero accounts that require 2FA authentication, you can enable OTP support:
-
-1. **Enable OTP in your configuration**:
-
-   ```json
-   {
-     "options": {
-       "notifications": {
-         "telegram": {
-           "apiKey": "your-telegram-bot-token",
-           "chatId": "your-chat-id",
-           "enableOtp": true,
-           "otpTimeoutSeconds": 300
-         }
-       }
-     }
-   }
-   ```
-
-2. **Configure your OneZero account with phone number**:
-
-   ```json
-   {
-     "accounts": [
-       {
-         "companyId": "oneZero",
-         "email": "your-email@example.com",
-         "password": "your-password",
-         "phoneNumber": "+972501234567"
-       }
-     ]
-   }
-   ```
-
-3. **During scraping**: When a OneZero account requires 2FA, the bot will:
-   - Send a message asking for the OTP code
-   - Wait for you to reply with the code (4-8 digits)
-   - Continue the scraping process automatically
+We use Telegram to send you the update status, including support for OTP 2FA with OneZero accounts. See [Telegram Notifications](./docs/telegram-notifications.md) for setup instructions.
 
 ### Destinations
 
