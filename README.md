@@ -198,15 +198,15 @@ We use Telegram to send you the update status, including support for OTP 2FA wit
 
 ### Destinations
 
-| Destination | Description |
-| ----------- | ----------- |
-| [Telegram](./docs/telegram.md) | Send transactions as a JSON file to your Telegram chat |
-| [Google Sheets](./docs/google-sheets.md) | Export transactions to a Google Sheets spreadsheet |
-| [Azure Data Explorer](./docs/azure-data-explorer.md) | Export transactions to an Azure Data Explorer cluster |
-| [YNAB](./docs/ynab.md) | Export transactions to YNAB (YouNeedABudget) |
-| [Buxfer](./docs/buxfer.md) | Export transactions to Buxfer |
-| [Actual Budget](./docs/actual-budget.md) | Export transactions to Actual Budget |
-| [PostgreSQL](./docs/postgresql.md) | Persist transactions in a PostgreSQL database |
-| [Web Post](./docs/web-post.md) | Export transactions as a POST request to a web address |
-| [JSON files](./docs/json.md) | Export transactions to local JSON files |
-| [Excel on OneDrive](./docs/excel-onedrive.md) | Export transactions to Excel on OneDrive (WIP) |
+| Destination                                          | Description                                            |
+| ---------------------------------------------------- | ------------------------------------------------------ |
+| [Telegram](./docs/telegram.md)                       | Send transactions as a JSON file to your Telegram chat |
+| [Google Sheets](./docs/google-sheets.md)             | Export transactions to a Google Sheets spreadsheet     |
+| [Azure Data Explorer](./docs/azure-data-explorer.md) | Export transactions to an Azure Data Explorer cluster  |
+| [YNAB](./docs/ynab.md)                               | Export transactions to YNAB (YouNeedABudget)           |
+| [Buxfer](./docs/buxfer.md)                           | Export transactions to Buxfer                          |
+| [Actual Budget](./docs/actual-budget.md)             | Export transactions to Actual Budget                   |
+| [PostgreSQL](./docs/postgresql.md)                   | Persist transactions in a PostgreSQL database          |
+| [Web Post](./docs/web-post.md)                       | Export transactions as a POST request to a web address |
+| [JSON files](./docs/json.md)                         | Export transactions to local JSON files                |
+| [Excel on OneDrive](./docs/excel-onedrive.md)        | Export transactions to Excel on OneDrive (WIP)         |
