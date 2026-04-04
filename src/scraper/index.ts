@@ -59,7 +59,10 @@ export async function scrapeAccounts(
   // Group accounts by companyId so same-company accounts run sequentially
   // (they share a browser/IP and may conflict if run in parallel)
   const indexed = accounts.map((account, index) => ({ account, index }));
-  const companyGroups = Object.groupBy(indexed, ({ account }) => account.companyId);
+  const companyGroups = Object.groupBy(
+    indexed,
+    ({ account }) => account.companyId,
+  );
 
   // Show initial "Waiting" status for queued same-company accounts
   for (const members of Object.values(companyGroups)) {
@@ -100,20 +103,18 @@ export async function scrapeAccounts(
   };
 
   // Each company group is a single task that runs its accounts sequentially
-  const groupTasks = Object.values(companyGroups).map(
-    (members) => async () => {
-      const groupResults: AccountScrapeResult[] = [];
-      const [first, ...rest] = members!;
-      groupResults.push(await scrapeOne(first.account, first.index));
-      for (const { account, index } of rest) {
-        status[index] = `[${account.companyId}] ⏳ Waiting`;
-        await scrapeStatusChanged?.(status);
-        await setTimeout(SAME_COMPANY_DELAY_MS);
-        groupResults.push(await scrapeOne(account, index));
-      }
-      return groupResults;
-    },
-  );
+  const groupTasks = Object.values(companyGroups).map((members) => async () => {
+    const groupResults: AccountScrapeResult[] = [];
+    const [first, ...rest] = members!;
+    groupResults.push(await scrapeOne(first.account, first.index));
+    for (const { account, index } of rest) {
+      status[index] = `[${account.companyId}] ⏳ Waiting`;
+      await scrapeStatusChanged?.(status);
+      await setTimeout(SAME_COMPANY_DELAY_MS);
+      groupResults.push(await scrapeOne(account, index));
+    }
+    return groupResults;
+  });
 
   const groupResults = await parallelLimit<
     (typeof groupTasks)[number],
