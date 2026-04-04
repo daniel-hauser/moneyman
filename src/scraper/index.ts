@@ -9,7 +9,7 @@ import { ScraperOptions } from "israeli-bank-scrapers";
 import { parallelLimit } from "async";
 import { setTimeout } from "timers/promises";
 
-const SAME_COMPANY_DELAY_MS = 3000;
+const SAME_COMPANY_DELAY_MS = 10_000;
 
 const logger = createLogger("scraper");
 
@@ -76,29 +76,36 @@ export async function scrapeAccounts(
 
   const scrapeOne = async (account: AccountConfig, i: number) => {
     const { companyId } = account;
+    const browserContext = await createSecureBrowserContext(browser, companyId);
     return loggerContextStore.run(
       { prefix: `[#${i} ${companyId}]` },
-      async () =>
-        scrapeAccount(
-          account,
-          {
-            browserContext: await createSecureBrowserContext(
-              browser,
+      async () => {
+        try {
+          return await scrapeAccount(
+            account,
+            {
+              browserContext,
+              startDate,
               companyId,
-            ),
-            startDate,
-            companyId,
-            futureMonthsToScrape: futureMonths,
-            storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
-            additionalTransactionInformation,
-            includeRawTransaction,
-            ...scraperOptions,
-          },
-          async (message, append = false) => {
-            status[i] = append ? `${status[i]} ${message}` : message;
-            return scrapeStatusChanged?.(status);
-          },
-        ),
+              futureMonthsToScrape: futureMonths,
+              storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
+              additionalTransactionInformation,
+              includeRawTransaction,
+              ...scraperOptions,
+            },
+            async (message, append = false) => {
+              status[i] = append ? `${status[i]} ${message}` : message;
+              return scrapeStatusChanged?.(status);
+            },
+          );
+        } finally {
+          try {
+            await browserContext.close();
+          } catch (e) {
+            logger(`failed to close browser context`, e);
+          }
+        }
+      },
     );
   };
 
