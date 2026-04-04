@@ -1,28 +1,10 @@
 name: Create and publish a Docker image
 
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - "src/**"
-      - "patches/**"
-      - "package.json"
-      - "package-lock.json"
-      - "tsconfig.json"
-      - ".eslintrc.js"
-      - ".prettierrc.js"
-      - "Dockerfile"
-      - "docker-compose.yml"
-      - ".github/workflows/build.yml"
+  schedule:
+    # Bi-daily at 06:00 and 18:00 UTC
+    - cron: "0 6,18 * * *"
   workflow_dispatch:
-
-# Debounce mechanism: combines concurrency control with delay to group multiple PRs
-# - Only one build runs at a time for the main branch
-# - If a new push occurs during the 10-minute delay, the current run is cancelled
-# - This results in grouping multiple merged PRs into a single release
-concurrency:
-  group: build-${{ github.ref_name }}
-  cancel-in-progress: true
 
 env:
   REGISTRY: ghcr.io
@@ -35,19 +17,45 @@ jobs:
       packages: write
 
     steps:
-      - name: Debounce - Wait for potential new commits
-        run: |
-          echo "⏱️  Waiting 10 minutes to debounce multiple pushes to main..."
-          echo "If new commits are pushed during this time, this run will be cancelled."
-          sleep 10m
-
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check if release needed
+        id: check
+        run: |
+          # Get the latest release tag
+          LATEST_TAG=$(gh release view --json tagName --jq '.tagName' 2>/dev/null || echo "")
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No existing releases found, proceeding with build"
+            echo "needed=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Get the commit SHA of the latest release tag
+          RELEASE_SHA=$(git rev-list -n 1 "$LATEST_TAG" 2>/dev/null || echo "")
+          HEAD_SHA=$(git rev-parse HEAD)
+
+          echo "Latest release: $LATEST_TAG (commit: ${RELEASE_SHA:0:7})"
+          echo "Current HEAD: ${HEAD_SHA:0:7}"
+
+          if [ "$RELEASE_SHA" = "$HEAD_SHA" ]; then
+            echo "✅ HEAD is already released as $LATEST_TAG, skipping build"
+            echo "needed=false" >> $GITHUB_OUTPUT
+          else
+            echo "🆕 New commits since $LATEST_TAG, proceeding with build"
+            echo "needed=true" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - id: normalize-repository-name
+        if: steps.check.outputs.needed == 'true'
         run: echo "repository=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Generate CalVer version
+        if: steps.check.outputs.needed == 'true'
         id: version
         run: |
           # Generate date-based version (CalVer: YYYY.MM.DD)
@@ -75,6 +83,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log in to the Container registry
+        if: steps.check.outputs.needed == 'true'
         uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
@@ -82,6 +91,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract Docker metadata and set tags
+        if: steps.check.outputs.needed == 'true'
         id: meta
         uses: docker/metadata-action@v6
         with:
@@ -92,6 +102,7 @@ jobs:
             type=sha,format=short
 
       - name: Build and push Docker image
+        if: steps.check.outputs.needed == 'true'
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -102,6 +113,7 @@ jobs:
           sbom: false
 
       - name: Create Release
+        if: steps.check.outputs.needed == 'true'
         run: |
           gh release create ${{ steps.version.outputs.version }} \
             --title "Release ${{ steps.version.outputs.version }}" \
