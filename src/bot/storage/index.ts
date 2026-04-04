@@ -3,6 +3,7 @@ import {
   AccountScrapeResult,
   TransactionRow,
   TransactionStorage,
+  SaveContext,
 } from "../../types.js";
 import { config } from "../../config.js";
 import { createLogger } from "../../utils/logger.js";
@@ -23,6 +24,7 @@ import { TelegramStorage } from "./telegram.js";
 import { YNABStorage } from "./ynab.js";
 import { MondayStorage } from "./monday.js";
 import { SqlStorage } from "./sql.js";
+import { MoneymanDashStorage } from "./moneyman.js";
 
 const baseLogger = createLogger("storage");
 
@@ -61,6 +63,7 @@ export const storages = [
   new ActualBudgetStorage(config),
   new MondayStorage(config),
   new SqlStorage(config),
+  new MoneymanDashStorage(config),
 ].filter((s) => s.canSave());
 
 export async function saveResults(results: Array<AccountScrapeResult>) {
@@ -78,12 +81,12 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
 
   // Create invoices for filtered insurance vendor transactions
   if (config.storage.invoice) {
-    const txns = filterInsuranceVendorTransactions(allTransactions);
-    if (txns.length > 0) {
+    const invoiceTxns = filterInsuranceVendorTransactions(allTransactions);
+    if (invoiceTxns.length > 0) {
       const invoiceCreator = new InvoiceCreator(config);
       try {
-        await invoiceCreator.createInvoicesForTransactions(txns);
-        baseLogger("Invoice creation completed for", txns.length, "transactions");
+        await invoiceCreator.createInvoicesForTransactions(invoiceTxns);
+        baseLogger("Invoice creation completed for", invoiceTxns.length, "transactions");
       } catch (e) {
         baseLogger("Error creating invoices:", e);
         await sendError(e, "InvoiceCreator");
@@ -92,6 +95,19 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
       baseLogger("No insurance vendor transactions found for invoice creation");
     }
   }
+
+  // Build context with per-account scraping results
+  const context: SaveContext = {
+    accountResults: results.map((r) => ({
+      companyId: r.companyId,
+      success: r.result.success,
+      errorType: r.result.errorType,
+      errorMessage: r.result.errorMessage,
+      accountCount: r.result.accounts?.length ?? 0,
+      txnCount:
+        r.result.accounts?.reduce((sum, a) => sum + a.txns.length, 0) ?? 0,
+    })),
+  };
 
   await parallel(
     storages.map((storage: TransactionStorage) => async () => {
@@ -104,11 +120,15 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
           logger(`saving ${allTransactions.length} transactions`);
           const message = await send(saving(name));
           const start = performance.now();
-          const stats = await storage.saveTransactions(allTransactions, async (step) => {
-            steps.at(-1)?.end();
-            steps.push(new Timer(step));
-            await editMessage(message?.message_id, saving(name, steps));
-          });
+          const stats = await storage.saveTransactions(
+            allTransactions,
+            async (step) => {
+              steps.at(-1)?.end();
+              steps.push(new Timer(step));
+              await editMessage(message?.message_id, saving(name, steps));
+            },
+            context,
+          );
           const duration = performance.now() - start;
           steps.at(-1)?.end();
           logger(`saved`);
