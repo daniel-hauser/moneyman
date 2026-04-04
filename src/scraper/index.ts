@@ -53,36 +53,76 @@ export async function scrapeAccounts(
   const browser = await createBrowser();
   logger(`Browser created, starting to scrape ${accounts.length} accounts`);
 
-  const results = await parallelLimit<AccountConfig, AccountScrapeResult[]>(
-    accounts.map((account, i) => async () => {
-      const { companyId } = account;
-      return loggerContextStore.run(
-        { prefix: `[#${i} ${companyId}]` },
-        async () =>
-          scrapeAccount(
-            account,
-            {
-              browserContext: await createSecureBrowserContext(
-                browser,
-                companyId,
-              ),
-              startDate,
+  // Group accounts by companyId so same-company accounts run sequentially
+  // (they share a browser/IP and may conflict if run in parallel)
+  const companyGroups = new Map<string, Array<{ account: AccountConfig; index: number }>>();
+  accounts.forEach((account, i) => {
+    const group = companyGroups.get(account.companyId) ?? [];
+    group.push({ account, index: i });
+    companyGroups.set(account.companyId, group);
+  });
+
+  // Show initial "Waiting" status for queued same-company accounts
+  for (const [, members] of companyGroups) {
+    for (let j = 1; j < members.length; j++) {
+      const { account, index } = members[j];
+      status[index] = `[${account.companyId}] ⏳ Waiting`;
+    }
+  }
+  if (companyGroups.size < accounts.length) {
+    await scrapeStatusChanged?.(status);
+  }
+
+  const scrapeOne = async (account: AccountConfig, i: number) => {
+    const { companyId } = account;
+    return loggerContextStore.run(
+      { prefix: `[#${i} ${companyId}]` },
+      async () =>
+        scrapeAccount(
+          account,
+          {
+            browserContext: await createSecureBrowserContext(
+              browser,
               companyId,
-              futureMonthsToScrape: futureMonths,
-              storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
-              additionalTransactionInformation,
-              includeRawTransaction,
-              ...scraperOptions,
-            },
-            async (message, append = false) => {
-              status[i] = append ? `${status[i]} ${message}` : message;
-              return scrapeStatusChanged?.(status);
-            },
-          ),
-      );
-    }),
-    Number(parallelScrapers),
+            ),
+            startDate,
+            companyId,
+            futureMonthsToScrape: futureMonths,
+            storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
+            additionalTransactionInformation,
+            includeRawTransaction,
+            ...scraperOptions,
+          },
+          async (message, append = false) => {
+            status[i] = append ? `${status[i]} ${message}` : message;
+            return scrapeStatusChanged?.(status);
+          },
+        ),
+    );
+  };
+
+  // Each company group is a single task that runs its accounts sequentially
+  const groupTasks = [...companyGroups.entries()].map(
+    ([, members]) => async () => {
+      const groupResults: AccountScrapeResult[] = [];
+      for (let j = 0; j < members.length; j++) {
+        const { account, index } = members[j];
+        if (j > 0) {
+          status[index] = `[${account.companyId}] ⏳ Waiting`;
+          await scrapeStatusChanged?.(status);
+        }
+        groupResults.push(await scrapeOne(account, index));
+      }
+      return groupResults;
+    },
   );
+
+  const groupResults = await parallelLimit<
+    (typeof groupTasks)[number],
+    AccountScrapeResult[][]
+  >(groupTasks, Number(parallelScrapers));
+
+  const results = groupResults.flat();
   const duration = (performance.now() - start) / 1000;
   logger(`scraping ended, total duration: ${duration.toFixed(1)}s`);
   await scrapeStatusChanged?.(status, duration);
