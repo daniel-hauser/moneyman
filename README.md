@@ -1,47 +1,44 @@
 # moneyman
 
-Automatically add transactions from all major Israeli banks and credit card companies to a online worksheet
+Automatically save transactions from all major Israeli banks and credit card companies, using GitHub Actions (or a self-hosted Docker image).
 
-Internally we use [israeli-bank-scrapers](https://github.com/eshaham/israeli-bank-scrapers) to scrape the data.
+Powered by [israeli-bank-scrapers](https://github.com/eshaham/israeli-bank-scrapers).
 
 ## Why?
 
-Having all your data in one place lets you view all of your expenses in a beautiful dashboard like [Google Data Studio](https://datastudio.google.com), [Azure Data Explorer dashboards](https://docs.microsoft.com/en-us/azure/data-explorer/azure-data-explorer-dashboards), [Microsoft Power BI](https://powerbi.microsoft.com/) and [YNAB](https://www.ynab.com/).
+Having all your data in one place lets you view all of your expenses in a beautiful dashboard like [Looker Studio](https://lookerstudio.google.com), [Azure Data Explorer dashboards](https://docs.microsoft.com/en-us/azure/data-explorer/azure-data-explorer-dashboards), [Microsoft Power BI](https://powerbi.microsoft.com/) and [YNAB](https://www.ynab.com/).
 
 ## Important notes
 
-This app requires some technical skills, if you prefer a GUI app you can use [Caspion](https://github.com/brafdlog/caspion) instead.
+This app requires some technical skills. If you prefer a GUI app you can use [Caspion](https://github.com/brafdlog/caspion) instead.
 
-**Important:**
-The current implementation assumes that you run the code on secure and trusted computers.
-
-**It's a bad idea**
-to put all your financial data and passwords in one place, especially with more than read-only access.
-
-By using moneyman, you acknowledge that you are taking full responsibility for the code quality and will use it only after you review the code and validate that it's secure.
-
-**Please use a proper secret management solution to save and pass the environment variables**
+> [!WARNING]
+> The current implementation assumes that you run the code on secure and trusted computers. Storing all your financial data and passwords in one place is risky — especially with more than read-only access.
+>
+> By using moneyman, you acknowledge that you are taking full responsibility for the code quality and will use it only after you review the code and validate that it's secure.
+>
+> **Please use a proper secret management solution to store and pass credentials.**
 
 ## How to run
 
 ### Cloud (GitHub Actions)
 
-Moneyman can be configured to periodically run automatically, using the [`scrape`](./.github/workflows/scrape.yml) github workflow.
+Moneyman can be configured to periodically run automatically, using the [`scrape`](./.github/workflows/scrape.yml) GitHub workflow.
 
 By default, this workflow will run twice daily at 10:05 and 22:05 UTC (12:05 and 00:05 or 13:05 and 01:05 in Israel time, depending on DST).
 
-Since logs are public for public repos, most logs are off by default and the progress and error messages will be sent in telegram.
+Since logs are public for public repos, most logs are off by default and the progress and error messages will be sent via Telegram.
 
 #### Setup
 
 1. Fork the [moneyman](https://github.com/daniel-hauser/moneyman) repo to your account
 2. Add the `MONEYMAN_CONFIG` to the [actions secrets](../../settings/secrets/actions) of the forked repo
-   - Use the config in `.env.public` as a starting point and add configurations for your selected storage
-   - For better logging, add the [telegram configuration](./docs/telegram-notifications.md) so moneyman can send private logs and errors
-3. Build and upload the docker image using the "Run workflow" button in [workflows/build.yml](../../actions/workflows/build.yml)
-4. Wait for the [scrape workflow](../../actions/workflows/scrape.yml) to be triggered by github
+   - Use [`config.example.jsonc`](./config.example.jsonc) as a starting point and add configurations for your selected storage
+   - For better logging, add the [Telegram configuration](./docs/telegram-notifications.md) so moneyman can send private logs and errors
+3. Build and upload the Docker image using the "Run workflow" button in [workflows/build.yml](../../actions/workflows/build.yml)
+4. Wait for the [scrape workflow](../../actions/workflows/scrape.yml) to be triggered by GitHub
 
-### locally
+### Locally
 
 #### From code
 
@@ -49,9 +46,9 @@ Since logs are public for public repos, most logs are off by default and the pro
 2. Run `npm install`
 3. Run `npm run build`
 4. Provide your configuration via `MONEYMAN_CONFIG` (inline JSON) or point `MONEYMAN_CONFIG_PATH` to a JSON/JSONC file
-5. Run `npm run start`
+5. Run `npm start`
 
-#### From docker
+#### From Docker
 
 1. Provide configuration via `MONEYMAN_CONFIG` (inline JSON) or mount a config file (recommended below)
 2. `docker run --rm -e MONEYMAN_CONFIG="$(cat config.json)" ghcr.io/daniel-hauser/moneyman:latest`.
@@ -84,13 +81,13 @@ Logs sent to `logToPublicLog` bypass the redirection and will appear in the Dock
 
 ### Debug
 
-We use the [debug](https://www.npmjs.com/package/debug) package for debug messages under the `moneyman:` namespace.
+Moneyman uses the [debug](https://www.npmjs.com/package/debug) package for debug messages under the `moneyman:` namespace.
 
-If you want to see them, use the `DEBUG` environment variable with the value `moneyman:*`
+To enable debug output, set the `DEBUG` environment variable to `moneyman:*`.
 
 ## Settings
 
-### Add accounts and scrape
+### Accounts
 
 Moneyman uses a JSON configuration for all settings. You can provide configuration in two ways:
 
@@ -99,11 +96,12 @@ Moneyman uses a JSON configuration for all settings. You can provide configurati
 
 The configuration file approach is recommended for Docker/Kubernetes environments and supports JSON with Comments (JSONC) for better readability.
 
-> **Tip:** See [`config.example.jsonc`](./config.example.jsonc) for a complete example configuration file with comments.
+> [!TIP]
+> See [`config.example.jsonc`](./config.example.jsonc) for a complete example configuration file with comments.
 
 #### Accounts Configuration
 
-A json array of accounts following [this](https://github.com/eshaham/israeli-bank-scrapers#specific-definitions-per-scraper) schema with an additional `companyId` field with a [companyType](https://github.com/eshaham/israeli-bank-scrapers/blob/master/src/definitions.ts#L5:L23) as the value.
+A JSON array of accounts following [this](https://github.com/eshaham/israeli-bank-scrapers#specific-definitions-per-scraper) schema with an additional `companyId` field set to a [companyType](https://github.com/eshaham/israeli-bank-scrapers/blob/master/src/definitions.ts#L5:L23) value.
 
 ```typescript
 accounts: Array<{
