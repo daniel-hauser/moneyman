@@ -1,6 +1,7 @@
 import { performance } from "perf_hooks";
 import { getAccountTransactions } from "./scrape.js";
 import { AccountConfig, AccountScrapeResult, ScraperConfig } from "../types.js";
+import { config } from "../config.js";
 import { createLogger } from "../utils/logger.js";
 import { loggerContextStore } from "../utils/asyncContext.js";
 import { createBrowser, createSecureBrowserContext } from "./browser.js";
@@ -53,32 +54,67 @@ export async function scrapeAccounts(
   const browser = await createBrowser();
   logger(`Browser created, starting to scrape ${accounts.length} accounts`);
 
+  // Track per-provider completion so same-provider accounts are serialized
+  // even when parallelScrapers > 1. Each provider chains through a promise
+  // that resolves after the previous same-provider scrape + delay finishes.
+  const providerChains = new Map<string, Promise<void>>();
+  const delayMs = config.options.scraping.sameProviderDelayMs;
+
   const results = await parallelLimit<AccountConfig, AccountScrapeResult[]>(
     accounts.map((account, i) => async () => {
       const { companyId } = account;
+
+      // Wait for any previous same-provider scrape to finish + delay.
+      const prev = providerChains.get(companyId);
+      if (prev) {
+        await prev;
+        if (delayMs > 0) {
+          logger("Delaying %dms before next %s account", delayMs, companyId);
+          await new Promise((r) => setTimeout(r, delayMs));
+        }
+      }
+
+      // Chain this scrape so the next same-provider account waits for us.
+      let resolveChain: () => void;
+      providerChains.set(
+        companyId,
+        new Promise<void>((r) => (resolveChain = r)),
+      );
+
+      const browserContext = await createSecureBrowserContext(
+        browser,
+        companyId,
+      );
+
       return loggerContextStore.run(
         { prefix: `[#${i} ${companyId}]` },
-        async () =>
-          scrapeAccount(
-            account,
-            {
-              browserContext: await createSecureBrowserContext(
-                browser,
+        async () => {
+          try {
+            return await scrapeAccount(
+              account,
+              {
+                browserContext,
+                startDate,
                 companyId,
-              ),
-              startDate,
-              companyId,
-              futureMonthsToScrape: futureMonths,
-              storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
-              additionalTransactionInformation,
-              includeRawTransaction,
-              ...scraperOptions,
-            },
-            async (message, append = false) => {
-              status[i] = append ? `${status[i]} ${message}` : message;
-              return scrapeStatusChanged?.(status);
-            },
-          ),
+                futureMonthsToScrape: futureMonths,
+                storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
+                additionalTransactionInformation,
+                includeRawTransaction,
+                ...scraperOptions,
+              },
+              async (message, append = false) => {
+                status[i] = append ? `${status[i]} ${message}` : message;
+                return scrapeStatusChanged?.(status);
+              },
+            );
+          } finally {
+            await browserContext.close().catch((e) => {
+              onError?.(e, "browserContext.close");
+              logger("Failed to close browser context", e);
+            });
+            resolveChain!();
+          }
+        },
       );
     }),
     Number(parallelScrapers),

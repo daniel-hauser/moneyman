@@ -122,6 +122,13 @@ export const ScrapingOptionsSchema = z.object({
   puppeteerExecutablePath: z.string().optional(),
   maxParallelScrapers: z.number().min(1).max(10).default(1),
   domainTracking: z.boolean().default(false),
+  /**
+   * Milliseconds to wait between consecutive accounts that use the same
+   * scraping provider. Helps avoid rate limiting and session conflicts.
+   * Set to 0 to disable.
+   * @default 30000
+   */
+  sameProviderDelayMs: z.number().min(0).max(120000).default(30000),
 });
 
 export const SecurityOptionsSchema = z.object({
