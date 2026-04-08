@@ -3,6 +3,7 @@ import puppeteer, {
   TargetType,
   type Browser,
   type BrowserContext,
+  type CookieParam,
   type LaunchOptions,
 } from "puppeteer";
 import { createLogger } from "../utils/logger.js";
@@ -44,7 +45,31 @@ export async function createSecureBrowserContext(
   const context = await browser.createBrowserContext();
   await initDomainTracking(context, companyId);
   await initCloudflareSkipping(context);
+  await injectCookiesFromEnv(context, companyId);
   return context;
+}
+
+async function injectCookiesFromEnv(
+  context: BrowserContext,
+  companyId: CompanyTypes,
+) {
+  const raw = process.env.MONEYMAN_BROWSER_COOKIES;
+  if (!raw) return;
+
+  try {
+    // Expected format: { "hapoalim": [...], "visaCal": [...] }
+    const parsed: Record<string, CookieParam[]> = JSON.parse(raw);
+    const cookies = parsed[companyId] ?? [];
+
+    if (cookies.length === 0) return;
+
+    logger("Injecting %d cookies for %s", cookies.length, companyId);
+    const page = await context.newPage();
+    await page.setCookie(...cookies);
+    await page.close();
+  } catch (e) {
+    logger("Failed to parse MONEYMAN_BROWSER_COOKIES", e);
+  }
 }
 
 async function initCloudflareSkipping(browserContext: BrowserContext) {

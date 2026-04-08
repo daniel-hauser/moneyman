@@ -38,12 +38,14 @@ jobs:
         run: >
           docker run --rm
           -e MONEYMAN_CONFIG
+          -e MONEYMAN_BROWSER_COOKIES
           -e DEBUG
           -e TZ
           -e SEND_NEW_CONFIG_TO_TG
           ${{ steps.set-container-image.outputs.image }}
         env:
           MONEYMAN_CONFIG: ${{ secrets.MONEYMAN_CONFIG }}
+          MONEYMAN_BROWSER_COOKIES: ${{ secrets.MONEYMAN_BROWSER_COOKIES }}
           DEBUG: ${{ github.event.inputs.DEBUG || '' }}
           TZ: "Asia/Jerusalem"
           SEND_NEW_CONFIG_TO_TG: ${{ github.event.inputs.sendNewConfigToTg }}
