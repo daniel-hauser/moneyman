@@ -195,7 +195,7 @@ jobs:
     steps:
       - name: Comment - No image build needed
         if: needs.prepare.outputs.build_needed == 'false'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const prNumber = context.payload.pull_request.number;
@@ -276,7 +276,7 @@ jobs:
 
       - name: Comment on PR with image information
         if: needs.prepare.outputs.build_needed == 'true'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           IMAGE_SIZE: ${{ steps.image-size.outputs.size }}
         with:
@@ -337,7 +337,7 @@ jobs:
         if: needs.prepare.outputs.build_needed == 'false'
         # External PRs from forks don't have write permissions, so we allow this to fail gracefully
         continue-on-error: true
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const prNumber = context.payload.pull_request.number;
@@ -490,7 +490,7 @@ jobs:
         # External PRs from forks don't have write permissions, so we allow this to fail gracefully
         # The job summary above provides the same information
         continue-on-error: true
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           IMAGE_SIZE: ${{ steps.image-size.outputs.image_size }}
           TAR_SIZE: ${{ steps.image-size.outputs.tar_size }}
