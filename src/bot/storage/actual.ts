@@ -9,6 +9,7 @@ import * as path from "path";
 import type { MoneymanConfig } from "../../config.js";
 import { TransactionRow, TransactionStorage } from "../../types.js";
 import { createLogger } from "../../utils/logger.js";
+import { formatUnknownError } from "../../utils/utils.js";
 import { createSaveStats, SaveStats } from "../saveStats.js";
 
 const logger = createLogger("ActualBudgetStorage");
@@ -188,7 +189,7 @@ export class ActualBudgetStorage implements TransactionStorage {
       }
     } catch (error) {
       throw new Error(
-        `Failed to initialize Actual Budget: ${error instanceof Error ? error.message : error}`,
+        `Failed to initialize Actual Budget: ${formatUnknownError(error)}`,
       );
     }
   }
