@@ -16,7 +16,11 @@ import { AzureDataExplorerStorage } from "./azure-data-explorer.js";
 import { BuxferStorage } from "./buxfer.js";
 import { LocalJsonStorage } from "./json.js";
 import { GoogleSheetsStorage } from "./sheets.js";
-import { transactionHash, transactionUniqueId } from "./utils.js";
+import {
+  transactionHash,
+  transactionUniqueId,
+  disambiguateDuplicateIds,
+} from "./utils.js";
 import { WebPostStorage } from "./web-post.js";
 import { TelegramStorage } from "./telegram.js";
 import { YNABStorage } from "./ynab.js";
@@ -136,5 +140,5 @@ function resultsToTransactions(
     }
   }
 
-  return txns;
+  return disambiguateDuplicateIds(txns);
 }
