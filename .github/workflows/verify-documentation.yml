@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Copilot to verify documentation
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const issueBody = `🤖 **Automated Documentation Verification Request**
