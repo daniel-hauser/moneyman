@@ -31,7 +31,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "latest"
+          # better-sqlite3@12.6.2 currently supports up to Node 25.x.
+          node-version: "25"
           cache: "npm"
 
       - name: Install JavaScript dependencies
