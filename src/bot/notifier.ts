@@ -1,9 +1,10 @@
-import { Telegraf, TelegramError, Context } from "telegraf";
+import { Context, Telegraf, TelegramError } from "telegraf";
 import { message } from "telegraf/filters";
-import { createLogger, logToPublicLog } from "../utils/logger.js";
-import type { ImageWithCaption } from "../types.js";
 import { config } from "../config.js";
+import type { ImageWithCaption } from "../types.js";
+import { createLogger, logToPublicLog } from "../utils/logger.js";
 import { waitForAbortSignal } from "../utils/promises.js";
+import { formatUnknownError } from "../utils/utils.js";
 import { assignDeprecationHandler } from "./deprecationManager.js";
 
 const logger = createLogger("notifier");
@@ -153,12 +154,12 @@ function canIgnoreTelegramError(e: unknown) {
   );
 }
 
-export function sendError(message: any, caller: string = "") {
+export function sendError(message: unknown, caller: string = "") {
   return send(
     `${caller}\n❌ ${String(
       message instanceof Error
         ? `${message.message}\n${message.stack}`
-        : message,
+        : formatUnknownError(message),
     )}`.trim(),
   );
 }
