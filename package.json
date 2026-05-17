@@ -19,7 +19,8 @@
     "test": "jest",
     "test:config": "npm run build && node dst/scripts/verify-config.js",
     "test:scraper-access": "npm run build && npm run test:scraper-access-without-build",
-    "test:scraper-access-without-build": "node --test dst/test-scraper-access.js"
+    "test:scraper-access-without-build": "node --test dst/test-scraper-access.js",
+    "export-cookies": "npx tsx src/scripts/export-cookies.ts"
   },
   "repository": {
     "type": "git",
