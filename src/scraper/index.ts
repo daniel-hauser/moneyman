@@ -58,27 +58,33 @@ export async function scrapeAccounts(
       const { companyId } = account;
       return loggerContextStore.run(
         { prefix: `[#${i} ${companyId}]` },
-        async () =>
-          scrapeAccount(
-            account,
-            {
-              browserContext: await createSecureBrowserContext(
-                browser,
+        async () => {
+          const browserContext = await createSecureBrowserContext(
+            browser,
+            companyId,
+          );
+          try {
+            return await scrapeAccount(
+              account,
+              {
+                browserContext,
+                startDate,
                 companyId,
-              ),
-              startDate,
-              companyId,
-              futureMonthsToScrape: futureMonths,
-              storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
-              additionalTransactionInformation,
-              includeRawTransaction,
-              ...scraperOptions,
-            },
-            async (message, append = false) => {
-              status[i] = append ? `${status[i]} ${message}` : message;
-              return scrapeStatusChanged?.(status);
-            },
-          ),
+                futureMonthsToScrape: futureMonths,
+                storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
+                additionalTransactionInformation,
+                includeRawTransaction,
+                ...scraperOptions,
+              },
+              async (message, append = false) => {
+                status[i] = append ? `${status[i]} ${message}` : message;
+                return scrapeStatusChanged?.(status);
+              },
+            );
+          } finally {
+            await browserContext.close().catch(() => {});
+          }
+        },
       );
     }),
     Number(parallelScrapers),
