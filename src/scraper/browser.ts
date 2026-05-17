@@ -69,8 +69,11 @@ async function injectCookiesFromEnv(
 
     logger("Injecting %d cookies for %s", cookies.length, companyId);
     const page = await context.newPage();
-    await page.setCookie(...cookies);
-    await page.close();
+    try {
+      await page.setCookie(...cookies);
+    } finally {
+      await page.close();
+    }
   } catch (e) {
     logger("Failed to parse MONEYMAN_BROWSER_COOKIES", e);
   }

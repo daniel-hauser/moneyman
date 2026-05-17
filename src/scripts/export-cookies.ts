@@ -38,18 +38,20 @@ const browser = await puppeteer.launch({
   ignoreDefaultArgs: ["--enable-automation"],
 });
 
-const page = await browser.newPage();
-await page.goto(url);
-
 const rl = createInterface({ input: process.stdin, output: process.stderr });
-await new Promise<void>((resolve) =>
-  rl.question("Log in and complete OTP, then press Enter...", () => {
-    rl.close();
-    resolve();
-  }),
-);
+try {
+  const page = await browser.newPage();
+  await page.goto(url);
 
-const cookies = await page.cookies();
-await browser.close();
+  await new Promise<void>((resolve) =>
+    rl.question("Log in and complete OTP, then press Enter...", () =>
+      resolve(),
+    ),
+  );
 
-console.log(JSON.stringify({ [company]: cookies }));
+  const cookies = await page.cookies();
+  console.log(JSON.stringify({ [company]: cookies }));
+} finally {
+  rl.close();
+  await browser.close();
+}
