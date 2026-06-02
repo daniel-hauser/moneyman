@@ -57,6 +57,7 @@ export type ScraperConfig = {
   startDate: Date;
   futureMonthsToScrape: number;
   parallelScrapers: number;
+  retryFailedScrapes: boolean;
   accounts: Array<AccountConfig>;
   additionalTransactionInformation: boolean;
   includeRawTransaction: boolean;

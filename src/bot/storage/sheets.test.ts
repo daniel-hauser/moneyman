@@ -179,6 +179,7 @@ describe("GoogleSheetsStorage", () => {
             includeRawTransaction: false,
             hiddenDeprecations: [],
             maxParallelScrapers: 1,
+            retryFailedScrapes: true,
             domainTracking: false,
           },
           security: {

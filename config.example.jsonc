@@ -33,6 +33,8 @@
       // "futureMonths": 1,
       // Maximum number of parallel scrapers (default: 1)
       // "maxParallelScrapers": 1,
+      // Retry scrapes that fail with a generic error (default: true)
+      // "retryFailedScrapes": true,
       // Include raw transaction data for debugging purposes (default: false)
       // "includeRawTransaction": false
     },

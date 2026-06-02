@@ -1,0 +1,22 @@
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
+index 85efbdb..1babc0f 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
+@@ -169,7 +169,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+     return frame;
+   };
+   async getCards() {
+-    const initData = await (0, _waiting.waitUntil)(() => (0, _storage.getFromSessionStorage)(this.page, 'init'), 'get init data in session storage', 10000, 1000);
++    const initData = await (0, _waiting.waitUntil)(() => (0, _storage.getFromSessionStorage)(this.page, 'init'), 'get init data in session storage', 20000, 1000);
+     if (!initData) {
+       throw new Error('could not find "init" data in session storage');
+     }
+@@ -184,7 +184,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+   async getAuthorizationHeader() {
+     if (!this.authorization) {
+       debug('fetching authorization header');
+-      const authModule = await (0, _waiting.waitUntil)(async () => authModuleOrUndefined(await (0, _storage.getFromSessionStorage)(this.page, 'auth-module')), 'get authorization header with valid token in session storage', 10_000, 50);
++      const authModule = await (0, _waiting.waitUntil)(async () => authModuleOrUndefined(await (0, _storage.getFromSessionStorage)(this.page, 'auth-module')), 'get authorization header with valid token in session storage', 15000, 50);
+       return `CALAuthScheme ${authModule.auth.calConnectToken}`;
+     }
+     return this.authorization;

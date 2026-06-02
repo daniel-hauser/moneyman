@@ -173,6 +173,11 @@ options: {
      */
     maxParallelScrapers?: number;
     /**
+     * Retry scrapes that fail with a generic error, after a short delay
+     * @default true
+     */
+    retryFailedScrapes?: boolean;
+    /**
      * Enable tracking of all domains accessed during scraping
      * @default false
      */
