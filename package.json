@@ -39,7 +39,7 @@
     "azure-kusto-data": "^7.2.0",
     "azure-kusto-ingest": "^7.2.0",
     "buxfer-ts-client": "^1.1.4",
-    "date-fns": "^4.3.0",
+    "date-fns": "^4.4.0",
     "debug": "^4.4.3",
     "dotenv": "^17.4.2",
     "glob": "^13.0.6",
