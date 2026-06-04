@@ -1,13 +1,11 @@
 import { jest } from "@jest/globals";
 import { CompanyTypes } from "israeli-bank-scrapers";
 import {
-  BrowserContext,
-  TargetType,
-  Target,
-  Page,
-  HTTPRequest,
-  InterceptResolutionAction,
-  Frame,
+  type BrowserContext,
+  type Target,
+  type Page,
+  type HTTPRequest,
+  type Frame,
 } from "puppeteer";
 import { mock } from "jest-mock-extended";
 
@@ -61,7 +59,7 @@ describe("domains", () => {
 
     it("should set up page request listener for relevant target types", async () => {
       const target = mock<Target>();
-      target.type.mockReturnValue(TargetType.PAGE);
+      target.type.mockReturnValue("page" as any);
 
       const page = mock<Page>();
       page.url.mockReturnValue("https://foo.com");
@@ -129,7 +127,7 @@ describe("domains", () => {
 
     it("should handle requests correctly", async () => {
       const target = mock<Target>();
-      target.type.mockReturnValue(TargetType.OTHER);
+      target.type.mockReturnValue("other" as any);
 
       jest.mock("../config.js", () => ({
         config: {
@@ -160,9 +158,7 @@ function mockHttpRequest(
   req.url.mockReturnValue(url);
   req.continue.mockResolvedValue();
   req.abort.mockResolvedValue();
-  req.interceptResolutionState.mockReturnValue({
-    action: InterceptResolutionAction.None,
-  });
+  req.isInterceptResolutionHandled.mockReturnValue(false);
   req.method.mockReturnValue(method);
   req.resourceType.mockReturnValue(resourceType as any);
   return req;
