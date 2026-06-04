@@ -44,7 +44,7 @@
     "dotenv": "^17.4.2",
     "glob": "^13.0.6",
     "google-auth-library": "^10.6.2",
-    "google-spreadsheet": "^5.2.0",
+    "google-spreadsheet": "^5.3.0",
     "hash-it": "^7.0.2",
     "israeli-bank-scrapers": "^6.7.5",
     "jsonc-parser": "^3.3.1",
