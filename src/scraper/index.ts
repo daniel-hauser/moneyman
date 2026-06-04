@@ -20,6 +20,10 @@ export const scraperOptions: Partial<ScraperOptions> = {
     "isracard-amex:skipAdditionalTransactionInformation",
   ],
 };
+type ScraperOptionsWithBrowserContext = Extract<
+  ScraperOptions,
+  { browserContext: unknown }
+>;
 
 export async function scrapeAccounts(
   {
@@ -62,10 +66,10 @@ export async function scrapeAccounts(
           scrapeAccount(
             account,
             {
-              browserContext: await createSecureBrowserContext(
+              browserContext: (await createSecureBrowserContext(
                 browser,
                 companyId,
-              ),
+              )) as unknown as ScraperOptionsWithBrowserContext["browserContext"],
               startDate,
               companyId,
               futureMonthsToScrape: futureMonths,

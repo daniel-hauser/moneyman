@@ -1,7 +1,11 @@
 import debug from "debug";
 import assert from "node:assert/strict";
 import test, { before, after, describe } from "node:test";
-import { CompanyTypes, createScraper } from "israeli-bank-scrapers";
+import {
+  CompanyTypes,
+  createScraper,
+  type ScraperOptions,
+} from "israeli-bank-scrapers";
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
 import {
   createBrowser,
@@ -13,6 +17,10 @@ import { scraperOptions } from "./scraper/index.js";
 import { config } from "./config.js";
 
 const logger = createLogger("test-scraper-access");
+type ScraperOptionsWithBrowserContext = Extract<
+  ScraperOptions,
+  { browserContext: unknown }
+>;
 
 const firewallSettings = [
   ...["amex", "isracard"].flatMap((company) =>
@@ -106,7 +114,10 @@ describe("Sites access tests", () => {
         const scraper = createScraper({
           companyId,
           startDate: new Date(),
-          browserContext: await createSecureBrowserContext(browser, companyId),
+          browserContext: (await createSecureBrowserContext(
+            browser,
+            companyId,
+          )) as unknown as ScraperOptionsWithBrowserContext["browserContext"],
           ...scraperOptions,
         });
 

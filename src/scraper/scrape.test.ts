@@ -3,6 +3,11 @@ import { getAccountTransactions } from "./scrape";
 import { mock, mockClear } from "jest-mock-extended";
 import { type BrowserContext, type Page } from "puppeteer";
 
+type ScraperOptionsWithBrowserContext = Extract<
+  ScraperOptions,
+  { browserContext: unknown }
+>;
+
 describe("getAccountTransactions", () => {
   const onProgress = jest.fn();
   const browserPage = mock<Page>();
@@ -17,7 +22,8 @@ describe("getAccountTransactions", () => {
   };
 
   const scraperOptions: ScraperOptions = {
-    browserContext,
+    browserContext:
+      browserContext as unknown as ScraperOptionsWithBrowserContext["browserContext"],
     startDate: new Date(),
     companyId: account.companyId,
   };
