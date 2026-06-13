@@ -4,7 +4,7 @@ import {
   runInLoggerContext,
   loggerContextStore,
 } from "../utils/asyncContext.js";
-import { type BrowserContext, TargetType } from "puppeteer";
+import type { BrowserContext } from "puppeteer";
 import { ClientRequestInterceptor } from "@mswjs/interceptors/ClientRequest";
 import { DomainRuleManager } from "./domainRules.js";
 import { addToKeyedSet } from "../utils/collections.js";
@@ -54,9 +54,12 @@ export async function initDomainTracking(
       "targetcreated",
       runInLoggerContext(async (target) => {
         switch (target.type()) {
-          case TargetType.PAGE:
-          case TargetType.WEBVIEW:
-          case TargetType.BACKGROUND_PAGE: {
+          // String literals used instead of TargetType enum because puppeteer is ESM-only
+          // and Jest cannot import its value exports. Safe to use TargetType.PAGE etc.
+          // when Jest supports ESM or the project migrates to a native-ESM test runner.
+          case "page":
+          case "webview":
+          case "background_page": {
             logger(`Target created`, target.type());
             const page = await target.page();
             if (!page) {

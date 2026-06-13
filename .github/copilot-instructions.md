@@ -9,7 +9,7 @@ Moneyman is a TypeScript/Node.js application that scrapes financial transaction 
 ### Core Structure
 
 - **Language**: TypeScript (compiled to JavaScript)
-- **Runtime**: Node.js 20+
+- **Runtime**: Node.js 24+ (Dockerfile uses node:26)
 - **Package Manager**: npm
 - **Build Output**: `dst/` directory
 - **Source Code**: `src/` directory
@@ -56,7 +56,7 @@ All configuration must use the `MONEYMAN_CONFIG` JSON format via `MONEYMAN_CONFI
 ## Key Dependencies
 
 - **israeli-bank-scrapers**: Core bank scraping functionality
-- **puppeteer**: Web scraping (headless Chrome)
+- **puppeteer**: Web scraping (headless Chrome) — top-level dependency, version may differ from the one bundled in israeli-bank-scrapers. When passing `BrowserContext` to israeli-bank-scrapers, a type assertion via `as unknown as ScraperOptionsWithBrowserContext["browserContext"]` is required.
 - **zod**: Runtime type validation for configuration
 - **telegraf**: Telegram bot integration for notifications
 - **google-spreadsheet**: Google Sheets integration
@@ -123,3 +123,4 @@ Key environment variables include:
 2. **Modifying configuration**: Update Zod schemas in `src/config.ts`
 3. **Adding new scrapers**: Extend the israeli-bank-scrapers integration
 4. **Testing changes**: Run `npm test` and validate with `npm run test:config`
+5. **Updating dependencies**: Use `PUPPETEER_SKIP_DOWNLOAD=true` when running `npm install` on dev machines (CI uses Docker with system Chromium). When combining multiple dependabot PRs, check for breaking changes requiring code modifications (e.g., puppeteer major bumps remove/rename APIs). Reference superseded PRs in the combined PR description.

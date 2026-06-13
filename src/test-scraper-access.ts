@@ -106,7 +106,11 @@ describe("Sites access tests", () => {
         const scraper = createScraper({
           companyId,
           startDate: new Date(),
-          browserContext: await createSecureBrowserContext(browser, companyId),
+          // Safe to remove when israeli-bank-scrapers upgrades to puppeteer 25+
+          browserContext: (await createSecureBrowserContext(
+            browser,
+            companyId,
+          )) as any,
           ...scraperOptions,
         });
 

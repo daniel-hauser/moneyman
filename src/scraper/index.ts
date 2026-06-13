@@ -62,10 +62,11 @@ export async function scrapeAccounts(
           scrapeAccount(
             account,
             {
-              browserContext: await createSecureBrowserContext(
+              // Safe to remove when israeli-bank-scrapers upgrades to puppeteer 25+
+              browserContext: (await createSecureBrowserContext(
                 browser,
                 companyId,
-              ),
+              )) as any,
               startDate,
               companyId,
               futureMonthsToScrape: futureMonths,

@@ -1,13 +1,12 @@
 import { jest } from "@jest/globals";
 import { CompanyTypes } from "israeli-bank-scrapers";
 import {
-  BrowserContext,
-  TargetType,
-  Target,
-  Page,
-  HTTPRequest,
-  InterceptResolutionAction,
-  Frame,
+  type BrowserContext,
+  type Target,
+  type Page,
+  type HTTPRequest,
+  type InterceptResolutionAction,
+  type Frame,
 } from "puppeteer";
 import { mock } from "jest-mock-extended";
 
@@ -61,7 +60,8 @@ describe("domains", () => {
 
     it("should set up page request listener for relevant target types", async () => {
       const target = mock<Target>();
-      target.type.mockReturnValue(TargetType.PAGE);
+      // Value imports from puppeteer crash Jest (ESM); safe to use TargetType.PAGE when Jest supports ESM
+      target.type.mockReturnValue("page" as any);
 
       const page = mock<Page>();
       page.url.mockReturnValue("https://foo.com");
@@ -129,7 +129,8 @@ describe("domains", () => {
 
     it("should handle requests correctly", async () => {
       const target = mock<Target>();
-      target.type.mockReturnValue(TargetType.OTHER);
+      // Value imports from puppeteer crash Jest (ESM); safe to use TargetType.OTHER when Jest supports ESM
+      target.type.mockReturnValue("other" as any);
 
       jest.mock("../config.js", () => ({
         config: {
@@ -161,7 +162,7 @@ function mockHttpRequest(
   req.continue.mockResolvedValue();
   req.abort.mockResolvedValue();
   req.interceptResolutionState.mockReturnValue({
-    action: InterceptResolutionAction.None,
+    action: "none" as InterceptResolutionAction,
   });
   req.method.mockReturnValue(method);
   req.resourceType.mockReturnValue(resourceType as any);
