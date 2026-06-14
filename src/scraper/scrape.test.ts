@@ -17,7 +17,8 @@ describe("getAccountTransactions", () => {
   };
 
   const scraperOptions: ScraperOptions = {
-    browserContext,
+    // Safe to remove when israeli-bank-scrapers upgrades to puppeteer 25+
+    browserContext: browserContext as any,
     startDate: new Date(),
     companyId: account.companyId,
   };
