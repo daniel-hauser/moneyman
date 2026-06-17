@@ -52,7 +52,7 @@
     "pg-format": "^1.0.4",
     "puppeteer": "^25.1.0",
     "telegraf": "^4.16.3",
-    "ynab": "^4.1.0",
+    "ynab": "^4.4.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
