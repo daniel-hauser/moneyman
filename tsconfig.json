@@ -5,7 +5,6 @@
     "strictNullChecks": true,
     "strictPropertyInitialization": false,
     "esModuleInterop": true,
-    "moduleResolution": "Node",
     "target": "es2022",
     "rootDir": "src",
     "outDir": "dst",

@@ -1,5 +1,4 @@
 import * as actualApi from "@actual-app/api";
-import type { ImportTransactionEntity } from "@actual-app/core/@types/src/types/models/index.js";
 import { hash } from "hash-it";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import assert from "node:assert";
@@ -13,6 +12,9 @@ import { formatUnknownError } from "../../utils/utils.js";
 import { createSaveStats, SaveStats } from "../saveStats.js";
 
 const logger = createLogger("ActualBudgetStorage");
+type ImportTransactionEntity = Parameters<
+  typeof actualApi.importTransactions
+>[1][number];
 
 export class ActualBudgetStorage implements TransactionStorage {
   private bankToActualAccountMap = new Map<string, string>();
