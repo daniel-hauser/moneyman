@@ -12,6 +12,8 @@ Application containers run as non-root with a read-only filesystem, all Linux ca
 
 Chromium uses `--no-sandbox` because its namespace sandbox cannot start under the supported Docker runtime. This retains the browser setting used by the previous image, while the surrounding non-root container, capability, filesystem, environment, and network boundaries substantially reduce its blast radius.
 
+Service images use Node.js 24 LTS. Node 26 is intentionally excluded because Telegraf 4.16.3's multipart `sendDocument` requests stall under Node 26, while identical direct and proxied requests complete under Node 24.
+
 ## Egress policy
 
 With `options.security.blockByDefault: true`, `ALLOW` rules become the scraper proxy allowlist. Parent entries cover subdomains, for example:

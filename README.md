@@ -44,7 +44,7 @@ The workflow runs the scraper, exporter, and notifier in separate containers. Do
 <summary><b>From code</b></summary>
 
 1. Clone this repo
-2. Enable Corepack and run `pnpm install`
+2. Use Node.js 24 LTS, enable Corepack, and run `pnpm install`
 3. Run `pnpm build`
 4. Provide your configuration via `MONEYMAN_CONFIG` (inline JSON) or point `MONEYMAN_CONFIG_PATH` to a JSON/JSONC file
 5. Run `pnpm start`
