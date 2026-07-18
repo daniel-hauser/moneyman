@@ -1,6 +1,21 @@
-/** @type {import('ts-jest').JestConfigWithTsJest} */
+/** @type {import('jest').Config} */
 export default {
-  preset: "ts-jest",
+  transform: {
+    "^.+\\.tsx?$": [
+      "@swc/jest",
+      {
+        jsc: {
+          parser: {
+            syntax: "typescript",
+          },
+          target: "es2022",
+        },
+        module: {
+          type: "commonjs",
+        },
+      },
+    ],
+  },
   testEnvironment: "node",
   rootDir: "./src",
   moduleNameMapper: {
