@@ -1,0 +1,17 @@
+{
+  "name": "@moneyman/egress",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --import tsx src/main.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "dependencies": {
+    "@moneyman/common": "workspace:*",
+    "tsx": "catalog:",
+    "zod": "catalog:"
+  }
+}

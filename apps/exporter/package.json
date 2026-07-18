@@ -1,0 +1,30 @@
+{
+  "name": "@moneyman/exporter",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --import tsx src/main.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "dependencies": {
+    "@actual-app/api": "catalog:",
+    "@moneyman/common": "workspace:*",
+    "@moneyman/protocol": "workspace:*",
+    "@telegraf/entity": "catalog:",
+    "azure-kusto-data": "catalog:",
+    "azure-kusto-ingest": "catalog:",
+    "buxfer-ts-client": "catalog:",
+    "date-fns": "catalog:",
+    "google-auth-library": "catalog:",
+    "google-spreadsheet": "catalog:",
+    "hash-it": "catalog:",
+    "pg": "catalog:",
+    "pg-format": "catalog:",
+    "tsx": "catalog:",
+    "ynab": "catalog:",
+    "zod": "catalog:"
+  }
+}

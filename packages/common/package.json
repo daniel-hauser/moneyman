@@ -1,0 +1,20 @@
+{
+  "name": "@moneyman/common",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "dependencies": {
+    "debug": "catalog:",
+    "dotenv": "catalog:",
+    "jsonc-parser": "catalog:",
+    "tsx": "catalog:",
+    "zod": "catalog:"
+  }
+}

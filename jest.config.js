@@ -17,7 +17,15 @@ export default {
     ],
   },
   testEnvironment: "node",
-  rootDir: "./src",
+  transform: {
+    "^.+\\.tsx?$": [
+      "ts-jest",
+      {
+        tsconfig: "tsconfig.test.json",
+      },
+    ],
+  },
+  roots: ["<rootDir>/apps", "<rootDir>/packages"],
   moduleNameMapper: {
     "^(\\.\\.?\\/.+)\\.jsx?$": "$1",
   },

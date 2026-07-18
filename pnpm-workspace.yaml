@@ -1,0 +1,48 @@
+packages:
+  - apps/*
+  - packages/*
+
+catalogMode: strict
+cleanupUnusedCatalogs: true
+injectWorkspacePackages: true
+
+catalog:
+  "@actual-app/api": ^26.7.0
+  "@jest/globals": ^30.4.1
+  "@mswjs/interceptors": ^0.41.9
+  "@telegraf/entity": ^0.7.0
+  "@types/async": ^3.2.25
+  "@types/debug": ^4.1.13
+  "@types/jest": ^30.0.0
+  "@types/node": ^26.0.0
+  "@types/pg": ^8.20.0
+  "@types/pg-format": ^1.0.5
+  async: ^3.2.6
+  azure-kusto-data: ^7.2.0
+  azure-kusto-ingest: ^7.2.0
+  buxfer-ts-client: ^1.1.4
+  date-fns: ^4.4.0
+  debug: ^4.4.3
+  dotenv: ^17.4.2
+  glob: ^13.0.6
+  google-auth-library: ^10.9.0
+  google-spreadsheet: ^5.3.0
+  hash-it: ^7.0.3
+  https-proxy-agent: ^7.0.6
+  husky: ^9.1.7
+  israeli-bank-scrapers: ^6.8.0
+  jest: ^30.4.2
+  jest-mock-extended: ^4.0.1
+  jsonc-parser: ^3.3.1
+  pg: ^8.22.0
+  pg-format: ^1.0.4
+  pg-mem: ^3.0.14
+  prettier: ^3.9.5
+  pretty-quick: ^4.2.2
+  puppeteer: ^25.3.0
+  telegraf: ^4.16.3
+  ts-jest: ^29.4.11
+  tsx: ^4.23.0
+  typescript: ^7.0.2
+  ynab: ^4.5.0
+  zod: ^4.4.3

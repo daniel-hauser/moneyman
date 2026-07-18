@@ -1,16 +1,17 @@
 {
   "compilerOptions": {
-    "sourceMap": true,
-    "skipLibCheck": true,
-    "strictNullChecks": true,
-    "strictPropertyInitialization": false,
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
-    "target": "es2022",
-    "rootDir": "src",
-    "outDir": "dst",
-    "module": "ESNext",
+    "isolatedModules": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "target": "ESNext",
     "types": ["jest", "node"],
-    "ignoreDeprecations": "6.0"
+    "verbatimModuleSyntax": true
   },
-  "include": ["src/**/*"]
+  "include": ["apps/**/*.ts", "packages/**/*.ts"]
 }

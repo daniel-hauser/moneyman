@@ -1,0 +1,25 @@
+{
+  "name": "@moneyman/scraper",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --import tsx src/main.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "dependencies": {
+    "@moneyman/common": "workspace:*",
+    "@moneyman/protocol": "workspace:*",
+    "@mswjs/interceptors": "catalog:",
+    "@telegraf/entity": "catalog:",
+    "async": "catalog:",
+    "date-fns": "catalog:",
+    "glob": "catalog:",
+    "israeli-bank-scrapers": "catalog:",
+    "puppeteer": "catalog:",
+    "tsx": "catalog:",
+    "zod": "catalog:"
+  }
+}
