@@ -10,6 +10,8 @@ catalog:
   "@actual-app/api": ^26.7.0
   "@jest/globals": ^30.4.1
   "@mswjs/interceptors": ^0.41.9
+  "@swc/core": ^1.15.43
+  "@swc/jest": ^0.2.39
   "@telegraf/entity": ^0.7.0
   "@types/async": ^3.2.25
   "@types/debug": ^4.1.13
@@ -41,7 +43,6 @@ catalog:
   pretty-quick: ^4.2.2
   puppeteer: ^25.3.0
   telegraf: ^4.16.3
-  ts-jest: ^29.4.11
   tsx: ^4.23.0
   typescript: ^7.0.2
   ynab: ^4.5.0

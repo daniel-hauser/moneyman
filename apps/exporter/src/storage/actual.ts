@@ -13,16 +13,6 @@ import type { TransactionStorage } from "../types.js";
 import { createLogger, formatUnknownError } from "@moneyman/common";
 import { createSaveStats, type SaveStats } from "../saveStats.js";
 
-interface ImportTransactionEntity {
-  account: string;
-  date: string;
-  amount: number;
-  payee_name: string;
-  cleared: boolean;
-  imported_id: string;
-  notes?: string;
-}
-
 const logger = createLogger("ActualBudgetStorage");
 type ImportTransactionEntity = Parameters<
   typeof actualApi.importTransactions

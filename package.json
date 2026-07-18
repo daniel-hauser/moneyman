@@ -33,6 +33,8 @@
   "homepage": "https://github.com/daniel-hauser/moneyman#readme",
   "devDependencies": {
     "@jest/globals": "catalog:",
+    "@swc/core": "catalog:",
+    "@swc/jest": "catalog:",
     "@types/async": "catalog:",
     "@types/debug": "catalog:",
     "@types/jest": "catalog:",
@@ -45,7 +47,6 @@
     "pg-mem": "catalog:",
     "prettier": "catalog:",
     "pretty-quick": "catalog:",
-    "ts-jest": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:"
   },
