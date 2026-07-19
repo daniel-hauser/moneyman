@@ -16,7 +16,7 @@ catalog:
   "@types/async": ^3.2.25
   "@types/debug": ^4.1.13
   "@types/jest": ^30.0.0
-  "@types/node": ^24.0.0
+  "@types/node": ^25.0.0
   "@types/pg": ^8.20.0
   "@types/pg-format": ^1.0.5
   async: ^3.2.6

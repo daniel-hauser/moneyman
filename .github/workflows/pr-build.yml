@@ -16,16 +16,19 @@ on:
       - ".github/workflows/**"
 
 jobs:
-  validate:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    strategy:
+      matrix:
+        node-version: [25]
     steps:
       - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: ${{ matrix.node-version }}
 
       - run: corepack enable
 
@@ -38,7 +41,7 @@ jobs:
       - run: pnpm lint
 
   docker:
-    needs: validate
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: read

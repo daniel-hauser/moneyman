@@ -9,7 +9,7 @@ Moneyman is a TypeScript/Node.js application that scrapes financial transaction 
 ### Core Structure
 
 - **Language**: TypeScript executed through `tsx`
-- **Runtime**: Node.js 24 or 25 (Docker images use Node 24)
+- **Runtime**: Node.js 25
 - **Package Manager**: pnpm workspaces
 - **Build**: `tsc --noEmit` typechecking; no compiled output directory
 - **Source Code**: `apps/` and `packages/`

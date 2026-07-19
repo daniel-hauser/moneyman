@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim AS builder
+FROM node:25-bookworm-slim AS builder
 
 ARG NPM_CONFIG_REGISTRY=https://registry.npmjs.org/
 
@@ -20,7 +20,7 @@ RUN pnpm --filter @moneyman/config-init deploy --prod /deploy/config-init && \
 FROM scratch AS orchestrator
 COPY docker-compose.yml docker-compose.prod.yml /
 
-FROM node:24-bookworm-slim AS runtime-base
+FROM node:25-bookworm-slim AS runtime-base
 
 ENV NODE_ENV=production \
     MONEYMAN_UNSAFE_STDOUT=false \
