@@ -16,6 +16,7 @@
     "@telegraf/entity": "catalog:",
     "async": "catalog:",
     "date-fns": "catalog:",
+    "debug": "catalog:",
     "glob": "catalog:",
     "israeli-bank-scrapers": "catalog:",
     "puppeteer": "catalog:",

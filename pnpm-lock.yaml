@@ -315,6 +315,9 @@ importers:
       date-fns:
         specifier: "catalog:"
         version: 4.4.0
+      debug:
+        specifier: "catalog:"
+        version: 4.4.3
       glob:
         specifier: "catalog:"
         version: 13.0.6
