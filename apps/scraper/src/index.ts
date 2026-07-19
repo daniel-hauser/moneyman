@@ -7,23 +7,13 @@ import { createBrowser, createSecureBrowserContext } from "./browser.js";
 import { getFailureScreenShotPath } from "./failureScreenshot.js";
 import type { ScraperOptions } from "israeli-bank-scrapers";
 import { parallelLimit } from "async";
+import { scraperOptions } from "./scraperOptions.js";
 
 const logger = createLogger("scraper");
 type ScraperOptionsWithBrowserContext = Extract<
   ScraperOptions,
   { browserContext: unknown }
 >;
-
-export const scraperOptions: Partial<ScraperOptions> = {
-  navigationRetryCount: 3,
-  viewportSize: { width: 1920, height: 1080 },
-  optInFeatures: [
-    "mizrahi:pendingIfHasGenericDescription",
-    "mizrahi:pendingIfNoIdentifier",
-    "mizrahi:pendingIfTodayTransaction",
-    "isracard-amex:skipAdditionalTransactionInformation",
-  ],
-};
 
 export async function scrapeAccounts(
   {

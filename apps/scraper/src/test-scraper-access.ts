@@ -6,7 +6,7 @@ import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js"
 import { createBrowser, createSecureBrowserContext } from "./browser.js";
 import { createLogger } from "@moneyman/common";
 import { getExternalIp } from "./runnerMetadata.js";
-import { scraperOptions } from "./index.js";
+import { scraperOptions } from "./scraperOptions.js";
 import { config } from "./config.js";
 
 const logger = createLogger("test-scraper-access");
@@ -23,6 +23,7 @@ const firewallSettings = [
 ];
 
 config.options.scraping.domainTracking = true;
+config.options.security.blockByDefault = false;
 config.options.security.firewallSettings = firewallSettings;
 
 debug.enable(
