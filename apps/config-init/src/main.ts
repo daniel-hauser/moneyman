@@ -8,6 +8,7 @@ import {
   splitLegacyConfig,
   type SplitAppConfigs,
 } from "@moneyman/protocol";
+import { buildEgressConfigs } from "./egressConfig.js";
 
 const outputRoot = requiredEnvironmentVariable("MONEYMAN_CONFIG_OUTPUT");
 const rawConfig = readLegacyConfig();
@@ -118,86 +119,20 @@ function writeAuthenticationTokens(root: string) {
 }
 
 function writeEgressConfigs(root: string, configs: SplitAppConfigs) {
-  const scraperAllowlist = new Set<string>();
-  for (const rule of configs.scraper.options.security.firewallSettings ?? []) {
-    const match = rule.match(/^\S+\s+ALLOW\s+(\S+)$/);
-    if (match) {
-      scraperAllowlist.add(normalizeHostname(match[1]));
-    }
-  }
-  const ipInfoUrl = configs.scraper.options.logging.getIpInfoUrl;
-  if (ipInfoUrl) {
-    scraperAllowlist.add(new URL(ipInfoUrl).hostname);
-  }
-
-  const exporterAllowlist = exporterHosts(configs.exporter);
-  writeOutputJson(root, "scraper-egress", "config.json", {
-    mode: configs.scraper.options.security.blockByDefault
-      ? "allowlist"
-      : "public",
-    allowlist: [...scraperAllowlist],
-  });
-  writeOutputJson(root, "exporter-egress", "config.json", {
-    mode: "allowlist",
-    allowlist: [...exporterAllowlist],
-  });
-  writeOutputJson(root, "notifier-egress", "config.json", {
-    mode: "allowlist",
-    allowlist: ["api.telegram.org"],
-  });
-}
-
-function exporterHosts(config: SplitAppConfigs["exporter"]): Set<string> {
-  const hosts = new Set<string>();
-  const { storage } = config;
-
-  if (storage.googleSheets) {
-    hosts.add("googleapis.com");
-  }
-  if (storage.ynab) {
-    hosts.add("api.ynab.com");
-  }
-  if (storage.azure) {
-    hosts.add(new URL(storage.azure.ingestUri).hostname);
-    hosts.add("login.microsoftonline.com");
-  }
-  if (storage.buxfer) {
-    hosts.add("www.buxfer.com");
-    hosts.add("api.buxfer.com");
-  }
-  if (storage.actual) {
-    hosts.add(new URL(storage.actual.serverUrl).hostname);
-  }
-  if (storage.webPost) {
-    hosts.add(new URL(storage.webPost.url).hostname);
-  }
-  if (storage.sql) {
-    try {
-      hosts.add(new URL(storage.sql.connectionString).hostname);
-    } catch (error) {
-      throw new Error("Unable to derive the SQL storage egress host", {
-        cause: error,
-      });
-    }
-  }
-  if (storage.moneyman) {
-    try {
-      const encoded = storage.moneyman.token.slice("mm_".length);
-      const decoded = JSON.parse(
-        Buffer.from(encoded, "base64url").toString("utf8"),
-      ) as { u?: unknown };
-      if (typeof decoded.u !== "string") {
-        throw new Error("Moneyman token does not contain an egress URL");
-      }
-      hosts.add(new URL(decoded.u).hostname);
-    } catch (error) {
-      throw new Error("Unable to derive the Moneyman storage egress host", {
-        cause: error,
-      });
-    }
-  }
-
-  return hosts;
+  const egressConfigs = buildEgressConfigs(configs);
+  writeOutputJson(root, "scraper-egress", "config.json", egressConfigs.scraper);
+  writeOutputJson(
+    root,
+    "exporter-egress",
+    "config.json",
+    egressConfigs.exporter,
+  );
+  writeOutputJson(
+    root,
+    "notifier-egress",
+    "config.json",
+    egressConfigs.notifier,
+  );
 }
 
 function writeOutputJson(
@@ -212,10 +147,6 @@ function writeOutputJson(
     encoding: "utf8",
     mode: 0o444,
   });
-}
-
-function normalizeHostname(value: string) {
-  return value.replace(/^\*\./, "").replace(/\.$/, "").toLowerCase();
 }
 
 function writeSecret(

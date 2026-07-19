@@ -134,8 +134,12 @@ function getDuplicateUniqueIdSummary(
     if (result.success && result.accounts) {
       for (const account of result.accounts) {
         for (const tx of account.txns) {
+          const parsed = TransactionSchema.safeParse(tx);
+          if (!parsed.success) {
+            continue;
+          }
           const uniqueId = transactionUniqueId(
-            TransactionSchema.parse(tx),
+            parsed.data,
             companyId,
             account.accountNumber,
           );

@@ -94,6 +94,9 @@ catalogs:
     pg:
       specifier: ^8.22.0
       version: 8.22.0
+    pg-connection-string:
+      specifier: ^2.14.0
+      version: 2.14.0
     pg-format:
       specifier: ^1.0.4
       version: 1.0.4
@@ -198,6 +201,9 @@ importers:
       "@moneyman/protocol":
         specifier: workspace:*
         version: link:../../packages/protocol
+      pg-connection-string:
+        specifier: "catalog:"
+        version: 2.14.0
       tsx:
         specifier: "catalog:"
         version: 4.23.1
@@ -252,6 +258,9 @@ importers:
       pg:
         specifier: "catalog:"
         version: 8.22.0
+      pg-connection-string:
+        specifier: "catalog:"
+        version: 2.14.0
       pg-format:
         specifier: "catalog:"
         version: 1.0.4

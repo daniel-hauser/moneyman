@@ -11,6 +11,9 @@ jest.mock("../config.js", () => ({
     },
   },
 }));
+jest.mock("node:dns/promises", () => ({
+  lookup: jest.fn().mockResolvedValue({ address: "172.20.0.2", family: 4 }),
+}));
 
 const PoolMock = jest.fn<
   void,
@@ -25,6 +28,8 @@ jest.mock("pg", () => ({
 }));
 
 import { newDb, type IMemoryDb } from "pg-mem";
+import { lookup } from "node:dns/promises";
+import { SQL_EGRESS_PORT } from "@moneyman/common";
 import { TransactionStatuses } from "@moneyman/protocol";
 import { SqlStorage } from "./sql.js";
 import { config, transactionRow } from "@moneyman/protocol/testing";
@@ -84,6 +89,70 @@ describe("SqlStorage", () => {
       raw_hash: tx.hash,
       raw_description: tx.description,
     });
+    expect(lookup).toHaveBeenCalledWith("exporter-egress");
+    expect(PoolMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        host: "172.20.0.2",
+        port: SQL_EGRESS_PORT,
+        max: 1,
+      }),
+    );
+  });
+
+  it("preserves the database TLS server name through the TCP forward", async () => {
+    const mockConfig = config();
+    mockConfig.storage.sql = {
+      connectionString:
+        "postgresql://synthetic:synthetic@database.example:5432/moneyman?sslmode=verify-full",
+      schema: "moneyman",
+    };
+    storage = new SqlStorage(mockConfig);
+
+    await storage.saveTransactions([transactionRow({})], onProgress);
+
+    expect(PoolMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        host: "172.20.0.2",
+        port: SQL_EGRESS_PORT,
+        ssl: expect.objectContaining({ servername: "database.example" }),
+      }),
+    );
+  });
+
+  it("preserves certificate verification for an IP database target", async () => {
+    const mockConfig = config();
+    mockConfig.storage.sql = {
+      connectionString:
+        "postgresql://synthetic:synthetic@8.8.8.8:5432/moneyman?sslmode=verify-full",
+      schema: "moneyman",
+    };
+    storage = new SqlStorage(mockConfig);
+
+    await storage.saveTransactions([transactionRow({})], onProgress);
+
+    expect(PoolMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ssl: expect.objectContaining({
+          checkServerIdentity: expect.any(Function),
+        }),
+      }),
+    );
+  });
+
+  it("closes the pool when the proxied connection fails", async () => {
+    const end = jest.fn().mockResolvedValue(undefined);
+    PoolMock.mockImplementationOnce(
+      () =>
+        ({
+          connect: jest.fn().mockRejectedValue(new Error("connect failed")),
+          end,
+        }) as unknown as import("pg").Pool,
+    );
+
+    await expect(
+      storage.saveTransactions([transactionRow({})], onProgress),
+    ).rejects.toThrow("connect failed");
+    expect(end).toHaveBeenCalled();
   });
 
   it("upserts existing transactions and appends to raw log", async () => {

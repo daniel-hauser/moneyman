@@ -1,5 +1,9 @@
 import assert from "node:assert";
-import { Pool, type PoolClient } from "pg";
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
+import { checkServerIdentity } from "node:tls";
+import { Pool, type PoolClient, type PoolConfig } from "pg";
+import { parseIntoClientConfig } from "pg-connection-string";
 import pgFormat from "pg-format";
 import { format as formatDate, parseISO } from "date-fns";
 import {
@@ -7,7 +11,11 @@ import {
   type ExporterAppConfig,
   type TransactionRow,
 } from "@moneyman/protocol";
-import { createLogger, normalizeCurrency } from "@moneyman/common";
+import {
+  SQL_EGRESS_PORT,
+  createLogger,
+  normalizeCurrency,
+} from "@moneyman/common";
 import { tableRow } from "../transactionTableRow.js";
 import type { TransactionStorage } from "../types.js";
 import { createSaveStats } from "../saveStats.js";
@@ -60,12 +68,10 @@ export class SqlStorage implements TransactionStorage {
       txns,
     );
 
-    const pool = new Pool({
-      connectionString: sqlConfig.connectionString,
-      max: 1,
-    });
-    const client = await pool.connect();
+    const pool = new Pool(await proxiedPoolConfig(sqlConfig.connectionString));
+    let client: PoolClient | undefined;
     try {
+      client = await pool.connect();
       await onProgress(`Ensuring schema ${schema}`);
       await this.ensureInitialized(client, schema);
 
@@ -84,6 +90,7 @@ export class SqlStorage implements TransactionStorage {
           stats.added += inserted;
           stats.existing += updated;
         }
+
         await onProgress(`Recording ${txns.length} raw transactions`);
         await this.insertRawTransactions(transactionClient, txns, schema);
       });
@@ -94,14 +101,17 @@ export class SqlStorage implements TransactionStorage {
       await sendError(error, "SqlStorage::saveTransactions");
       throw error;
     } finally {
-      await onProgress("Closing SQL client");
-      client.release();
+      client?.release();
+      let closeFailed = false;
       try {
         await pool.end();
       } catch (e) {
-        await onProgress("Error closing SQL client");
+        closeFailed = true;
         logger("error closing SQL client", e);
       }
+      await onProgress(
+        closeFailed ? "Error closing SQL client" : "SQL client closed",
+      );
     }
 
     return stats;
@@ -262,6 +272,49 @@ export class SqlStorage implements TransactionStorage {
       ),
     );
   }
+}
+
+async function proxiedPoolConfig(
+  connectionString: string,
+): Promise<PoolConfig> {
+  assert(
+    /^postgres(?:ql)?:\/\//i.test(connectionString),
+    "SQL connection string must use PostgreSQL URI syntax",
+  );
+  const target = parseIntoClientConfig(connectionString);
+  const targetHostname = target.host?.replace(/^\[|\]$/g, "");
+  assert(targetHostname, "SQL connection string must include a hostname");
+
+  const proxyHostname =
+    process.env.MONEYMAN_SQL_EGRESS_HOST ?? "exporter-egress";
+  const proxyAddress = (await lookup(proxyHostname)).address;
+  return {
+    ...target,
+    host: proxyAddress,
+    port: SQL_EGRESS_PORT,
+    ssl: sqlSslConfig(target.ssl, targetHostname),
+    max: 1,
+  };
+}
+
+function sqlSslConfig(
+  ssl: PoolConfig["ssl"],
+  targetHostname: string,
+): PoolConfig["ssl"] {
+  if (!ssl || isIP(targetHostname)) {
+    if (!ssl) {
+      return ssl;
+    }
+    return {
+      ...(ssl === true ? {} : ssl),
+      checkServerIdentity: (_hostname, certificate) =>
+        checkServerIdentity(targetHostname, certificate),
+    };
+  }
+  return {
+    ...(ssl === true ? {} : ssl),
+    servername: targetHostname,
+  };
 }
 
 type TransactionColumnName = (typeof TRANSACTION_COLUMNS)[number];

@@ -321,6 +321,29 @@ describe("messages", () => {
       expect(summary).toMatch(/2025-01-15_mizrahi_account1_-50/);
     });
 
+    it("should not fail the summary for a transaction rejected by the DTO", () => {
+      const invalidTransaction = {
+        ...transaction({}),
+        memo: null,
+      } as unknown as Transaction;
+      const results: Array<AccountScrapeResult> = [
+        {
+          companyId: CompanyTypes.max,
+          result: {
+            success: true,
+            accounts: [
+              {
+                accountNumber: "account1",
+                txns: [invalidTransaction],
+              },
+            ],
+          },
+        },
+      ];
+
+      expect(() => getSummaryMessages(results)).not.toThrow();
+    });
+
     it("should not add empty groups", () => {
       const stats: Array<SaveStats> = [
         createSaveStats("Storage", "TheTable", [], {

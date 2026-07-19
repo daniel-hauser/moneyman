@@ -3,6 +3,7 @@ export * from "./asyncContext.js";
 export * from "./collections.js";
 export * from "./config.js";
 export * from "./currency.js";
+export * from "./egress.js";
 export * from "./http.js";
 export * from "./jsonc.js";
 export * from "./logger.js";

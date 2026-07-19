@@ -1,110 +1,43 @@
-import { readFileSync } from "node:fs";
-import { createServer, request as httpRequest } from "node:http";
-import { request as httpsRequest } from "node:https";
-import { connect } from "node:net";
 import { isIP } from "node:net";
 import { lookup } from "node:dns/promises";
-import z from "zod/v4";
 import { createLogger, enableDebugLogging } from "@moneyman/common";
 import { isPublicAddress, normalizeProxyHostname } from "./networkPolicy.js";
+import { isAllowedDestination, loadEgressConfig } from "./config.js";
+import { createHttpProxyServer, createTcpForwardServer } from "./servers.js";
 
 const logger = createLogger("egress");
-const config = loadConfig();
+const config = loadEgressConfig();
 enableDebugLogging("moneyman:*");
 
-const server = createServer(async (request, response) => {
-  try {
-    if (request.url === "/health") {
-      response.writeHead(200);
-      response.end();
-      return;
-    }
-    if (!request.url) {
-      throw new Error("Missing target URL");
-    }
+listen(
+  createHttpProxyServer(resolveAllowedAddress),
+  config.listenPort,
+  "HTTP proxy",
+);
 
-    const target = new URL(request.url);
-    if (target.protocol !== "http:" && target.protocol !== "https:") {
-      throw new Error("Unsupported protocol");
-    }
-    const port = Number.parseInt(
-      target.port || (target.protocol === "https:" ? "443" : "80"),
-      10,
-    );
-    const expectedPort = target.protocol === "https:" ? 443 : 80;
-    if (port !== expectedPort) {
-      throw new Error(
-        `${target.protocol} proxy requests are restricted to port ${expectedPort}`,
-      );
-    }
-    const address = await resolveAllowedAddress(target.hostname);
-    const upstreamRequest = (
-      target.protocol === "https:" ? httpsRequest : httpRequest
-    )({
-      hostname: address,
-      port,
-      path: `${target.pathname}${target.search}`,
-      method: request.method,
-      headers: {
-        ...request.headers,
-        host: target.host,
-        "proxy-authorization": undefined,
-      },
-      servername: target.hostname,
-    });
-    upstreamRequest.on("response", (upstreamResponse) => {
-      response.writeHead(
-        upstreamResponse.statusCode ?? 502,
-        upstreamResponse.headers,
-      );
-      upstreamResponse.pipe(response);
-    });
-    upstreamRequest.on("error", (error) => {
-      logger("Upstream request failed", error);
-      response.writeHead(502);
-      response.end();
-    });
-    request.pipe(upstreamRequest);
-  } catch (error) {
-    logger("Blocked proxy request", error);
-    response.writeHead(403);
-    response.end();
-  }
-});
+for (const forward of config.tcpForwards) {
+  listen(
+    createTcpForwardServer(forward, (hostname) =>
+      resolvePublicAddress(hostname),
+    ),
+    forward.listenPort,
+    "TCP forward",
+  );
+}
 
-server.on("connect", async (request, clientSocket, head) => {
-  clientSocket.on("error", (error) => {
-    logger("Proxy client socket closed with an error", error);
-  });
-  try {
-    const { hostname, port } = parseAuthority(request.url ?? "");
-    if (port !== 443) {
-      throw new Error("CONNECT is restricted to port 443");
-    }
-    const address = await resolveAllowedAddress(hostname);
-    const upstreamSocket = connect(port, address, () => {
-      clientSocket.write("HTTP/1.1 200 Connection Established\r\n\r\n");
-      if (head.length > 0) {
-        upstreamSocket.write(head);
-      }
-      upstreamSocket.pipe(clientSocket);
-      clientSocket.pipe(upstreamSocket);
-    });
-    upstreamSocket.on("error", () => clientSocket.destroy());
-  } catch (error) {
-    logger("Blocked CONNECT request", error);
-    clientSocket.end("HTTP/1.1 403 Forbidden\r\n\r\n");
-  }
-});
-
-server.listen(config.listenPort, "0.0.0.0");
-
-async function resolveAllowedAddress(hostname: string): Promise<string> {
+async function resolveAllowedAddress(
+  hostname: string,
+  port: number,
+): Promise<string> {
   const normalizedHostname = normalizeProxyHostname(hostname);
-  if (!isAllowedHostname(normalizedHostname)) {
-    throw new Error(`Destination ${hostname} is not allowlisted`);
+  if (!isAllowedDestination(config, normalizedHostname, port)) {
+    throw new Error(`Destination ${hostname}:${port} is not allowlisted`);
   }
+  return resolvePublicAddress(normalizedHostname);
+}
 
+async function resolvePublicAddress(hostname: string): Promise<string> {
+  const normalizedHostname = normalizeProxyHostname(hostname);
   const addresses = isIP(normalizedHostname)
     ? [{ address: normalizedHostname }]
     : await lookup(normalizedHostname, { all: true, verbatim: true });
@@ -117,40 +50,14 @@ async function resolveAllowedAddress(hostname: string): Promise<string> {
   return addresses[0].address;
 }
 
-function isAllowedHostname(hostname: string): boolean {
-  if (config.mode === "public") {
-    return true;
-  }
-  const normalized = normalizeProxyHostname(hostname);
-  return config.allowlist.some(
-    (allowed) => normalized === allowed || normalized.endsWith(`.${allowed}`),
-  );
-}
-
-function parseAuthority(authority: string) {
-  const url = new URL(`http://${authority}`);
-  return {
-    hostname: url.hostname.replace(/^\[|\]$/g, ""),
-    port: Number.parseInt(url.port || "443", 10),
-  };
-}
-
-function loadConfig() {
-  const schema = z.strictObject({
-    mode: z.enum(["public", "allowlist"]),
-    allowlist: z
-      .array(
-        z
-          .string()
-          .toLowerCase()
-          .regex(/^[a-z0-9.-]+$/),
-      )
-      .default([]),
-    listenPort: z.number().int().positive().default(8080),
+function listen(
+  server: import("node:net").Server | import("node:http").Server,
+  port: number,
+  name: string,
+) {
+  server.on("error", (error) => {
+    logger(`${name} failed`, error);
+    process.exit(1);
   });
-  const path = process.env.MONEYMAN_EGRESS_CONFIG_PATH;
-  if (!path) {
-    throw new Error("MONEYMAN_EGRESS_CONFIG_PATH is required");
-  }
-  return schema.parse(JSON.parse(readFileSync(path, "utf8")));
+  server.listen(port, "0.0.0.0");
 }

@@ -21,7 +21,7 @@ jobs:
           - exporter
           - scraper
     steps:
-      - uses: chipkent/action-cleanup-package@v1.0.3
+      - uses: chipkent/action-cleanup-package@1316a66015b82d745b57acbb6c570f2bb1d108f9 # v1.0.3
         continue-on-error: true
         with:
           package-name: ${{ github.event.repository.name }}-${{ matrix.target }}

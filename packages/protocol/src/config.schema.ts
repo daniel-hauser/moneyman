@@ -122,7 +122,7 @@ export const ScraperAppConfigSchema = z.object({
   accounts: z.array(AccountSchema).min(1),
   options: z.object({
     scraping: ScrapingOptionsSchema.prefault({}),
-    security: LegacySecurityOptionsSchema.prefault({}),
+    security: SecurityOptionsSchema.prefault({}),
     logging: LoggingOptionsSchema.prefault({}),
     otp: z
       .object({
@@ -167,7 +167,7 @@ export const LegacyMoneymanConfigSchema = z
           transactionHashType: z.enum(["", "moneyman"]).default(""),
           hiddenDeprecations: z.array(z.string()).default([]),
         }).prefault({}),
-        security: SecurityOptionsSchema.prefault({}),
+        security: LegacySecurityOptionsSchema.prefault({}),
         notifications: z
           .object({
             telegram: TelegramOptionsSchema.optional(),

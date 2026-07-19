@@ -22,6 +22,7 @@
     "google-spreadsheet": "catalog:",
     "hash-it": "catalog:",
     "pg": "catalog:",
+    "pg-connection-string": "catalog:",
     "pg-format": "catalog:",
     "tsx": "catalog:",
     "ynab": "catalog:",

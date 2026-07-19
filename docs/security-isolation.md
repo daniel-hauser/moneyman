@@ -22,7 +22,9 @@ With `options.security.blockByDefault: true`, `ALLOW` rules become the scraper p
 max ALLOW max.co.il
 ```
 
-Private, loopback, link-local, metadata, CGNAT, IPv4-mapped IPv6, NAT64, Teredo, 6to4, ULA, multicast, and documentation address ranges are rejected even if DNS resolves to them. Proxy traffic is limited to HTTP port 80 and HTTPS port 443.
+Legacy monolithic configuration keeps its existing `blockByDefault: false` default. New scraper-only configuration defaults to `true`; explicit rules are therefore required when adopting service-specific configuration.
+
+Private, loopback, link-local, metadata, CGNAT, IPv4-mapped IPv6, NAT64, Teredo, 6to4, ULA, multicast, and documentation address ranges are rejected even if DNS resolves to them. Scraper public mode remains limited to HTTP port 80 and HTTPS port 443. Exporter HTTP destinations preserve only the configured URL ports, Azure ingestion permits its service-assigned Blob and Queue hosts, and PostgreSQL URI connection strings use a dedicated allowlisted TCP forward to the configured database host and port.
 
 ## Logging
 
