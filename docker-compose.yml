@@ -1,5 +1,249 @@
+x-app-security: &app-security
+  init: true
+  read_only: true
+  cap_drop:
+    - ALL
+  pids_limit: 256
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,size=256m,uid=1000,gid=1000
+    - /run/moneyman:rw,noexec,nosuid,nodev,size=32m,uid=1000,gid=1000
+  logging:
+    driver: ${MONEYMAN_LOG_DRIVER:-none}
+  restart: "no"
+
+x-proxy-environment: &proxy-environment
+  NODE_USE_ENV_PROXY: "1"
+  NO_PROXY: notifier,exporter,localhost,127.0.0.1
+  no_proxy: notifier,exporter,localhost,127.0.0.1
+  TZ: ${TZ:-Asia/Jerusalem}
+  MONEYMAN_UNSAFE_STDOUT: ${MONEYMAN_UNSAFE_STDOUT:-false}
+  HOME: /tmp/home
+  XDG_CACHE_HOME: /tmp/cache
+  XDG_CONFIG_HOME: /tmp/config
+
 services:
-  monayman:
-    build: .
-    env_file:
-      - .env
+  config-init:
+    build:
+      context: .
+      target: config-init
+    network_mode: none
+    environment:
+      MONEYMAN_CONFIG: ${MONEYMAN_CONFIG:?MONEYMAN_CONFIG is required}
+      MONEYMAN_CONFIG_OUTPUT: /output
+      MONEYMAN_ACCOUNT_FILTER: ${MONEYMAN_ACCOUNT_FILTER:-}
+      MONEYMAN_STORAGE_FILTER: ${MONEYMAN_STORAGE_FILTER:-}
+    volumes:
+      - scraper-config:/output/scraper
+      - exporter-config:/output/exporter
+      - notifier-config:/output/notifier
+      - scraper-egress-config:/output/scraper-egress
+      - exporter-egress-config:/output/exporter-egress
+      - notifier-egress-config:/output/notifier-egress
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: ${MONEYMAN_LOG_DRIVER:-none}
+    restart: "no"
+
+  scraper-egress:
+    <<: *app-security
+    security_opt:
+      - no-new-privileges:true
+    build:
+      context: .
+      target: egress
+    depends_on:
+      config-init:
+        condition: service_completed_successfully
+    environment:
+      MONEYMAN_EGRESS_CONFIG_PATH: /run/config/config.json
+    volumes:
+      - scraper-egress-config:/run/config:ro
+    networks:
+      - scraper-egress
+      - internet
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  exporter-egress:
+    <<: *app-security
+    security_opt:
+      - no-new-privileges:true
+    build:
+      context: .
+      target: egress
+    depends_on:
+      config-init:
+        condition: service_completed_successfully
+    environment:
+      MONEYMAN_EGRESS_CONFIG_PATH: /run/config/config.json
+    volumes:
+      - exporter-egress-config:/run/config:ro
+    networks:
+      - exporter-egress
+      - internet
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  notifier-egress:
+    <<: *app-security
+    security_opt:
+      - no-new-privileges:true
+    build:
+      context: .
+      target: egress
+    depends_on:
+      config-init:
+        condition: service_completed_successfully
+    environment:
+      MONEYMAN_EGRESS_CONFIG_PATH: /run/config/config.json
+    volumes:
+      - notifier-egress-config:/run/config:ro
+    networks:
+      - notifier-egress
+      - internet
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  notifier:
+    <<: *app-security
+    security_opt:
+      - no-new-privileges:true
+    build:
+      context: .
+      target: notifier
+    depends_on:
+      config-init:
+        condition: service_completed_successfully
+      notifier-egress:
+        condition: service_healthy
+    environment:
+      <<: *proxy-environment
+      HTTP_PROXY: http://notifier-egress:8080
+      HTTPS_PROXY: http://notifier-egress:8080
+      MONEYMAN_NOTIFIER_CONFIG_PATH: /run/config/config.json
+      MONEYMAN_SCRAPER_TOKEN_PATH: /run/config/scraper.token
+      MONEYMAN_EXPORTER_TOKEN_PATH: /run/config/exporter.token
+    volumes:
+      - notifier-config:/run/config:ro
+    networks:
+      - control
+      - notifier-egress
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  exporter:
+    <<: *app-security
+    security_opt:
+      - no-new-privileges:true
+    build:
+      context: .
+      target: exporter
+    depends_on:
+      config-init:
+        condition: service_completed_successfully
+      exporter-egress:
+        condition: service_healthy
+      notifier:
+        condition: service_healthy
+    environment:
+      <<: *proxy-environment
+      HTTP_PROXY: http://exporter-egress:8080
+      HTTPS_PROXY: http://exporter-egress:8080
+      MONEYMAN_EXPORTER_CONFIG_PATH: /run/config/config.json
+      MONEYMAN_SCRAPER_TOKEN_PATH: /run/config/scraper.token
+      MONEYMAN_NOTIFIER_TOKEN_PATH: /run/config/notifier.token
+    volumes:
+      - exporter-config:/run/config:ro
+    networks:
+      - control
+      - exporter-egress
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  scraper:
+    <<: *app-security
+    security_opt:
+      - no-new-privileges:true
+    build:
+      context: .
+      target: scraper
+    depends_on:
+      config-init:
+        condition: service_completed_successfully
+      scraper-egress:
+        condition: service_healthy
+      exporter:
+        condition: service_healthy
+      notifier:
+        condition: service_healthy
+    environment:
+      <<: *proxy-environment
+      HTTP_PROXY: http://scraper-egress:8080
+      HTTPS_PROXY: http://scraper-egress:8080
+      MONEYMAN_BROWSER_PROXY: http://scraper-egress:8080
+      MONEYMAN_SCRAPER_CONFIG_PATH: /run/config/config.json
+      MONEYMAN_EXPORTER_TOKEN_PATH: /run/config/exporter.token
+      MONEYMAN_NOTIFIER_TOKEN_PATH: /run/config/notifier.token
+    volumes:
+      - scraper-config:/run/config:ro
+    networks:
+      - control
+      - scraper-egress
+    shm_size: 1gb
+
+networks:
+  control:
+    internal: true
+  scraper-egress:
+    internal: true
+  exporter-egress:
+    internal: true
+  notifier-egress:
+    internal: true
+  internet: {}
+
+volumes:
+  scraper-config: {}
+  exporter-config: {}
+  notifier-config: {}
+  scraper-egress-config: {}
+  exporter-egress-config: {}
+  notifier-egress-config: {}

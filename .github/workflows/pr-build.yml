@@ -1,558 +1,82 @@
-name: PR Pipeline
+name: Pull request validation
 
 on:
   pull_request:
     branches: [main]
-  workflow_dispatch:
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "patches/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tsconfig*.json"
+      - "Dockerfile"
+      - "docker-compose*.yml"
+      - ".github/workflows/**"
 
 jobs:
-  # Check if build-relevant files were changed
-  check-changes:
-    runs-on: ubuntu-latest
-    outputs:
-      build-needed: ${{ steps.check.outputs.build-needed }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Check for build-relevant changes
-        id: check
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "build-needed=true" >> $GITHUB_OUTPUT
-            echo "Build triggered manually"
-            exit 0
-          fi
-
-          # Get the list of changed files
-          changed_files=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
-          echo "Changed files:"
-          echo "$changed_files"
-
-          # Check if any build-relevant files were changed
-          build_relevant_patterns=(
-            "src/"
-            "patches/"
-            "package.json"
-            "package-lock.json"
-            "tsconfig.json"
-            ".eslintrc.js"
-            ".prettierrc.js"
-            "Dockerfile"
-            "docker-compose.yml"
-            ".github/workflows/pr-build.yml"
-          )
-
-          build_needed=false
-          for pattern in "${build_relevant_patterns[@]}"; do
-            if echo "$changed_files" | grep -q "^$pattern"; then
-              build_needed=true
-              echo "Found build-relevant changes in: $pattern"
-              break
-            fi
-          done
-
-          echo "build-needed=$build_needed" >> $GITHUB_OUTPUT
-          if [[ "$build_needed" == "true" ]]; then
-            echo "Build is needed"
-          else
-            echo "No build-relevant files changed - build will be skipped"
-          fi
-
-  lint:
-    runs-on: ubuntu-latest
-    needs: check-changes
-    if: needs.check-changes.outputs.build-needed == 'true'
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: "npm"
-          cache-dependency-path: package-lock.json
-      - name: Cache node_modules
-        uses: actions/cache@v6
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-modules-
-      - run: npm ci
-        env:
-          PUPPETEER_SKIP_DOWNLOAD: true
-      - run: npm run lint
-
-  test:
-    runs-on: ubuntu-latest
-    needs: check-changes
-    if: needs.check-changes.outputs.build-needed == 'true'
-
-    strategy:
-      matrix:
-        node-version: [24, 25, 26]
-
-    steps:
-      - uses: actions/checkout@v7
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v7
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: "npm"
-          cache-dependency-path: package-lock.json
-      - name: Cache node_modules
-        uses: actions/cache@v6
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-${{ matrix.node-version }}-modules-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-${{ matrix.node-version }}-modules-
-            ${{ runner.os }}-node-modules-
-      - run: npm ci
-        env:
-          PUPPETEER_SKIP_DOWNLOAD: true
-      - run: npm run test
-
   build:
     runs-on: ubuntu-latest
-    needs: check-changes
-    if: always() && needs.check-changes.result == 'success'
+    permissions:
+      contents: read
     strategy:
       matrix:
-        node-version: [24, 25, 26]
-
+        node-version: [25]
     steps:
-      - name: Skip build - no relevant changes
-        if: needs.check-changes.outputs.build-needed == 'false'
-        run: |
-          echo "✅ Build skipped - no code changes detected"
-          echo "This PR only contains non-build files (documentation, etc.)"
-
       - uses: actions/checkout@v7
-        if: needs.check-changes.outputs.build-needed == 'true'
+
       - uses: actions/setup-node@v7
-        if: needs.check-changes.outputs.build-needed == 'true'
         with:
           node-version: ${{ matrix.node-version }}
-          cache: "npm"
-          cache-dependency-path: package-lock.json
-      - name: Cache node_modules
-        if: needs.check-changes.outputs.build-needed == 'true'
-        uses: actions/cache@v6
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-${{ matrix.node-version }}-modules-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-${{ matrix.node-version }}-modules-
-            ${{ runner.os }}-node-modules-
-      - run: npm ci
-        if: needs.check-changes.outputs.build-needed == 'true'
+
+      - run: corepack enable
+
+      - run: pnpm install --frozen-lockfile
         env:
-          PUPPETEER_SKIP_DOWNLOAD: true
-      - run: npm run build
-        if: needs.check-changes.outputs.build-needed == 'true'
+          PUPPETEER_SKIP_DOWNLOAD: "true"
 
-      - name: Build completed
-        if: needs.check-changes.outputs.build-needed == 'true'
-        run: echo "✅ Build completed successfully"
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm lint
 
-  prepare:
+  docker:
+    needs: build
     runs-on: ubuntu-latest
-    needs: [check-changes, lint, test, build]
-    if: always() && needs.check-changes.result == 'success' && (needs.check-changes.outputs.build-needed == 'false' || (needs.lint.result == 'success' && needs.test.result == 'success' && needs.build.result == 'success'))
-
-    outputs:
-      repository: ${{ steps.normalize-repository-name.outputs.repository }}
-      is_external: ${{ steps.pr-check.outputs.is_external }}
-      build_needed: ${{ needs.check-changes.outputs.build-needed }}
-
-    steps:
-      - name: Normalize repository name
-        id: normalize-repository-name
-        run: echo "repository=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-
-      - name: Check if PR is from external contributor
-        id: pr-check
-        run: |
-          if [ "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}" ]; then
-            echo "is_external=false" >> $GITHUB_OUTPUT
-            echo "PR is from the same repository (internal)"
-          else
-            echo "is_external=true" >> $GITHUB_OUTPUT
-            echo "PR is from a fork (external contributor)"
-          fi
-
-  build_image_internal:
-    runs-on: ubuntu-latest
-    needs: prepare
-    if: needs.prepare.outputs.is_external == 'false'
-
     permissions:
       contents: read
       packages: write
-      pull-requests: write
-
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - config-init
+          - egress
+          - notifier
+          - exporter
+          - scraper
     steps:
-      - name: Comment - No image build needed
-        if: needs.prepare.outputs.build_needed == 'false'
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const prNumber = context.payload.pull_request.number;
+      - uses: actions/checkout@v7
 
-            const comment = `📦 **Docker Image Build Skipped**
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
-            No Docker image was built for this PR because it only contains changes to documentation or other non-code files.
-
-            ✅ Status: Passed (no build required)`;
-
-            // Find existing comment about Docker build to update instead of creating new one
-            const comments = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber
-            });
-
-            const existingComment = comments.data.find(c =>
-              c.body.includes('📦 **Docker Image Build Skipped**')
-            );
-
-            if (existingComment) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existingComment.id,
-                body: comment
-              });
-            } else {
-              await github.rest.issues.createComment({
-                issue_number: prNumber,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: comment
-              });
-            }
-
-      - name: Checkout repository
-        if: needs.prepare.outputs.build_needed == 'true'
-        uses: actions/checkout@v7
-
-      - name: Log in to the Container registry
-        if: needs.prepare.outputs.build_needed == 'true'
-        uses: docker/login-action@v4
+      - uses: docker/login-action@v4
+        if: github.event.pull_request.head.repo.full_name == github.repository
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Docker metadata for PR
-        if: needs.prepare.outputs.build_needed == 'true'
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ghcr.io/${{ needs.prepare.outputs.repository }}
-          tags: type=ref,event=pr
+      - id: repository
+        run: echo "name=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push Docker image
-        if: needs.prepare.outputs.build_needed == 'true'
-        uses: docker/build-push-action@v7
+      - uses: docker/build-push-action@v7
         with:
           context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          target: ${{ matrix.target }}
+          push: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          tags: ghcr.io/${{ steps.repository.outputs.name }}-${{ matrix.target }}:pr-${{ github.event.pull_request.number }}
+          cache-from: type=gha,scope=${{ matrix.target }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.target }}
           provenance: false
           sbom: false
-
-      - name: Get image size
-        if: needs.prepare.outputs.build_needed == 'true'
-        id: image-size
-        run: |
-          IMAGE_TAG="${{ steps.meta.outputs.tags }}"
-          # Get image size in human-readable format
-          IMAGE_SIZE=$(docker images --format "{{.Size}}" "$IMAGE_TAG")
-          echo "size=$IMAGE_SIZE" >> $GITHUB_OUTPUT
-          echo "Image size: $IMAGE_SIZE"
-
-      - name: Comment on PR with image information
-        if: needs.prepare.outputs.build_needed == 'true'
-        uses: actions/github-script@v9
-        env:
-          IMAGE_SIZE: ${{ steps.image-size.outputs.size }}
-        with:
-          script: |
-            const prNumber = context.payload.pull_request.number;
-            const repository = context.repo.repo.toLowerCase();
-            const owner = context.repo.owner.toLowerCase();
-            const imageTag = `pr-${prNumber}`;
-            const imageName = `ghcr.io/${owner}/${repository}:${imageTag}`;
-            const ghcrUrl = `https://github.com/${owner}/${repository}/pkgs/container/${repository}`;
-
-            const imageSize = process.env.IMAGE_SIZE || 'Unknown';
-
-            const comment = `🐳 Docker image built and pushed: \`${imageName}\`
-
-            📏 **Size**: ${imageSize}
-            🔗 [View on GitHub Container Registry](${ghcrUrl})`;
-
-            // Find existing comment about Docker image to update instead of creating new one
-            const comments = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber
-            });
-
-            const existingComment = comments.data.find(c =>
-              c.body.includes('🐳 Docker image built and pushed:') &&
-              c.body.includes(`pr-${prNumber}`)
-            );
-
-            if (existingComment) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existingComment.id,
-                body: comment
-              });
-            } else {
-              await github.rest.issues.createComment({
-                issue_number: prNumber,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: comment
-              });
-            }
-
-  build_image_external:
-    runs-on: ubuntu-latest
-    needs: prepare
-    if: needs.prepare.outputs.is_external == 'true'
-
-    permissions:
-      contents: read
-      pull-requests: write
-
-    steps:
-      - name: Comment - No image build needed
-        if: needs.prepare.outputs.build_needed == 'false'
-        # External PRs from forks don't have write permissions, so we allow this to fail gracefully
-        continue-on-error: true
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const prNumber = context.payload.pull_request.number;
-
-            const comment = `📦 **Docker Image Build Skipped**
-
-            No Docker image was built for this PR because it only contains changes to documentation or other non-code files.
-
-            ✅ Status: Passed (no build required)`;
-
-            // Find existing comment about Docker build to update instead of creating new one
-            const comments = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber
-            });
-
-            const existingComment = comments.data.find(c =>
-              c.body.includes('📦 **Docker Image Build Skipped**')
-            );
-
-            if (existingComment) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existingComment.id,
-                body: comment
-              });
-            } else {
-              await github.rest.issues.createComment({
-                issue_number: prNumber,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: comment
-              });
-            }
-
-      - name: Write skip notice to job summary
-        if: needs.prepare.outputs.build_needed == 'false'
-        run: |
-          echo "## 📦 Docker Image Build Skipped" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "No Docker image was built for this PR because it only contains changes to documentation or other non-code files." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Status: Passed (no build required)" >> $GITHUB_STEP_SUMMARY
-
-      - name: Checkout repository
-        if: needs.prepare.outputs.build_needed == 'true'
-        uses: actions/checkout@v7
-
-      - name: Set up Docker Buildx
-        if: needs.prepare.outputs.build_needed == 'true'
-        uses: docker/setup-buildx-action@v4
-
-      - name: Extract Docker metadata for PR
-        if: needs.prepare.outputs.build_needed == 'true'
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ghcr.io/${{ needs.prepare.outputs.repository }}
-          tags: type=ref,event=pr
-
-      - name: Build Docker image
-        if: needs.prepare.outputs.build_needed == 'true'
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          push: false
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=docker,dest=/tmp/image.tar
-
-      - name: Get image and artifact sizes
-        if: needs.prepare.outputs.build_needed == 'true'
-        id: image-size
-        run: |
-          # Load the image to inspect it
-          docker load < /tmp/image.tar
-          IMAGE_TAG="${{ steps.meta.outputs.tags }}"
-
-          # Get image size in human-readable format
-          IMAGE_SIZE=$(docker images --format "{{.Size}}" "$IMAGE_TAG")
-          echo "image_size=$IMAGE_SIZE" >> $GITHUB_OUTPUT
-
-          # Get tar file size
-          TAR_SIZE=$(ls -lh /tmp/image.tar | awk '{print $5}')
-          echo "tar_size=$TAR_SIZE" >> $GITHUB_OUTPUT
-
-          echo "Image size: $IMAGE_SIZE"
-          echo "Tar file size: $TAR_SIZE"
-
-      - name: Upload Docker image as artifact
-        if: needs.prepare.outputs.build_needed == 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: docker-image-pr-${{ github.event.pull_request.number }}
-          path: /tmp/image.tar
-          retention-days: 7
-
-      - name: External PR notice
-        if: needs.prepare.outputs.build_needed == 'true'
-        run: |
-          echo "ℹ️ This PR is from an external contributor."
-          echo "✅ Docker image was built successfully and saved as artifact."
-          echo "📦 Download the artifact 'docker-image-pr-${{ github.event.pull_request.number }}' to get the image."
-          echo "🔧 Load it with: docker load < image.tar"
-          echo "🔄 The image will be built and pushed to registry when the PR is merged."
-
-      - name: Write artifact instructions to job summary
-        if: needs.prepare.outputs.build_needed == 'true'
-        env:
-          IMAGE_SIZE: ${{ steps.image-size.outputs.image_size }}
-          TAR_SIZE: ${{ steps.image-size.outputs.tar_size }}
-        run: |
-          PR_NUMBER="${{ github.event.pull_request.number }}"
-          REPOSITORY="${{ github.repository }}"
-          REPO_LOWER=$(echo "$REPOSITORY" | tr '[:upper:]' '[:lower:]')
-          RUN_ID="${{ github.run_id }}"
-
-          cat >> $GITHUB_STEP_SUMMARY << EOF
-          ## 🐳 Docker Image Available as Artifact
-
-          Your PR Docker image has been built and is available for download!
-
-          📏 **Image Size**: ${IMAGE_SIZE} (Download size: ${TAR_SIZE})
-
-          ### 📦 Download & Load Instructions (Local Testing)
-
-          **Bash (one-liner):**
-          \`\`\`bash
-          gh run download ${RUN_ID} -n docker-image-pr-${PR_NUMBER} && unzip docker-image-pr-${PR_NUMBER}.zip && docker load < image.tar
-          \`\`\`
-
-          **PowerShell (one-liner):**
-          \`\`\`powershell
-          gh run download ${RUN_ID} -n docker-image-pr-${PR_NUMBER}; Expand-Archive docker-image-pr-${PR_NUMBER}.zip -Force; docker load -i image.tar
-          \`\`\`
-
-          The image will be tagged as: \`ghcr.io/${REPO_LOWER}:pr-${PR_NUMBER}\`
-
-          > **Note**: Requires [GitHub CLI](https://cli.github.com/) to be installed and authenticated.
-
-          ### 🚀 After Merge
-
-          The image will be automatically built and pushed to the registry when this PR is merged, making it available for the regular scrape workflow.
-          EOF
-
-      - name: Comment on PR with artifact instructions
-        if: needs.prepare.outputs.build_needed == 'true'
-        # External PRs from forks don't have write permissions, so we allow this to fail gracefully
-        # The job summary above provides the same information
-        continue-on-error: true
-        uses: actions/github-script@v9
-        env:
-          IMAGE_SIZE: ${{ steps.image-size.outputs.image_size }}
-          TAR_SIZE: ${{ steps.image-size.outputs.tar_size }}
-        with:
-          script: |
-            const prNumber = context.payload.pull_request.number;
-            const repository = context.repo.repo.toLowerCase();
-            const owner = context.repo.owner.toLowerCase();
-            const runId = context.runId;
-
-            const imageSize = process.env.IMAGE_SIZE || 'Unknown';
-            const tarSize = process.env.TAR_SIZE || 'Unknown';
-
-            const comment = `## 🐳 Docker Image Available as Artifact
-
-            Your PR Docker image has been built and is available for download!
-
-            📏 **Image Size**: ${imageSize} (Download size: ${tarSize})
-
-            ### 📦 Download & Load Instructions (Local Testing)
-
-            **Bash (one-liner):**
-            \`\`\`bash
-            gh run download ${runId} -n docker-image-pr-${prNumber} && unzip docker-image-pr-${prNumber}.zip && docker load < image.tar
-            \`\`\`
-
-            **PowerShell (one-liner):**
-            \`\`\`powershell
-            gh run download ${runId} -n docker-image-pr-${prNumber}; Expand-Archive docker-image-pr-${prNumber}.zip -Force; docker load -i image.tar
-            \`\`\`
-
-            The image will be tagged as: \`ghcr.io/${owner}/${repository}:pr-${prNumber}\`
-
-            > **Note**: Requires [GitHub CLI](https://cli.github.com/) to be installed and authenticated.
-
-            ### 🚀 After Merge
-
-            The image will be automatically built and pushed to the registry when this PR is merged, making it available for the regular scrape workflow.`;
-
-            // Find existing comment about Docker artifact to update instead of creating new one
-            const comments = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber
-            });
-
-            const existingComment = comments.data.find(c =>
-              c.body.includes('## 🐳 Docker Image Available as Artifact')
-            );
-
-            if (existingComment) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existingComment.id,
-                body: comment
-              });
-            } else {
-              await github.rest.issues.createComment({
-                issue_number: prNumber,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: comment
-              });
-            }

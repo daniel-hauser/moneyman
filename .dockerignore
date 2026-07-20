@@ -1,3 +1,9 @@
 .git/
+.github/
 .vscode/
 node_modules/
+.env
+.env.*
+coverage/
+output/
+*.log

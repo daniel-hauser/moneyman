@@ -1,0 +1,68 @@
+import { createScraper } from "israeli-bank-scrapers";
+import type {
+  ScraperOptions,
+  ScraperScrapingResult,
+} from "israeli-bank-scrapers";
+import type { AccountConfig } from "./config.js";
+import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
+import { createLogger } from "@moneyman/common";
+import { prepareAccountCredentials } from "./otp.js";
+import { isCloudflareBlock } from "./cloudflareSolver.js";
+
+const logger = createLogger("scrape");
+
+export async function getAccountTransactions(
+  account: AccountConfig,
+  options: ScraperOptions,
+  onProgress: (companyId: string, status: string) => void,
+): Promise<ScraperScrapingResult> {
+  logger(`started`);
+  try {
+    const scraper = createScraper(options);
+
+    scraper.onProgress((companyId, { type }) => {
+      logger(`[${companyId}] ${type}`);
+      onProgress(companyId, type);
+    });
+
+    const result = await scraper.scrape({
+      ...account,
+      ...prepareAccountCredentials(account),
+    });
+
+    if (!result.success) {
+      const errorMessage = result.errorMessage || "";
+      if (isCloudflareBlock(errorMessage)) {
+        logger(`Cloudflare block detected: ${result.errorType}`);
+        return {
+          success: false,
+          errorType: ScraperErrorTypes.Generic,
+          errorMessage: `CloudflareBlocked: ${errorMessage.substring(0, 200)}...`,
+        };
+      }
+      logger(`error: ${result.errorType} ${result.errorMessage}`);
+    }
+    logger(`ended`);
+
+    return result;
+  } catch (e) {
+    logger(e);
+    const errorString = String(e);
+
+    // Detect Cloudflare blocks in exceptions
+    if (isCloudflareBlock(errorString)) {
+      logger("Cloudflare block detected in exception");
+      return {
+        success: false,
+        errorType: ScraperErrorTypes.Generic,
+        errorMessage: `CloudflareBlocked: The scraper was blocked by Cloudflare. Try running from a different network/IP or wait before retrying.`,
+      };
+    }
+
+    return {
+      success: false,
+      errorType: ScraperErrorTypes.Generic,
+      errorMessage: errorString,
+    };
+  }
+}

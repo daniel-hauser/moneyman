@@ -1,84 +1,63 @@
 {
   "name": "moneyman",
   "version": "1.0.0",
+  "private": true,
   "description": "",
-  "main": "dst/index.ts",
   "type": "module",
+  "packageManager": "pnpm@10.34.5",
   "engines": {
-    "node": ">=24"
+    "node": ">=25 <26"
   },
   "scripts": {
     "act": "go run github.com/nektos/act@latest",
-    "start": "node dst/index.js",
-    "start:container": "docker compose up",
+    "preinstall": "node scripts/check-node-version.mjs",
+    "start": "pnpm --filter @moneyman/scraper start",
+    "start:container": "docker compose up --abort-on-container-exit",
     "prepare": "husky",
-    "postinstall": "patch-package",
-    "build": "tsc",
+    "build": "pnpm typecheck",
+    "typecheck": "tsc --noEmit",
     "lint": "prettier --check .",
     "lint:fix": "prettier --write .",
     "test": "jest",
-    "test:config": "npm run build && node dst/scripts/verify-config.js",
-    "test:scraper-access": "npm run build && npm run test:scraper-access-without-build",
-    "test:scraper-access-without-build": "node --test dst/test-scraper-access.js"
+    "test:config": "tsx apps/config-init/src/verify.ts",
+    "test:scraper-access": "node --import tsx --test apps/scraper/src/test-scraper-access.ts"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/daniel-hauser/moneyman.git"
   },
-  "author": "",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/daniel-hauser/moneyman/issues"
   },
   "homepage": "https://github.com/daniel-hauser/moneyman#readme",
-  "dependencies": {
-    "@actual-app/api": "^26.7.0",
-    "@mswjs/interceptors": "^0.41.9",
-    "@telegraf/entity": "^0.7.0",
-    "async": "^3.2.6",
-    "azure-kusto-data": "^7.2.0",
-    "azure-kusto-ingest": "^7.2.0",
-    "buxfer-ts-client": "^1.1.4",
-    "date-fns": "^4.4.0",
-    "debug": "^4.4.3",
-    "dotenv": "^17.4.2",
-    "glob": "^13.0.6",
-    "google-auth-library": "^10.9.0",
-    "google-spreadsheet": "^5.3.0",
-    "hash-it": "^7.0.3",
-    "israeli-bank-scrapers": "^6.8.0",
-    "jsonc-parser": "^3.3.1",
-    "pg": "^8.22.0",
-    "pg-format": "^1.0.4",
-    "puppeteer": "^25.3.0",
-    "telegraf": "^4.16.3",
-    "ynab": "^4.5.0",
-    "zod": "^4.4.3"
-  },
   "devDependencies": {
-    "@swc/core": "^1.15.43",
-    "@swc/jest": "^0.2.39",
-    "@types/async": "^3.2.25",
-    "@types/debug": "^4.1.13",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^26.1.1",
-    "@types/pg": "^8.20.0",
-    "@types/pg-format": "^1.0.5",
-    "husky": "^9.1.7",
-    "jest": "^30.4.2",
-    "jest-mock-extended": "^4.0.1",
-    "patch-package": "^8.0.1",
-    "pg-mem": "^3.0.14",
-    "prettier": "^3.9.5",
-    "pretty-quick": "^4.2.2",
-    "typescript": "^7.0.2"
+    "@jest/globals": "catalog:",
+    "@swc/core": "catalog:",
+    "@swc/jest": "catalog:",
+    "@types/async": "catalog:",
+    "@types/debug": "catalog:",
+    "@types/jest": "catalog:",
+    "@types/node": "catalog:",
+    "@types/pg": "catalog:",
+    "@types/pg-format": "catalog:",
+    "husky": "catalog:",
+    "jest": "catalog:",
+    "jest-mock-extended": "catalog:",
+    "pg-mem": "catalog:",
+    "prettier": "catalog:",
+    "pretty-quick": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:"
   },
-  "overrides": {
-    "google-spreadsheet": {
-      "google-auth-library": "^10.3.0"
+  "pnpm": {
+    "overrides": {
+      "@types/node": "^25.0.0",
+      "google-spreadsheet>google-auth-library": "^10.3.0",
+      "jest-mock-extended>typescript": "$typescript"
     },
-    "jest-mock-extended": {
-      "typescript": "$typescript"
+    "patchedDependencies": {
+      "ky@2.0.2": "patches/ky+2.0.2.patch"
     }
   }
 }

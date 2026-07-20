@@ -1,8 +1,7 @@
-name: Create and publish a Docker image
+name: Create and publish Docker images
 
 on:
   schedule:
-    # Bi-daily at 06:00 and 18:00 UTC
     - cron: "0 6,18 * * *"
   workflow_dispatch:
 
@@ -10,125 +9,119 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  build-and-push-image:
+  prepare:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      packages: write
-
+      contents: read
+    outputs:
+      needed: ${{ steps.check.outputs.needed }}
+      repository: ${{ steps.repository.outputs.name }}
+      version: ${{ steps.version.outputs.version }}
+      short-sha: ${{ steps.version.outputs.short_sha }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Check if release needed
-        id: check
+      - id: check
+        name: Check if release is needed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Get the latest release tag
-          LATEST_TAG=$(gh release view --json tagName --jq '.tagName' 2>/dev/null || echo "")
-          if [ -z "$LATEST_TAG" ]; then
-            echo "No existing releases found, proceeding with build"
-            echo "needed=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Get the commit SHA of the latest release tag
-          RELEASE_SHA=$(git rev-list -n 1 "$LATEST_TAG" 2>/dev/null || echo "")
-          HEAD_SHA=$(git rev-parse HEAD)
-
-          echo "Latest release: $LATEST_TAG (commit: ${RELEASE_SHA:0:7})"
-          echo "Current HEAD: ${HEAD_SHA:0:7}"
-
-          if [ "$RELEASE_SHA" = "$HEAD_SHA" ]; then
-            echo "✅ HEAD is already released as $LATEST_TAG, skipping build"
-            echo "needed=false" >> $GITHUB_OUTPUT
+          latest_tag=$(gh release view --json tagName --jq '.tagName' 2>/dev/null || true)
+          release_sha=$(git rev-list -n 1 "$latest_tag" 2>/dev/null || true)
+          if [ -n "$latest_tag" ] && [ "$release_sha" = "$GITHUB_SHA" ]; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
           else
-            echo "🆕 New commits since $LATEST_TAG, proceeding with build"
-            echo "needed=true" >> $GITHUB_OUTPUT
+            echo "needed=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - id: repository
+        if: steps.check.outputs.needed == 'true'
+        run: echo "name=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - id: version
+        if: steps.check.outputs.needed == 'true'
+        name: Generate CalVer version
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - id: normalize-repository-name
-        if: steps.check.outputs.needed == 'true'
-        run: echo "repository=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-
-      - name: Generate CalVer version
-        if: steps.check.outputs.needed == 'true'
-        id: version
         run: |
-          # Generate date-based version (CalVer: YYYY.MM.DD)
-          TODAY=$(date -u +%Y.%m.%d)
+          today=$(date -u +%Y.%m.%d)
+          count=$(gh release list --json tagName --jq "[.[] | select(.tagName | startswith(\"v${today}.\"))] | length")
+          version="v${today}.$((count + 1))"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
 
-          # Count existing releases with today's date prefix to determine sequence number
-          # Use JSON output and jq to reliably count matching tags
-          EXISTING_COUNT=$(gh release list --json tagName --jq "[.[] | select(.tagName | startswith(\"v${TODAY}.\"))] | length")
+  build:
+    if: needs.prepare.outputs.needed == 'true'
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - config-init
+          - egress
+          - notifier
+          - exporter
+          - scraper
+    steps:
+      - uses: actions/checkout@v7
 
-          # Handle empty result
-          if [ -z "$EXISTING_COUNT" ]; then
-            EXISTING_COUNT=0
-          fi
-
-          SEQUENCE=$((EXISTING_COUNT + 1))
-
-          # Create version tag (e.g., v2025.12.02.1)
-          VERSION="v${TODAY}.${SEQUENCE}"
-          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
-          echo "📦 Generated version: ${VERSION} (commit: ${SHORT_SHA})"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Log in to the Container registry
-        if: steps.check.outputs.needed == 'true'
-        uses: docker/login-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Docker metadata and set tags
-        if: steps.check.outputs.needed == 'true'
-        id: meta
+      - id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}
+          images: ${{ env.REGISTRY }}/${{ needs.prepare.outputs.repository }}-${{ matrix.target }}
           tags: |
             type=raw,value=latest
-            type=raw,value=${{ steps.version.outputs.version }}
+            type=raw,value=${{ needs.prepare.outputs.version }}
             type=sha,format=short
 
-      - name: Build and push Docker image
-        if: steps.check.outputs.needed == 'true'
-        uses: docker/build-push-action@v7
+      - uses: docker/build-push-action@v7
         with:
           context: .
+          target: ${{ matrix.target }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           provenance: false
           sbom: false
 
-      - name: Create Release
-        if: steps.check.outputs.needed == 'true'
-        run: |
-          gh release create ${{ steps.version.outputs.version }} \
-            --title "Release ${{ steps.version.outputs.version }}" \
-            --notes "🐳 Docker image published to GitHub Container Registry
-
-          **Version:** \`${{ steps.version.outputs.version }}\`
-          **Image:** \`${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:${{ steps.version.outputs.version }}\`
-          **Commit:** [${{ steps.version.outputs.short_sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
-
-          Pull with:
-          \`\`\`bash
-          docker pull ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:${{ steps.version.outputs.version }}
-          # or use 'latest' for the most recent version
-          docker pull ${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:latest
-          \`\`\`" \
-            --generate-notes
+  release:
+    if: needs.prepare.outputs.needed == 'true'
+    needs:
+      - prepare
+      - build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ needs.prepare.outputs.repository }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          SHORT_SHA: ${{ needs.prepare.outputs.short-sha }}
+        run: |
+          gh release create "$VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Release $VERSION" \
+            --generate-notes \
+            --notes "Docker service images published for commit $SHORT_SHA:
+
+          - ghcr.io/$REPOSITORY-config-init:$VERSION
+          - ghcr.io/$REPOSITORY-egress:$VERSION
+          - ghcr.io/$REPOSITORY-notifier:$VERSION
+          - ghcr.io/$REPOSITORY-exporter:$VERSION
+          - ghcr.io/$REPOSITORY-scraper:$VERSION"

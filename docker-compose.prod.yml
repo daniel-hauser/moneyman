@@ -1,0 +1,15 @@
+services:
+  config-init:
+    image: ${MONEYMAN_CONFIG_INIT_IMAGE:?config-init image is required}
+  scraper-egress:
+    image: ${MONEYMAN_EGRESS_IMAGE:?egress image is required}
+  exporter-egress:
+    image: ${MONEYMAN_EGRESS_IMAGE:?egress image is required}
+  notifier-egress:
+    image: ${MONEYMAN_EGRESS_IMAGE:?egress image is required}
+  notifier:
+    image: ${MONEYMAN_NOTIFIER_IMAGE:?notifier image is required}
+  exporter:
+    image: ${MONEYMAN_EXPORTER_IMAGE:?exporter image is required}
+  scraper:
+    image: ${MONEYMAN_SCRAPER_IMAGE:?scraper image is required}

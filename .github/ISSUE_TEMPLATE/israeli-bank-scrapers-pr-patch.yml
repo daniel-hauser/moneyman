@@ -32,7 +32,7 @@ body:
 
         **Important:** Apply patches to existing node_modules, don't replace them!
 
-        - [ ] Run `npm ci` to install dependencies and apply existing patches
+        - [ ] Run `pnpm install --frozen-lockfile` to install dependencies and apply existing patches
         - [ ] Verify the existing patch was applied by checking the modified files in node_modules
         - [ ] Review the PR changes on GitHub to understand what needs to be changed
         - [ ] Apply the PR changes directly to the files in node_modules (on top of existing patches)

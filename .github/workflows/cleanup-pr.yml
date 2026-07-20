@@ -1,160 +1,29 @@
-name: "Clean up Docker images from PR"
+name: Clean up PR service images
 
 on:
   pull_request:
     types: [closed]
 
 jobs:
-  purge-image:
-    name: Delete image from ghcr.io
+  purge-images:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - config-init
+          - egress
+          - notifier
+          - exporter
+          - scraper
     steps:
-      - name: Check if PR was from external contributor
-        id: pr-check
-        run: |
-          if [ "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}" ]; then
-            echo "is_external=false" >> $GITHUB_OUTPUT
-            echo "PR was from the same repository (internal) - image cleanup needed"
-          else
-            echo "is_external=true" >> $GITHUB_OUTPUT
-            echo "PR was from a fork (external contributor) - no image to cleanup"
-          fi
-
-      - name: Delete Docker image
-        if: steps.pr-check.outputs.is_external == 'false'
-        uses: chipkent/action-cleanup-package@v1.0.3
+      - uses: chipkent/action-cleanup-package@1316a66015b82d745b57acbb6c570f2bb1d108f9 # v1.0.3
         continue-on-error: true
-        id: delete-image
         with:
-          package-name: ${{ github.event.repository.name }}
+          package-name: ${{ github.event.repository.name }}-${{ matrix.target }}
           tag: pr-${{ github.event.pull_request.number }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Update original comment about image push
-        if: steps.pr-check.outputs.is_external == 'false'
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const prNumber = context.payload.pull_request.number;
-            const repository = context.repo.repo.toLowerCase();
-            const owner = context.repo.owner.toLowerCase();
-            const imageTag = `pr-${prNumber}`;
-            const imageName = `ghcr.io/${owner}/${repository}:${imageTag}`;
-
-            try {
-              // Get all comments on the PR
-              const comments = await github.rest.issues.listComments({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber
-              });
-
-              // Find the comment about Docker image being built
-              const imageComment = comments.data.find(comment =>
-                comment.body.includes('🐳 Docker image built and pushed:') &&
-                comment.body.includes(imageName)
-              );
-
-              if (imageComment) {
-                const deletionStatus = '${{ steps.delete-image.outcome }}' === 'success' ?
-                  '🗑️ **Image deleted** from registry' :
-                  '⚠️ **Image cleanup attempted** (may not have existed)';
-
-                // Extract just the first line (image info) for strikethrough, exclude the link
-                const firstLine = imageComment.body.split('\n')[0];
-                const updatedBody = `~~${firstLine}~~\n\n${deletionStatus}`;
-
-                await github.rest.issues.updateComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  comment_id: imageComment.id,
-                  body: updatedBody
-                });
-
-                console.log('Updated original image comment with deletion status');
-              } else {
-                console.log('Original image comment not found - may not have been created or PR only contained non-build files');
-              }
-            } catch (error) {
-              console.log('Error updating comment:', error);
-              // Don't fail the workflow if comment update fails
-            }
-
-      - name: External PR cleanup notice
-        if: steps.pr-check.outputs.is_external == 'true'
-        run: |
-          echo "ℹ️ This PR was from an external contributor."
-          echo "✅ No Docker image cleanup needed (image was never pushed)."
-          echo "🧹 Will clean up artifacts if any exist."
-
-      - name: Clean up artifacts for external PRs
-        if: steps.pr-check.outputs.is_external == 'true'
-        uses: actions/github-script@v9
-        continue-on-error: true
-        with:
-          script: |
-            const prNumber = context.payload.pull_request.number;
-            const artifactName = `docker-image-pr-${prNumber}`;
-
-            try {
-              // Get all artifacts for the repository
-              const artifacts = await github.rest.actions.listArtifactsForRepo({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                per_page: 100
-              });
-              
-              // Find artifacts matching our PR pattern
-              const prArtifacts = artifacts.data.artifacts.filter(artifact => 
-                artifact.name === artifactName
-              );
-              
-              if (prArtifacts.length > 0) {
-                console.log(`Found ${prArtifacts.length} artifact(s) to clean up for PR ${prNumber}`);
-                
-                // Delete each matching artifact
-                for (const artifact of prArtifacts) {
-                  await github.rest.actions.deleteArtifact({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    artifact_id: artifact.id
-                  });
-                  console.log(`Deleted artifact ${artifact.name} (ID: ${artifact.id})`);
-                }
-                
-                // Update the original artifact comment if it exists
-                const comments = await github.rest.issues.listComments({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: prNumber
-                });
-                
-                const artifactComment = comments.data.find(comment =>
-                  comment.body.includes('## 🐳 Docker Image Available as Artifact')
-                );
-                
-                if (artifactComment) {
-                  // Extract just the header for strikethrough, exclude the rest
-                  const headerLine = '## 🐳 Docker Image Available as Artifact';
-                  const updatedBody = `~~${headerLine}~~\n\n🗑️ **Artifacts cleaned up** from repository`;
-                  
-                  await github.rest.issues.updateComment({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    comment_id: artifactComment.id,
-                    body: updatedBody
-                  });
-                  
-                  console.log('Updated original artifact comment with cleanup status');
-                }
-              } else {
-                console.log(`No artifacts found for PR ${prNumber} - cleanup not needed`);
-              }
-            } catch (error) {
-              console.log('Error during artifact cleanup:', error);
-              // Don't fail the workflow if artifact cleanup fails
-            }

@@ -8,20 +8,21 @@ Moneyman is a TypeScript/Node.js application that scrapes financial transaction 
 
 ### Core Structure
 
-- **Language**: TypeScript (compiled to JavaScript)
-- **Runtime**: Node.js 24+ (Dockerfile uses node:26)
-- **Package Manager**: npm
-- **Build Output**: `dst/` directory
-- **Source Code**: `src/` directory
+- **Language**: TypeScript executed through `tsx`
+- **Runtime**: Node.js 25
+- **Package Manager**: pnpm workspaces
+- **Build**: `tsc --noEmit` typechecking; no compiled output directory
+- **Source Code**: `apps/` and `packages/`
 
 ### Main Modules
 
-- `src/index.ts` - Main entry point
-- `src/scraper/` - Bank scraping logic using israeli-bank-scrapers
-- `src/bot/` - Data processing and messaging logic
-- `src/bot/storage/` - Storage provider implementations (Google Sheets, YNAB, etc.)
-- `src/config.ts` - Configuration management with Zod validation
-- `src/security/` - Security and domain filtering logic
+- `apps/config-init/` - Networkless legacy-config splitter
+- `apps/egress/` - Per-boundary allowlist proxy
+- `apps/scraper/` - Credential-bearing bank scraper and Chromium
+- `apps/exporter/` - Storage provider implementations
+- `apps/notifier/` - Telegram notifications, OTP, screenshots, and private logs
+- `packages/common/` - Shared dependency-light utilities
+- `packages/protocol/` - Zod configuration and authenticated IPC schemas
 
 ### Testing
 
@@ -34,24 +35,24 @@ Moneyman is a TypeScript/Node.js application that scrapes financial transaction 
 ### Setup
 
 ```bash
-npm ci                    # Install dependencies
-npm run build            # Compile TypeScript
-npm run test             # Run all tests
-npm run lint             # Check code formatting
-npm run lint:fix         # Auto-fix formatting issues
+pnpm install --frozen-lockfile
+pnpm build
+pnpm test
+pnpm lint
+pnpm lint:fix
 ```
 
 ### Key Scripts
 
-- `npm start` - Run the application
-- `npm run build` - TypeScript compilation
-- `npm run test` - Run Jest tests
-- `npm run test:config` - Test configuration validation
-- `npm run test:scraper-access` - Test scraper connectivity
+- `pnpm start` - Run the scraper application
+- `pnpm build` - Typecheck the workspace
+- `pnpm test` - Run Jest tests
+- `pnpm test:config` - Test configuration validation
+- `pnpm test:scraper-access` - Test scraper connectivity
 
 ### Configuration
 
-All configuration must use the `MONEYMAN_CONFIG` JSON format via `MONEYMAN_CONFIG` environment variable or `MONEYMAN_CONFIG_PATH` environment variable pointing to a JSON file.
+Legacy `MONEYMAN_CONFIG` and `MONEYMAN_CONFIG_PATH` remain supported. In Docker, the networkless config initializer splits them into least-privilege service files and authentication tokens.
 
 ## Key Dependencies
 
@@ -67,7 +68,7 @@ All configuration must use the `MONEYMAN_CONFIG` JSON format via `MONEYMAN_CONFI
 ### Configuration
 
 - Uses Zod schemas for runtime validation
-- Configuration is centralized in `src/config.ts`
+- Configuration schemas and splitting are centralized in `packages/protocol/src/config.schema.ts`
 
 ### Error Handling
 
@@ -84,9 +85,9 @@ All configuration must use the `MONEYMAN_CONFIG` JSON format via `MONEYMAN_CONFI
 
 ### Security
 
-- Domain-based request filtering for scrapers
-- Configurable security policies
-- Environment variable based secrets management
+- Application containers use internal Docker networks and policy-specific egress proxies
+- Config-init has no network access and writes separate read-only service configurations
+- Scraper, exporter, and notifier communicate through strict authenticated DTOs
 
 ## Storage Providers
 
@@ -104,7 +105,7 @@ The application supports multiple storage backends:
 
 - TypeScript strict mode enabled
 - ES modules used throughout
-- Patch-package used for dependency patches
+- pnpm patched dependencies
 - Husky + pretty-quick for pre-commit formatting
 - Docker support available for containerized deployment
 
@@ -119,8 +120,8 @@ Key environment variables include:
 
 ## Common Development Tasks
 
-1. **Adding a new storage provider**: Implement the `StorageBase` interface in `src/bot/storage/`
-2. **Modifying configuration**: Update Zod schemas in `src/config.ts`
+1. **Adding a new storage provider**: Implement the storage provider in `apps/exporter/src/storage/`
+2. **Modifying configuration**: Update Zod schemas in `packages/protocol/src/config.schema.ts`
 3. **Adding new scrapers**: Extend the israeli-bank-scrapers integration
-4. **Testing changes**: Run `npm test` and validate with `npm run test:config`
-5. **Updating dependencies**: Use `PUPPETEER_SKIP_DOWNLOAD=true` when running `npm install` on dev machines (CI uses Docker with system Chromium). When combining multiple dependabot PRs, check for breaking changes requiring code modifications (e.g., puppeteer major bumps remove/rename APIs). Reference superseded PRs in the combined PR description.
+4. **Testing changes**: Run `pnpm test` and validate with `pnpm test:config`
+5. **Updating dependencies**: Use `PUPPETEER_SKIP_DOWNLOAD=true` when running `pnpm install` on dev machines (CI uses Docker with system Chromium). When combining multiple dependabot PRs, check for breaking changes requiring code modifications (e.g., Puppeteer major bumps remove or rename APIs). Reference superseded PRs in the combined PR description.

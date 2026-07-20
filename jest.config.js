@@ -17,7 +17,7 @@ export default {
     ],
   },
   testEnvironment: "node",
-  rootDir: "./src",
+  roots: ["<rootDir>/apps", "<rootDir>/packages"],
   moduleNameMapper: {
     "^(\\.\\.?\\/.+)\\.jsx?$": "$1",
   },

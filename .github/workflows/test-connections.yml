@@ -1,16 +1,18 @@
-name: Test connections
+name: Test scraper connections
 
 on:
   pull_request:
     branches: [main]
     paths:
-      - "src/**"
+      - "apps/scraper/**"
+      - "packages/**"
       - "patches/**"
       - "package.json"
-      - "package-lock.json"
-      - "tsconfig.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
       - "Dockerfile"
       - ".github/workflows/test-connections.yml"
+
 jobs:
   test-connections:
     runs-on: ubuntu-latest
@@ -21,26 +23,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
-      - name: Build Docker image
-        uses: docker/build-push-action@v7
+      - uses: docker/build-push-action@v7
         with:
           context: .
+          target: scraper
           push: false
           load: true
-          tags: moneyman:test
+          tags: moneyman-scraper:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Run test-scraper-access script
+      - name: Run scraper access tests
         env:
-          MONEYMAN_UNSAFE_STDOUT: "true"
+          MONEYMAN_SCRAPER_CONFIG: >-
+            {"accounts":[{"companyId":"max","password":"synthetic"}],"options":{"scraping":{},"security":{},"logging":{"getIpInfoUrl":false},"otp":{}}}
         run: |
-          docker run \
-            --rm \
+          docker run --rm \
             --shm-size=2g \
-            --security-opt seccomp=unconfined \
-            -e MONEYMAN_UNSAFE_STDOUT \
-            moneyman:test npm run test:scraper-access-without-build
+            --security-opt no-new-privileges:true \
+            --cap-drop ALL \
+            -e MONEYMAN_SCRAPER_CONFIG \
+            moneyman-scraper:test \
+            node --import tsx src/test-scraper-access.ts

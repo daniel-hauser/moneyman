@@ -1,0 +1,15 @@
+{
+  "name": "@moneyman/config-init",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@moneyman/common": "workspace:*",
+    "@moneyman/protocol": "workspace:*",
+    "pg-connection-string": "catalog:",
+    "tsx": "catalog:"
+  }
+}

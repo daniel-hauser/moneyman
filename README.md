@@ -27,7 +27,7 @@ Moneyman can be configured to periodically run automatically, using the [`scrape
 
 By default, this workflow will run twice daily at 10:05 and 22:05 UTC (12:05 and 00:05 or 13:05 and 01:05 in Israel time, depending on DST).
 
-Since logs are public for public repos, most logs are off by default and the progress and error messages will be sent via Telegram.
+The workflow runs the scraper, exporter, and notifier in separate containers. Docker logs are disabled, service images are pinned by digest, and private progress, errors, screenshots, and the combined log file continue to be delivered through Telegram.
 
 #### Setup
 
@@ -44,44 +44,28 @@ Since logs are public for public repos, most logs are off by default and the pro
 <summary><b>From code</b></summary>
 
 1. Clone this repo
-2. Run `npm install`
-3. Run `npm run build`
+2. Use Node.js 25, enable Corepack, and run `pnpm install`
+3. Run `pnpm build`
 4. Provide your configuration via `MONEYMAN_CONFIG` (inline JSON) or point `MONEYMAN_CONFIG_PATH` to a JSON/JSONC file
-5. Run `npm start`
+5. Run `pnpm start`
 
 </details>
 
 <details>
 <summary><b>From Docker</b></summary>
 
-1. Provide configuration via `MONEYMAN_CONFIG` (inline JSON) or mount a config file (recommended below)
-2. `docker run --rm -e MONEYMAN_CONFIG="$(cat config.json)" ghcr.io/daniel-hauser/moneyman:latest`
+1. Build all service targets: `docker compose build`
+2. Set `MONEYMAN_CONFIG` to the existing JSON configuration.
+3. Run `docker compose up --detach`.
+4. Wait for the one-shot scraper container, then remove containers and secret volumes with `docker compose down --volumes --remove-orphans`.
 
-#### Using a configuration file (recommended)
-
-Instead of passing the configuration as an environment variable, you can mount a configuration file:
-
-```bash
-docker run --rm \
-  -v /path/to/config:/config \
-  -e MONEYMAN_CONFIG_PATH=/config/config.json \
-  ghcr.io/daniel-hauser/moneyman:latest
-```
-
-Or use Docker secrets:
-
-```bash
-docker run --rm \
-  --secret config.json \
-  -e MONEYMAN_CONFIG_PATH=/run/secrets/config.json \
-  ghcr.io/daniel-hauser/moneyman:latest
-```
+The legacy configuration schema remains supported. A networkless initializer splits it into least-privilege, read-only service configurations before any networked service starts.
 
 #### Logging
 
-By default, the Docker image is configured with `MONEYMAN_UNSAFE_STDOUT=false` to prevent sensitive data from appearing in Docker logs. When enabled, the logs are redirected to `/tmp/moneyman.log` and sent to the Telegram chat automatically (if configured).
+By default, Compose uses `MONEYMAN_UNSAFE_STDOUT=false` and the `none` Docker logging driver. Scraper and exporter logs are uploaded over the private control network, combined with notifier logs, and sent as one private Telegram document.
 
-Logs sent to `logToPublicLog` bypass the redirection and will appear in the Docker logs.
+For trusted local debugging only, set `MONEYMAN_UNSAFE_STDOUT=true` and `MONEYMAN_LOG_DRIVER=json-file`. Never use unsafe stdout in GitHub Actions.
 
 </details>
 
@@ -191,6 +175,8 @@ options: {
 ### Domain Security
 
 Moneyman supports domain tracking and firewall rules to control which domains each scraper can access. See [Domain Security](./docs/domain-security.md) for setup instructions.
+
+The container boundary, proxy policy, and service-specific secret flow are documented in [Security isolation](./docs/security-isolation.md).
 
 ### Get notified in Telegram
 
