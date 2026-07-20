@@ -16,13 +16,26 @@ Service images use Node.js 25. Node 26 is intentionally excluded because Telegra
 
 ## Egress policy
 
+The `internal: true` Docker networks are the enforceable firewall boundary:
+application containers have no route to the internet, even if compromised code
+ignores the proxy environment variables or opens raw sockets. The egress
+proxies provide hostname, port, DNS, and validated-address policy on the only
+available path out; they are not the application containers' default gateway.
+
+Do not add firewall administration capabilities to the application containers.
+In-container iptables or nftables would require `CAP_NET_ADMIN`, allowing
+compromised code to modify its own rules and weakening the current
+`cap_drop: ALL` boundary. A host-managed `DOCKER-USER` or cloud firewall can be
+added as defense in depth, but IP rules cannot replace the proxy's
+hostname-aware policy for dynamic bank and storage endpoints.
+
 With `options.security.blockByDefault: true`, `ALLOW` rules become the scraper proxy allowlist. Parent entries cover subdomains, for example:
 
 ```text
 max ALLOW max.co.il
 ```
 
-Legacy monolithic configuration keeps its existing `blockByDefault: false` default. New scraper-only configuration defaults to `true`; explicit rules are therefore required when adopting service-specific configuration.
+Legacy monolithic configuration keeps its existing `blockByDefault: false` default. New scraper-only configuration defaults to `true`; explicit rules are therefore required when adopting service-specific configuration. Public mode blocks private and reserved networks but permits arbitrary public HTTP(S) destinations, so it does not prevent credential exfiltration to an attacker-controlled public host. Use allowlist mode for the malicious-dependency threat model.
 
 Private, loopback, link-local, metadata, CGNAT, IPv4-mapped IPv6, NAT64, Teredo, 6to4, ULA, multicast, and documentation address ranges are rejected even if DNS resolves to them. Scraper public mode remains limited to HTTP port 80 and HTTPS port 443. Exporter HTTP destinations preserve only the configured URL ports, Azure ingestion permits its service-assigned Blob and Queue hosts, and PostgreSQL URI connection strings use a dedicated allowlisted TCP forward to the configured database host and port.
 

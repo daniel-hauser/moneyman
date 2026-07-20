@@ -6,21 +6,12 @@ import {
   readSecretFile,
   unsafeStdout,
 } from "@moneyman/common";
-import {
-  OkResponseSchema,
-  ScrapePayloadSchema,
-  TransactionSchema,
-  transactionHash,
-  transactionUniqueId,
-  type AccountStatus,
-  type ScrapePayload,
-  type Transaction,
-  type TransactionRow,
-} from "@moneyman/protocol";
+import { OkResponseSchema, ScrapePayloadSchema } from "@moneyman/protocol";
 import { config, scraperConfig } from "./config.js";
 import { sendFailureScreenShots } from "./failureScreenshot.js";
 import { scrapeAccounts } from "./index.js";
 import { getSummaryMessages } from "./messages.js";
+import { resultsToPayload } from "./payload.js";
 import {
   editMessage,
   send,
@@ -30,7 +21,6 @@ import {
 } from "./notifier.js";
 import { getExternalIp, logRunMetadata } from "./runnerMetadata.js";
 import { monitorNodeConnections } from "./security/domains.js";
-import type { AccountScrapeResult } from "./types.js";
 
 const logger = createLogger("main");
 const exporterToken = readSecretFile("MONEYMAN_EXPORTER_TOKEN_PATH");
@@ -74,7 +64,9 @@ async function run() {
     sendFailureScreenShots(sendPhotos),
   ]);
 
-  const payload = ScrapePayloadSchema.parse(resultsToPayload(results));
+  const payload = ScrapePayloadSchema.parse(
+    await resultsToPayload(results, sendError),
+  );
   await postJson(
     config.services.exporterUrl,
     "/v1/scrapes",
@@ -84,79 +76,6 @@ async function run() {
     60 * 60_000,
   );
   await logRunMetadata();
-}
-
-function resultsToPayload(results: AccountScrapeResult[]): ScrapePayload {
-  const accountResults: AccountStatus[] = [];
-  const transactions: TransactionRow[] = [];
-
-  for (const { companyId, result } of results) {
-    accountResults.push({
-      companyId,
-      success: result.success,
-      errorType: result.errorType,
-      errorMessage: result.errorMessage,
-      accountCount: result.accounts?.length ?? 0,
-      txnCount:
-        result.accounts?.reduce(
-          (sum, account) => sum + account.txns.length,
-          0,
-        ) ?? 0,
-    });
-
-    if (!result.success) {
-      continue;
-    }
-
-    for (const account of result.accounts ?? []) {
-      for (const rawTransaction of account.txns) {
-        try {
-          const transaction = toTransaction(rawTransaction);
-          transactions.push({
-            ...transaction,
-            account: account.accountNumber,
-            companyId,
-            hash: transactionHash(
-              transaction,
-              companyId,
-              account.accountNumber,
-            ),
-            uniqueId: transactionUniqueId(
-              transaction,
-              companyId,
-              account.accountNumber,
-            ),
-          });
-        } catch (error) {
-          void sendError(
-            error,
-            `Failed to process transaction for ${companyId} account ${account.accountNumber}`,
-          );
-        }
-      }
-    }
-  }
-
-  return { accountResults, transactions };
-}
-
-function toTransaction(raw: Transaction): Transaction {
-  return TransactionSchema.parse({
-    type: raw.type,
-    identifier: raw.identifier,
-    date: raw.date,
-    processedDate: raw.processedDate,
-    originalAmount: raw.originalAmount,
-    originalCurrency: raw.originalCurrency,
-    chargedAmount: raw.chargedAmount,
-    chargedCurrency: raw.chargedCurrency,
-    description: raw.description,
-    memo: raw.memo,
-    status: raw.status,
-    installments: raw.installments,
-    category: raw.category,
-    rawTransaction: raw.rawTransaction,
-  });
 }
 
 async function uploadLog() {

@@ -12,12 +12,12 @@ export async function savePayload(payload: ScrapePayload) {
   const storages = await createStorages();
   if (storages.length === 0) {
     await send("No storages found, skipping save");
-    return;
+    return storages;
   }
 
   if (payload.transactions.length === 0) {
     await send("No transactions found, skipping save");
-    return;
+    return storages;
   }
 
   const context: SaveContext = {
@@ -58,6 +58,8 @@ export async function savePayload(payload: ScrapePayload) {
       });
     }),
   );
+
+  return storages;
 }
 
 async function createStorages(): Promise<TransactionStorage[]> {
