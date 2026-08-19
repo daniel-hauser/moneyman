@@ -1,7 +1,7 @@
 /** @type {import('jest').Config} */
 export default {
   transform: {
-    "^.+\\.tsx?$": [
+    "^.+\\.[cm]?[tj]sx?$": [
       "@swc/jest",
       {
         jsc: {
@@ -16,6 +16,9 @@ export default {
       },
     ],
   },
+  transformIgnorePatterns: [
+    "node_modules/(?!(@mswjs/interceptors|@open-draft/until|rettime)/)",
+  ],
   testEnvironment: "node",
   rootDir: "./src",
   moduleNameMapper: {
