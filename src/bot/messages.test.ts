@@ -15,6 +15,7 @@ import {
 } from "./saveStats.js";
 import { Timer } from "../utils/Timer.js";
 import { transaction } from "../utils/tests.js";
+import { mock } from "jest-mock-extended";
 
 describe("messages", () => {
   describe("transactionList", () => {
@@ -22,7 +23,9 @@ describe("messages", () => {
       expect(
         transactionList(
           [
-            transaction({
+            mock<Transaction>({
+              type: TransactionTypes.Normal,
+              status: TransactionStatuses.Completed,
               description: "ALIEXPRESS",
               chargedAmount: -209.4,
               chargedCurrency: "ILS",
@@ -39,7 +42,9 @@ describe("messages", () => {
       expect(
         transactionList(
           [
-            transaction({
+            mock<Transaction>({
+              type: TransactionTypes.Normal,
+              status: TransactionStatuses.Completed,
               description: "ALIEXPRESS",
               chargedAmount: -55,
               chargedCurrency: "USD",
@@ -56,7 +61,8 @@ describe("messages", () => {
       expect(
         transactionList(
           [
-            transaction({
+            mock<Transaction>({
+              type: TransactionTypes.Normal,
               description: "PENDING PURCHASE",
               status: TransactionStatuses.Pending,
               originalAmount: -55,
@@ -68,14 +74,56 @@ describe("messages", () => {
       ).toBe("PENDING PURCHASE:\t-55.00 USD");
     });
 
+    it("shows the original currency for a pending installment", () => {
+      expect(
+        transactionList(
+          [
+            mock<Transaction>({
+              type: TransactionTypes.Installments,
+              description: "PENDING INSTALLMENT",
+              status: TransactionStatuses.Pending,
+              originalAmount: -60,
+              originalCurrency: "EUR",
+              chargedAmount: -60,
+              chargedCurrency: undefined,
+            }),
+          ],
+          "",
+        ),
+      ).toBe("PENDING INSTALLMENT:\t-60.00 EUR");
+    });
+
+    it("falls back to the original currency when charged currency is missing", () => {
+      expect(
+        transactionList(
+          [
+            mock<Transaction>({
+              type: TransactionTypes.Normal,
+              description: "FOREIGN PURCHASE",
+              status: TransactionStatuses.Completed,
+              chargedAmount: -55,
+              chargedCurrency: undefined,
+              originalAmount: -55,
+              originalCurrency: "USD",
+            }),
+          ],
+          "",
+        ),
+      ).toBe("FOREIGN PURCHASE:\t-55.00 USD");
+    });
+
     it("omits the currency for an ILS transaction", () => {
       expect(
         transactionList(
           [
-            transaction({
+            mock<Transaction>({
+              type: TransactionTypes.Normal,
+              status: TransactionStatuses.Completed,
               description: "LOCAL PURCHASE",
               chargedAmount: -50,
               chargedCurrency: "ILS",
+              originalAmount: -50,
+              originalCurrency: "ILS",
             }),
           ],
           "",

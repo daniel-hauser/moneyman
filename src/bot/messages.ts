@@ -176,14 +176,14 @@ function transactionAmount(t: Transaction): number {
 }
 
 function transactionCurrency(t: Transaction): string | undefined {
-  if (
-    t.type === TransactionTypes.Normal &&
-    t.status === TransactionStatuses.Pending
-  ) {
+  if (t.status === TransactionStatuses.Pending) {
     return normalizeCurrency(t.originalCurrency);
   }
 
-  return normalizeCurrency(t.chargedCurrency);
+  return (
+    normalizeCurrency(t.chargedCurrency) ||
+    normalizeCurrency(t.originalCurrency)
+  );
 }
 
 function signedAmount(amount: number): string {
