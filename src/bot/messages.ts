@@ -175,15 +175,49 @@ function transactionAmount(t: Transaction): number {
   }
 }
 
+function transactionCurrency(t: Transaction): string | undefined {
+  if (
+    t.type === TransactionTypes.Normal &&
+    t.status === TransactionStatuses.Pending
+  ) {
+    return normalizeCurrency(t.originalCurrency);
+  }
+
+  return normalizeCurrency(t.chargedCurrency);
+}
+
+function signedAmount(amount: number): string {
+  const absoluteAmount = Math.abs(amount).toFixed(2);
+  if (amount < 0) {
+    return `-${absoluteAmount}`;
+  }
+
+  return `+${absoluteAmount}`;
+}
+
+function amountWithCurrency(amount: number, currency?: string): string {
+  const formattedAmount = signedAmount(amount);
+  if (!currency || currency === "ILS") {
+    return formattedAmount;
+  }
+
+  return `${formattedAmount} ${currency}`;
+}
+
 function transactionString(t: Transaction) {
   const amount = transactionAmount(t);
+  const currency = transactionCurrency(t);
+  const originalCurrency = normalizeCurrency(t.originalCurrency);
 
-  const sign = amount < 0 ? "-" : "+";
-  const absAmount = Math.abs(amount).toFixed(2);
+  const chargedInIls =
+    t.status === TransactionStatuses.Completed && currency === "ILS";
+  const originallyForeign = originalCurrency && originalCurrency !== "ILS";
 
-  return `${t?.description}:\t${sign}${absAmount}${
-    t.originalCurrency === "ILS" ? "" : ` ${t.originalCurrency}`
-  }`;
+  if (chargedInIls && originallyForeign) {
+    return `${t.description}:\t${signedAmount(amount)} (${amountWithCurrency(t.originalAmount, originalCurrency)})`;
+  }
+
+  return `${t.description}:\t${amountWithCurrency(amount, currency)}`;
 }
 
 export function transactionList(
