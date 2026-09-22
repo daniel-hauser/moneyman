@@ -5,6 +5,11 @@ import { BooleanEnvVarSchema, MoneymanConfigSchema } from "./config.schema.js";
 
 jest.mock("dotenv/config", () => ({}));
 jest.mock("telegraf", () => ({ Telegraf: mock<Telegraf>() }));
+const configLogger = jest.fn();
+jest.mock("./utils/logger.js", () => ({
+  createLogger: () => configLogger,
+  logToPublicLog: jest.fn(),
+}));
 
 describe("config", () => {
   let originalEnv: NodeJS.ProcessEnv;
@@ -12,6 +17,7 @@ describe("config", () => {
   beforeEach(() => {
     originalEnv = process.env;
     jest.resetModules();
+    configLogger.mockClear();
   });
 
   afterEach(() => {
@@ -64,6 +70,36 @@ describe("config", () => {
     expect(config.options.notifications.telegram?.apiKey).toBe("config-key");
     expect(config.options.notifications.telegram?.chatId).toBe(
       "config-chat-id",
+    );
+  });
+
+  it("logs successful Bitwarden config loading after validation", async () => {
+    process.env = {
+      ...originalEnv,
+      MONEYMAN_CONFIG: "{}",
+      MONEYMAN_CONFIG_PATH: undefined,
+      MONEYMAN_CONFIG_SECRET_PROVIDER: "bitwarden",
+    };
+
+    await import("./config.js");
+
+    expect(configLogger).toHaveBeenCalledWith(
+      "Configuration successfully loaded from Bitwarden Secrets Manager",
+    );
+  });
+
+  it("does not log successful Bitwarden loading for invalid config", async () => {
+    process.env = {
+      ...originalEnv,
+      MONEYMAN_CONFIG: "{ invalid",
+      MONEYMAN_CONFIG_PATH: undefined,
+      MONEYMAN_CONFIG_SECRET_PROVIDER: "bitwarden",
+    };
+
+    await import("./config.js");
+
+    expect(configLogger).not.toHaveBeenCalledWith(
+      "Configuration successfully loaded from Bitwarden Secrets Manager",
     );
   });
 
