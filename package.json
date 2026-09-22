@@ -80,9 +80,6 @@
     "azure-kusto-ingest": {
       "uuid": "11.1.1"
     },
-    "google-spreadsheet": {
-      "google-auth-library": "^10.3.0"
-    },
     "israeli-bank-scrapers": {
       "puppeteer": "$puppeteer"
     },
