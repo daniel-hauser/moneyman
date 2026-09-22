@@ -93,6 +93,25 @@ describe("messages", () => {
       ).toBe("PENDING INSTALLMENT:\t-60.00 EUR");
     });
 
+    it("shows the charged currency for a pending installment", () => {
+      expect(
+        transactionList(
+          [
+            mock<Transaction>({
+              type: TransactionTypes.Installments,
+              description: "PENDING INSTALLMENT",
+              status: TransactionStatuses.Pending,
+              originalAmount: -60,
+              originalCurrency: "EUR",
+              chargedAmount: -55,
+              chargedCurrency: "USD",
+            }),
+          ],
+          "",
+        ),
+      ).toBe("PENDING INSTALLMENT:\t-55.00 USD");
+    });
+
     it("falls back to the original currency when charged currency is missing", () => {
       expect(
         transactionList(

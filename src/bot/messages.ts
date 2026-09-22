@@ -176,7 +176,10 @@ function transactionAmount(t: Transaction): number {
 }
 
 function transactionCurrency(t: Transaction): string | undefined {
-  if (t.status === TransactionStatuses.Pending) {
+  if (
+    t.type === TransactionTypes.Normal &&
+    t.status === TransactionStatuses.Pending
+  ) {
     return normalizeCurrency(t.originalCurrency);
   }
 
