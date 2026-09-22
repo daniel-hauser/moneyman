@@ -16,7 +16,7 @@
     "build": "tsc",
     "lint": "prettier --check .",
     "lint:fix": "prettier --write .",
-    "test": "jest",
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "test:config": "npm run build && node dst/scripts/verify-config.js",
     "test:scraper-access": "npm run build && npm run test:scraper-access-without-build",
     "test:scraper-access-without-build": "node --test dst/test-scraper-access.js"
@@ -50,7 +50,7 @@
     "jsonc-parser": "^3.3.1",
     "pg": "^8.22.0",
     "pg-format": "^1.0.4",
-    "puppeteer": "^25.3.0",
+    "puppeteer": "25.11.0",
     "telegraf": "^4.16.3",
     "ynab": "^4.5.0",
     "zod": "^4.4.3"
@@ -74,8 +74,17 @@
     "typescript": "^7.0.2"
   },
   "overrides": {
+    "azure-kusto-data": {
+      "uuid": "11.1.1"
+    },
+    "azure-kusto-ingest": {
+      "uuid": "11.1.1"
+    },
     "google-spreadsheet": {
       "google-auth-library": "^10.3.0"
+    },
+    "israeli-bank-scrapers": {
+      "puppeteer": "$puppeteer"
     },
     "jest-mock-extended": {
       "typescript": "$typescript"
