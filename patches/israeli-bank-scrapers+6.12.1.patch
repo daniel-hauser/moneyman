@@ -1,5 +1,5 @@
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
-index 1e38c90..130a80a 100644
+index 1e38c90..f56cf15 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
 @@ -29,6 +29,8 @@ const TRANSACTIONS_REQUEST_ENDPOINT = 'https://api.cal-online.co.il/Transactions
@@ -11,7 +11,7 @@ index 1e38c90..130a80a 100644
  const InvalidPasswordMessage = 'שם המשתמש או הסיסמה שהוזנו שגויים';
  const ChangePasswordMessage = 'להחליף סיסמה';
  const ChangePasswordSubtitle = 'הגיע הזמן לסיסמה חדשה';
-@@ -47,6 +49,89 @@ function isAuthModule(result) {
+@@ -47,6 +49,105 @@ function isAuthModule(result) {
  function authModuleOrUndefined(result) {
    return isAuthModule(result) ? result : undefined;
  }
@@ -31,13 +31,18 @@ index 1e38c90..130a80a 100644
 +    return undefined;
 +  }
 +}
++function sanitizeDiagnosticText(value) {
++  return value.trim().replace(/\s+/g, ' ').replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]').replace(/\b\d{4,}\b/g, '[number]').replace(/Bearer\s+\S+/gi, 'Bearer [redacted]').slice(0, 300);
++}
 +async function logLoginResponse(response) {
 +  const details = getLoginDiagnosticDetails(response.url());
 +  if (!details) {
 +    return;
 +  }
 +  const request = response.request();
++  const requestHeaders = request.headers();
 +  debug('login diagnostic response %s: %s %s -> %d', details.endpoint, request.method(), details.url, response.status());
++  debug('login diagnostic request %s headers present: authorization=%s cookie=%s x-site-id=%s origin=%s referer=%s', details.endpoint, Boolean(requestHeaders.authorization), Boolean(requestHeaders.cookie), Boolean(requestHeaders['x-site-id']), Boolean(requestHeaders.origin), Boolean(requestHeaders.referer));
 +  if (details.endpoint === 'dashboard') {
 +    return;
 +  }
@@ -54,7 +59,17 @@ index 1e38c90..130a80a 100644
 +      }
 +    }
 +  } catch (e) {
-+    debug('login diagnostic response %s body is unavailable or not JSON: %s', details.endpoint, e.message);
++    const contentType = response.headers()['content-type'] || '(missing)';
++    debug('login diagnostic response %s is not JSON: content-type=%s server=%s', details.endpoint, contentType, response.headers().server || '(missing)');
++    try {
++      const text = await response.text();
++      const title = text.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '';
++      const bodyText = text.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ');
++      debug('login diagnostic response %s HTML title: %s', details.endpoint, sanitizeDiagnosticText(title) || '(none)');
++      debug('login diagnostic response %s text: %s', details.endpoint, sanitizeDiagnosticText(bodyText) || '(none)');
++    } catch (textError) {
++      debug('login diagnostic response %s body is unavailable: %s', details.endpoint, textError.message);
++    }
 +  }
 +}
 +function setupLoginDiagnostics(page) {
@@ -92,8 +107,9 @@ index 1e38c90..130a80a 100644
 +      const style = getComputedStyle(element);
 +      const bounds = element.getBoundingClientRect();
 +      return style.display !== 'none' && style.visibility !== 'hidden' && bounds.width > 0 && bounds.height > 0;
-+    }).map(element => element.textContent?.trim().replace(/\s+/g, ' ').replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]').replace(/\b\d{4,}\b/g, '[number]').slice(0, 300)).filter(Boolean).slice(0, 5), LOGIN_ERROR_SELECTORS);
-+    debug('login diagnostic visible errors: %o', visibleErrors);
++    }).map(element => element.textContent || '').filter(Boolean).slice(0, 5), LOGIN_ERROR_SELECTORS);
++    const sanitizedErrors = visibleErrors.map(sanitizeDiagnosticText).filter(Boolean);
++    debug('login diagnostic visible errors: %o', sanitizedErrors);
 +  } catch (e) {
 +    debug('failed to inspect visible login errors: %s', e.message);
 +  }
@@ -101,7 +117,7 @@ index 1e38c90..130a80a 100644
  function isPending(transaction) {
    return transaction.debCrdDate === undefined; // an arbitrary field that only appears in a completed transaction
  }
-@@ -259,19 +344,24 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+@@ -259,19 +360,24 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
      return Promise.resolve('09031987-273E-2311-906C-8AF85B17C8D9');
    }
    getLoginOptions(credentials) {
@@ -133,7 +149,7 @@ index 1e38c90..130a80a 100644
        postAction: async () => {
          try {
            await (0, _navigation.waitForNavigation)(this.page);
-@@ -281,7 +371,9 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+@@ -281,7 +387,9 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
            }
            const request = await this.authRequestPromise;
            this.authorization = String(request?.headers().authorization || '').trim();
