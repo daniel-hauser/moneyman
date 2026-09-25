@@ -1,21 +1,43 @@
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
-index 1e38c90..8384da8 100644
+index 1e38c90..c094be7 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
-@@ -259,7 +259,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+@@ -259,19 +259,23 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
      return Promise.resolve('09031987-273E-2311-906C-8AF85B17C8D9');
    }
    getLoginOptions(credentials) {
 -    this.authRequestPromise = this.page.waitForRequest(SSO_AUTHORIZATION_REQUEST_ENDPOINT, {
-+    this.authRequestPromise = this.page.waitForRequest(request => request.url() === SSO_AUTHORIZATION_REQUEST_ENDPOINT && request.method() === 'PUT', {
-       timeout: 10_000
-     }).catch(e => {
-       debug('error while waiting for the token request', e);
-@@ -280,6 +280,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+-      timeout: 10_000
+-    }).catch(e => {
+-      debug('error while waiting for the token request', e);
+-      return undefined;
+-    });
+     return {
+       loginUrl: `${LOGIN_URL}`,
+       fields: createLoginFields(credentials),
+       submitButtonSelector: 'button[type="submit"]',
+       possibleResults: getPossibleLoginResults(),
+       checkReadiness: async () => (0, _elementsInteractions.waitUntilElementFound)(this.page, '#ccLoginDesktopBtn'),
+-      preAction: this.openLoginPopup,
++      preAction: async () => {
++        const frame = await this.openLoginPopup();
++        debug('waiting for SSO PUT token request');
++        this.authRequestPromise = this.page.waitForRequest(request => request.url() === SSO_AUTHORIZATION_REQUEST_ENDPOINT && request.method() === 'PUT', {
++          timeout: 10_000
++        }).catch(e => {
++          debug('error while waiting for the token request', e);
++          return undefined;
++        });
++        return frame;
++      },
+       postAction: async () => {
+         try {
+           await (0, _navigation.waitForNavigation)(this.page);
+@@ -280,6 +284,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
              await (0, _elementsInteractions.clickButton)(this.page, 'button.btn-close');
            }
            const request = await this.authRequestPromise;
-+          debug('token request method: %s', request?.method() || '(missing)');
++          debug('token request captured: method=%s authorization=%s', request?.method() || '(missing)', Boolean(request?.headers().authorization));
            this.authorization = String(request?.headers().authorization || '').trim();
          } catch (e) {
            const currentUrl = await (0, _navigation.getCurrentUrl)(this.page);
