@@ -19,10 +19,50 @@ export type { MoneymanConfig } from "./config.schema.js";
 
 export const systemName = "moneyman";
 const logger = createLogger("config");
+const VISA_CAL_COMPANY_ID = "visaCal";
 
 logger("Parsing config");
-const config: MoneymanConfig = createConfig();
+const config: MoneymanConfig = applyVisaCalComparisonOverrides(createConfig());
 export { config };
+
+function applyVisaCalComparisonOverrides(
+  parsedConfig: MoneymanConfig,
+): MoneymanConfig {
+  const accounts = parsedConfig.accounts.filter(
+    (account) => account.companyId === VISA_CAL_COMPANY_ID,
+  );
+  if (accounts.length === 0) {
+    return parsedConfig;
+  }
+
+  const telegram = parsedConfig.options.notifications.telegram;
+  if (!telegram) {
+    throw new Error("Visa Cal comparison requires Telegram notifications");
+  }
+
+  logger(
+    "Visa Cal comparison mode enabled: limiting accounts and storage to Telegram",
+  );
+  return {
+    ...parsedConfig,
+    accounts,
+    storage: { telegram: { enabled: true } },
+    options: {
+      ...parsedConfig.options,
+      scraping: {
+        ...parsedConfig.options.scraping,
+        accountsToScrape: [VISA_CAL_COMPANY_ID],
+        maxParallelScrapers: 1,
+      },
+      notifications: {
+        telegram: {
+          ...telegram,
+          sendLogFileToTelegram: true,
+        },
+      },
+    },
+  };
+}
 
 function createConfig() {
   const { MONEYMAN_CONFIG, MONEYMAN_CONFIG_PATH } = process.env;

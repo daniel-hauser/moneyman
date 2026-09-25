@@ -185,7 +185,7 @@ jobs:
   build_image_internal:
     runs-on: ubuntu-latest
     needs: prepare
-    if: needs.prepare.outputs.is_external == 'false'
+    if: needs.prepare.outputs.is_external == 'false' && github.event.pull_request.draft == false
 
     permissions:
       contents: read

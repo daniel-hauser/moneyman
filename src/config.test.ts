@@ -98,6 +98,66 @@ describe("config", () => {
     expect(config.options.scraping.daysBack).toBe(15);
   });
 
+  it("should limit comparison mode to Visa Cal and Telegram storage", async () => {
+    const comparisonConfig = {
+      accounts: [
+        { companyId: "visaCal", password: "visa-pass", username: "visa-user" },
+        { companyId: "max", password: "max-pass", username: "max-user" },
+      ],
+      storage: {
+        localJson: { enabled: true },
+        sql: { connectionString: "postgres://example", schema: "moneyman" },
+      },
+      options: {
+        scraping: {
+          accountsToScrape: ["max"],
+          maxParallelScrapers: 5,
+        },
+        security: {},
+        notifications: {
+          telegram: {
+            apiKey: "key",
+            chatId: "123",
+            sendLogFileToTelegram: false,
+          },
+        },
+        logging: {},
+      },
+    };
+
+    process.env = {
+      ...originalEnv,
+      MONEYMAN_CONFIG_PATH: undefined,
+      MONEYMAN_CONFIG: JSON.stringify(comparisonConfig),
+    };
+
+    const { config, scraperConfig } = await import("./config.js");
+
+    expect(config.accounts).toEqual([comparisonConfig.accounts[0]]);
+    expect(config.storage).toEqual({ telegram: { enabled: true } });
+    expect(config.options.scraping.accountsToScrape).toEqual(["visaCal"]);
+    expect(config.options.scraping.maxParallelScrapers).toBe(1);
+    expect(config.options.notifications.telegram?.sendLogFileToTelegram).toBe(
+      true,
+    );
+    expect(scraperConfig.accounts).toEqual([comparisonConfig.accounts[0]]);
+  });
+
+  it("should reject Visa Cal configuration without Telegram notifications", async () => {
+    process.env = {
+      ...originalEnv,
+      MONEYMAN_CONFIG_PATH: undefined,
+      MONEYMAN_CONFIG: JSON.stringify({
+        accounts: [{ companyId: "visaCal", password: "pass" }],
+        storage: { localJson: { enabled: true } },
+      }),
+    };
+
+    await expect(import("./config.js")).rejects.toThrow(
+      "Visa Cal comparison requires Telegram notifications",
+    );
+  });
+
   const internalUrls = [
     "http://actual-budget:5006",
     "https://actual-budget:5006",
