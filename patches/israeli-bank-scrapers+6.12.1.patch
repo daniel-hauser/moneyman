@@ -1,0 +1,58 @@
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
+index 1e38c90..fdfd260 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
+@@ -29,6 +29,7 @@ const TRANSACTIONS_REQUEST_ENDPOINT = 'https://api.cal-online.co.il/Transactions
+ const FRAMES_REQUEST_ENDPOINT = 'https://api.cal-online.co.il/Frames/api/Frames/GetFrameStatus';
+ const PENDING_TRANSACTIONS_REQUEST_ENDPOINT = 'https://api.cal-online.co.il/Transactions/api/approvals/getClearanceRequests';
+ const SSO_AUTHORIZATION_REQUEST_ENDPOINT = 'https://connect.cal-online.co.il/col-rest/calconnect/authentication/SSO';
++const CAPTCHA_CHECK_REQUEST_ENDPOINT = 'https://connect.cal-online.co.il/col-rest/calconnect/authentication/isChaptcha';
+ const InvalidPasswordMessage = 'שם המשתמש או הסיסמה שהוזנו שגויים';
+ const ChangePasswordMessage = 'להחליף סיסמה';
+ const ChangePasswordSubtitle = 'הגיע הזמן לסיסמה חדשה';
+@@ -259,19 +260,30 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+     return Promise.resolve('09031987-273E-2311-906C-8AF85B17C8D9');
+   }
+   getLoginOptions(credentials) {
+-    this.authRequestPromise = this.page.waitForRequest(SSO_AUTHORIZATION_REQUEST_ENDPOINT, {
+-      timeout: 10_000
+-    }).catch(e => {
+-      debug('error while waiting for the token request', e);
+-      return undefined;
+-    });
+     return {
+       loginUrl: `${LOGIN_URL}`,
+       fields: createLoginFields(credentials),
+       submitButtonSelector: 'button[type="submit"]',
+       possibleResults: getPossibleLoginResults(),
+       checkReadiness: async () => (0, _elementsInteractions.waitUntilElementFound)(this.page, '#ccLoginDesktopBtn'),
+-      preAction: this.openLoginPopup,
++      preAction: async () => {
++        const captchaResponsePromise = this.page.waitForResponse(response => response.url().toLowerCase() === CAPTCHA_CHECK_REQUEST_ENDPOINT.toLowerCase() && response.request().method() === 'GET', {
++          timeout: 10_000
++        });
++        const [frame, captchaResponse] = await Promise.all([this.openLoginPopup(), captchaResponsePromise]);
++        debug('captcha check completed: status=%d', captchaResponse.status());
++        if (!captchaResponse.ok()) {
++          throw new Error(`captcha check failed with status ${captchaResponse.status()}`);
++        }
++        debug('waiting for SSO PUT token request');
++        this.authRequestPromise = this.page.waitForRequest(request => request.url() === SSO_AUTHORIZATION_REQUEST_ENDPOINT && request.method() === 'PUT', {
++          timeout: 10_000
++        }).catch(e => {
++          debug('error while waiting for the token request', e);
++          return undefined;
++        });
++        return frame;
++      },
+       postAction: async () => {
+         try {
+           await (0, _navigation.waitForNavigation)(this.page);
+@@ -280,6 +292,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+             await (0, _elementsInteractions.clickButton)(this.page, 'button.btn-close');
+           }
+           const request = await this.authRequestPromise;
++          debug('token request captured: method=%s authorization=%s', request?.method() || '(missing)', Boolean(request?.headers().authorization));
+           this.authorization = String(request?.headers().authorization || '').trim();
+         } catch (e) {
+           const currentUrl = await (0, _navigation.getCurrentUrl)(this.page);
