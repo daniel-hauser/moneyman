@@ -1,161 +1,21 @@
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
-index 1e38c90..f56cf15 100644
+index 1e38c90..8384da8 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
-@@ -29,6 +29,8 @@ const TRANSACTIONS_REQUEST_ENDPOINT = 'https://api.cal-online.co.il/Transactions
- const FRAMES_REQUEST_ENDPOINT = 'https://api.cal-online.co.il/Frames/api/Frames/GetFrameStatus';
- const PENDING_TRANSACTIONS_REQUEST_ENDPOINT = 'https://api.cal-online.co.il/Transactions/api/approvals/getClearanceRequests';
- const SSO_AUTHORIZATION_REQUEST_ENDPOINT = 'https://connect.cal-online.co.il/col-rest/calconnect/authentication/SSO';
-+const LOGIN_DIAGNOSTIC_ENDPOINTS = new Map([['/col-rest/calconnect/authentication/ischaptcha', 'captcha check'], ['/col-rest/calconnect/authentication/login', 'login'], ['/col-rest/calconnect/authentication/auth', 'authentication'], ['/col-rest/calconnect/account/info', 'account info'], ['/col-rest/calconnect/authentication/sso', 'SSO'], ['/dashboard', 'dashboard']]);
-+const LOGIN_ERROR_SELECTORS = ['div.general-error > div', '.err-desc', '[role="alert"]'];
- const InvalidPasswordMessage = 'שם המשתמש או הסיסמה שהוזנו שגויים';
- const ChangePasswordMessage = 'להחליף סיסמה';
- const ChangePasswordSubtitle = 'הגיע הזמן לסיסמה חדשה';
-@@ -47,6 +49,105 @@ function isAuthModule(result) {
- function authModuleOrUndefined(result) {
-   return isAuthModule(result) ? result : undefined;
- }
-+function getLoginDiagnosticDetails(rawUrl) {
-+  try {
-+    const url = new URL(rawUrl);
-+    if (!url.hostname.endsWith('cal-online.co.il')) {
-+      return undefined;
-+    }
-+    const endpoint = LOGIN_DIAGNOSTIC_ENDPOINTS.get(url.pathname.toLowerCase());
-+    return endpoint ? {
-+      endpoint,
-+      url: `${url.origin}${url.pathname}`
-+    } : undefined;
-+  } catch (e) {
-+    debug('failed to parse login diagnostic URL: %s', e.message);
-+    return undefined;
-+  }
-+}
-+function sanitizeDiagnosticText(value) {
-+  return value.trim().replace(/\s+/g, ' ').replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]').replace(/\b\d{4,}\b/g, '[number]').replace(/Bearer\s+\S+/gi, 'Bearer [redacted]').slice(0, 300);
-+}
-+async function logLoginResponse(response) {
-+  const details = getLoginDiagnosticDetails(response.url());
-+  if (!details) {
-+    return;
-+  }
-+  const request = response.request();
-+  const requestHeaders = request.headers();
-+  debug('login diagnostic response %s: %s %s -> %d', details.endpoint, request.method(), details.url, response.status());
-+  debug('login diagnostic request %s headers present: authorization=%s cookie=%s x-site-id=%s origin=%s referer=%s', details.endpoint, Boolean(requestHeaders.authorization), Boolean(requestHeaders.cookie), Boolean(requestHeaders['x-site-id']), Boolean(requestHeaders.origin), Boolean(requestHeaders.referer));
-+  if (details.endpoint === 'dashboard') {
-+    return;
-+  }
-+  try {
-+    const body = await response.json();
-+    if (details.endpoint === 'captcha check' && typeof body === 'boolean') {
-+      debug('login diagnostic captcha required: %s', body);
-+      return;
-+    }
-+    if (body && typeof body === 'object' && !Array.isArray(body)) {
-+      debug('login diagnostic response %s JSON keys: %s', details.endpoint, Object.keys(body).sort().join(', ') || '(none)');
-+      if (details.endpoint === 'login') {
-+        debug('login diagnostic login fields: token=%s hash=%s innerLoginType=%s', Boolean(body.token), Boolean(body.hash), typeof body.innerLoginType === 'number' ? body.innerLoginType : 'missing');
-+      }
-+    }
-+  } catch (e) {
-+    const contentType = response.headers()['content-type'] || '(missing)';
-+    debug('login diagnostic response %s is not JSON: content-type=%s server=%s', details.endpoint, contentType, response.headers().server || '(missing)');
-+    try {
-+      const text = await response.text();
-+      const title = text.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '';
-+      const bodyText = text.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ');
-+      debug('login diagnostic response %s HTML title: %s', details.endpoint, sanitizeDiagnosticText(title) || '(none)');
-+      debug('login diagnostic response %s text: %s', details.endpoint, sanitizeDiagnosticText(bodyText) || '(none)');
-+    } catch (textError) {
-+      debug('login diagnostic response %s body is unavailable: %s', details.endpoint, textError.message);
-+    }
-+  }
-+}
-+function setupLoginDiagnostics(page) {
-+  page.on('request', request => {
-+    const details = getLoginDiagnosticDetails(request.url());
-+    if (details) {
-+      debug('login diagnostic request %s: %s %s', details.endpoint, request.method(), details.url);
-+    }
-+  });
-+  page.on('response', response => {
-+    logLoginResponse(response).catch(e => {
-+      debug('failed to inspect login diagnostic response: %s', e.message);
-+    });
-+  });
-+  page.on('requestfailed', request => {
-+    const details = getLoginDiagnosticDetails(request.url());
-+    if (details) {
-+      debug('login diagnostic request failed %s: %s %s (%s)', details.endpoint, request.method(), details.url, request.failure()?.errorText || 'unknown error');
-+    }
-+  });
-+}
-+async function logLoginFailureState(page, error) {
-+  const currentUrl = getLoginDiagnosticDetails(page.url())?.url || page.url().split(/[?#]/, 1)[0];
-+  const frameUrls = page.frames().map(frame => getLoginDiagnosticDetails(frame.url())?.url || frame.url().split(/[?#]/, 1)[0]).filter(Boolean);
-+  debug('login diagnostic failure: %s', error instanceof Error ? error.message : String(error));
-+  debug('login diagnostic current URL: %s', currentUrl);
-+  debug('login diagnostic frame URLs: %o', frameUrls);
-+  const loginFrame = page.frames().find(frame => frame.url().includes('connect.cal-online.co.il'));
-+  if (!loginFrame) {
-+    debug('login diagnostic visible errors unavailable: login frame not found');
-+    return;
-+  }
-+  try {
-+    const visibleErrors = await loginFrame.evaluate(selectors => selectors.flatMap(selector => Array.from(document.querySelectorAll(selector))).filter(element => {
-+      const style = getComputedStyle(element);
-+      const bounds = element.getBoundingClientRect();
-+      return style.display !== 'none' && style.visibility !== 'hidden' && bounds.width > 0 && bounds.height > 0;
-+    }).map(element => element.textContent || '').filter(Boolean).slice(0, 5), LOGIN_ERROR_SELECTORS);
-+    const sanitizedErrors = visibleErrors.map(sanitizeDiagnosticText).filter(Boolean);
-+    debug('login diagnostic visible errors: %o', sanitizedErrors);
-+  } catch (e) {
-+    debug('failed to inspect visible login errors: %s', e.message);
-+  }
-+}
- function isPending(transaction) {
-   return transaction.debCrdDate === undefined; // an arbitrary field that only appears in a completed transaction
- }
-@@ -259,19 +360,24 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+@@ -259,7 +259,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
      return Promise.resolve('09031987-273E-2311-906C-8AF85B17C8D9');
    }
    getLoginOptions(credentials) {
 -    this.authRequestPromise = this.page.waitForRequest(SSO_AUTHORIZATION_REQUEST_ENDPOINT, {
--      timeout: 10_000
--    }).catch(e => {
--      debug('error while waiting for the token request', e);
--      return undefined;
--    });
-+    setupLoginDiagnostics(this.page);
-     return {
-       loginUrl: `${LOGIN_URL}`,
-       fields: createLoginFields(credentials),
-       submitButtonSelector: 'button[type="submit"]',
-       possibleResults: getPossibleLoginResults(),
-       checkReadiness: async () => (0, _elementsInteractions.waitUntilElementFound)(this.page, '#ccLoginDesktopBtn'),
--      preAction: this.openLoginPopup,
-+      preAction: async () => {
-+        const frame = await this.openLoginPopup();
-+        this.authRequestPromise = this.page.waitForRequest(request => request.url() === SSO_AUTHORIZATION_REQUEST_ENDPOINT && request.method() === 'PUT', {
-+          timeout: 30_000
-+        }).catch(e => {
-+          debug('error while waiting for the token request: %s', e.message);
-+          return undefined;
-+        });
-+        debug('login diagnostic armed SSO request observer');
-+        return frame;
-+      },
-       postAction: async () => {
-         try {
-           await (0, _navigation.waitForNavigation)(this.page);
-@@ -281,7 +387,9 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
++    this.authRequestPromise = this.page.waitForRequest(request => request.url() === SSO_AUTHORIZATION_REQUEST_ENDPOINT && request.method() === 'PUT', {
+       timeout: 10_000
+     }).catch(e => {
+       debug('error while waiting for the token request', e);
+@@ -280,6 +280,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+             await (0, _elementsInteractions.clickButton)(this.page, 'button.btn-close');
            }
            const request = await this.authRequestPromise;
++          debug('token request method: %s', request?.method() || '(missing)');
            this.authorization = String(request?.headers().authorization || '').trim();
-+          debug('login diagnostic SSO authorization header captured: %s', Boolean(this.authorization));
          } catch (e) {
-+          await logLoginFailureState(this.page, e);
            const currentUrl = await (0, _navigation.getCurrentUrl)(this.page);
-           if (currentUrl.endsWith('dashboard')) return;
-           const requiresChangePassword = await hasChangePasswordForm(this.page);
