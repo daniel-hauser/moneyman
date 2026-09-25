@@ -101,7 +101,16 @@ describe("config", () => {
   it("should limit comparison mode to Visa Cal and Telegram storage", async () => {
     const comparisonConfig = {
       accounts: [
-        { companyId: "visaCal", password: "visa-pass", username: "visa-user" },
+        {
+          companyId: "visaCal",
+          password: "visa-pass-1",
+          username: "visa-user-1",
+        },
+        {
+          companyId: "visaCal",
+          password: "visa-pass-2",
+          username: "visa-user-2",
+        },
         { companyId: "max", password: "max-pass", username: "max-user" },
       ],
       storage: {
@@ -133,14 +142,16 @@ describe("config", () => {
 
     const { config, scraperConfig } = await import("./config.js");
 
-    expect(config.accounts).toEqual([comparisonConfig.accounts[0]]);
+    expect(config.accounts).toEqual(comparisonConfig.accounts.slice(0, 2));
     expect(config.storage).toEqual({ telegram: { enabled: true } });
     expect(config.options.scraping.accountsToScrape).toEqual(["visaCal"]);
-    expect(config.options.scraping.maxParallelScrapers).toBe(1);
+    expect(config.options.scraping.maxParallelScrapers).toBe(2);
     expect(config.options.notifications.telegram?.sendLogFileToTelegram).toBe(
       true,
     );
-    expect(scraperConfig.accounts).toEqual([comparisonConfig.accounts[0]]);
+    expect(scraperConfig.accounts).toEqual(
+      comparisonConfig.accounts.slice(0, 2),
+    );
   });
 
   it("should reject Visa Cal configuration without Telegram notifications", async () => {

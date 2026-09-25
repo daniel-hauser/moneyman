@@ -52,7 +52,7 @@ function applyVisaCalComparisonOverrides(
       scraping: {
         ...parsedConfig.options.scraping,
         accountsToScrape: [VISA_CAL_COMPANY_ID],
-        maxParallelScrapers: 1,
+        maxParallelScrapers: Math.min(accounts.length, 10),
       },
       notifications: {
         telegram: {

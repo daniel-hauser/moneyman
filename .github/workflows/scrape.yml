@@ -56,10 +56,10 @@ jobs:
           }
 
           set +e
-          run_variant full-diagnostics moneyman:full-diagnostics
-          full_result=$?
           run_variant minimal moneyman:minimal
           minimal_result=$?
+          run_variant full-diagnostics moneyman:full-diagnostics
+          full_result=$?
           set -e
 
           if [ "$full_result" -ne 0 ] || [ "$minimal_result" -ne 0 ]; then
