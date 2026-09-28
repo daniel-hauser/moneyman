@@ -1,5 +1,5 @@
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
-index 1e38c90..f79565d 100644
+index 1e38c90..78ced4f 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
 +++ b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
 @@ -29,6 +29,8 @@ const TRANSACTIONS_REQUEST_ENDPOINT = 'https://api.cal-online.co.il/Transactions
@@ -7,11 +7,11 @@ index 1e38c90..f79565d 100644
  const PENDING_TRANSACTIONS_REQUEST_ENDPOINT = 'https://api.cal-online.co.il/Transactions/api/approvals/getClearanceRequests';
  const SSO_AUTHORIZATION_REQUEST_ENDPOINT = 'https://connect.cal-online.co.il/col-rest/calconnect/authentication/SSO';
 +const CAPTCHA_CHECK_REQUEST_ENDPOINT = 'https://connect.cal-online.co.il/col-rest/calconnect/authentication/isChaptcha';
-+const AUTHENTICATION_REQUEST_PREFIX = 'https://connect.cal-online.co.il/col-rest/calconnect/authentication/';
++const LOGIN_RESPONSE_ENDPOINTS = new Set(['https://connect.cal-online.co.il/col-rest/calconnect/authentication/login', 'https://connect.cal-online.co.il/col-rest/calconnect/authentication/auth', 'https://connect.cal-online.co.il/col-rest/calconnect/account/info']);
  const InvalidPasswordMessage = 'שם המשתמש או הסיסמה שהוזנו שגויים';
  const ChangePasswordMessage = 'להחליף סיסמה';
  const ChangePasswordSubtitle = 'הגיע הזמן לסיסמה חדשה';
-@@ -259,11 +261,10 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+@@ -259,11 +261,15 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
      return Promise.resolve('09031987-273E-2311-906C-8AF85B17C8D9');
    }
    getLoginOptions(credentials) {
@@ -21,13 +21,18 @@ index 1e38c90..f79565d 100644
 -      debug('error while waiting for the token request', e);
 -      return undefined;
 +    this.page.on('response', response => {
-+      if (response.url().toLowerCase().startsWith(AUTHENTICATION_REQUEST_PREFIX.toLowerCase())) {
-+        debug('authentication response observed: method=%s status=%d', response.request().method(), response.status());
++      if (LOGIN_RESPONSE_ENDPOINTS.has(response.url().toLowerCase())) {
++        response.json().then(body => {
++          const keys = body && typeof body === 'object' && !Array.isArray(body) ? Object.keys(body).sort().join(',') : '(non-object)';
++          debug('login response body read: method=%s status=%d keys=%s', response.request().method(), response.status(), keys);
++        }).catch(e => {
++          debug('failed to read login response body: method=%s status=%d error=%s', response.request().method(), response.status(), e.message);
++        });
 +      }
      });
      return {
        loginUrl: `${LOGIN_URL}`,
-@@ -271,7 +272,24 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+@@ -271,7 +277,24 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
        submitButtonSelector: 'button[type="submit"]',
        possibleResults: getPossibleLoginResults(),
        checkReadiness: async () => (0, _elementsInteractions.waitUntilElementFound)(this.page, '#ccLoginDesktopBtn'),
@@ -53,7 +58,7 @@ index 1e38c90..f79565d 100644
        postAction: async () => {
          try {
            await (0, _navigation.waitForNavigation)(this.page);
-@@ -280,6 +298,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+@@ -280,6 +303,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
              await (0, _elementsInteractions.clickButton)(this.page, 'button.btn-close');
            }
            const request = await this.authRequestPromise;
