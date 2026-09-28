@@ -3,7 +3,7 @@ import {
   TransactionStatuses,
   TransactionTypes,
 } from "israeli-bank-scrapers/lib/transactions.js";
-import { transactionUniqueId, transactionHash } from "./utils.js";
+import { transactionUniqueId, transactionHash, stableHash } from "./utils.js";
 import { CompanyTypes } from "israeli-bank-scrapers";
 
 const transaction1: Transaction = {
@@ -251,4 +251,27 @@ describe("transactionUniqueId", () => {
       expect(id).toContain(`${tx.description}_${tx.memo}`);
     },
   );
+});
+
+describe("stableHash", () => {
+  it("should return a known, stable value for a given input", () => {
+    // This value must never change, it is used as an external import id
+    expect(stableHash("abc")).toBe("ba7816bf8f01cfea414140de5dae2223");
+  });
+
+  it("should return the same hash for the same input", () => {
+    expect(stableHash(transaction1.description)).toBe(
+      stableHash(transaction1.description),
+    );
+  });
+
+  it("should return different hashes for different inputs", () => {
+    expect(stableHash(transaction1.description)).not.toBe(
+      stableHash(transaction2.description),
+    );
+  });
+
+  it("should fit YNAB's 36 characters import_id limit", () => {
+    expect(stableHash(transaction1.description).length).toBeLessThanOrEqual(36);
+  });
 });
