@@ -31,6 +31,42 @@ jobs:
       - id: set-container-image
         run: echo "image=${{ env.REGISTRY }}/${{ steps.normalize-repository-name.outputs.repository }}:${{ github.event.inputs.containerTag || 'latest' }}" >> $GITHUB_OUTPUT
 
+      - name: Create run metadata
+        env:
+          CONTAINER_IMAGE: ${{ steps.set-container-image.outputs.image }}
+          INPUT_CONTAINER_TAG: ${{ github.event.inputs.containerTag || 'latest' }}
+          INPUT_SEND_NEW_CONFIG_TO_TG: ${{ github.event.inputs.sendNewConfigToTg || 'false' }}
+          INPUT_DEBUG: ${{ github.event.inputs.DEBUG || '' }}
+        run: |
+          metadata=$(jq -cn \
+            --arg runId "$GITHUB_RUN_ID" \
+            --arg runAttempt "$GITHUB_RUN_ATTEMPT" \
+            --arg runUrl "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --arg workflow "$GITHUB_WORKFLOW" \
+            --arg event "$GITHUB_EVENT_NAME" \
+            --arg ref "$GITHUB_REF" \
+            --arg workflowSha "$GITHUB_SHA" \
+            --arg containerImage "$CONTAINER_IMAGE" \
+            --arg containerTag "$INPUT_CONTAINER_TAG" \
+            --arg sendNewConfigToTg "$INPUT_SEND_NEW_CONFIG_TO_TG" \
+            --arg debug "$INPUT_DEBUG" \
+            '{
+              runId: $runId,
+              runAttempt: $runAttempt,
+              runUrl: $runUrl,
+              workflow: $workflow,
+              event: $event,
+              ref: $ref,
+              workflowSha: $workflowSha,
+              containerImage: $containerImage,
+              inputs: {
+                containerTag: $containerTag,
+                sendNewConfigToTg: ($sendNewConfigToTg == "true"),
+                DEBUG: $debug
+              }
+            }')
+          echo "MONEYMAN_RUN_METADATA=$metadata" >> "$GITHUB_ENV"
+
       - name: Pull container image
         run: docker pull ${{ steps.set-container-image.outputs.image }}
 
@@ -41,6 +77,7 @@ jobs:
           -e DEBUG
           -e TZ
           -e SEND_NEW_CONFIG_TO_TG
+          -e MONEYMAN_RUN_METADATA
           ${{ steps.set-container-image.outputs.image }}
         env:
           MONEYMAN_CONFIG: ${{ secrets.MONEYMAN_CONFIG }}

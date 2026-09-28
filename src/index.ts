@@ -11,9 +11,11 @@ import { runWithStorage } from "./bot/index.js";
 import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
 import { monitorNodeConnections } from "./security/domains.js";
 import { getExternalIp, logRunMetadata } from "./runnerMetadata.js";
+import { getBuildMetadata } from "./buildMetadata.js";
 
 const logger = createLogger("main");
 console.log("Starting...");
+logger("Build metadata", getBuildMetadata());
 
 process.on("uncaughtException", (err, origin) => {
   console.error("uncaughtException, sending error");
