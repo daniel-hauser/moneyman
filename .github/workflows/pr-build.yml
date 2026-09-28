@@ -259,6 +259,8 @@ jobs:
         with:
           context: .
           push: true
+          build-args: |
+            MONEYMAN_BUILD_SHA=${{ github.event.pull_request.head.sha || github.sha }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           provenance: false
@@ -406,6 +408,8 @@ jobs:
         with:
           context: .
           push: false
+          build-args: |
+            MONEYMAN_BUILD_SHA=${{ github.event.pull_request.head.sha || github.sha }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=docker,dest=/tmp/image.tar
