@@ -60,7 +60,7 @@
     "@types/async": "^3.2.26",
     "@types/debug": "^4.1.13",
     "@types/jest": "^30.0.0",
-    "@types/node": "^26.6.2",
+    "@types/node": "^26.6.3",
     "@types/pg": "^8.23.1",
     "@types/pg-format": "^1.0.5",
     "husky": "^9.1.7",
