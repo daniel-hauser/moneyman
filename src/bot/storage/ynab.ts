@@ -16,6 +16,7 @@ export class YNABStorage implements TransactionStorage {
   private ynabAPI: ynab.API;
   private budgetName = "";
   private accountToYnabAccount = new Map<string, string>();
+  private ynabAccountToTransferPayeeId = new Map<string, string>();
 
   constructor(private config: MoneymanConfig) {}
 
@@ -27,6 +28,12 @@ export class YNABStorage implements TransactionStorage {
     this.ynabAPI = new ynab.API(ynabConfig.token);
     this.budgetName = await this.getBudgetName(ynabConfig.budgetId);
     this.accountToYnabAccount = new Map(Object.entries(ynabConfig.accounts));
+    this.ynabAccountToTransferPayeeId = await this.fetchTransferPayeeIds(
+      ynabConfig.budgetId,
+    );
+    logger(
+      `loaded ${this.ynabAccountToTransferPayeeId.size} transfer payee mappings`,
+    );
   }
 
   canSave() {
@@ -115,18 +122,63 @@ export class YNABStorage implements TransactionStorage {
     }
   }
 
+  private async fetchTransferPayeeIds(
+    budgetId: string,
+  ): Promise<Map<string, string>> {
+    const accountsResponse = await this.ynabAPI.accounts.getAccounts(budgetId);
+    if (!accountsResponse.data) {
+      throw new Error(`Failed to fetch accounts for budget: ${budgetId}`);
+    }
+    const map = new Map<string, string>();
+    for (const account of accountsResponse.data.accounts) {
+      if (!account.deleted && !account.closed && account.transfer_payee_id) {
+        map.set(account.id, account.transfer_payee_id);
+      }
+    }
+    return map;
+  }
+
+  // When a scraped transaction's identifier matches the key of a *different*
+  // configured account, treat the transaction as a transfer to that account.
+  // This covers cases where the bank's activityDescription doesn't distinguish
+  // between cards (e.g. Bank Hapoalim returns the bare "כאל" for every Visa-Cal
+  // debit, with the actual card last-4 surfaced only in the reference number
+  // field — which israeli-bank-scrapers exposes as tx.identifier).
+  private resolveTransferPayeeId(
+    tx: TransactionRow,
+    sourceAccountId: string,
+  ): string | undefined {
+    const identifier = tx.identifier?.toString();
+    if (!identifier) return undefined;
+
+    const targetAccountId = this.accountToYnabAccount.get(identifier);
+    if (!targetAccountId || targetAccountId === sourceAccountId) {
+      return undefined;
+    }
+
+    const transferPayeeId =
+      this.ynabAccountToTransferPayeeId.get(targetAccountId);
+    if (transferPayeeId) {
+      logger(
+        `routing tx as transfer: source=${sourceAccountId} identifier=${identifier} -> target=${targetAccountId}`,
+      );
+    }
+    return transferPayeeId;
+  }
+
   private convertTransactionToYnabFormat(
     tx: TransactionRow,
     accountId: string,
   ): ynab.SaveTransactionWithIdOrImportId {
     const amount = Math.round(tx.chargedAmount * 1000);
+    const transferPayeeId = this.resolveTransferPayeeId(tx, accountId);
 
     return {
       account_id: accountId,
       date: format(parseISO(tx.date), YNAB_DATE_FORMAT, {}),
       amount,
-      payee_id: undefined,
-      payee_name: tx.description,
+      payee_id: transferPayeeId,
+      payee_name: transferPayeeId ? undefined : tx.description,
       cleared:
         tx.status === TransactionStatuses.Completed
           ? ynab.TransactionClearedStatus.Cleared
