@@ -16,9 +16,13 @@ Moneyman is a TypeScript/Node.js application that scrapes financial transaction 
 
 ### Main Modules
 
-- `src/index.ts` - Main entry point
+- `src/index.ts` - Main entry point (one shot: scrape once and exit)
+- `src/server.ts` - Long running entry point (`MONEYMAN_LONG_RUNNING=true`): runs on a schedule and handles Telegram commands
+- `src/runner.ts` - Runs the scraper a single time, shared by both entry points
+- `src/scheduler.ts` - Fires runs at the times configured in `options.scheduling.times`
 - `src/scraper/` - Bank scraping logic using israeli-bank-scrapers
 - `src/bot/` - Data processing and messaging logic
+- `src/bot/commands.ts` - Telegram command handlers for the long running mode
 - `src/bot/storage/` - Storage provider implementations (Google Sheets, YNAB, etc.)
 - `src/config.ts` - Configuration management with Zod validation
 - `src/security/` - Security and domain filtering logic
@@ -114,6 +118,7 @@ Key environment variables include:
 
 - `DEBUG=moneyman:*` - Enable debug logging
 - `MONEYMAN_CONFIG` - JSON configuration (preferred)
+- `MONEYMAN_LONG_RUNNING` - Set to `"true"` to keep running after the first scrape (schedule + Telegram commands)
 - `PUPPETEER_SKIP_DOWNLOAD=true` - Skip Chrome download in development
 - Various storage provider specific variables (see README.md)
 

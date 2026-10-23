@@ -1,7 +1,8 @@
-import { existsSync, unlinkSync, readFileSync } from "fs";
+import { existsSync, unlinkSync, truncateSync, readFileSync } from "fs";
 import { config } from "../config.js";
 import { sendTextFile } from "../bot/notifier.js";
 import { logToPublicLog, unsafeStdout, createLogger } from "./logger.js";
+import { longRunning } from "./env.js";
 import { storages } from "../bot/storage/index.js";
 import type { TransactionStorage } from "../types.js";
 import debug from "debug";
@@ -73,8 +74,19 @@ export async function sendAndDeleteLogFile() {
       }
     }
 
-    logToPublicLog(`Deleting log file`, logger);
-    unlinkSync(logFilePath);
+    if (longRunning) {
+      /**
+       * In long running mode the log file is held open by the entrypoint for
+       * the lifetime of the process, so it can be emptied but not deleted.
+       * The entrypoint opens it in append mode, so the next run starts writing
+       * at the beginning of the file again.
+       */
+      logToPublicLog(`Clearing log file`, logger);
+      truncateSync(logFilePath, 0);
+    } else {
+      logToPublicLog(`Deleting log file`, logger);
+      unlinkSync(logFilePath);
+    }
   } catch (error) {
     logger(`sendAndDeleteLogFile Failed:`, error);
     logToPublicLog(`sendAndDeleteLogFile Failed`);

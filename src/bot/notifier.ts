@@ -31,6 +31,49 @@ if (bot && telegramConfig) {
   });
 }
 
+/**
+ * Whether the bot is currently polling for updates.
+ * Owned by this module so that the OTP flow and the long running server do not
+ * try to launch (or stop) the same bot twice.
+ */
+let botRunning = false;
+
+/** The shared Telegram bot, or `null` when Telegram is not configured */
+export function getTelegramBot() {
+  return bot;
+}
+
+export function isTelegramBotRunning(): boolean {
+  return botRunning;
+}
+
+/**
+ * Start polling for Telegram updates. Returns once the bot is up, and is a
+ * no-op when it is already running.
+ */
+export async function launchTelegramBot(): Promise<void> {
+  if (!bot) {
+    throw new Error("Telegram is not configured");
+  }
+  if (botRunning) {
+    return;
+  }
+
+  botRunning = true;
+  try {
+    await bot.launch(() => logger("Telegram bot launched"));
+  } catch (e) {
+    botRunning = false;
+    throw e;
+  }
+}
+
+export function stopTelegramBot() {
+  if (!bot || !botRunning) return;
+  botRunning = false;
+  bot.stop();
+}
+
 export async function send(message: string, parseMode?: "HTML") {
   if (message.length > 4096) {
     await send(
@@ -220,23 +263,24 @@ export async function requestOtpCode(
 
     bot.on(message("text"), handler);
 
-    bot
-      .launch(() => {
-        logger("Bot launched for OTP collection");
-      })
-      .catch((error) => {
-        if (!error.message.includes("already running")) {
-          sendError(error, "requestOtpCode");
-          reject(
-            new Error(`Failed to start Telegram bot for OTP: ${error.message}`),
-          );
-        }
-      });
+    /**
+     * In long running mode the bot is already polling for updates, so only
+     * launch (and later stop) it when this flow is the one that started it.
+     */
+    const ownsBot = !isTelegramBotRunning();
+    if (!ownsBot) {
+      return;
+    }
+
+    launchTelegramBot().catch((error) => {
+      sendError(error, "requestOtpCode");
+      reject(new Error(`Failed to start Telegram bot for OTP: ${error}`));
+    });
   });
 
   try {
     return await Promise.race([responsePromise, timeoutPromise]);
   } finally {
-    bot.stop();
+    stopTelegramBot();
   }
 }

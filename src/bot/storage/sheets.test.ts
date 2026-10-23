@@ -186,6 +186,7 @@ describe("GoogleSheetsStorage", () => {
           },
           notifications: {},
           logging: LoggingOptionsSchema.parse({}),
+          scheduling: { times: [] },
         },
       };
 

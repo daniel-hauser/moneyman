@@ -41,6 +41,12 @@
       // "getIpInfoUrl": "https://ipinfo.io/json"
       // "getIpInfoUrl": false
     },
+    "scheduling": {
+      // Times of day to run automatically when running in long running mode
+      // (MONEYMAN_LONG_RUNNING=true). Interpreted in the TZ of the process.
+      // Leave empty (or omit) to only run on demand with /scrape in Telegram.
+      // "times": ["09:00", "21:00"]
+    },
     "security": {
       // Block domains by default (default: false)
       // "blockByDefault": false

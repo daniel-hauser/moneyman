@@ -8,6 +8,7 @@ import {
   MoneymanConfig,
   NotificationOptionsSchema,
   ScrapingOptionsSchema,
+  SchedulingOptionsSchema,
   SecurityOptionsSchema,
 } from "../config.schema.js";
 import { CompanyTypes } from "israeli-bank-scrapers";
@@ -49,6 +50,7 @@ export function config(): MoneymanConfig {
       security: SecurityOptionsSchema.parse({}),
       notifications: NotificationOptionsSchema.parse({}),
       logging: LoggingOptionsSchema.parse({}),
+      scheduling: SchedulingOptionsSchema.parse({}),
     },
   };
 }

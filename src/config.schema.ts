@@ -160,11 +160,29 @@ export const LoggingOptionsSchema = z.object({
   debugFilter: z.string().optional().default("moneyman:*"),
 });
 
+export const SchedulingOptionsSchema = z.object({
+  /**
+   * Times of day, in the timezone of the process (`TZ`), at which to run the
+   * scraper when running in long-running mode (`MONEYMAN_LONG_RUNNING=true`).
+   * Each entry must be a 24 hour `HH:mm` string.
+   * Leave empty to only run on demand from Telegram.
+   * @default []
+   */
+  times: z
+    .array(
+      z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, {
+        error: "Time must be in the 24 hour HH:mm format",
+      }),
+    )
+    .default([]),
+});
+
 const OptionsSchemaObject = z.object({
   scraping: ScrapingOptionsSchema.prefault({}),
   security: SecurityOptionsSchema.prefault({}),
   notifications: NotificationOptionsSchema.prefault({}),
   logging: LoggingOptionsSchema.prefault({}),
+  scheduling: SchedulingOptionsSchema.prefault({}),
 });
 
 // Complete configuration schema
