@@ -8,9 +8,8 @@ import {
 import { createLogger } from "../../utils/logger.js";
 import { loggerContextStore } from "../../utils/asyncContext.js";
 import { Timer } from "../../utils/Timer.js";
-import { saving } from "../messages.js";
-import { editMessage, send, sendError } from "../notifier.js";
-import { statsString } from "../saveStats.js";
+import { sendError } from "../notifier.js";
+import type { ReportPublisher } from "../reportPublisher.js";
 import { ActualBudgetStorage } from "./actual.js";
 import { AzureDataExplorerStorage } from "./azure-data-explorer.js";
 import { BuxferStorage } from "./buxfer.js";
@@ -22,6 +21,7 @@ import { TelegramStorage } from "./telegram.js";
 import { YNABStorage } from "./ynab.js";
 import { SqlStorage } from "./sql.js";
 import { MoneymanDashStorage } from "./moneyman.js";
+import { formatUnknownError } from "../../utils/utils.js";
 import { config } from "../../config.js";
 
 const baseLogger = createLogger("storage");
@@ -39,15 +39,24 @@ export const storages = [
   new MoneymanDashStorage(config),
 ].filter((s) => s.canSave());
 
-export async function saveResults(results: Array<AccountScrapeResult>) {
+export async function saveResults(
+  results: Array<AccountScrapeResult>,
+  publisher: ReportPublisher,
+) {
   if (storages.length === 0) {
-    await send("No storages found, skipping save");
+    publisher.update(
+      (r) => r.notices.push("No storages found, skipping save"),
+      "No storages found, skipping save",
+    );
     return;
   }
 
   const txns = resultsToTransactions(results);
   if (txns.length === 0) {
-    await send("No transactions found, skipping save");
+    publisher.update(
+      (r) => r.notices.push("No transactions found, skipping save"),
+      "No transactions found, skipping save",
+    );
     return;
   }
 
@@ -73,27 +82,49 @@ export async function saveResults(results: Array<AccountScrapeResult>) {
       return loggerContextStore.run({ prefix: `[${name}]` }, async () => {
         try {
           logger(`saving ${txns.length} transactions`);
-          const message = await send(saving(name));
+          publisher.update(
+            (r) => r.storages.set(name, { state: "saving", steps }),
+            `storage[${name}] saving`,
+          );
           const start = performance.now();
           const stats = await storage.saveTransactions(
             txns,
             async (step) => {
               steps.at(-1)?.end();
               steps.push(new Timer(step));
-              await editMessage(message?.message_id, saving(name, steps));
+              publisher.update(
+                () => {},
+                `storage[${name}] saving → step "${step}"`,
+              );
             },
             context,
           );
-          const duration = performance.now() - start;
+          const durationMs = performance.now() - start;
           steps.at(-1)?.end();
-          logger(`saved`);
-          await editMessage(
-            message?.message_id,
-            statsString(stats, duration, steps),
+          publisher.update(
+            (r) =>
+              r.storages.set(name, {
+                state: "done",
+                stats,
+                durationMs,
+                steps,
+                endedAt: new Date(),
+              }),
+            `storage[${name}] done ${(durationMs / 1000).toFixed(1)}s, ${stats.added} added`,
           );
         } catch (e) {
           logger(`error saving transactions`, e);
-          sendError(e, `saveTransactions::${name}`);
+          const message =
+            e instanceof Error ? e.message : formatUnknownError(e);
+          publisher.update(
+            (r) =>
+              r.storages.set(name, {
+                state: "error",
+                message,
+                endedAt: new Date(),
+              }),
+            `storage[${name}] error: ${message}`,
+          );
         }
       });
     }),

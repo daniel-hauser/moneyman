@@ -1,0 +1,70 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`renderRunReport renders notices 1`] = `
+"max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done
+
+No transactions found, skipping save"
+`;
+
+exports[`renderRunReport renders status rows while scraping 1`] = `
+"max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done"
+`;
+
+exports[`renderRunReport renders storages in different states, each with its own quote 1`] = `
+"1 transactions scraped from 1 account.
+(0 pending, 1 completed)
+
+<blockquote expandable>Accounts updated
+	✔️ [max] 1234: 1</blockquote>
+
+<blockquote expandable>Status
+max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done</blockquote>
+
+📝 Sheets (TheTable) ✅ 1 added, 1.2s 10:00:05Z
+<blockquote expandable>	Step1, took 0.01s
+	Step2, took 1.00s
+	1 added
+	3 skipped (1 existing, 1 pending, 1 other)
+	took 1.23s
+	-----
+	Group1:
+		description1:	+10.00</blockquote>
+📝 YNAB ⏳ Saving...
+<blockquote expandable>	Loading, took 0.01s</blockquote>
+📝 Web ❌ Failed 10:00:05Z
+<blockquote expandable>	boom</blockquote>
+
+🏁 Finished 10:00:05Z"
+`;
+
+exports[`renderRunReport renders summary first and status in a collapsed quote 1`] = `
+"1 transactions scraped from 1 account.
+(0 pending, 1 completed)
+
+<blockquote expandable>Accounts updated
+	✔️ [max] 1234: 1</blockquote>
+
+<blockquote expandable>Status
+max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done
+
+Total time: 12.3 seconds</blockquote>"
+`;
+
+exports[`renderRunReport truncates long errors before escaping 1`] = `
+"0 transactions scraped.
+
+<blockquote expandable>Accounts updated
+	❌ [max] GENERIC
+		Unexpected token '&lt;', "&lt;!DOCTYPE "... is not valid JSON</blockquote>
+
+<blockquote expandable>Status
+max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done</blockquote>
+
+📝 Sheets ❌ Failed 10:00:05Z
+<blockquote expandable>	&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;…</blockquote>"
+`;

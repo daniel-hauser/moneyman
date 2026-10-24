@@ -1,7 +1,6 @@
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { TransactionRow } from "../types.js";
 import { transactionList } from "./messages.js";
-import { Timer } from "../utils/Timer.js";
 
 export interface SaveStats {
   /**
@@ -97,22 +96,24 @@ export function createSaveStats<TInit extends Partial<SaveStats>>(
   };
 }
 
-export function statsString(
+/**
+ * The lines describing the save result of a storage (without the header)
+ */
+export function statsDetailsLines(
   stats: SaveStats,
   saveDurationMs: number,
-  steps: Array<Timer> = [],
-): string {
-  const header = `📝 ${stats.name}${stats.table ? ` (${stats.table})` : ""}`;
-  const stepsString = steps.map((s) => `\t${s}`).join("\n");
+): Array<string> {
   const skippedInfo = skippedString(stats);
-
-  const skippedBreakdown = skippedInfo ? `\t${skippedInfo}\n` : "";
-
-  return `
-${header}${stepsString ? "\n" + stepsString : ""}
-\t${stats.added} added${skippedBreakdown}
-\ttook ${(saveDurationMs / 1000).toFixed(2)}s
-${highlightedTransactionsString(stats.highlightedTransactions, 1)}`.trim();
+  const highlighted = highlightedTransactionsString(
+    stats.highlightedTransactions,
+    1,
+  );
+  return [
+    `\t${stats.added} added`,
+    ...(skippedInfo ? [`\t${skippedInfo}`] : []),
+    `\ttook ${(saveDurationMs / 1000).toFixed(2)}s`,
+    ...(highlighted ? [highlighted] : []),
+  ];
 }
 
 export function highlightedTransactionsString(

@@ -4,15 +4,21 @@ import {
 } from "israeli-bank-scrapers/lib/transactions.js";
 import { AccountScrapeResult, Transaction } from "../types.js";
 import { normalizeCurrency } from "../utils/currency.js";
-import { Timer } from "../utils/Timer.js";
+import { truncateError } from "./truncateError.js";
 import { escapers } from "@telegraf/entity";
 import { transactionUniqueId } from "./storage/utils.js";
 
-function blockquote(title: string, lines: string[], expandable = true): string {
+export function blockquote(
+  title: string,
+  lines: string[],
+  expandable = true,
+): string {
   const content = lines.join("\n");
   const expandableAttr = expandable ? " expandable" : "";
   return `<blockquote${expandableAttr}>${title}\n${content}</blockquote>`;
 }
+
+const MAX_FAILED_ACCOUNTS = 5;
 
 function getAccountsSummary(results: Array<AccountScrapeResult>): string {
   const successfulAccounts = results
@@ -25,16 +31,20 @@ function getAccountsSummary(results: Array<AccountScrapeResult>): string {
     )
     .filter((account): account is string => account !== undefined);
 
-  const errorAccounts = results
-    .filter(({ result }) => !result.success)
+  const failed = results.filter(({ result }) => !result.success);
+  const errorAccounts = failed
+    .slice(0, MAX_FAILED_ACCOUNTS)
     .map(
       ({ result, companyId }) =>
         `\t❌ [${companyId}] ${result.errorType}${
           result.errorMessage
-            ? `\n\t\t${escapers.HTML(result.errorMessage)}`
+            ? `\n\t\t${escapers.HTML(truncateError(result.errorMessage).replaceAll("\n", "\n\t\t"))}`
             : ""
         }`,
     );
+  if (failed.length > MAX_FAILED_ACCOUNTS) {
+    errorAccounts.push(`\t+${failed.length - MAX_FAILED_ACCOUNTS} more`);
+  }
 
   if (errorAccounts.length === 0 && successfulAccounts.length === 0) {
     // No accounts at all
@@ -231,11 +241,6 @@ export function transactionList(
     .map((t) => `${indent}${transactionString(t)}`)
     .join("\n");
   return escapers.HTML(list);
-}
-
-export function saving(storage: string, steps: Array<Timer> = []) {
-  const stepsString = steps.map((s) => `\t${s}`).join("\n");
-  return `📝 ${storage} Saving...\n${stepsString}`.trim();
 }
 
 function transactionsByStatus(results: Array<AccountScrapeResult>) {

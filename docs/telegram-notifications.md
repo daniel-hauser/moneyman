@@ -2,6 +2,8 @@
 
 We use telegram to send you the update status.
 
+Each run is reported in a single message that is edited as the run progresses: scraping status, a summary of the scraped transactions and one row per storage. Details (account status, storage steps, skipped and highlighted transactions) are collapsed in expandable quotes. Errors are sent as separate messages.
+
 Setup instructions:
 
 1. Create your bot following [this](https://core.telegram.org/bots#creating-a-new-bot)
@@ -31,6 +33,12 @@ options: {
        * @default 300 (5 minutes)
        */
       otpTimeoutSeconds?: number;
+      /**
+       * Minimum time in milliseconds between edits of the status message.
+       * Values below 250 are raised to 250 to stay within Telegram's rate limits.
+       * @default 500
+       */
+      updateIntervalMs?: number;
     };
   };
 };

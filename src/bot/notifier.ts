@@ -1,4 +1,4 @@
-import { Context, Telegraf, TelegramError } from "telegraf";
+import { Context, Telegraf } from "telegraf";
 import { message } from "telegraf/filters";
 import { config } from "../config.js";
 import type { ImageWithCaption } from "../types.js";
@@ -6,6 +6,7 @@ import { createLogger, logToPublicLog } from "../utils/logger.js";
 import { waitForAbortSignal } from "../utils/promises.js";
 import { formatUnknownError } from "../utils/utils.js";
 import { assignDeprecationHandler } from "./deprecationManager.js";
+import type { ReportTransport } from "./reportPublisher.js";
 
 const logger = createLogger("notifier");
 
@@ -113,46 +114,34 @@ export async function sendTextFile(filePath: string, caption?: string) {
   );
 }
 
-export async function editMessage(
-  message: number | undefined,
-  newText: string,
-  parseMode?: "HTML",
-) {
-  if (message === undefined || !bot || !telegramConfig?.chatId) {
-    return;
-  }
+/**
+ * Transport for the single run-report message, undefined when Telegram isn't configured.
+ * Errors (e.g. 429) are propagated so the publisher can handle them.
+ */
+export const reportTransport: ReportTransport | undefined =
+  bot && telegramConfig?.chatId
+    ? {
+        async send(text) {
+          const sent = await bot.telegram.sendMessage(
+            telegramConfig.chatId,
+            text,
+            { parse_mode: "HTML" },
+          );
+          return sent.message_id;
+        },
+        async edit(messageId, text) {
+          await bot.telegram.editMessageText(
+            telegramConfig.chatId,
+            messageId,
+            undefined,
+            text,
+            { parse_mode: "HTML" },
+          );
+        },
+      }
+    : undefined;
 
-  try {
-    /**
-     * Telegram has limit on the number of messages per second.
-     * To avoid getting 429 errors, we wait a bit before sending the edit request.
-     * According to the docs, the limit is 30 messages per second so we should be safe with 250ms.
-     */
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    await bot.telegram.editMessageText(
-      telegramConfig.chatId,
-      message,
-      undefined,
-      newText,
-      {
-        parse_mode: parseMode,
-      },
-    );
-  } catch (e) {
-    if (canIgnoreTelegramError(e)) {
-      logger(`Ignoring error`, e);
-    } else {
-      throw e;
-    }
-  }
-}
-
-function canIgnoreTelegramError(e: unknown) {
-  return (
-    e instanceof TelegramError &&
-    e.response.description.startsWith("Bad Request: message is not modified")
-  );
-}
+export const reportUpdateIntervalMs = telegramConfig?.updateIntervalMs;
 
 export function sendError(message: unknown, caller: string = "") {
   return send(

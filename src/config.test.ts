@@ -1,7 +1,11 @@
 import { jest } from "@jest/globals";
 import { mock } from "jest-mock-extended";
 import type { Telegraf } from "telegraf";
-import { BooleanEnvVarSchema, MoneymanConfigSchema } from "./config.schema.js";
+import {
+  BooleanEnvVarSchema,
+  MoneymanConfigSchema,
+  NotificationOptionsSchema,
+} from "./config.schema.js";
 
 jest.mock("dotenv/config", () => ({}));
 jest.mock("telegraf", () => ({ Telegraf: mock<Telegraf>() }));
@@ -16,6 +20,17 @@ describe("config", () => {
 
   afterEach(() => {
     process.env = originalEnv;
+  });
+
+  it("should default and clamp the telegram updateIntervalMs", () => {
+    const parse = (extra: object) =>
+      NotificationOptionsSchema.parse({
+        telegram: { apiKey: "key", chatId: "1", ...extra },
+      }).telegram?.updateIntervalMs;
+
+    expect(parse({})).toBe(500);
+    expect(parse({ updateIntervalMs: 1000 })).toBe(1000);
+    expect(parse({ updateIntervalMs: 10 })).toBe(250);
   });
 
   it("should parse empty config using defaults", () => {

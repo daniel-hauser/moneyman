@@ -1,5 +1,5 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
-import { getSummaryMessages, saving, transactionList } from "./messages.js";
+import { getSummaryMessages, transactionList } from "./messages.js";
 import { AccountScrapeResult, Transaction, TransactionRow } from "../types.js";
 import {
   TransactionStatuses,
@@ -8,12 +8,9 @@ import {
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
 import {
   createSaveStats,
-  SaveStats,
-  statsString,
   getSkippedCount,
   skippedString,
 } from "./saveStats.js";
-import { Timer } from "../utils/Timer.js";
 import { transaction } from "../utils/tests.js";
 import { mock } from "jest-mock-extended";
 
@@ -215,50 +212,15 @@ describe("messages", () => {
         },
       ];
 
-      const stats: Array<SaveStats> = [
-        createSaveStats("Storage 1", "TheTable", txns1 as any, {
-          added: txns1.length,
-        }),
-        createSaveStats("Storage 2", "TheTable", txns2 as any, {
-          added: txns2.length,
-          highlightedTransactions: {
-            Group1: [
-              {
-                account: "account1",
-                companyId: CompanyTypes.max,
-                hash: "hash1",
-                type: TransactionTypes.Normal,
-                date: new Date("2026-01-30").toISOString(),
-                processedDate: new Date("2026-01-30").toISOString(),
-                description: "description1",
-                originalAmount: 10,
-                uniqueId: "uniqueId1",
-                originalCurrency: "ILS",
-                chargedAmount: 10,
-                status: TransactionStatuses.Completed,
-              },
-            ],
-          },
-        }),
-      ];
-
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
-
-      const saveSummaries = stats.map((stats) => statsString(stats, 350000));
-      expect(saveSummaries).toMatchSnapshot();
     });
 
     it("should return a summary message with no results", () => {
       const results: Array<AccountScrapeResult> = [];
 
-      const stats: Array<SaveStats> = [];
-
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
-
-      const saveSummaries = stats.map((stats) => statsString(stats, 0));
-      expect(saveSummaries).toMatchSnapshot();
     });
 
     it("should return a summary message with failed results", () => {
@@ -292,13 +254,8 @@ describe("messages", () => {
         },
       ];
 
-      const stats: Array<SaveStats> = [];
-
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
-
-      const saveSummaries = stats.map((stats) => statsString(stats, 0));
-      expect(saveSummaries).toMatchSnapshot();
     });
 
     it("should return a summary message with installments", () => {
@@ -332,26 +289,8 @@ describe("messages", () => {
         },
       ];
 
-      const stats: Array<SaveStats> = [
-        createSaveStats("Storage 1", "TheTable", transactions as any, {
-          added: 2,
-          highlightedTransactions: {
-            SomeGroup: transactions.map<TransactionRow>((t) => ({
-              account: "account1",
-              companyId: CompanyTypes.max,
-              hash: "hash1",
-              uniqueId: "uniqueId1",
-              ...t,
-            })),
-          },
-        }),
-      ];
-
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
-
-      const saveSummaries = stats.map((stats) => statsString(stats, 0));
-      expect(saveSummaries).toMatchSnapshot();
     });
 
     it("should not add empty groups", () => {
@@ -362,25 +301,6 @@ describe("messages", () => {
         account: "account1",
         companyId: CompanyTypes.max,
       };
-      const stats: Array<SaveStats> = [
-        createSaveStats("Storage", "TheTable", [tx], {
-          highlightedTransactions: {
-            Group1: [],
-            Group2: [
-              {
-                ...transaction({}),
-                hash: "hash1",
-                uniqueId: "uniqueId1",
-                account: "account1",
-                companyId: CompanyTypes.max,
-              },
-            ],
-          },
-        }),
-      ];
-
-      const saveSummaries = stats.map((stats) => statsString(stats, 0));
-      expect(saveSummaries).toMatchSnapshot();
     });
 
     it("should detect duplicate uniqueId in batch", () => {
@@ -449,67 +369,6 @@ describe("messages", () => {
       expect(summary).toMatch(/2025-01-15_mizrahi_account1_-50/);
     });
 
-    it("should not add empty groups", () => {
-      const stats: Array<SaveStats> = [
-        createSaveStats("Storage", "TheTable", [], {
-          highlightedTransactions: {
-            Group1: [],
-          },
-        }),
-      ];
-
-      const saveSummaries = stats.map((stats) => statsString(stats, 0));
-      expect(saveSummaries).toMatchSnapshot();
-    });
-
-    it("should support steps", () => {
-      const tx = {
-        ...transaction({}),
-        hash: "hash1",
-        uniqueId: "uniqueId1",
-        account: "account1",
-        companyId: CompanyTypes.max,
-      };
-      const stats: Array<SaveStats> = [
-        createSaveStats("Storage", "TheTable", [tx], {
-          added: 1,
-          highlightedTransactions: {
-            Group1: [tx],
-          },
-        }),
-      ];
-      const steps: Array<Timer> = [
-        Object.assign(new Timer("Step1"), { duration: 10 }),
-        Object.assign(new Timer("Step2"), { duration: 100 }),
-        Object.assign(new Timer("Step3"), { duration: 10_000 }),
-        Object.assign(new Timer("Step4"), { duration: 100_456 }),
-      ];
-      const saveSummaries = stats.map((stats) => statsString(stats, 0, steps));
-      expect(saveSummaries).toMatchSnapshot();
-    });
-
-    it("should support stats with skipped transactions", () => {
-      const tx = {
-        ...transaction({}),
-        hash: "hash1",
-        uniqueId: "uniqueId1",
-        account: "account1",
-        companyId: CompanyTypes.max,
-      };
-      const stats: Array<SaveStats> = [
-        createSaveStats("Storage", "TheTable", [tx], {
-          added: 1,
-          existing: 1,
-          pending: 1,
-          highlightedTransactions: {
-            Group1: [tx],
-          },
-        }),
-      ];
-      const saveSummaries = stats.map((stats) => statsString(stats, 0));
-      expect(saveSummaries).toMatchSnapshot();
-    });
-
     it("should use expandable block quotation for successful accounts only (HTML)", () => {
       const results: Array<AccountScrapeResult> = [
         {
@@ -570,29 +429,6 @@ describe("messages", () => {
 
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
-    });
-
-    it("should support stats with otherSkipped transactions", () => {
-      const tx = {
-        ...transaction({}),
-        hash: "hash1",
-        uniqueId: "uniqueId1",
-        account: "account1",
-        companyId: CompanyTypes.max,
-      };
-      const stats: Array<SaveStats> = [
-        createSaveStats("Storage", "TheTable", [tx], {
-          added: 1,
-          existing: 1,
-          pending: 1,
-          otherSkipped: 2,
-          highlightedTransactions: {
-            Group1: [tx],
-          },
-        }),
-      ];
-      const saveSummaries = stats.map((stats) => statsString(stats, 0));
-      expect(saveSummaries).toMatchSnapshot();
     });
   });
 
@@ -721,39 +557,6 @@ describe("messages", () => {
 
       expect(stats.otherSkipped).toBe(3);
       expect(getSkippedCount(stats)).toBe(3);
-    });
-  });
-
-  describe("saving", () => {
-    it("should return a saving message", () => {
-      const savingMessage = saving("Storage");
-      expect(savingMessage).toMatchSnapshot();
-    });
-
-    it("should return a saving message with steps", () => {
-      const steps: Array<Timer> = [
-        Object.assign(new Timer("Step1"), { duration: 10 }),
-        Object.assign(new Timer("Step2"), { duration: 100 }),
-        Object.assign(new Timer("Step3"), { duration: 10_000 }),
-        Object.assign(new Timer("Step4"), { duration: 100_456 }),
-      ];
-      const savingMessage = saving("Storage", steps);
-      expect(savingMessage).toMatchSnapshot();
-    });
-
-    it("should return a saving message with not finished steps", () => {
-      const savingMessage = saving("Storage", [
-        Object.assign(new Timer("Step1"), { duration: 10 }),
-        Object.assign(new Timer("Step2"), { duration: 100 }),
-        Object.assign(new Timer("Step3"), { duration: 10000 }),
-        new Timer("Step4"),
-      ]);
-      expect(savingMessage).toMatchSnapshot();
-    });
-
-    it("should return a saving message with one not finished step", () => {
-      const savingMessage = saving("Storage", [new Timer("Step4")]);
-      expect(savingMessage).toMatchSnapshot();
     });
   });
 });
