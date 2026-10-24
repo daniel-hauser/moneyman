@@ -18,8 +18,6 @@ export function blockquote(
   return `<blockquote${expandableAttr}>${title}\n${content}</blockquote>`;
 }
 
-const MAX_FAILED_ACCOUNTS = 5;
-
 export interface RenderOptions {
   /** Apply no caps at all (used for the full text report) */
   full?: boolean;
@@ -40,12 +38,11 @@ function getAccountsSummary(
     .filter((account): account is string => account !== undefined);
 
   const failed = results.filter(({ result }) => !result.success);
-  const shownFailed = full ? failed : failed.slice(0, MAX_FAILED_ACCOUNTS);
   const shortenError = (message: string) => {
     if (full) return message;
     return truncateError(message);
   };
-  const errorAccounts = shownFailed.map(
+  const errorAccounts = failed.map(
     ({ result, companyId }) =>
       `\t❌ [${companyId}] ${result.errorType}${
         result.errorMessage
@@ -53,10 +50,6 @@ function getAccountsSummary(
           : ""
       }`,
   );
-  if (failed.length > shownFailed.length) {
-    errorAccounts.push(`\t+${failed.length - MAX_FAILED_ACCOUNTS} more`);
-  }
-
   if (errorAccounts.length === 0 && successfulAccounts.length === 0) {
     // No accounts at all
     return "Accounts updated:\n\t😶 None";

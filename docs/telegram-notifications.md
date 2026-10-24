@@ -2,7 +2,7 @@
 
 We use telegram to send you the update status.
 
-Each run is reported in a single message that is edited as the run progresses: scraping status, a summary of the scraped transactions and one row per storage. Details (account status, storage steps, skipped and highlighted transactions) are collapsed in expandable quotes. If the message had to be shortened (long errors, many failed accounts, or Telegram's 4096 character limit), the full report is also sent once at the end of the run as `status.txt`. Errors are sent as separate messages. To understand update bursts and rate limiting, enable `DEBUG=moneyman:report`: a single `report stats {...}` line is logged at the end of each run (updates, coalesced updates, requests, throttle waits, 429s, latency, etc.).
+Each run is reported in a single message that is edited as the run progresses: scraping status, a summary of the scraped transactions and one row per storage. Details (account status, storage steps, skipped and highlighted transactions) are collapsed in expandable quotes. If the message had to be shortened (long errors or Telegram's 4096 character limit), the full report is also sent once at the end of the run as `status.txt`. Errors are sent as separate messages. To understand update bursts and rate limiting, enable `DEBUG=moneyman:report`: a single `report stats {...}` line is logged at the end of each run (updates, coalesced updates, requests, throttle waits, 429s, latency, etc.).
 
 Setup instructions:
 

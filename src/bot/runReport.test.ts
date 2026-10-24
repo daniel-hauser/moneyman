@@ -122,7 +122,7 @@ describe("renderRunReport", () => {
     expect(text).toMatchSnapshot();
   });
 
-  it("caps the number of failed accounts", () => {
+  it("renders all failed accounts", () => {
     const report = baseReport();
     report.summary = {
       results: Array.from({ length: 8 }, () => ({
@@ -130,7 +130,9 @@ describe("renderRunReport", () => {
         result: { success: false, errorType: ScraperErrorTypes.Generic },
       })),
     };
-    expect(renderRunReport(report)).toContain("+3 more");
+    const text = renderRunReport(report);
+    expect(text.match(/❌ \[max\]/g)).toHaveLength(8);
+    expect(text).not.toContain("+3 more");
   });
 
   it("never exceeds the Telegram limit", () => {
@@ -195,10 +197,10 @@ describe("truncation detection", () => {
     expect(isReportTruncated(report)).toBe(true);
   });
 
-  it("is true when failed accounts are capped", () => {
+  it("is false when all failed accounts fit", () => {
     const report = baseReport();
     report.summary = { results: failedAccounts(8) };
-    expect(isReportTruncated(report)).toBe(true);
+    expect(isReportTruncated(report)).toBe(false);
   });
 
   it("is true when storage details are dropped", () => {
