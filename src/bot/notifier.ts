@@ -253,22 +253,23 @@ export async function requestOtpCode(
   let awaitingResponse = true;
 
   const responsePromise = new Promise<string>((resolve, reject) => {
-    const handler = (ctx: Context) => {
+    const handler = (ctx: Context, next: () => Promise<void>) => {
       if (!awaitingResponse) {
-        return;
+        // Leave the update for the current request's handler, if any
+        return next();
       }
 
       if (ctx.chat?.id?.toString() !== telegramConfig.chatId) {
-        return;
+        return next();
       }
 
       if (!ctx.message || !("text" in ctx.message)) {
-        return;
+        return next();
       }
 
       const text = ctx.message.text?.trim();
       if (!text) {
-        return;
+        return next();
       }
 
       logger(`Received OTP code: ${text}`);
