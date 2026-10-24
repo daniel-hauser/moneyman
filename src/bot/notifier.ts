@@ -240,8 +240,24 @@ export async function requestOtpCode(
     );
   });
 
+  /**
+   * In long running mode the bot is already polling for updates, so only
+   * launch (and later stop) it when this flow is the one that started it.
+   */
+  const ownsBot = !isTelegramBotRunning();
+
+  /**
+   * The handler below stays registered on the bot, so it must stop reacting
+   * once this request has settled (response, timeout or error).
+   */
+  let awaitingResponse = true;
+
   const responsePromise = new Promise<string>((resolve, reject) => {
     const handler = (ctx: Context) => {
+      if (!awaitingResponse) {
+        return;
+      }
+
       if (ctx.chat?.id?.toString() !== telegramConfig.chatId) {
         return;
       }
@@ -256,6 +272,7 @@ export async function requestOtpCode(
       }
 
       logger(`Received OTP code: ${text}`);
+      awaitingResponse = false;
       void ctx.reply("✅ OTP code received. Continuing authentication...");
 
       resolve(text);
@@ -263,11 +280,6 @@ export async function requestOtpCode(
 
     bot.on(message("text"), handler);
 
-    /**
-     * In long running mode the bot is already polling for updates, so only
-     * launch (and later stop) it when this flow is the one that started it.
-     */
-    const ownsBot = !isTelegramBotRunning();
     if (!ownsBot) {
       return;
     }
@@ -281,6 +293,10 @@ export async function requestOtpCode(
   try {
     return await Promise.race([responsePromise, timeoutPromise]);
   } finally {
-    stopTelegramBot();
+    awaitingResponse = false;
+
+    if (ownsBot) {
+      stopTelegramBot();
+    }
   }
 }
