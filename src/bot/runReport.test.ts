@@ -15,7 +15,6 @@ import {
 } from "./runReport.js";
 
 const startedAt = new Date("2024-01-01T10:00:00Z");
-const endedAt = new Date("2024-01-01T10:00:05Z");
 
 function step(name: string, duration: number) {
   return Object.assign(new Timer(name), { duration });
@@ -75,7 +74,6 @@ describe("renderRunReport", () => {
       }),
       durationMs: 1234,
       steps: [step("Step1", 10), step("Step2", 1000)],
-      endedAt,
     });
     report.storages.set("YNAB", {
       state: "saving",
@@ -84,9 +82,7 @@ describe("renderRunReport", () => {
     report.storages.set("Web", {
       state: "error",
       message: "boom",
-      endedAt,
     });
-    report.endedAt = endedAt;
     const text = renderRunReport(report);
     expect(text).toMatchSnapshot();
     // Telegram has no nested blockquotes
@@ -118,7 +114,6 @@ describe("renderRunReport", () => {
     report.storages.set("Sheets", {
       state: "error",
       message: `${"<&>".repeat(300)}\n    at foo (bar.js:1:1)`,
-      endedAt,
     });
     const text = renderRunReport(report);
     expect(text).not.toContain("at JSON.parse");
@@ -170,7 +165,7 @@ describe("truncation detection", () => {
   it("is false for a short report", () => {
     const report = baseReport();
     report.summary = { results: [successResult(), ...failedAccounts(2)] };
-    report.storages.set("Sheets", { state: "error", message: "boom", endedAt });
+    report.storages.set("Sheets", { state: "error", message: "boom" });
     expect(isReportTruncated(report)).toBe(false);
   });
 
@@ -196,7 +191,6 @@ describe("truncation detection", () => {
     report.storages.set("Sheets", {
       state: "error",
       message: "x".repeat(1000),
-      endedAt,
     });
     expect(isReportTruncated(report)).toBe(true);
   });
@@ -234,7 +228,6 @@ describe("truncation detection", () => {
     report.storages.set("Sheets", {
       state: "error",
       message: `<${"x".repeat(1000)}>\n    at foo (bar.js:1:1)`,
-      endedAt,
     });
     const text = renderFullReportText(report);
     expect(text).not.toContain("blockquote");

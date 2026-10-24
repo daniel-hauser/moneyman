@@ -23,7 +23,7 @@ exports[`renderRunReport renders storages in different states, each with its own
 max: scraping
 &lt;b&gt;visa&lt;/b&gt;: done</blockquote>
 
-📝 Sheets (TheTable) ✅ 1 added, 1.2s 10:00:05Z
+📝 Sheets (TheTable)
 <blockquote expandable>	Step1, took 0.01s
 	Step2, took 1.00s
 	1 added
@@ -34,10 +34,8 @@ max: scraping
 		description1:	+10.00</blockquote>
 📝 YNAB ⏳ Saving...
 <blockquote expandable>	Loading, took 0.01s</blockquote>
-📝 Web ❌ Failed 10:00:05Z
-<blockquote expandable>	boom</blockquote>
-
-🏁 Finished 10:00:05Z"
+📝 Web ❌ Failed
+<blockquote expandable>	boom</blockquote>"
 `;
 
 exports[`renderRunReport renders summary first and status in a collapsed quote 1`] = `
@@ -65,6 +63,6 @@ exports[`renderRunReport truncates long errors before escaping 1`] = `
 max: scraping
 &lt;b&gt;visa&lt;/b&gt;: done</blockquote>
 
-📝 Sheets ❌ Failed 10:00:05Z
+📝 Sheets ❌ Failed
 <blockquote expandable>	&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;…</blockquote>"
 `;

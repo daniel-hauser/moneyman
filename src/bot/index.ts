@@ -60,9 +60,6 @@ export async function runWithStorage(runScraper: Runner) {
       logToPublicLog("Scraping ended", logger);
     });
   } finally {
-    publisher.update((r) => {
-      r.endedAt = new Date();
-    });
     await publisher.flush();
     await publisher.sendFullReportIfTruncated();
   }

@@ -14,13 +14,11 @@ export type StorageRow =
       stats: SaveStats;
       durationMs: number;
       steps: Array<Timer>;
-      endedAt: Date;
     }
-  | { state: "error"; message: string; endedAt: Date };
+  | { state: "error"; message: string };
 
 export interface RunReport {
   startedAt: Date;
-  endedAt?: Date;
   scrape: { status: Array<string>; totalTimeSec?: number };
   summary?: { results: Array<AccountScrapeResult> };
   /** Ordered by insertion */
@@ -36,10 +34,6 @@ export function createRunReport(startedAt = new Date()): RunReport {
     storages: new Map(),
     notices: [],
   };
-}
-
-function clock(date: Date) {
-  return `${date.toISOString().slice(11, 19)}Z`;
 }
 
 function expandable(lines: Array<string>) {
@@ -62,9 +56,9 @@ function storageHeader(name: string, row: StorageRow, stats?: SaveStats) {
     case "saving":
       return `${title} ⏳ Saving...`;
     case "done":
-      return `${title} ✅ ${row.stats.added} added, ${(row.durationMs / 1000).toFixed(1)}s ${clock(row.endedAt)}`;
+      return title;
     case "error":
-      return `${title} ❌ Failed ${clock(row.endedAt)}`;
+      return `${title} ❌ Failed`;
   }
 }
 
@@ -130,7 +124,6 @@ function render(report: RunReport, mode: RenderMode) {
   if (report.notices.length) {
     sections.push(report.notices.map((n) => escapers.HTML(n)).join("\n"));
   }
-  if (report.endedAt) sections.push(`🏁 Finished ${clock(report.endedAt)}`);
 
   return sections.filter(Boolean).join("\n\n").trim();
 }

@@ -108,7 +108,6 @@ export async function saveResults(
                 stats,
                 durationMs,
                 steps,
-                endedAt: new Date(),
               }),
             `storage[${name}] done ${(durationMs / 1000).toFixed(1)}s, ${stats.added} added`,
           );
@@ -121,7 +120,6 @@ export async function saveResults(
               r.storages.set(name, {
                 state: "error",
                 message,
-                endedAt: new Date(),
               }),
             `storage[${name}] error: ${message}`,
           );
