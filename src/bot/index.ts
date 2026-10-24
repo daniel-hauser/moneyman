@@ -64,5 +64,6 @@ export async function runWithStorage(runScraper: Runner) {
       r.endedAt = new Date();
     });
     await publisher.flush();
+    await publisher.sendFullReportIfTruncated();
   }
 }

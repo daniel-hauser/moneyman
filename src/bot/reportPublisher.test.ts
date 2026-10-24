@@ -4,15 +4,20 @@ import { createRunReport, type RunReport } from "./runReport.js";
 
 const render = (r: RunReport) => r.scrape.status.join(",");
 
-function setup(intervalMs = 500) {
+function setup(intervalMs = 500, isTruncated = (_: RunReport) => false) {
   const transport = {
     send: jest.fn<ReportTransport["send"]>().mockResolvedValue(7),
     edit: jest.fn<ReportTransport["edit"]>().mockResolvedValue(undefined),
+    sendFile: jest
+      .fn<ReportTransport["sendFile"]>()
+      .mockResolvedValue(undefined),
   };
   const publisher = new ReportPublisher(createRunReport(), {
     transport,
     intervalMs,
     render,
+    isTruncated,
+    renderFull: (r) => `full:${render(r)}`,
   });
   const set = (...status: string[]) =>
     publisher.update((r) => {
@@ -130,5 +135,44 @@ describe("ReportPublisher", () => {
     }, "log line");
     await publisher.flush();
     expect(publisher.report.scrape.status).toEqual(["x"]);
+  });
+
+  describe("status.txt", () => {
+    it("sends the full final report once if any published frame was truncated", async () => {
+      const { transport, publisher, set } = setup(500, (r) =>
+        r.scrape.status.includes("long"),
+      );
+      set("long");
+      await jest.advanceTimersByTimeAsync(0);
+      set("short");
+      await publisher.flush();
+      await publisher.sendFullReportIfTruncated();
+      await publisher.sendFullReportIfTruncated();
+      expect(transport.sendFile).toHaveBeenCalledTimes(1);
+      expect(transport.sendFile).toHaveBeenCalledWith(
+        "status.txt",
+        "full:short",
+      );
+    });
+
+    it("does not send a file when nothing was truncated", async () => {
+      const { transport, publisher, set } = setup();
+      set("a");
+      await publisher.flush();
+      await publisher.sendFullReportIfTruncated();
+      expect(transport.sendFile).not.toHaveBeenCalled();
+    });
+
+    it("is a no-op without a transport", async () => {
+      const publisher = new ReportPublisher(createRunReport(), {
+        render,
+        isTruncated: () => true,
+      });
+      publisher.update(() => {});
+      await publisher.flush();
+      await expect(
+        publisher.sendFullReportIfTruncated(),
+      ).resolves.toBeUndefined();
+    });
   });
 });

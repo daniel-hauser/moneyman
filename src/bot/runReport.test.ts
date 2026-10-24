@@ -6,6 +6,9 @@ import { transaction } from "../utils/tests.js";
 import { createSaveStats } from "./saveStats.js";
 import {
   createRunReport,
+  htmlToText,
+  isReportTruncated,
+  renderFullReportText,
   renderRunReport,
   TELEGRAM_MESSAGE_LIMIT,
   type RunReport,
@@ -150,5 +153,100 @@ describe("renderRunReport", () => {
       text.split("</blockquote>").length,
     );
     expect(text.endsWith("…")).toBe(true);
+  });
+});
+
+describe("truncation detection", () => {
+  const failedAccounts = (n: number): AccountScrapeResult[] =>
+    Array.from({ length: n }, () => ({
+      companyId: CompanyTypes.max,
+      result: {
+        success: false,
+        errorType: ScraperErrorTypes.Generic,
+        errorMessage: "failed",
+      },
+    }));
+
+  it("is false for a short report", () => {
+    const report = baseReport();
+    report.summary = { results: [successResult(), ...failedAccounts(2)] };
+    report.storages.set("Sheets", { state: "error", message: "boom", endedAt });
+    expect(isReportTruncated(report)).toBe(false);
+  });
+
+  it("is true for a long account error", () => {
+    const report = baseReport();
+    report.summary = {
+      results: [
+        {
+          companyId: CompanyTypes.max,
+          result: {
+            success: false,
+            errorType: ScraperErrorTypes.Generic,
+            errorMessage: "first\n    at JSON.parse (<anonymous>)",
+          },
+        },
+      ],
+    };
+    expect(isReportTruncated(report)).toBe(true);
+  });
+
+  it("is true for a long storage error", () => {
+    const report = baseReport();
+    report.storages.set("Sheets", {
+      state: "error",
+      message: "x".repeat(1000),
+      endedAt,
+    });
+    expect(isReportTruncated(report)).toBe(true);
+  });
+
+  it("is true when failed accounts are capped", () => {
+    const report = baseReport();
+    report.summary = { results: failedAccounts(8) };
+    expect(isReportTruncated(report)).toBe(true);
+  });
+
+  it("is true when storage details are dropped", () => {
+    const report = baseReport();
+    report.summary = { results: [successResult()] };
+    for (let i = 0; i < 100; i++) {
+      report.storages.set(`Storage ${i}`, {
+        state: "saving",
+        steps: [step("A step with a long name that takes space", 1)],
+      });
+    }
+    expect(renderRunReport(report)).not.toContain("A step with");
+    expect(isReportTruncated(report)).toBe(true);
+  });
+
+  it("is true when the message is cut to the limit", () => {
+    const report = baseReport();
+    for (let i = 0; i < 400; i++) {
+      report.storages.set(`Storage ${i}`, { state: "saving", steps: [] });
+    }
+    expect(isReportTruncated(report)).toBe(true);
+  });
+
+  it("renders the full report as plain text without caps", () => {
+    const report = baseReport();
+    report.summary = { results: failedAccounts(8) };
+    report.storages.set("Sheets", {
+      state: "error",
+      message: `<${"x".repeat(1000)}>\n    at foo (bar.js:1:1)`,
+      endedAt,
+    });
+    const text = renderFullReportText(report);
+    expect(text).not.toContain("blockquote");
+    expect(text).not.toContain("more");
+    expect(text).toContain(`<${"x".repeat(1000)}>`);
+    expect(text).toContain("at foo (bar.js:1:1)");
+    expect(text.match(/❌ \[max\]/g)).toHaveLength(8);
+  });
+
+  it("htmlToText strips tags and unescapes entities", () => {
+    expect(
+      htmlToText("<blockquote expandable>a &lt;b&gt; &amp;&quot;</blockquote>"),
+    ).toBe('a <b> &"');
   });
 });

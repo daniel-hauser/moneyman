@@ -20,7 +20,15 @@ export function blockquote(
 
 const MAX_FAILED_ACCOUNTS = 5;
 
-function getAccountsSummary(results: Array<AccountScrapeResult>): string {
+export interface RenderOptions {
+  /** Apply no caps at all (used for the full text report) */
+  full?: boolean;
+}
+
+function getAccountsSummary(
+  results: Array<AccountScrapeResult>,
+  { full }: RenderOptions = {},
+): string {
   const successfulAccounts = results
     .filter(({ result }) => result.success)
     .flatMap(({ result, companyId }) =>
@@ -32,17 +40,20 @@ function getAccountsSummary(results: Array<AccountScrapeResult>): string {
     .filter((account): account is string => account !== undefined);
 
   const failed = results.filter(({ result }) => !result.success);
-  const errorAccounts = failed
-    .slice(0, MAX_FAILED_ACCOUNTS)
-    .map(
-      ({ result, companyId }) =>
-        `\t❌ [${companyId}] ${result.errorType}${
-          result.errorMessage
-            ? `\n\t\t${escapers.HTML(truncateError(result.errorMessage).replaceAll("\n", "\n\t\t"))}`
-            : ""
-        }`,
-    );
-  if (failed.length > MAX_FAILED_ACCOUNTS) {
+  const shownFailed = full ? failed : failed.slice(0, MAX_FAILED_ACCOUNTS);
+  const shortenError = (message: string) => {
+    if (full) return message;
+    return truncateError(message);
+  };
+  const errorAccounts = shownFailed.map(
+    ({ result, companyId }) =>
+      `\t❌ [${companyId}] ${result.errorType}${
+        result.errorMessage
+          ? `\n\t\t${escapers.HTML(shortenError(result.errorMessage).replaceAll("\n", "\n\t\t"))}`
+          : ""
+      }`,
+  );
+  if (failed.length > shownFailed.length) {
     errorAccounts.push(`\t+${failed.length - MAX_FAILED_ACCOUNTS} more`);
   }
 
@@ -75,13 +86,16 @@ function getPendingTransactionsSummary(pending: Array<Transaction>): string {
   }
 }
 
-export function getSummaryMessages(results: Array<AccountScrapeResult>) {
+export function getSummaryMessages(
+  results: Array<AccountScrapeResult>,
+  options: RenderOptions = {},
+) {
   const { pending, completed } = transactionsByStatus(results);
 
   const sections = [
     transactionsString(pending, completed, results),
     getDuplicateUniqueIdSummary(results),
-    getAccountsSummary(results),
+    getAccountsSummary(results, options),
     getPendingTransactionsSummary(pending),
   ];
   return sections.filter(Boolean).join("\n\n").trim();

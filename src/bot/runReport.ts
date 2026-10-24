@@ -68,7 +68,11 @@ function storageHeader(name: string, row: StorageRow, stats?: SaveStats) {
   }
 }
 
-function renderStorage(name: string, row: StorageRow, withDetails: boolean) {
+function renderStorage(
+  name: string,
+  row: StorageRow,
+  { details: withDetails, full }: RenderMode,
+) {
   const header = storageHeader(
     name,
     row,
@@ -90,25 +94,36 @@ function renderStorage(name: string, row: StorageRow, withDetails: boolean) {
       ];
       break;
     case "error":
-      details = [`\t${escapers.HTML(truncateError(row.message))}`];
+      details = [
+        `\t${escapers.HTML(full ? row.message : truncateError(row.message))}`,
+      ];
       break;
   }
 
   return details.length ? `${header}\n${expandable(details)}` : header;
 }
 
-function render(report: RunReport, withStorageDetails: boolean) {
+interface RenderMode {
+  /** Include the per-storage detail blocks */
+  details: boolean;
+  /** Apply no caps */
+  full: boolean;
+}
+
+function render(report: RunReport, mode: RenderMode) {
   const sections: Array<string> = [];
 
   if (report.summary) {
-    sections.push(getSummaryMessages(report.summary.results));
+    sections.push(
+      getSummaryMessages(report.summary.results, { full: mode.full }),
+    );
     sections.push(blockquote("Status", renderScrape(report)));
   } else {
     sections.push(renderScrape(report).join("\n"));
   }
 
   const storages = [...report.storages].map(([name, row]) =>
-    renderStorage(name, row, withStorageDetails),
+    renderStorage(name, row, mode),
   );
   if (storages.length) sections.push(storages.join("\n"));
 
@@ -139,11 +154,32 @@ function cutToLimit(text: string) {
 
 /** Render the report as a Telegram HTML message. Pure. */
 export function renderRunReport(report: RunReport): string {
-  const full = render(report, true);
-  if (full.length <= TELEGRAM_MESSAGE_LIMIT) return full;
+  const capped = render(report, { details: true, full: false });
+  if (capped.length <= TELEGRAM_MESSAGE_LIMIT) return capped;
 
-  const compact = render(report, false);
+  const compact = render(report, { details: false, full: false });
   return compact.length <= TELEGRAM_MESSAGE_LIMIT
     ? compact
     : cutToLimit(compact);
+}
+
+/** Convert the report HTML to plain text */
+export function htmlToText(html: string): string {
+  return html
+    .replace(/<\/?blockquote[^>]*>/g, "")
+    .replace(/<[^>]+>/g, "")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&amp;", "&");
+}
+
+/** The whole report as plain text, with nothing shortened or dropped */
+export function renderFullReportText(report: RunReport): string {
+  return htmlToText(render(report, { details: true, full: true }));
+}
+
+/** Whether the message sent to Telegram differs from the full report */
+export function isReportTruncated(report: RunReport): boolean {
+  return htmlToText(renderRunReport(report)) !== renderFullReportText(report);
 }

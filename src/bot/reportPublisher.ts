@@ -1,17 +1,25 @@
 import { createLogger } from "../utils/logger.js";
-import { renderRunReport, type RunReport } from "./runReport.js";
+import {
+  isReportTruncated,
+  renderFullReportText,
+  renderRunReport,
+  type RunReport,
+} from "./runReport.js";
 
 const logger = createLogger("report");
 
 export interface ReportTransport {
   send(text: string): Promise<number | undefined>;
   edit(messageId: number, text: string): Promise<void>;
+  sendFile(filename: string, content: string): Promise<void>;
 }
 
 export interface ReportPublisherOptions {
   transport?: ReportTransport;
   intervalMs?: number;
   render?: (report: RunReport) => string;
+  isTruncated?: (report: RunReport) => boolean;
+  renderFull?: (report: RunReport) => string;
 }
 
 /**
@@ -22,6 +30,10 @@ export class ReportPublisher {
   private readonly transport?: ReportTransport;
   private readonly intervalMs: number;
   private readonly render: (report: RunReport) => string;
+  private readonly isTruncated: (report: RunReport) => boolean;
+  private readonly renderFull: (report: RunReport) => string;
+  private truncated = false;
+  private fileSent = false;
 
   private dirty = false;
   private messageId?: number;
@@ -38,11 +50,15 @@ export class ReportPublisher {
       transport,
       intervalMs = 500,
       render = renderRunReport,
+      isTruncated = isReportTruncated,
+      renderFull = renderFullReportText,
     }: ReportPublisherOptions = {},
   ) {
     this.transport = transport;
     this.intervalMs = intervalMs;
     this.render = render;
+    this.isTruncated = isTruncated;
+    this.renderFull = renderFull;
   }
 
   /**
@@ -72,6 +88,21 @@ export class ReportPublisher {
     this.flushing = false;
   }
 
+  /**
+   * If any published frame was truncated, send the full final report as
+   * status.txt. Sends at most once. Call after the final flush().
+   */
+  async sendFullReportIfTruncated() {
+    if (!this.transport || !this.truncated || this.fileSent) return;
+    this.fileSent = true;
+    logger("Report was truncated, sending status.txt");
+    try {
+      await this.transport.sendFile("status.txt", this.renderFull(this.report));
+    } catch (e) {
+      logger("Failed to send status.txt", e);
+    }
+  }
+
   private schedule() {
     if (!this.transport || this.timer || this.pumping) return;
     const wait = Math.max(0, this.lastRequestAt + this.intervalMs - Date.now());
@@ -96,6 +127,7 @@ export class ReportPublisher {
       this.dirty = false;
       const text = this.render(this.report);
       if (text === this.lastText) continue;
+      this.truncated ||= this.isTruncated(this.report);
 
       this.lastRequestAt = Date.now();
       try {

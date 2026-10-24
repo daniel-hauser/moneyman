@@ -138,6 +138,13 @@ export const reportTransport: ReportTransport | undefined =
             { parse_mode: "HTML" },
           );
         },
+        async sendFile(filename, content) {
+          logger(`Sending file ${filename}`);
+          await bot.telegram.sendDocument(telegramConfig.chatId, {
+            source: Buffer.from(content, "utf-8"),
+            filename,
+          });
+        },
       }
     : undefined;
 
