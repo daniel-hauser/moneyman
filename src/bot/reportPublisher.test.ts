@@ -5,6 +5,7 @@ import { createRunReport, type RunReport } from "./runReport.js";
 const render = (r: RunReport) => r.scrape.status.join(",");
 
 function setup(intervalMs = 500, isTruncated = (_: RunReport) => false) {
+  const log = jest.fn();
   const transport = {
     send: jest.fn<ReportTransport["send"]>().mockResolvedValue(7),
     edit: jest.fn<ReportTransport["edit"]>().mockResolvedValue(undefined),
@@ -18,12 +19,13 @@ function setup(intervalMs = 500, isTruncated = (_: RunReport) => false) {
     render,
     isTruncated,
     renderFull: (r) => `full:${render(r)}`,
+    log,
   });
   const set = (...status: string[]) =>
     publisher.update((r) => {
       r.scrape.status = status;
     });
-  return { transport, publisher, set };
+  return { transport, publisher, set, log };
 }
 
 describe("ReportPublisher", () => {
@@ -181,6 +183,81 @@ describe("ReportPublisher", () => {
     await jest.advanceTimersByTimeAsync(10_000);
     await expect(flushing).resolves.toBeUndefined();
     expect(transport.edit).toHaveBeenCalledTimes(4);
+  });
+
+  describe("stats", () => {
+    it("counts bursts, coalescing, unchanged frames and a 429", async () => {
+      const { transport, publisher, set, log } = setup();
+      set("a");
+      await jest.advanceTimersByTimeAsync(0);
+      // burst of 5 updates -> one request
+      for (const v of ["b", "c", "d", "e", "f"]) set(v);
+      await jest.advanceTimersByTimeAsync(500);
+      // unchanged
+      set("f");
+      await jest.advanceTimersByTimeAsync(500);
+      // one 429
+      transport.edit.mockRejectedValueOnce({
+        response: { error_code: 429, parameters: { retry_after: 2 } },
+      });
+      set("g");
+      await jest.advanceTimersByTimeAsync(500);
+      await jest.advanceTimersByTimeAsync(2000);
+      await publisher.finish();
+
+      expect(publisher.getStats()).toMatchObject({
+        updateCalls: 8,
+        sendCount: 1,
+        editCount: 2,
+        requestsSent: 3,
+        skippedUnchanged: 1,
+        // 5-update burst folds into one request (4 coalesced) + 1 skipped
+        coalescedUpdates: 5,
+        maxUpdatesPerRequest: 5,
+        maxUpdatesPerSecond: 7,
+        rateLimited: 1,
+        totalRetryAfterMs: 2000,
+        droppedAfterRetries: 0,
+        failures: 0,
+        renderErrors: 0,
+        fileSent: false,
+        fileAttempts: 0,
+      });
+      expect(publisher.getStats().throttleWaits).toBeGreaterThan(0);
+
+      await publisher.finish();
+      const statsLines = log.mock.calls.filter(([m]) =>
+        String(m).startsWith("report stats "),
+      );
+      expect(statsLines).toHaveLength(1);
+      expect(JSON.parse(String(statsLines[0][0]).slice(13)).updateCalls).toBe(
+        8,
+      );
+    });
+
+    it("tracks truncated frames, file attempts and failures", async () => {
+      const { transport, publisher, set } = setup(500, () => true);
+      transport.send.mockRejectedValueOnce(new Error("net"));
+      set("a");
+      await publisher.flush();
+      set("b");
+      await publisher.finish();
+      expect(publisher.getStats()).toMatchObject({
+        failures: 1,
+        truncatedFrames: 2,
+        fileSent: true,
+        fileAttempts: 1,
+      });
+    });
+
+    it("still logs stats without a transport", async () => {
+      const log = jest.fn();
+      const publisher = new ReportPublisher(createRunReport(), { log });
+      publisher.update(() => {});
+      await publisher.finish();
+      expect(publisher.getStats().updateCalls).toBe(1);
+      expect(log).toHaveBeenCalledWith(expect.stringMatching(/^report stats /));
+    });
   });
 
   describe("status.txt", () => {
