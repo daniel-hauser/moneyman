@@ -1,5 +1,5 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
-import { getSummaryMessages, transactionList } from "./messages.js";
+import { blockquote, getSummaryMessages, transactionList } from "./messages.js";
 import { AccountScrapeResult, Transaction, TransactionRow } from "../types.js";
 import {
   TransactionStatuses,
@@ -15,6 +15,14 @@ import { transaction } from "../utils/tests.js";
 import { mock } from "jest-mock-extended";
 
 describe("messages", () => {
+  describe("blockquote", () => {
+    it("omits the title and leading newline when no title is provided", () => {
+      expect(blockquote(undefined, ["first", "second"])).toBe(
+        "<blockquote expandable>first\nsecond</blockquote>",
+      );
+    });
+  });
+
   describe("transactionList", () => {
     it("shows the original foreign amount for a completed ILS charge", () => {
       expect(

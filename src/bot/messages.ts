@@ -9,13 +9,14 @@ import { escapers } from "@telegraf/entity";
 import { transactionUniqueId } from "./storage/utils.js";
 
 export function blockquote(
-  title: string,
+  title: string | undefined,
   lines: string[],
   expandable = true,
 ): string {
   const content = lines.join("\n");
   const expandableAttr = expandable ? " expandable" : "";
-  return `<blockquote${expandableAttr}>${title}\n${content}</blockquote>`;
+  const prefix = title === undefined ? "" : `${title}\n`;
+  return `<blockquote${expandableAttr}>${prefix}${content}</blockquote>`;
 }
 
 export interface RenderOptions {

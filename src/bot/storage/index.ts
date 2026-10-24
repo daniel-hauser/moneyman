@@ -103,8 +103,7 @@ export async function saveResults(
           report.storages[name] = { state: "done", stats, durationMs, steps };
         } catch (e) {
           logger(`error saving transactions`, e);
-          const message =
-            e instanceof Error ? e.message : formatUnknownError(e);
+          const message = formatUnknownError(e);
           report.storages[name] = { state: "error", message };
         }
       });

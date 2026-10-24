@@ -41,10 +41,6 @@ export function createRunReport(startedAt = new Date()): RunReport {
   };
 }
 
-function expandable(lines: Array<string>) {
-  return `<blockquote expandable>${lines.join("\n")}</blockquote>`;
-}
-
 function renderScrape(report: RunReport) {
   const { status, totalTimeSec } = report.scrape;
   const lines = status.map((s) => escapers.HTML(s));
@@ -102,7 +98,9 @@ function renderStorage(
       break;
   }
 
-  return details.length ? `${header}\n${expandable(details)}` : header;
+  return details.length
+    ? `${header}\n${blockquote(undefined, details)}`
+    : header;
 }
 
 interface RenderMode {

@@ -1,5 +1,6 @@
 import { proxy, subscribe } from "valtio/vanilla";
 import { createLogger } from "../utils/logger.js";
+import { sleep } from "../utils/utils.js";
 import {
   renderFullReport,
   renderRunReport,
@@ -19,9 +20,6 @@ export interface ReportPublisherOptions {
   intervalMs?: number;
   log?: (message: string, ...args: unknown[]) => void;
 }
-
-const sleep = (ms: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, Math.max(0, ms)));
 
 const response = (e: unknown) =>
   (e as { response?: any } | undefined)?.response;
@@ -56,7 +54,7 @@ export function createReportPublisher(
 
   async function publishLatest() {
     while (dirty) {
-      await sleep(lastRequestAt + intervalMs - Date.now());
+      await sleep(Math.max(0, lastRequestAt + intervalMs - Date.now()));
       dirty = false;
       const text = renderRunReport(report);
       stats.renders++;
