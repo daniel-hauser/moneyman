@@ -1,19 +1,24 @@
 import { escapers } from "@telegraf/entity";
 import type { AccountScrapeResult } from "../types.js";
-import type { Timer } from "../utils/Timer.js";
 import { blockquote, getSummaryMessages } from "./messages.js";
 import { statsDetailsLines, type SaveStats } from "./saveStats.js";
 import { truncateError } from "./truncateError.js";
 
 export const TELEGRAM_MESSAGE_LIMIT = 4096;
 
+export interface Step {
+  name: string;
+  /** Unset while the step is running */
+  durationMs?: number;
+}
+
 export type StorageRow =
-  | { state: "saving"; steps: Array<Timer> }
+  | { state: "saving"; steps: Array<Step> }
   | {
       state: "done";
       stats: SaveStats;
       durationMs: number;
-      steps: Array<Timer>;
+      steps: Array<Step>;
     }
   | { state: "error"; message: string };
 
@@ -21,8 +26,8 @@ export interface RunReport {
   startedAt: Date;
   scrape: { status: Array<string>; totalTimeSec?: number };
   summary?: { results: Array<AccountScrapeResult> };
-  /** Ordered by insertion */
-  storages: Map<string, StorageRow>;
+  /** Keyed by storage name, ordered by insertion */
+  storages: Record<string, StorageRow>;
   /** Free-form notes, e.g. "No transactions found, skipping save" */
   notices: Array<string>;
 }
@@ -31,7 +36,7 @@ export function createRunReport(startedAt = new Date()): RunReport {
   return {
     startedAt,
     scrape: { status: ["Starting..."] },
-    storages: new Map(),
+    storages: {},
     notices: [],
   };
 }
@@ -74,8 +79,11 @@ function renderStorage(
   );
   if (!withDetails) return header;
 
-  const stepLines = (steps: Array<Timer>) =>
-    steps.map((s) => `\t${escapers.HTML(String(s))}`);
+  const stepLines = (steps: Array<Step>) =>
+    steps.map(
+      (s) =>
+        `\t${escapers.HTML(s.durationMs === undefined ? s.name : `${s.name}, took ${(s.durationMs / 1000).toFixed(2)}s`)}`,
+    );
   let details: Array<string>;
   switch (row.state) {
     case "saving":
@@ -116,7 +124,7 @@ function render(report: RunReport, mode: RenderMode) {
     sections.push(renderScrape(report).join("\n"));
   }
 
-  const storages = [...report.storages].map(([name, row]) =>
+  const storages = Object.entries(report.storages).map(([name, row]) =>
     renderStorage(name, row, mode),
   );
   if (storages.length) sections.push(storages.join("\n"));
@@ -156,33 +164,7 @@ export function renderRunReport(report: RunReport): string {
     : cutToLimit(compact);
 }
 
-const ENTITIES: Record<string, string> = {
-  "&lt;": "<",
-  "&gt;": ">",
-  "&quot;": '"',
-  "&amp;": "&",
-};
-
-/** Convert the report HTML to plain text */
-export function htmlToText(html: string): string {
-  // Repeat until stable so nested/malformed tags like "<<script>script>" can't survive
-  let text = html;
-  let previous: string;
-  do {
-    previous = text;
-    text = text.replace(/<[^<>]*>/g, "");
-  } while (text !== previous);
-
-  // Decode last and in a single pass so decoded text is never re-processed
-  return text.replace(/&(?:lt|gt|quot|amp);/g, (entity) => ENTITIES[entity]);
-}
-
-/** The whole report as plain text, with nothing shortened or dropped */
-export function renderFullReportText(report: RunReport): string {
-  return htmlToText(render(report, { details: true, full: true }));
-}
-
-/** Whether the message sent to Telegram differs from the full report */
-export function isReportTruncated(report: RunReport): boolean {
-  return htmlToText(renderRunReport(report)) !== renderFullReportText(report);
+/** The whole report with nothing shortened or dropped */
+export function renderFullReport(report: RunReport): string {
+  return render(report, { details: true, full: true });
 }

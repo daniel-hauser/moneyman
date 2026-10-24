@@ -9,24 +9,21 @@ import {
 } from "./notifier.js";
 import { runContextStore } from "../utils/asyncContext.js";
 import { randomUUID } from "crypto";
-import { ReportPublisher } from "./reportPublisher.js";
+import { createReportPublisher } from "./reportPublisher.js";
 import { createRunReport } from "./runReport.js";
 
 const logger = createLogger("bot");
 
 export async function runWithStorage(runScraper: Runner) {
-  const publisher = new ReportPublisher(createRunReport(), {
+  const { report, finish } = createReportPublisher(createRunReport(), {
     transport: reportTransport,
     intervalMs: reportUpdateIntervalMs,
   });
-  publisher.update(() => {}, "Starting...");
 
   try {
     if (!storages.length) {
-      publisher.update(
-        (r) => r.notices.push("No storages found, aborting"),
-        "No storages found, aborting",
-      );
+      logger("No storages found, aborting");
+      report.notices.push("No storages found, aborting");
       return;
     }
 
@@ -35,18 +32,13 @@ export async function runWithStorage(runScraper: Runner) {
     await runContextStore.run({ runId }, async () => {
       await runScraper({
         async onStatusChanged(status: Array<string>, totalTime?: number) {
-          publisher.update(
-            (r) => {
-              r.scrape = { status, totalTimeSec: totalTime };
-            },
-            `scrape status: ${status.join(" | ")}${totalTime ? ` (total ${totalTime.toFixed(1)}s)` : ""}`,
-          );
+          logger(`scrape status: ${status.join(" | ")}`);
+          report.scrape = { status, totalTimeSec: totalTime };
         },
         async onResultsReady(results: AccountScrapeResult[]) {
-          publisher.update((r) => {
-            r.summary = { results };
-          }, `scrape results ready (${results.length} results)`);
-          await saveResults(results, publisher);
+          logger(`scrape results ready (${results.length} results)`);
+          report.summary = { results };
+          await saveResults(results, report);
         },
         async onError(e: unknown, caller: string = "unknown") {
           await sendError(e, caller);
@@ -60,6 +52,6 @@ export async function runWithStorage(runScraper: Runner) {
       logToPublicLog("Scraping ended", logger);
     });
   } finally {
-    await publisher.finish();
+    await finish();
   }
 }
