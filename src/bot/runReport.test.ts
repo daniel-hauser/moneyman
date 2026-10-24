@@ -237,6 +237,15 @@ describe("truncation detection", () => {
     expect(text.match(/❌ \[max\]/g)).toHaveLength(8);
   });
 
+  it("htmlToText does not leave tags behind from nested/malformed input", () => {
+    expect(
+      htmlToText("<<script>script>alert(1)<</script>/script>"),
+    ).not.toMatch(/<\/?script/);
+    expect(htmlToText("a <b>bold</b> <")).toBe("a bold <");
+    // entities are decoded once, after stripping
+    expect(htmlToText("&amp;lt;")).toBe("&lt;");
+  });
+
   it("htmlToText strips tags and unescapes entities", () => {
     expect(
       htmlToText("<blockquote expandable>a &lt;b&gt; &amp;&quot;</blockquote>"),

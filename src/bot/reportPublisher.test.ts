@@ -137,6 +137,52 @@ describe("ReportPublisher", () => {
     expect(publisher.report.scrape.status).toEqual(["x"]);
   });
 
+  it("does not reject when render throws, and recovers later", async () => {
+    const { transport, publisher, set } = setup();
+    const publisherWithBadRender = new ReportPublisher(createRunReport(), {
+      transport,
+      intervalMs: 500,
+      render: () => {
+        throw new Error("bad render");
+      },
+    });
+    publisherWithBadRender.update(() => {});
+    await jest.advanceTimersByTimeAsync(0);
+    await expect(publisherWithBadRender.flush()).resolves.toBeUndefined();
+    expect(transport.send).not.toHaveBeenCalled();
+
+    set("fine");
+    await expect(publisher.flush()).resolves.toBeUndefined();
+    expect(transport.send).toHaveBeenCalledWith("fine");
+  });
+
+  it("flush drains updates that arrive while the pump is finishing", async () => {
+    const { transport, publisher, set } = setup(10);
+    transport.send.mockImplementationOnce(async () => {
+      // lands while the pump is wrapping up
+      set("b");
+      return 7;
+    });
+    set("a");
+    const flushing = publisher.flush();
+    await flushing;
+    expect(transport.edit).toHaveBeenLastCalledWith(7, "b");
+  });
+
+  it("gives up after repeated 429s so flush does not block forever", async () => {
+    const { transport, publisher, set } = setup();
+    set("a");
+    await publisher.flush();
+    transport.edit.mockRejectedValue({
+      response: { error_code: 429, parameters: { retry_after: 1 } },
+    });
+    set("b");
+    const flushing = publisher.flush();
+    await jest.advanceTimersByTimeAsync(10_000);
+    await expect(flushing).resolves.toBeUndefined();
+    expect(transport.edit).toHaveBeenCalledTimes(4);
+  });
+
   describe("status.txt", () => {
     it("sends the full final report once if any published frame was truncated", async () => {
       const { transport, publisher, set } = setup(500, (r) =>
@@ -153,6 +199,32 @@ describe("ReportPublisher", () => {
         "status.txt",
         "full:short",
       );
+    });
+
+    it("retries a failed upload and marks it sent only after success", async () => {
+      const { transport, publisher, set } = setup(500, () => true);
+      transport.sendFile
+        .mockRejectedValueOnce(new Error("net"))
+        .mockResolvedValueOnce(undefined);
+      set("a");
+      await publisher.flush();
+      const sending = publisher.sendFullReportIfTruncated();
+      await jest.advanceTimersByTimeAsync(5000);
+      await sending;
+      expect(transport.sendFile).toHaveBeenCalledTimes(2);
+      await publisher.sendFullReportIfTruncated();
+      expect(transport.sendFile).toHaveBeenCalledTimes(2);
+    });
+
+    it("stops after a bounded number of failed uploads", async () => {
+      const { transport, publisher, set } = setup(500, () => true);
+      transport.sendFile.mockRejectedValue(new Error("net"));
+      set("a");
+      await publisher.flush();
+      const sending = publisher.sendFullReportIfTruncated();
+      await jest.advanceTimersByTimeAsync(10_000);
+      await sending;
+      expect(transport.sendFile).toHaveBeenCalledTimes(3);
     });
 
     it("does not send a file when nothing was truncated", async () => {

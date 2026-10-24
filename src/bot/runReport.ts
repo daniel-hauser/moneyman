@@ -156,15 +156,25 @@ export function renderRunReport(report: RunReport): string {
     : cutToLimit(compact);
 }
 
+const ENTITIES: Record<string, string> = {
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&amp;": "&",
+};
+
 /** Convert the report HTML to plain text */
 export function htmlToText(html: string): string {
-  return html
-    .replace(/<\/?blockquote[^>]*>/g, "")
-    .replace(/<[^>]+>/g, "")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&amp;", "&");
+  // Repeat until stable so nested/malformed tags like "<<script>script>" can't survive
+  let text = html;
+  let previous: string;
+  do {
+    previous = text;
+    text = text.replace(/<[^<>]*>/g, "");
+  } while (text !== previous);
+
+  // Decode last and in a single pass so decoded text is never re-processed
+  return text.replace(/&(?:lt|gt|quot|amp);/g, (entity) => ENTITIES[entity]);
 }
 
 /** The whole report as plain text, with nothing shortened or dropped */

@@ -8,6 +8,10 @@ import {
 
 const logger = createLogger("report");
 
+const MAX_RATE_LIMIT_RETRIES = 3;
+const MAX_FILE_ATTEMPTS = 3;
+const FILE_RETRY_DELAY_MS = 1000;
+
 export interface ReportTransport {
   send(text: string): Promise<number | undefined>;
   edit(messageId: number, text: string): Promise<void>;
@@ -34,6 +38,8 @@ export class ReportPublisher {
   private readonly renderFull: (report: RunReport) => string;
   private truncated = false;
   private fileSent = false;
+  private fileSending = false;
+  private rateLimited = 0;
 
   private dirty = false;
   private messageId?: number;
@@ -74,32 +80,53 @@ export class ReportPublisher {
     this.schedule();
   }
 
-  /** Publish the latest state and wait for all pending requests */
+  /** Publish the latest state and wait until nothing is pending */
   async flush() {
     if (!this.transport) return;
     this.flushing = true;
-    if (this.timer) {
-      clearTimeout(this.timer);
-      this.timer = undefined;
+    try {
+      while (this.pumping || this.dirty) {
+        if (this.timer) {
+          clearTimeout(this.timer);
+          this.timer = undefined;
+        }
+        this.releaseWait?.();
+        this.start();
+        await this.pumping;
+      }
+    } finally {
+      this.flushing = false;
     }
-    this.releaseWait?.();
-    this.start();
-    await this.pumping;
-    this.flushing = false;
   }
 
   /**
    * If any published frame was truncated, send the full final report as
-   * status.txt. Sends at most once. Call after the final flush().
+   * status.txt. Sends at most once (retrying failed uploads a few times).
+   * Call after the final flush().
    */
   async sendFullReportIfTruncated() {
-    if (!this.transport || !this.truncated || this.fileSent) return;
-    this.fileSent = true;
-    logger("Report was truncated, sending status.txt");
+    if (!this.transport || !this.truncated || this.fileSent || this.fileSending)
+      return;
+    this.fileSending = true;
     try {
-      await this.transport.sendFile("status.txt", this.renderFull(this.report));
+      logger("Report was truncated, sending status.txt");
+      const content = this.renderFull(this.report);
+      for (let attempt = 1; attempt <= MAX_FILE_ATTEMPTS; attempt++) {
+        try {
+          await this.transport.sendFile("status.txt", content);
+          this.fileSent = true;
+          return;
+        } catch (e) {
+          logger(`Failed to send status.txt (attempt ${attempt})`, e);
+          if (attempt < MAX_FILE_ATTEMPTS) {
+            await this.wait(FILE_RETRY_DELAY_MS * attempt, false);
+          }
+        }
+      }
     } catch (e) {
-      logger("Failed to send status.txt", e);
+      logger("Failed to render status.txt", e);
+    } finally {
+      this.fileSending = false;
     }
   }
 
@@ -114,20 +141,28 @@ export class ReportPublisher {
 
   private start() {
     if (this.pumping) return;
-    this.pumping = this.pump().finally(() => {
-      this.pumping = undefined;
-      // Updates that arrived during the last request
-      if (this.dirty) this.schedule();
-    });
+    this.pumping = this.pump()
+      .catch((e) => logger("Report publishing failed", e))
+      .finally(() => {
+        this.pumping = undefined;
+        // Updates that arrived during the last request
+        if (this.dirty) this.schedule();
+      });
   }
 
   private async pump() {
     const transport = this.transport!;
     while (this.dirty) {
       this.dirty = false;
-      const text = this.render(this.report);
-      if (text === this.lastText) continue;
-      this.truncated ||= this.isTruncated(this.report);
+      let text: string;
+      try {
+        text = this.render(this.report);
+        if (text === this.lastText) continue;
+        this.truncated ||= this.isTruncated(this.report);
+      } catch (e) {
+        logger("Failed to render report", e);
+        continue;
+      }
 
       this.lastRequestAt = Date.now();
       try {
@@ -137,9 +172,16 @@ export class ReportPublisher {
           await transport.edit(this.messageId, text);
         }
         this.lastText = text;
+        this.rateLimited = 0;
       } catch (e) {
         const retryAfter = getRetryAfterSeconds(e);
         if (retryAfter !== undefined) {
+          if (++this.rateLimited > MAX_RATE_LIMIT_RETRIES) {
+            // Give up on this frame so flush() can't block on Telegram forever
+            logger("Rate limited too many times, dropping report update");
+            this.rateLimited = 0;
+            continue;
+          }
           logger(`Rate limited, retrying in ${retryAfter}s`);
           this.dirty = true;
           await this.wait(retryAfter * 1000, false);
