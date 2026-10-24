@@ -38,6 +38,15 @@ if (bot && telegramConfig) {
  */
 let botRunning = false;
 
+/**
+ * Number of `requestOtpCode` calls currently waiting for a response, and
+ * whether the OTP flow is the one that started the running bot. Overlapping
+ * requests share the polling session, so it may only be stopped once the last
+ * of them has settled.
+ */
+let activeOtpRequests = 0;
+let otpFlowOwnsBot = false;
+
 /** The shared Telegram bot, or `null` when Telegram is not configured */
 export function getTelegramBot() {
   return bot;
@@ -245,6 +254,10 @@ export async function requestOtpCode(
    * launch (and later stop) it when this flow is the one that started it.
    */
   const ownsBot = !isTelegramBotRunning();
+  activeOtpRequests++;
+  if (ownsBot) {
+    otpFlowOwnsBot = true;
+  }
 
   /**
    * The handler below stays registered on the bot, so it must stop reacting
@@ -295,8 +308,14 @@ export async function requestOtpCode(
     return await Promise.race([responsePromise, timeoutPromise]);
   } finally {
     awaitingResponse = false;
+    activeOtpRequests--;
 
-    if (ownsBot) {
+    /**
+     * Only the flow that started the bot stops it, and only once no other
+     * request is still waiting for its code.
+     */
+    if (activeOtpRequests === 0 && otpFlowOwnsBot) {
+      otpFlowOwnsBot = false;
       stopTelegramBot();
     }
   }
