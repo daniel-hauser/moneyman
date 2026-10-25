@@ -2,6 +2,8 @@
 
 We use telegram to send you the update status.
 
+Each run is reported in a single message that is edited as the run progresses: scraping status, a summary of the scraped transactions and one row per storage. Details (account status, storage steps, skipped and highlighted transactions) are collapsed in expandable quotes. If the message had to be shortened (long errors or Telegram's 4096 character limit), the full report is also sent once at the end of the run as `status.html` (open it in a browser). Errors are sent as separate messages. To understand update bursts and rate limiting, enable `DEBUG=moneyman:report`: a single `report stats {...}` line (renders, requests, skipped unchanged renders, 429s, largest burst of mutations) is logged at the end of each run.
+
 Setup instructions:
 
 1. Create your bot following [this](https://core.telegram.org/bots#creating-a-new-bot)
@@ -31,6 +33,12 @@ options: {
        * @default 300 (5 minutes)
        */
       otpTimeoutSeconds?: number;
+      /**
+       * Minimum time in milliseconds between edits of the status message.
+       * Values below 250 are raised to 250 to stay within Telegram's rate limits.
+       * @default 500
+       */
+      updateIntervalMs?: number;
     };
   };
 };
