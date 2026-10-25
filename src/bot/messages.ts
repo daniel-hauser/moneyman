@@ -4,17 +4,30 @@ import {
 } from "israeli-bank-scrapers/lib/transactions.js";
 import { AccountScrapeResult, Transaction } from "../types.js";
 import { normalizeCurrency } from "../utils/currency.js";
-import { Timer } from "../utils/Timer.js";
+import { truncateError } from "./truncateError.js";
 import { escapers } from "@telegraf/entity";
 import { transactionUniqueId } from "./storage/utils.js";
 
-function blockquote(title: string, lines: string[], expandable = true): string {
+export function blockquote(
+  title: string | undefined,
+  lines: string[],
+  expandable = true,
+): string {
   const content = lines.join("\n");
   const expandableAttr = expandable ? " expandable" : "";
-  return `<blockquote${expandableAttr}>${title}\n${content}</blockquote>`;
+  const prefix = title === undefined ? "" : `${title}\n`;
+  return `<blockquote${expandableAttr}>${prefix}${content}</blockquote>`;
 }
 
-function getAccountsSummary(results: Array<AccountScrapeResult>): string {
+export interface RenderOptions {
+  /** Apply no caps at all (used for the full text report) */
+  full?: boolean;
+}
+
+function getAccountsSummary(
+  results: Array<AccountScrapeResult>,
+  { full }: RenderOptions = {},
+): string {
   const successfulAccounts = results
     .filter(({ result }) => result.success)
     .flatMap(({ result, companyId }) =>
@@ -25,17 +38,19 @@ function getAccountsSummary(results: Array<AccountScrapeResult>): string {
     )
     .filter((account): account is string => account !== undefined);
 
-  const errorAccounts = results
-    .filter(({ result }) => !result.success)
-    .map(
-      ({ result, companyId }) =>
-        `\t❌ [${companyId}] ${result.errorType}${
-          result.errorMessage
-            ? `\n\t\t${escapers.HTML(result.errorMessage)}`
-            : ""
-        }`,
-    );
-
+  const failed = results.filter(({ result }) => !result.success);
+  const shortenError = (message: string) => {
+    if (full) return message;
+    return truncateError(message);
+  };
+  const errorAccounts = failed.map(
+    ({ result, companyId }) =>
+      `\t❌ [${companyId}] ${result.errorType}${
+        result.errorMessage
+          ? `\n\t\t${escapers.HTML(shortenError(result.errorMessage).replaceAll("\n", "\n\t\t"))}`
+          : ""
+      }`,
+  );
   if (errorAccounts.length === 0 && successfulAccounts.length === 0) {
     // No accounts at all
     return "Accounts updated:\n\t😶 None";
@@ -65,13 +80,16 @@ function getPendingTransactionsSummary(pending: Array<Transaction>): string {
   }
 }
 
-export function getSummaryMessages(results: Array<AccountScrapeResult>) {
+export function getSummaryMessages(
+  results: Array<AccountScrapeResult>,
+  options: RenderOptions = {},
+) {
   const { pending, completed } = transactionsByStatus(results);
 
   const sections = [
     transactionsString(pending, completed, results),
     getDuplicateUniqueIdSummary(results),
-    getAccountsSummary(results),
+    getAccountsSummary(results, options),
     getPendingTransactionsSummary(pending),
   ];
   return sections.filter(Boolean).join("\n\n").trim();
@@ -175,15 +193,52 @@ function transactionAmount(t: Transaction): number {
   }
 }
 
+function transactionCurrency(t: Transaction): string | undefined {
+  if (
+    t.type === TransactionTypes.Normal &&
+    t.status === TransactionStatuses.Pending
+  ) {
+    return normalizeCurrency(t.originalCurrency);
+  }
+
+  return (
+    normalizeCurrency(t.chargedCurrency) ||
+    normalizeCurrency(t.originalCurrency)
+  );
+}
+
+function signedAmount(amount: number): string {
+  const absoluteAmount = Math.abs(amount).toFixed(2);
+  if (amount < 0) {
+    return `-${absoluteAmount}`;
+  }
+
+  return `+${absoluteAmount}`;
+}
+
+function amountWithCurrency(amount: number, currency?: string): string {
+  const formattedAmount = signedAmount(amount);
+  if (!currency || currency === "ILS") {
+    return formattedAmount;
+  }
+
+  return `${formattedAmount} ${currency}`;
+}
+
 function transactionString(t: Transaction) {
   const amount = transactionAmount(t);
+  const currency = transactionCurrency(t);
+  const originalCurrency = normalizeCurrency(t.originalCurrency);
 
-  const sign = amount < 0 ? "-" : "+";
-  const absAmount = Math.abs(amount).toFixed(2);
+  const chargedInIls =
+    t.status === TransactionStatuses.Completed && currency === "ILS";
+  const originallyForeign = originalCurrency && originalCurrency !== "ILS";
 
-  return `${t?.description}:\t${sign}${absAmount}${
-    t.originalCurrency === "ILS" ? "" : ` ${t.originalCurrency}`
-  }`;
+  if (chargedInIls && originallyForeign) {
+    return `${t.description}:\t${signedAmount(amount)} (${amountWithCurrency(t.originalAmount, originalCurrency)})`;
+  }
+
+  return `${t.description}:\t${amountWithCurrency(amount, currency)}`;
 }
 
 export function transactionList(
@@ -194,11 +249,6 @@ export function transactionList(
     .map((t) => `${indent}${transactionString(t)}`)
     .join("\n");
   return escapers.HTML(list);
-}
-
-export function saving(storage: string, steps: Array<Timer> = []) {
-  const stepsString = steps.map((s) => `\t${s}`).join("\n");
-  return `📝 ${storage} Saving...\n${stepsString}`.trim();
 }
 
 function transactionsByStatus(results: Array<AccountScrapeResult>) {

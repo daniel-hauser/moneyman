@@ -1,5 +1,5 @@
 import * as actualApi from "@actual-app/api";
-import { hash } from "hash-it";
+import { stableHash } from "./utils.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import assert from "node:assert";
 import fs from "node:fs/promises";
@@ -208,11 +208,11 @@ export class ActualBudgetStorage implements TransactionStorage {
       amount,
       payee_name: tx.description,
       cleared: tx.status === TransactionStatuses.Completed,
-      imported_id: hash(
+      imported_id: stableHash(
         this.config.options.scraping.transactionHashType === "moneyman"
           ? tx.uniqueId
           : tx.hash,
-      ).toString(),
+      ),
       notes: tx.memo,
     };
   }
