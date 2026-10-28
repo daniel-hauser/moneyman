@@ -81,7 +81,17 @@ export async function launchTelegramBot(): Promise<void> {
 export function stopTelegramBot() {
   if (!bot || !botRunning) return;
   botRunning = false;
-  bot.stop();
+  try {
+    bot.stop();
+  } catch (e) {
+    /**
+     * Telegraf throws when it has nothing to stop, which happens when a
+     * signal arrives while `launchTelegramBot` is still awaiting `launch()`:
+     * the bot is flagged as running before polling is up. Shutting down must
+     * not fail over that.
+     */
+    logger(`Failed to stop the Telegram bot: ${formatUnknownError(e)}`);
+  }
 }
 
 export async function send(message: string, parseMode?: "HTML") {
@@ -278,6 +288,22 @@ export async function requestOtpCode(
 
       const text = ctx.message.text?.trim();
       if (!text) {
+        return next();
+      }
+
+      /**
+       * Accounts are scraped in parallel, so more than one OTP request can be
+       * waiting at the same time and every waiting handler sees every message
+       * of the chat. Take a reply only when it targets this request's message,
+       * and a message that is not a reply only while this is the single
+       * outstanding request.
+       */
+      const replyToMessageId = ctx.message.reply_to_message?.message_id;
+      if (
+        replyToMessageId === undefined
+          ? activeOtpRequests > 1
+          : replyToMessageId !== requestMessage.message_id
+      ) {
         return next();
       }
 
