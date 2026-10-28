@@ -11,6 +11,7 @@ import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
 import { monitorNodeConnections } from "./security/domains.js";
 import { getExternalIp, logRunMetadata } from "./runnerMetadata.js";
 import { randomUUID } from "crypto";
+import { locks } from "node:worker_threads";
 
 const logger = createLogger("runner");
 
@@ -29,8 +30,15 @@ export type RunStatus = RunResult & { trigger: RunTrigger };
 
 export type RunTrigger = "manual" | "scheduled" | "startup";
 
+/**
+ * The lock that keeps a single run in flight. The lock manager owns the mutual
+ * exclusion, so a second caller is rejected even if it comes from another
+ * thread; `running` only mirrors it for the synchronous `isRunning()`.
+ */
+const RUN_LOCK = "moneyman-run";
+
 let initialized = false;
-let running: Promise<RunStatus> | undefined;
+let running = false;
 let lastRun: RunStatus | undefined;
 
 /**
@@ -48,7 +56,7 @@ export async function initRunner(): Promise<void> {
 }
 
 export function isRunning(): boolean {
-  return running !== undefined;
+  return running;
 }
 
 export function getLastRun(): RunStatus | undefined {
@@ -62,16 +70,26 @@ export function getLastRun(): RunStatus | undefined {
  * starting a second browser and a second set of logins.
  */
 export async function runOnce(trigger: RunTrigger): Promise<RunStatus> {
-  if (running) {
+  const result = await locks.request(
+    RUN_LOCK,
+    { ifAvailable: true },
+    async (lock) => {
+      if (!lock) return undefined;
+
+      running = true;
+      try {
+        return await executeRun(trigger);
+      } finally {
+        running = false;
+      }
+    },
+  );
+
+  if (!result) {
     throw new Error("A scrape is already in progress");
   }
 
-  const current = executeRun(trigger).finally(() => {
-    running = undefined;
-  });
-  running = current;
-
-  return await current;
+  return result;
 }
 
 async function executeRun(trigger: RunTrigger): Promise<RunStatus> {

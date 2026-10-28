@@ -1,4 +1,4 @@
-import { runOnce } from "./runner.js";
+import { isRunning, runOnce } from "./runner.js";
 import { scrapeAccounts } from "./scraper/index.js";
 import { runWithStorage } from "./bot/index.js";
 import { sendAndDeleteLogFile } from "./utils/secure-log.js";
@@ -112,6 +112,31 @@ describe("runOnce", () => {
     const result = await runOnce("manual");
 
     expect(result.failed).toBe(true);
+  });
+
+  it("rejects a second run while one is in flight", async () => {
+    scrapeAccountsMock.mockResolvedValue([accountResult("hapoalim", true)]);
+    let releaseRun!: () => void;
+    const runIsHolding = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    runWithStorageMock.mockImplementation(async (runScraper) => {
+      await runScraper(hooks());
+      await runIsHolding;
+      return createRunReport();
+    });
+
+    const first = runOnce("manual");
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(isRunning()).toBe(true);
+    await expect(runOnce("manual")).rejects.toThrow(
+      "A scrape is already in progress",
+    );
+
+    releaseRun();
+    await expect(first).resolves.toMatchObject({ failed: false });
+    expect(isRunning()).toBe(false);
   });
 
   it("hands the run id of the run to the log upload", async () => {

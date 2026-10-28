@@ -1,67 +1,31 @@
-import {
-  addDays,
-  setHours,
-  setMilliseconds,
-  setMinutes,
-  setSeconds,
-} from "date-fns";
+import { schedule, type ScheduledTask } from "node-cron";
 import { createLogger } from "./utils/logger.js";
 
 const logger = createLogger("scheduler");
 
-export type TimeOfDay = { hours: number; minutes: number };
-
 const TIME_OF_DAY_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 /**
- * Parse a `HH:mm` string into its 24 hour components.
+ * Turn a `HH:mm` time of day into the daily cron expression node-cron expects.
  * @throws if the string is not a valid time of day
  */
-export function parseTimeOfDay(time: string): TimeOfDay {
+export function toCronExpression(time: string): string {
   const match = TIME_OF_DAY_PATTERN.exec(time);
   if (!match) {
     throw new Error(`Invalid time of day: ${time}. Expected the HH:mm format`);
   }
-  return { hours: Number(match[1]), minutes: Number(match[2]) };
-}
 
-function atTimeOfDay(day: Date, { hours, minutes }: TimeOfDay): Date {
-  return setMilliseconds(
-    setSeconds(setMinutes(setHours(day, hours), minutes), 0),
-    0,
-  );
+  const [, hours, minutes] = match;
+  return `${Number(minutes)} ${Number(hours)} * * *`;
 }
 
 /**
- * The first moment a run should happen, strictly after `from`.
- *
- * Times are interpreted in the timezone of the process (`TZ`), which is what
- * `date-fns` does by default. Returns `undefined` when no times are configured.
- */
-export function nextRunTime(
-  times: readonly string[],
-  from: Date = new Date(),
-): Date | undefined {
-  const candidates = times.flatMap((time) => {
-    const timeOfDay = parseTimeOfDay(time);
-    return [0, 1]
-      .map((dayOffset) => atTimeOfDay(addDays(from, dayOffset), timeOfDay))
-      .filter((candidate) => candidate.getTime() > from.getTime());
-  });
-
-  if (!candidates.length) return undefined;
-
-  return candidates.sort((a, b) => a.getTime() - b.getTime())[0];
-}
-
-/**
- * Runs `run` at every configured time of day, then re-arms itself for the next
- * one. It is intentionally dumb about timezones and daylight saving: the next
- * occurrence is recomputed from the current time after every run.
+ * Runs `run` at every configured time of day. The schedule itself belongs to
+ * node-cron, in the timezone of the process (`TZ`), and the next run is read
+ * back from it for `/status`.
  */
 export class Scheduler {
-  private timer: NodeJS.Timeout | undefined;
-  private next: Date | undefined;
+  private tasks: ScheduledTask[] = [];
 
   constructor(
     private readonly times: readonly string[],
@@ -70,46 +34,43 @@ export class Scheduler {
 
   /** The time of the next scheduled run, if any */
   get nextRunAt(): Date | undefined {
-    return this.next;
+    const upcoming = this.tasks
+      .map((task) => task.getNextRun())
+      .filter((date): date is Date => date !== null)
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    return upcoming[0];
   }
 
   start(): void {
-    this.scheduleNext();
-  }
-
-  stop(): void {
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = undefined;
-    this.next = undefined;
-  }
-
-  private scheduleNext(): void {
-    this.next = nextRunTime(this.times);
-    if (!this.next) {
+    if (!this.times.length) {
       logger("No run times configured, expecting manual runs only");
       return;
     }
 
-    const delay = this.next.getTime() - Date.now();
-    logger(
-      `Next scheduled run at ${this.next.toISOString()} (in ${Math.round(
-        delay / 1000,
-      )}s)`,
-    );
+    this.tasks = this.times.map((time) => {
+      const expression = toCronExpression(time);
+      logger(`Scheduling a run at ${time} (${expression})`);
 
-    this.timer = setTimeout(() => void this.fire(), delay);
+      return schedule(expression, () => this.fire());
+    });
+  }
+
+  stop(): void {
+    for (const task of this.tasks) {
+      task.stop();
+    }
+
+    this.tasks = [];
   }
 
   private async fire(): Promise<void> {
-    this.timer = undefined;
     logger("Scheduled run is starting");
 
     try {
       await this.run();
     } catch (e) {
       logger("Scheduled run failed", e);
-    } finally {
-      this.scheduleNext();
     }
   }
 }

@@ -48,6 +48,7 @@
     "google-spreadsheet": "^5.3.0",
     "israeli-bank-scrapers": "^6.12.2",
     "jsonc-parser": "^3.3.1",
+    "node-cron": "^4.6.0",
     "pg": "^8.23.1",
     "pg-format": "^1.0.4",
     "puppeteer": "25.11.0",
