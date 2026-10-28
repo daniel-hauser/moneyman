@@ -58,9 +58,9 @@ async function runOnce(trigger: RunTrigger): Promise<RunStatus> {
   const result = await locks.request(
     RUN_LOCK,
     { ifAvailable: true },
-    (lock) =>
-      lock &&
-      runContextStore.run({ runId: randomUUID() }, async () => {
+    (lock) => {
+      if (!lock) return null;
+      return runContextStore.run({ runId: randomUUID() }, async () => {
         const startedAt = new Date();
         const failed = await run();
         await sendLogFile(!longRunning);
@@ -68,7 +68,8 @@ async function runOnce(trigger: RunTrigger): Promise<RunStatus> {
         lastRun = { trigger, startedAt, endedAt: new Date(), failed };
         logger("Run finished", lastRun);
         return lastRun;
-      }),
+      });
+    },
   );
 
   if (!result) {

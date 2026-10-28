@@ -3,9 +3,9 @@ import {
   CommandHandlers,
   HELP_MESSAGE,
   formatStatus,
-  isAuthorizedChat,
   registerCommands,
 } from "./commands.js";
+import { createBot, isAuthorizedChat } from "./bot.js";
 
 jest.mock("../config.js", () => ({
   config: {
@@ -45,6 +45,7 @@ function registerBot(handlers: CommandHandlers) {
     .spyOn(Telegram.prototype, "callApi")
     .mockResolvedValue(true as never);
 
+  createBot(bot);
   registerCommands(bot, handlers);
 
   async function send(text: string, fromChat = chatId) {

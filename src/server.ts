@@ -5,6 +5,7 @@ import {
   getTelegramBot,
   launchTelegramBot,
   stopTelegramBot,
+  sendError,
 } from "./bot/notifier.js";
 import { registerCommands } from "./bot/commands.js";
 import type { RunStatus, RunTrigger } from "./types.js";
@@ -29,6 +30,7 @@ export async function startServer({
       "Nothing to do: no Telegram configuration and no options.scheduling.cron. Exiting.",
     );
     process.exit(1);
+    return;
   }
 
   const task = cron
@@ -66,12 +68,14 @@ export async function startServer({
 
   registerCommands(bot, {
     async scrape() {
-      if (await isRunning()) {
-        return "⚠️ A scrape is already running, please wait for it to finish";
-      }
+      runOnce("manual").catch(async (e) => {
+        logger("Manual run failed", e);
+        await sendError(e, "Manual scrape").catch((notificationError) =>
+          logger("Failed to send manual scrape error", notificationError),
+        );
+      });
 
-      runOnce("manual").catch((e) => logger("Manual run failed", e));
-      return "🔄 Starting a scrape now...";
+      return "🔄 Scrape requested";
     },
     isRunning,
     getLastRun,

@@ -1,5 +1,4 @@
 import { Context, Telegraf } from "telegraf";
-import { config } from "../config.js";
 import { createLogger } from "../utils/logger.js";
 import type { RunStatus } from "../types.js";
 
@@ -27,11 +26,6 @@ export type CommandHandlers = {
   getLastRun: () => RunStatus | undefined;
   getNextRunAt: () => Date | undefined;
 };
-
-export function isAuthorizedChat(ctx: Context): boolean {
-  const chatId = config.options.notifications?.telegram?.chatId;
-  return Boolean(chatId) && ctx.chat?.id?.toString() === chatId;
-}
 
 export async function formatStatus(
   handlers: Pick<CommandHandlers, "isRunning" | "getLastRun" | "getNextRunAt">,
@@ -79,11 +73,6 @@ export function registerCommands(
   bot.catch(async (e, ctx) => {
     logger("Failed to handle an update", e);
     await ctx.reply("❌ Failed to handle the command").catch(() => {});
-  });
-
-  bot.use((ctx, next) => {
-    if (isAuthorizedChat(ctx)) return next();
-    logger(`Ignoring an update from unauthorized chat ${ctx.chat?.id}`);
   });
 
   bot.command(SCRAPE_COMMANDS, async (ctx) => {

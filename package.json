@@ -5,7 +5,7 @@
   "main": "dst/index.ts",
   "type": "module",
   "engines": {
-    "node": ">=24"
+    "node": ">=24.5.0"
   },
   "scripts": {
     "act": "go run github.com/nektos/act@latest",

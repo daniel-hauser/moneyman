@@ -50,7 +50,10 @@ export async function sendLogFile(deleteFile: boolean) {
   try {
     if (telegram?.sendLogFileToTelegram) {
       logToPublicLog(`Sending log file`, logger);
-      await sendTextFile(logFilePath);
+      await sendTextFile(logFilePath).catch((error) => {
+        logger("Failed to send logs to Telegram:", error);
+        logToPublicLog("Failed to send logs to Telegram", logger);
+      });
     }
 
     // Send logs to all storages that support it
@@ -69,19 +72,25 @@ export async function sendLogFile(deleteFile: boolean) {
         if (result.status === "rejected") {
           const name = logStorages[i].constructor.name;
           logger(`Failed to send logs to ${name}:`, result.reason);
+          logToPublicLog(`Failed to send logs to ${name}`, logger);
         }
       }
-    }
-
-    if (deleteFile) {
-      logToPublicLog(`Deleting log file`, logger);
-      unlinkSync(logFilePath);
-    } else {
-      logToPublicLog(`Clearing log file`, logger);
-      truncateSync(logFilePath, 0);
     }
   } catch (error) {
     logger(`sendLogFile Failed:`, error);
     logToPublicLog(`sendLogFile Failed`);
+  } finally {
+    try {
+      if (deleteFile) {
+        logToPublicLog(`Deleting log file`, logger);
+        unlinkSync(logFilePath);
+      } else {
+        logToPublicLog(`Clearing log file`, logger);
+        truncateSync(logFilePath, 0);
+      }
+    } catch (error) {
+      logger("Failed to clear log file:", error);
+      logToPublicLog("Failed to clear log file", logger);
+    }
   }
 }

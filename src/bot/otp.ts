@@ -2,8 +2,8 @@ import { Context, Telegraf } from "telegraf";
 import { message } from "telegraf/filters";
 import { config } from "../config.js";
 import { createLogger } from "../utils/logger.js";
-import { waitForAbortSignal } from "../utils/promises.js";
 import { formatUnknownError } from "../utils/utils.js";
+import { waitForAbortSignal } from "../utils/promises.js";
 
 const logger = createLogger("otp");
 
@@ -16,8 +16,25 @@ export function createOtpHandler(
   },
 ) {
   const telegramConfig = config.options.notifications?.telegram;
-  let activeOtpRequests = 0;
+  const pending = new Map<number, (text: string) => void>();
   let otpFlowOwnsBot = false;
+
+  bot?.on(message("text"), (ctx, next) => {
+    const text = ctx.message.text.trim();
+    if (!text || text.startsWith("/")) return next();
+
+    const replyToMessageId = ctx.message.reply_to_message?.message_id;
+    const receive =
+      replyToMessageId === undefined
+        ? pending.size === 1
+          ? pending.values().next().value
+          : undefined
+        : pending.get(replyToMessageId);
+    if (!receive) return next();
+
+    receive(text);
+    return ctx.reply("✅ OTP code received. Continuing authentication...");
+  });
 
   return async function requestOtpCode(
     companyId: string,
@@ -38,6 +55,11 @@ export function createOtpHandler(
     logger("Waiting for OTP code from user...");
 
     const timeoutSeconds = telegramConfig.otpTimeoutSeconds;
+    const ownsBot = !polling.isTelegramBotRunning();
+    if (ownsBot) {
+      otpFlowOwnsBot = true;
+    }
+
     const timeoutPromise = waitForAbortSignal(
       AbortSignal.timeout(timeoutSeconds * 1000),
     ).catch(() => {
@@ -45,46 +67,11 @@ export function createOtpHandler(
         `OTP timeout: No response received within ${timeoutSeconds} seconds`,
       );
     });
-
-    const ownsBot = !polling.isTelegramBotRunning();
-    activeOtpRequests++;
-    if (ownsBot) {
-      otpFlowOwnsBot = true;
-    }
-
-    let awaitingResponse = true;
     const responsePromise = new Promise<string>((resolve, reject) => {
-      const handler = (ctx: Context, next: () => Promise<void>) => {
-        if (
-          !awaitingResponse ||
-          ctx.chat?.id?.toString() !== telegramConfig.chatId ||
-          !ctx.message ||
-          !("text" in ctx.message)
-        ) {
-          return next();
-        }
-
-        const text = ctx.message.text?.trim();
-        if (!text) return next();
-
-        // With concurrent requests, only a reply identifies its intended account.
-        const replyToMessageId = ctx.message.reply_to_message?.message_id;
-        if (
-          replyToMessageId === undefined
-            ? activeOtpRequests > 1
-            : replyToMessageId !== requestMessage.message_id
-        ) {
-          return next();
-        }
-
-        logger(`Received OTP code: ${text}`);
-        awaitingResponse = false;
-        void ctx.reply("✅ OTP code received. Continuing authentication...");
+      pending.set(requestMessage.message_id, (text) => {
+        pending.delete(requestMessage.message_id);
         resolve(text);
-      };
-
-      bot.on(message("text"), handler);
-
+      });
       if (!ownsBot) return;
 
       polling.launchTelegramBot().catch((error) => {
@@ -108,11 +95,10 @@ export function createOtpHandler(
     try {
       return await Promise.race([responsePromise, timeoutPromise]);
     } finally {
-      awaitingResponse = false;
-      activeOtpRequests--;
+      pending.delete(requestMessage.message_id);
 
       // OTP must not stop polling owned by the long-running server.
-      if (activeOtpRequests === 0 && otpFlowOwnsBot) {
+      if (pending.size === 0 && otpFlowOwnsBot) {
         otpFlowOwnsBot = false;
         polling.stopTelegramBot();
       }

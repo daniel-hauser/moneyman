@@ -2,10 +2,20 @@ import { Context, Telegraf } from "telegraf";
 import { createLogger } from "../utils/logger.js";
 import { formatUnknownError } from "../utils/utils.js";
 import { createOtpHandler } from "./otp.js";
+import { config } from "../config.js";
 
 const logger = createLogger("bot");
 
+export function isAuthorizedChat(ctx: Context): boolean {
+  const chatId = config.options.notifications?.telegram?.chatId;
+  return Boolean(chatId) && ctx.chat?.id?.toString() === chatId;
+}
+
 export function createBot(bot: Telegraf<Context> | null) {
+  bot?.use((ctx, next) => {
+    if (isAuthorizedChat(ctx)) return next();
+    logger(`Ignoring an update from unauthorized chat ${ctx.chat?.id}`);
+  });
   let botRunning = false;
 
   function isTelegramBotRunning(): boolean {

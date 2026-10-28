@@ -77,17 +77,16 @@ describe("createOtpHandler", () => {
     const second = requestOtpCode("oneZero", "+97200000002");
     await flush();
 
-    expect(bot.on).toHaveBeenCalledTimes(2);
+    expect(bot.on).toHaveBeenCalledTimes(1);
     expect(polling.launchTelegramBot).toHaveBeenCalledTimes(1);
 
     await reply(0, "999999");
-    await reply(1, "999999");
     expect(await settleState(first)).toBe("pending");
     expect(await settleState(second)).toBe("pending");
 
     await reply(0, "222222", 2);
     expect(await settleState(first)).toBe("pending");
-    await reply(1, "222222", 2);
+    await reply(0, "222222", 2);
     await expect(second).resolves.toBe("222222");
     expect(await settleState(first)).toBe("pending");
     expect(polling.stopTelegramBot).not.toHaveBeenCalled();
@@ -129,5 +128,53 @@ describe("createOtpHandler", () => {
       createOtpHandler(null, polling)("oneZero", "+97200000001"),
     ).rejects.toThrow("Telegram OTP is not enabled or configured");
     expect(bot.telegram.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("reuses one dispatcher across completed requests", async () => {
+    for (let i = 1; i <= 5; i++) {
+      const request = requestOtpCode("oneZero", "+97200000001");
+      await flush();
+      await reply(0, "123456", i);
+      await expect(request).resolves.toBe("123456");
+    }
+    expect(bot.on).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores commands and replies targeting completed requests", async () => {
+    const first = requestOtpCode("oneZero", "+97200000001");
+    await flush();
+    await reply(0, "111111", 1);
+    await first;
+
+    const second = requestOtpCode("oneZero", "+97200000002");
+    await flush();
+    await reply(0, "/status");
+    await reply(0, "111111", 1);
+    expect(await settleState(second)).toBe("pending");
+    await reply(0, "222222", 2);
+    await expect(second).resolves.toBe("222222");
+  });
+
+  it("removes timed-out requests so a later plain reply is unambiguous", async () => {
+    const controller = new AbortController();
+    const timeout = jest
+      .spyOn(AbortSignal, "timeout")
+      .mockReturnValueOnce(controller.signal);
+    try {
+      const expired = requestOtpCode("oneZero", "+97200000001");
+      const rejected = expect(expired).rejects.toThrow("OTP timeout");
+      await flush();
+      expect(timeout).toHaveBeenCalledWith(3_600_000);
+      controller.abort();
+      await rejected;
+
+      const next = requestOtpCode("oneZero", "+97200000002");
+      await flush();
+      await reply(0, "654321");
+      await expect(next).resolves.toBe("654321");
+      expect(bot.on).toHaveBeenCalledTimes(1);
+    } finally {
+      timeout.mockRestore();
+    }
   });
 });

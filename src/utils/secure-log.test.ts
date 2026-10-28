@@ -13,7 +13,15 @@ jest.mock("./logger.js", () => ({
   },
 }));
 
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+  rmSync,
+} from "fs";
+import { mock } from "jest-mock-extended";
+import type { MoneymanDashStorage } from "../bot/storage/moneyman.js";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -34,6 +42,7 @@ describe("sendLogFile", () => {
   });
 
   afterEach(() => {
+    rmSync(join(logFilePath, ".."), { recursive: true, force: true });
     process.env = originalEnv;
   });
 
@@ -63,6 +72,56 @@ describe("sendLogFile", () => {
       await sendLogFile(deleteFile);
 
       expect(readFileSync(logFilePath, "utf-8")).toBe("the logs of the run");
+    },
+  );
+
+  it("tries every storage and clears logs even when a storage upload fails", async () => {
+    const { storages } = await import("../bot/storage/index.js");
+    const first = mock<MoneymanDashStorage>();
+    const second = mock<MoneymanDashStorage>();
+    first.sendLogs.mockRejectedValue(new Error("storage failed"));
+    second.sendLogs.mockResolvedValue(undefined);
+    storages.push(first, second);
+    const { sendLogFile } = await import("./secure-log.js");
+
+    await sendLogFile(false);
+
+    expect(first.sendLogs).toHaveBeenCalledWith("the logs of the run");
+    expect(second.sendLogs).toHaveBeenCalledWith("the logs of the run");
+    expect(readFileSync(logFilePath, "utf-8")).toBe("");
+  });
+
+  it.each([true, false])(
+    "still uploads to storages and cleans up after Telegram failure (delete=%s)",
+    async (deleteFile) => {
+      const { config } = await import("../config.js");
+      const { sendTextFile } = await import("../bot/notifier.js");
+      const { storages } = await import("../bot/storage/index.js");
+      const { logToPublicLog } = await import("./logger.js");
+      config.options.notifications.telegram = {
+        apiKey: "test-token",
+        chatId: "555",
+        sendLogFileToTelegram: true,
+        enableOtp: false,
+        otpTimeoutSeconds: 300,
+        updateIntervalMs: 500,
+      };
+      jest.mocked(sendTextFile).mockRejectedValue(new Error("Telegram failed"));
+      const storage = mock<MoneymanDashStorage>();
+      storage.sendLogs.mockResolvedValue(undefined);
+      storages.push(storage);
+      const { sendLogFile } = await import("./secure-log.js");
+
+      await sendLogFile(deleteFile);
+
+      expect(sendTextFile).toHaveBeenCalled();
+      expect(storage.sendLogs).toHaveBeenCalledWith("the logs of the run");
+      expect(logToPublicLog).toHaveBeenCalledWith(
+        "Failed to send logs to Telegram",
+        expect.any(Function),
+      );
+      if (deleteFile) expect(existsSync(logFilePath)).toBe(false);
+      else expect(readFileSync(logFilePath, "utf-8")).toBe("");
     },
   );
 });
