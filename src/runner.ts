@@ -10,6 +10,7 @@ import { runWithStorage } from "./bot/index.js";
 import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
 import { monitorNodeConnections } from "./security/domains.js";
 import { getExternalIp, logRunMetadata } from "./runnerMetadata.js";
+import { randomUUID } from "crypto";
 
 const logger = createLogger("runner");
 
@@ -75,6 +76,8 @@ export async function runOnce(trigger: RunTrigger): Promise<RunStatus> {
 
 async function executeRun(trigger: RunTrigger): Promise<RunStatus> {
   const startedAt = new Date();
+  /** Owned here so that it outlives the run context and reaches the log upload */
+  const runId = randomUUID();
   let failed = false;
 
   const runScraper = async (hooks: RunnerHooks) => {
@@ -95,6 +98,21 @@ async function executeRun(trigger: RunTrigger): Promise<RunStatus> {
           return hooks.onError(e, caller);
         },
       );
+      /**
+       * An account that fails to scrape (a wrong password, an OTP timeout)
+       * comes back as `success: false` instead of throwing, so the results
+       * have to be inspected for the run to be reported as failed.
+       */
+      const failedAccounts = results.filter(({ result }) => !result.success);
+      if (failedAccounts.length) {
+        logger(
+          `${failedAccounts.length} of ${results.length} accounts failed: ${failedAccounts
+            .map(({ companyId }) => companyId)
+            .join(", ")}`,
+        );
+        failed = true;
+      }
+
       logger("Scraping ended");
       await Promise.all([
         hooks.onResultsReady(results),
@@ -111,13 +129,25 @@ async function executeRun(trigger: RunTrigger): Promise<RunStatus> {
 
   try {
     logger("Running with storage");
-    await runWithStorage(runScraper);
+    const report = await runWithStorage(runScraper, runId);
+
+    /**
+     * A storage error is caught and recorded in the report rather than thrown,
+     * so the run has to read it back to report the failure.
+     */
+    const failedStorages = Object.entries(report.storages)
+      .filter(([, row]) => row.state === "error")
+      .map(([name]) => name);
+    if (failedStorages.length) {
+      logger(`Storages that failed: ${failedStorages.join(", ")}`);
+      failed = true;
+    }
   } catch (error) {
     failed = true;
     logger(error);
   }
 
-  await sendAndDeleteLogFile();
+  await sendAndDeleteLogFile(runId);
 
   const result: RunStatus = {
     trigger,

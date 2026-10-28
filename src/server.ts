@@ -9,9 +9,19 @@ import {
 import { registerCommands } from "./bot/commands.js";
 import { Scheduler } from "./scheduler.js";
 import { getLastRun, initRunner, isRunning, runOnce } from "./runner.js";
+import { assertLongRunningLogMode } from "./utils/secure-log.js";
+import { formatUnknownError } from "./utils/utils.js";
 
 const logger = createLogger("server");
 const times = config.options.scheduling.times;
+
+try {
+  assertLongRunningLogMode();
+} catch (error) {
+  logToPublicLog(`❌ ${formatUnknownError(error)}`);
+  logger(error);
+  process.exit(1);
+}
 
 process.on("uncaughtException", (err, origin) => {
   console.error("uncaughtException, sending error");
@@ -85,7 +95,14 @@ if (bot) {
   await launchTelegramBot()
     .then(() => logToPublicLog("Listening for Telegram commands"))
     .catch((e) => {
-      logToPublicLog(`❌ Failed to start the Telegram bot: ${e}`);
+      /**
+       * The error of a failed launch can be a fetch error carrying the Telegram
+       * API URL, which contains the bot token, and public logs are not
+       * redacted. The details stay in the private log.
+       */
+      logToPublicLog(
+        "❌ Failed to start the Telegram bot, see the logs for details",
+      );
       logger(e);
 
       // Without Telegram there is nothing left to do unless runs are scheduled

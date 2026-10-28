@@ -8,13 +8,24 @@ import {
   sendPhotos,
 } from "./notifier.js";
 import { runContextStore } from "../utils/asyncContext.js";
-import { randomUUID } from "crypto";
 import { createReportPublisher } from "./reportPublisher.js";
-import { createRunReport } from "./runReport.js";
+import { createRunReport, type RunReport } from "./runReport.js";
 
 const logger = createLogger("bot");
 
-export async function runWithStorage(runScraper: Runner) {
+/**
+ * Run the scraper with the storages, inside the run context that carries the
+ * run id. The id is owned by the caller (see `runOnce`) so that it survives
+ * the run and can be handed to the log upload, which happens after this
+ * context has ended.
+ *
+ * Returns the run report so the caller can tell whether a storage failed: a
+ * storage error is caught here and recorded in the report rather than thrown.
+ */
+export async function runWithStorage(
+  runScraper: Runner,
+  runId: string,
+): Promise<RunReport> {
   const { report, finish } = createReportPublisher(createRunReport(), {
     transport: reportTransport,
     intervalMs: reportUpdateIntervalMs,
@@ -24,10 +35,8 @@ export async function runWithStorage(runScraper: Runner) {
     if (!storages.length) {
       logger("No storages found, aborting");
       report.notices.push("No storages found, aborting");
-      return;
+      return report;
     }
-
-    const runId = randomUUID();
 
     await runContextStore.run({ runId }, async () => {
       await runScraper({
@@ -54,4 +63,6 @@ export async function runWithStorage(runScraper: Runner) {
   } finally {
     await finish();
   }
+
+  return report;
 }

@@ -50,7 +50,11 @@ export interface TransactionStorage {
     onProgress: (status: string) => Promise<void>,
     context?: SaveContext,
   ): Promise<SaveStats>;
-  sendLogs?(logs: string): Promise<void>;
+  /**
+   * Upload the logs of a run. The run id is passed explicitly because the
+   * upload happens after the run context has ended.
+   */
+  sendLogs?(logs: string, runId?: string): Promise<void>;
 }
 
 export type ScraperConfig = {

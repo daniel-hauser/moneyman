@@ -26,7 +26,33 @@ export function enableDebugLoggingIfNeeded() {
   }
 }
 
-export async function sendAndDeleteLogFile() {
+/**
+ * The docker entrypoint opens the log file in append mode only when it knows
+ * the process is long running. Starting the long running server without the
+ * variable leaves the file opened for truncation, while the app empties it
+ * between runs and the writes would land after a hole of NUL bytes - or, with
+ * `longRunning` false, the app deletes the file after the first run and the
+ * later runs lose their logs. There is no way to fix the already opened
+ * descriptor from here, so refuse to start.
+ */
+export function assertLongRunningLogMode() {
+  if (longRunning || unsafeStdout || !process.env.MONEYMAN_LOG_FILE_PATH)
+    return;
+
+  throw new Error(
+    "MONEYMAN_LONG_RUNNING is not set while the long running server starts: " +
+      "the entrypoint would open the log file without append mode, so the logs " +
+      "of every run after the first would be lost. Set " +
+      "MONEYMAN_LONG_RUNNING=true on the container instead of overriding its " +
+      "command.",
+  );
+}
+
+/**
+ * Send the log file to every destination and then clear it. The run id is
+ * passed in because this runs after the run context has ended.
+ */
+export async function sendAndDeleteLogFile(runId?: string) {
   if (unsafeStdout) return;
 
   const logFilePath = process.env.MONEYMAN_LOG_FILE_PATH;
@@ -62,7 +88,7 @@ export async function sendAndDeleteLogFile() {
         logStorages.map(async (storage) => {
           const name = storage.constructor.name;
           logToPublicLog(`Sending logs to ${name}`, logger);
-          await storage.sendLogs(logContent);
+          await storage.sendLogs(logContent, runId);
         }),
       );
 

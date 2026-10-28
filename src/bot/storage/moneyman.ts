@@ -39,7 +39,6 @@ interface IngestionResponse {
 export class MoneymanDashStorage implements TransactionStorage {
   private endpoint?: string;
   private token?: string;
-  private lastRunId?: string;
 
   constructor(private config: MoneymanConfig) {
     if (this.config.storage.moneyman?.token) {
@@ -115,21 +114,16 @@ export class MoneymanDashStorage implements TransactionStorage {
 
     logger(`Posting ${nonPendingTxns.length} transactions to ${endpoint}`);
 
-    const runContext = runContextStore.getStore();
-    const runId = runContext?.runId;
-
-    if (runId) {
-      this.lastRunId = runId;
-    } else {
+    const runId = runContextStore.getStore()?.runId;
+    if (!runId) {
       logger("Warning: No runId found in context");
-      this.lastRunId = undefined;
     }
 
     const payload = this.buildIngestionPayload(nonPendingTxns, context);
 
     // Include runId in metadata for server-side correlation
-    if (this.lastRunId) {
-      payload.metadata.runId = this.lastRunId;
+    if (runId) {
+      payload.metadata.runId = runId;
     }
 
     // Run progress update in parallel with the network request
@@ -176,15 +170,20 @@ export class MoneymanDashStorage implements TransactionStorage {
     return stats;
   }
 
-  async sendLogs(logs: string) {
+  /**
+   * Upload the logs of a run. The run id is the one the caller passes: this
+   * runs after the run context has ended, and the id of the last save would
+   * be the id of an earlier run whenever the current one saved nothing.
+   */
+  async sendLogs(logs: string, runId?: string) {
     if (!this.endpoint || !this.token) {
       logger("Cannot send logs: token not properly parsed");
       return;
     }
 
-    const runId = this.lastRunId ?? runContextStore.getStore()?.runId;
+    const uploadRunId = runId ?? runContextStore.getStore()?.runId;
 
-    if (!runId) {
+    if (!uploadRunId) {
       logger("Warning: No runId available, skipping log upload");
       return;
     }
@@ -200,7 +199,7 @@ export class MoneymanDashStorage implements TransactionStorage {
         headers: {
           Authorization: `Bearer ${this.token}`,
           "Content-Type": "text/plain",
-          "X-Run-Id": runId,
+          "X-Run-Id": uploadRunId,
         },
         body: logs,
         signal,
