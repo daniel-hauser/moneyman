@@ -2,7 +2,7 @@ import { existsSync, unlinkSync, truncateSync, readFileSync } from "fs";
 import { config } from "../config.js";
 import { sendTextFile } from "../bot/notifier.js";
 import { logToPublicLog, unsafeStdout, createLogger } from "./logger.js";
-import { longRunning } from "./env.js";
+import { isLongRunning } from "./env.js";
 import { storages } from "../bot/storage/index.js";
 import type { TransactionStorage } from "../types.js";
 import debug from "debug";
@@ -24,28 +24,6 @@ export function enableDebugLoggingIfNeeded() {
   ) {
     debug.enable(config.options.logging.debugFilter);
   }
-}
-
-/**
- * The docker entrypoint opens the log file in append mode only when it knows
- * the process is long running. Starting the long running server without the
- * variable leaves the file opened for truncation, while the app empties it
- * between runs and the writes would land after a hole of NUL bytes - or, with
- * `longRunning` false, the app deletes the file after the first run and the
- * later runs lose their logs. There is no way to fix the already opened
- * descriptor from here, so refuse to start.
- */
-export function assertLongRunningLogMode() {
-  if (longRunning || unsafeStdout || !process.env.MONEYMAN_LOG_FILE_PATH)
-    return;
-
-  throw new Error(
-    "MONEYMAN_LONG_RUNNING is not set while the long running server starts: " +
-      "the entrypoint would open the log file without append mode, so the logs " +
-      "of every run after the first would be lost. Set " +
-      "MONEYMAN_LONG_RUNNING=true on the container instead of overriding its " +
-      "command.",
-  );
 }
 
 /**
@@ -100,12 +78,12 @@ export async function sendAndDeleteLogFile(runId?: string) {
       }
     }
 
-    if (longRunning) {
+    if (isLongRunning()) {
       /**
-       * In long running mode the log file is held open by the entrypoint for
-       * the lifetime of the process, so it can be emptied but not deleted.
-       * The entrypoint opens it in append mode, so the next run starts writing
-       * at the beginning of the file again.
+       * The long running process shares one log file between runs, held open
+       * by the entrypoint for the lifetime of the process, so it can be
+       * emptied but not deleted. The entrypoint appends, so the next run
+       * starts writing at the beginning of the file again.
        */
       logToPublicLog(`Clearing log file`, logger);
       truncateSync(logFilePath, 0);

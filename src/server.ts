@@ -9,19 +9,13 @@ import {
 import { registerCommands } from "./bot/commands.js";
 import { Scheduler } from "./scheduler.js";
 import { getLastRun, initRunner, isRunning, runOnce } from "./runner.js";
-import { assertLongRunningLogMode } from "./utils/secure-log.js";
-import { formatUnknownError } from "./utils/utils.js";
+import { markLongRunningProcess } from "./utils/env.js";
 
 const logger = createLogger("server");
 const times = config.options.scheduling.times;
 
-try {
-  assertLongRunningLogMode();
-} catch (error) {
-  logToPublicLog(`❌ ${formatUnknownError(error)}`);
-  logger(error);
-  process.exit(1);
-}
+/** Tell the app how this process was started, for the log file handling */
+markLongRunningProcess();
 
 process.on("uncaughtException", (err, origin) => {
   console.error("uncaughtException, sending error");

@@ -1,13 +1,11 @@
 #!/bin/sh
 set -e
 
-# Default command
+# Default command. Which mode to run is decided in the app (`dst/start.js`),
+# which reads the same variable, so that a process started as the long running
+# server behaves like one even when it was started directly.
 if [ "$#" -eq 0 ]; then
-  if [ "$MONEYMAN_LONG_RUNNING" = "true" ]; then
-    set -- node dst/server.js
-  else
-    set -- node dst/index.js
-  fi
+  set -- node dst/start.js
 fi
 
 if [ "$MONEYMAN_UNSAFE_STDOUT" = "true" ]; then
@@ -24,11 +22,9 @@ else
   # Duplicate stdout to the public log FD so public logs bypass redirection
   eval "exec ${PUBLIC_LOG_FD}>&1"
 
-  if [ "$MONEYMAN_LONG_RUNNING" = "true" ]; then
-    # Append, never truncate: the file is shared by every run of a long lived
-    # process and is emptied (`truncateSync`) by the app between runs.
-    exec "$@" >> "$MONEYMAN_LOG_FILE_PATH" 2>&1
-  else
-    exec "$@" > "$MONEYMAN_LOG_FILE_PATH" 2>&1
-  fi
+  # Append, never truncate. A long lived process shares one file between runs
+  # and empties it (`truncateSync`) between them, which only works when the
+  # descriptor appends. A one shot process deletes the file when it is done,
+  # so appending and truncating are the same thing for it.
+  exec "$@" >> "$MONEYMAN_LOG_FILE_PATH" 2>&1
 fi

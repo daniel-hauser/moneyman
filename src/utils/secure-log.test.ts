@@ -13,57 +13,57 @@ jest.mock("./logger.js", () => ({
   },
 }));
 
-type SecureLog = typeof import("./secure-log.js");
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 
-describe("assertLongRunningLogMode", () => {
+describe("sendAndDeleteLogFile", () => {
   const originalEnv = process.env;
+  let logFilePath: string;
+
+  beforeEach(() => {
+    jest.resetModules();
+    mockLoggerState.unsafeStdout = false;
+
+    logFilePath = join(
+      mkdtempSync(join(tmpdir(), "moneyman-log-")),
+      "moneyman.log",
+    );
+    writeFileSync(logFilePath, "the logs of the run");
+    process.env = { ...originalEnv, MONEYMAN_LOG_FILE_PATH: logFilePath };
+  });
 
   afterEach(() => {
     process.env = originalEnv;
-    mockLoggerState.unsafeStdout = false;
   });
 
-  /** The env and the unsafe-stdout flag are read when the module loads */
-  async function load(env: NodeJS.ProcessEnv): Promise<SecureLog> {
-    jest.resetModules();
-    process.env = env;
-    return await import("./secure-log.js");
-  }
+  it("empties the log file of a long running process", async () => {
+    const { markLongRunningProcess } = await import("./env.js");
+    markLongRunningProcess();
+    const { sendAndDeleteLogFile } = await import("./secure-log.js");
 
-  it("accepts a run without a log file", async () => {
-    const { assertLongRunningLogMode } = await load({ ...originalEnv });
+    await sendAndDeleteLogFile("run-id");
 
-    expect(() => assertLongRunningLogMode()).not.toThrow();
+    // The entrypoint holds the file open for the lifetime of the process, so
+    // it has to stay in place and be emptied between runs.
+    expect(existsSync(logFilePath)).toBe(true);
+    expect(readFileSync(logFilePath, "utf-8")).toBe("");
   });
 
-  it("rejects the long running server when the entrypoint was not told", async () => {
-    const { assertLongRunningLogMode } = await load({
-      ...originalEnv,
-      MONEYMAN_LOG_FILE_PATH: "/tmp/moneyman.log",
-    });
+  it("deletes the log file of a one shot process", async () => {
+    const { sendAndDeleteLogFile } = await import("./secure-log.js");
 
-    expect(() => assertLongRunningLogMode()).toThrow(
-      /MONEYMAN_LONG_RUNNING is not set/,
-    );
+    await sendAndDeleteLogFile("run-id");
+
+    expect(existsSync(logFilePath)).toBe(false);
   });
 
-  it("accepts the long running server when the entrypoint was told", async () => {
-    const { assertLongRunningLogMode } = await load({
-      ...originalEnv,
-      MONEYMAN_LOG_FILE_PATH: "/tmp/moneyman.log",
-      MONEYMAN_LONG_RUNNING: "true",
-    });
-
-    expect(() => assertLongRunningLogMode()).not.toThrow();
-  });
-
-  it("accepts a log file when stdout is used instead", async () => {
+  it("leaves the log file alone when stdout is used instead", async () => {
     mockLoggerState.unsafeStdout = true;
-    const { assertLongRunningLogMode } = await load({
-      ...originalEnv,
-      MONEYMAN_LOG_FILE_PATH: "/tmp/moneyman.log",
-    });
+    const { sendAndDeleteLogFile } = await import("./secure-log.js");
 
-    expect(() => assertLongRunningLogMode()).not.toThrow();
+    await sendAndDeleteLogFile("run-id");
+
+    expect(readFileSync(logFilePath, "utf-8")).toBe("the logs of the run");
   });
 });
