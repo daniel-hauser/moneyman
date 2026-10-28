@@ -82,7 +82,7 @@ All configuration must use the `MONEYMAN_CONFIG` JSON format via `MONEYMAN_CONFI
 ### Testing
 
 - Unit tests for core business logic
-- Mock-based testing with `jest-mock-extended`
+- Always prefer `jest-mock-extended` for typed test doubles: use `mock<T>()` or `mockDeep<T>()` instead of handwritten fake classes or unsafe type assertions. Use plain typed objects for data fixtures that do not need mocked behavior.
 - Snapshot testing for message formatting
 - Separate test suites for scraper access validation
 

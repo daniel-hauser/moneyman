@@ -33,9 +33,17 @@ export async function runWithStorage(runScraper: Runner): Promise<RunReport> {
       async onResultsReady(results: AccountScrapeResult[]) {
         logger(`scrape results ready (${results.length} results)`);
         report.summary = { results };
+        const failedAccounts = results.filter(({ result }) => !result.success);
+        if (failedAccounts.length) {
+          report.failed = true;
+          logger(
+            `Accounts that failed: ${failedAccounts.map(({ companyId }) => companyId).join(", ")}`,
+          );
+        }
         await saveResults(results, report);
       },
       async onError(e: unknown, caller: string = "unknown") {
+        report.failed = true;
         await sendError(e, caller);
       },
       async onBeforeStart() {},

@@ -79,7 +79,6 @@ async function runOnce(trigger: RunTrigger): Promise<RunStatus> {
 }
 
 async function runScraper(hooks: RunnerHooks) {
-  let failed = false;
   try {
     logger("About to start");
     await hooks.onBeforeStart();
@@ -93,18 +92,9 @@ async function runScraper(hooks: RunnerHooks) {
       },
       async (e, caller) => {
         logger("Error while scraping", e);
-        failed = true;
         return hooks.onError(e, caller);
       },
     );
-    const failedAccounts = results.filter(({ result }) => !result.success);
-    if (failedAccounts.length) {
-      logger(
-        `Accounts that failed: ${failedAccounts.map(({ companyId }) => companyId).join(", ")}`,
-      );
-      failed = true;
-    }
-
     logger("Scraping ended");
     await Promise.all([
       hooks.onResultsReady(results),
@@ -114,31 +104,23 @@ async function runScraper(hooks: RunnerHooks) {
     await logRunMetadata();
   } catch (e) {
     logger("Error", e);
-    failed = true;
     await hooks.onError(e);
   }
-
-  return failed;
 }
 
 async function run() {
-  let failed = false;
   try {
     logger("Running with storage");
-    const report = await runWithStorage(async (hooks) => {
-      failed = await runScraper(hooks);
-    });
+    const report = await runWithStorage(runScraper);
     const failedStorages = Object.entries(report.storages)
       .filter(([, row]) => row.state === "error")
       .map(([name]) => name);
     if (failedStorages.length) {
       logger(`Storages that failed: ${failedStorages.join(", ")}`);
-      failed = true;
     }
+    return report.failed || failedStorages.length > 0;
   } catch (error) {
     logger(error);
-    failed = true;
+    return true;
   }
-
-  return failed;
 }

@@ -1,14 +1,28 @@
 import type { AccountScrapeResult, RunnerHooks } from "./types.js";
 import type { ServerRunner } from "./server.js";
 import { createRunReport } from "./bot/runReport.js";
+import { mock } from "jest-mock-extended";
+import { CompanyTypes } from "israeli-bank-scrapers";
 
 jest.mock("./config.js", () => ({
   getScraperConfig: jest.fn(() => ({})),
   sendConfigToTelegramIfRequested: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock("./scraper/index.js", () => ({ scrapeAccounts: jest.fn() }));
-jest.mock("./bot/index.js", () => ({ runWithStorage: jest.fn() }));
-jest.mock("./bot/notifier.js", () => ({ sendError: jest.fn() }));
+jest.mock("./bot/index.js", () => ({
+  runWithStorage: jest.fn(
+    jest.requireActual<typeof import("./bot/index.js")>("./bot/index.js")
+      .runWithStorage,
+  ),
+}));
+jest.mock("./bot/storage/index.js", () => ({
+  storages: [{}],
+  saveResults: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock("./bot/notifier.js", () => ({
+  sendError: jest.fn().mockResolvedValue(undefined),
+  sendPhotos: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock("./server.js", () => ({ startServer: jest.fn() }));
 jest.mock("./utils/secure-log.js", () => ({
   enableDebugLoggingIfNeeded: jest.fn(),
@@ -24,19 +38,24 @@ jest.mock("./security/domains.js", () => ({
 jest.mock("./utils/failureScreenshot.js", () => ({
   sendFailureScreenShots: jest.fn().mockResolvedValue(undefined),
 }));
-jest.mock("./utils/logger.js", () => ({ createLogger: () => jest.fn() }));
+jest.mock("./utils/logger.js", () => ({
+  createLogger: () => jest.fn(),
+  logToPublicLog: jest.fn(),
+}));
 
-const accountResult = (companyId: string, success: boolean) =>
-  ({ companyId, result: { success } }) as unknown as AccountScrapeResult;
+const accountResult = (
+  companyId: CompanyTypes,
+  success: boolean,
+): AccountScrapeResult => ({ companyId, result: { success, accounts: [] } });
 
 function hooks(): RunnerHooks {
-  return {
-    onBeforeStart: jest.fn().mockResolvedValue(undefined),
-    onStatusChanged: jest.fn().mockResolvedValue(undefined),
-    onResultsReady: jest.fn().mockResolvedValue(undefined),
-    onError: jest.fn().mockResolvedValue(undefined),
-    failureScreenshotsHandler: jest.fn().mockResolvedValue(undefined),
-  };
+  const mockedHooks = mock<RunnerHooks>();
+  mockedHooks.onBeforeStart.mockResolvedValue(undefined);
+  mockedHooks.onStatusChanged.mockResolvedValue(undefined);
+  mockedHooks.onResultsReady.mockResolvedValue(undefined);
+  mockedHooks.onError.mockResolvedValue(undefined);
+  mockedHooks.failureScreenshotsHandler.mockResolvedValue(undefined);
+  return mockedHooks;
 }
 
 async function loadEntrypoint(longRunning: boolean) {
@@ -57,10 +76,6 @@ async function loadEntrypoint(longRunning: boolean) {
   const runWithStorageMock = jest.mocked(runWithStorage);
   const startServerMock = jest.mocked(startServer);
   scrapeAccountsMock.mockResolvedValue([]);
-  runWithStorageMock.mockImplementation(async (runScraper) => {
-    await runScraper(hooks());
-    return createRunReport();
-  });
   startServerMock.mockImplementation(async () => started());
 
   await import("./index.js");
@@ -78,8 +93,18 @@ async function loadEntrypoint(longRunning: boolean) {
 
 describe("index", () => {
   const originalEnv = process.env;
+  let originalExceptionListeners: ReturnType<typeof process.listeners>;
+
+  beforeEach(() => {
+    originalExceptionListeners = process.listeners("uncaughtException");
+  });
 
   afterEach(() => {
+    for (const listener of process.listeners("uncaughtException")) {
+      if (!originalExceptionListeners.includes(listener)) {
+        process.removeListener("uncaughtException", listener);
+      }
+    }
     process.env = originalEnv;
     jest.restoreAllMocks();
   });
@@ -111,11 +136,18 @@ describe("index", () => {
 
     it("reports a run where everything worked as successful", async () => {
       mocks.scrapeAccountsMock.mockResolvedValue([
-        accountResult("hapoalim", true),
+        accountResult(CompanyTypes.hapoalim, true),
       ]);
 
       const result = await runner.runOnce("manual");
 
+      const { sendError } = await import("./bot/notifier.js");
+      expect(sendError).not.toHaveBeenCalled();
+      await expect(
+        mocks.runWithStorageMock.mock.results[0].value,
+      ).resolves.toMatchObject({
+        failed: false,
+      });
       expect(result).toMatchObject({ trigger: "manual", failed: false });
       expect(runner.getLastRun()).toBe(result);
       expect(mocks.sendLogFileMock).toHaveBeenCalledWith(false);
@@ -123,8 +155,8 @@ describe("index", () => {
 
     it("fails the run when an account fails to scrape", async () => {
       mocks.scrapeAccountsMock.mockResolvedValue([
-        accountResult("hapoalim", true),
-        accountResult("oneZero", false),
+        accountResult(CompanyTypes.hapoalim, true),
+        accountResult(CompanyTypes.oneZero, false),
       ]);
 
       expect(await runner.runOnce("manual")).toMatchObject({ failed: true });
@@ -137,6 +169,31 @@ describe("index", () => {
         await runScraper(hooks());
         return report;
       });
+
+      expect(await runner.runOnce("manual")).toMatchObject({ failed: true });
+    });
+
+    it("fails the run when the report records an error", async () => {
+      const report = createRunReport();
+      report.failed = true;
+      mocks.runWithStorageMock.mockResolvedValue(report);
+
+      expect(await runner.runOnce("manual")).toMatchObject({ failed: true });
+    });
+
+    it("fails the run when scraping throws", async () => {
+      mocks.scrapeAccountsMock.mockRejectedValue(new Error("scraping failed"));
+
+      expect(await runner.runOnce("manual")).toMatchObject({ failed: true });
+    });
+
+    it("preserves an error callback failure even when accounts succeed", async () => {
+      mocks.scrapeAccountsMock.mockImplementation(
+        async (_config, _status, onError) => {
+          await onError?.(new Error("browser close failed"), "browser.close");
+          return [accountResult(CompanyTypes.hapoalim, true)];
+        },
+      );
 
       expect(await runner.runOnce("manual")).toMatchObject({ failed: true });
     });
