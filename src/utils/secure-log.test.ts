@@ -17,7 +17,7 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
-describe("sendAndDeleteLogFile", () => {
+describe("sendLogFile", () => {
   const originalEnv = process.env;
   let logFilePath: string;
 
@@ -37,33 +37,32 @@ describe("sendAndDeleteLogFile", () => {
     process.env = originalEnv;
   });
 
-  it("empties the log file of a long running process", async () => {
-    const { markLongRunningProcess } = await import("./env.js");
-    markLongRunningProcess();
-    const { sendAndDeleteLogFile } = await import("./secure-log.js");
+  it("empties the log file", async () => {
+    const { sendLogFile } = await import("./secure-log.js");
 
-    await sendAndDeleteLogFile("run-id");
+    await sendLogFile(false);
 
-    // The entrypoint holds the file open for the lifetime of the process, so
-    // it has to stay in place and be emptied between runs.
     expect(existsSync(logFilePath)).toBe(true);
     expect(readFileSync(logFilePath, "utf-8")).toBe("");
   });
 
-  it("deletes the log file of a one shot process", async () => {
-    const { sendAndDeleteLogFile } = await import("./secure-log.js");
+  it("deletes the log file when requested", async () => {
+    const { sendLogFile } = await import("./secure-log.js");
 
-    await sendAndDeleteLogFile("run-id");
+    await sendLogFile(true);
 
     expect(existsSync(logFilePath)).toBe(false);
   });
 
-  it("leaves the log file alone when stdout is used instead", async () => {
-    mockLoggerState.unsafeStdout = true;
-    const { sendAndDeleteLogFile } = await import("./secure-log.js");
+  it.each([true, false])(
+    "leaves the log file alone when stdout is used instead (deleteFile=%s)",
+    async (deleteFile) => {
+      mockLoggerState.unsafeStdout = true;
+      const { sendLogFile } = await import("./secure-log.js");
 
-    await sendAndDeleteLogFile("run-id");
+      await sendLogFile(deleteFile);
 
-    expect(readFileSync(logFilePath, "utf-8")).toBe("the logs of the run");
-  });
+      expect(readFileSync(logFilePath, "utf-8")).toBe("the logs of the run");
+    },
+  );
 });

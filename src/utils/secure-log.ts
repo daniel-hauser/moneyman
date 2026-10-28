@@ -2,7 +2,6 @@ import { existsSync, unlinkSync, truncateSync, readFileSync } from "fs";
 import { config } from "../config.js";
 import { sendTextFile } from "../bot/notifier.js";
 import { logToPublicLog, unsafeStdout, createLogger } from "./logger.js";
-import { isLongRunning } from "./env.js";
 import { storages } from "../bot/storage/index.js";
 import type { TransactionStorage } from "../types.js";
 import debug from "debug";
@@ -26,11 +25,7 @@ export function enableDebugLoggingIfNeeded() {
   }
 }
 
-/**
- * Send the log file to every destination and then clear it. The run id is
- * passed in because this runs after the run context has ended.
- */
-export async function sendAndDeleteLogFile(runId?: string) {
+export async function sendLogFile(deleteFile: boolean) {
   if (unsafeStdout) return;
 
   const logFilePath = process.env.MONEYMAN_LOG_FILE_PATH;
@@ -66,7 +61,7 @@ export async function sendAndDeleteLogFile(runId?: string) {
         logStorages.map(async (storage) => {
           const name = storage.constructor.name;
           logToPublicLog(`Sending logs to ${name}`, logger);
-          await storage.sendLogs(logContent, runId);
+          await storage.sendLogs(logContent);
         }),
       );
 
@@ -78,21 +73,15 @@ export async function sendAndDeleteLogFile(runId?: string) {
       }
     }
 
-    if (isLongRunning()) {
-      /**
-       * The long running process shares one log file between runs, held open
-       * by the entrypoint for the lifetime of the process, so it can be
-       * emptied but not deleted. The entrypoint appends, so the next run
-       * starts writing at the beginning of the file again.
-       */
-      logToPublicLog(`Clearing log file`, logger);
-      truncateSync(logFilePath, 0);
-    } else {
+    if (deleteFile) {
       logToPublicLog(`Deleting log file`, logger);
       unlinkSync(logFilePath);
+    } else {
+      logToPublicLog(`Clearing log file`, logger);
+      truncateSync(logFilePath, 0);
     }
   } catch (error) {
-    logger(`sendAndDeleteLogFile Failed:`, error);
-    logToPublicLog(`sendAndDeleteLogFile Failed`);
+    logger(`sendLogFile Failed:`, error);
+    logToPublicLog(`sendLogFile Failed`);
   }
 }

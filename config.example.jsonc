@@ -42,10 +42,10 @@
       // "getIpInfoUrl": false
     },
     "scheduling": {
-      // Times of day to run automatically when running in long running mode
+      // Cron schedule for long running mode
       // (MONEYMAN_LONG_RUNNING=true). Interpreted in the TZ of the process.
-      // Leave empty (or omit) to only run on demand with /scrape in Telegram.
-      // "times": ["09:00", "21:00"]
+      // Omit to only run on demand with /scrape in Telegram.
+      // "cron": "0 9,21 * * *"
     },
     "security": {
       // Block domains by default (default: false)

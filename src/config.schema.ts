@@ -1,4 +1,5 @@
 import z from "zod/v4";
+import { validate } from "node-cron";
 
 // TODO: Use the actual login field combinations from israeli-bank-scrapers once available
 // Account configuration schema based on israeli-bank-scrapers login field combinations
@@ -171,20 +172,10 @@ export const LoggingOptionsSchema = z.object({
 });
 
 export const SchedulingOptionsSchema = z.object({
-  /**
-   * Times of day, in the timezone of the process (`TZ`), at which to run the
-   * scraper when running in long-running mode (`MONEYMAN_LONG_RUNNING=true`).
-   * Each entry must be a 24 hour `HH:mm` string.
-   * Leave empty to only run on demand from Telegram.
-   * @default []
-   */
-  times: z
-    .array(
-      z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, {
-        error: "Time must be in the 24 hour HH:mm format",
-      }),
-    )
-    .default([]),
+  cron: z
+    .string()
+    .refine(validate, { error: "Invalid cron expression" })
+    .optional(),
 });
 
 const OptionsSchemaObject = z.object({

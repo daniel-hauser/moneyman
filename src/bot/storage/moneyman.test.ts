@@ -401,7 +401,7 @@ describe("MoneymanDashStorage", () => {
   });
 
   describe("sendLogs", () => {
-    it("should send logs under the run id the caller passes", async () => {
+    it("should send logs under the run id from context", async () => {
       const url = "https://api.example.com/ingest";
       const secret = "secret123";
       const token = makeMmToken(url, secret);
@@ -412,9 +412,7 @@ describe("MoneymanDashStorage", () => {
 
       fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) });
 
-      // sendAndDeleteLogFile runs after the run context ended, so the id of the
-      // run is passed in instead of being read from the context.
-      await storage.sendLogs(logs, runId);
+      await runContextStore.run({ runId }, () => storage.sendLogs(logs));
 
       expect(fetchMock).toHaveBeenCalledWith(
         "https://api.example.com/ingest/logs",
@@ -439,7 +437,6 @@ describe("MoneymanDashStorage", () => {
 
       fetchMock.mockResolvedValue(mockSuccessResponse());
 
-      // A first run saves transactions and is the one the storage saw last
       await new Promise((resolve) => {
         runContextStore.run({ runId: firstRunId }, async () => {
           await storage.saveTransactions([transactionRow({})], async () => {});
@@ -450,8 +447,9 @@ describe("MoneymanDashStorage", () => {
       fetchMock.mockClear();
       fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) });
 
-      // The next run saves nothing, its logs still belong to its own run
-      await storage.sendLogs("test logs", secondRunId);
+      await runContextStore.run({ runId: secondRunId }, () =>
+        storage.sendLogs("test logs"),
+      );
 
       expect(fetchMock.mock.calls[0][1].headers["X-Run-Id"]).toBe(secondRunId);
     });
@@ -466,7 +464,7 @@ describe("MoneymanDashStorage", () => {
 
       fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) });
 
-      await storage.sendLogs("test logs", runId);
+      await runContextStore.run({ runId }, () => storage.sendLogs("test logs"));
 
       expect(fetchMock).toHaveBeenCalledWith(
         "https://myapp.example.com/ingest/logs",
@@ -493,7 +491,6 @@ describe("MoneymanDashStorage", () => {
       const token = makeMmToken("https://api.example.com", "secret123");
       const storage = new MoneymanDashStorage(mockConfig(token));
 
-      // Neither a run id nor a run context
       await storage.sendLogs("some logs");
 
       expect(fetchMock).not.toHaveBeenCalled();
@@ -503,7 +500,6 @@ describe("MoneymanDashStorage", () => {
       const token = makeMmToken("https://api.example.com/ingest", "secret123");
       const storage = new MoneymanDashStorage(mockConfig(token));
 
-      // Fail the logs upload
       fetchMock.mockResolvedValue({
         ok: false,
         status: 500,
@@ -511,7 +507,10 @@ describe("MoneymanDashStorage", () => {
       });
 
       // Should not throw, just log the error
-      await storage.sendLogs("logs", randomUUID());
+      await runContextStore.run({ runId: randomUUID() }, () =>
+        storage.sendLogs("logs"),
+      );
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
 

@@ -1,4 +1,4 @@
-import { Context, Telegraf } from "telegraf";
+import { Context, Telegram, Telegraf } from "telegraf";
 import {
   CommandHandlers,
   HELP_MESSAGE,
@@ -13,21 +13,16 @@ jest.mock("../config.js", () => ({
   },
 }));
 
-type Handler = (ctx: Context) => Promise<void>;
-
 const chatId = 555;
 
 function createContext(id: number) {
-  return {
-    chat: { id },
-    reply: jest.fn().mockResolvedValue(undefined),
-  } as unknown as Context & { reply: jest.Mock };
+  return { chat: { id } } as unknown as Context;
 }
 
 function createHandlers(overrides: Partial<CommandHandlers> = {}) {
   return {
     scrape: jest.fn().mockResolvedValue("🔄 Starting a scrape now..."),
-    isRunning: jest.fn().mockReturnValue(false),
+    isRunning: jest.fn().mockResolvedValue(false),
     getLastRun: jest.fn().mockReturnValue(undefined),
     getNextRunAt: jest.fn().mockReturnValue(undefined),
     ...overrides,
@@ -35,22 +30,47 @@ function createHandlers(overrides: Partial<CommandHandlers> = {}) {
 }
 
 function registerBot(handlers: CommandHandlers) {
-  const registered = new Map<string, Handler>();
-  const bot = {
-    catch: jest.fn(),
-    command: (name: string, handler: Handler) => {
-      registered.set(name, handler);
-      return bot;
-    },
-    telegram: { setMyCommands: jest.fn().mockResolvedValue(undefined) },
-  } as unknown as Telegraf<Context>;
+  const bot = new Telegraf("123:token");
+  bot.botInfo = {
+    id: 1,
+    is_bot: true,
+    first_name: "moneyman",
+    username: "moneyman_bot",
+    can_join_groups: false,
+    can_read_all_group_messages: false,
+    supports_inline_queries: false,
+  };
+  // Telegraf creates a new Telegram client for each update
+  const callApi = jest
+    .spyOn(Telegram.prototype, "callApi")
+    .mockResolvedValue(true as never);
 
   registerCommands(bot, handlers);
 
-  return { registered, bot };
+  async function send(text: string, fromChat = chatId) {
+    await bot.handleUpdate({
+      update_id: 1,
+      message: {
+        message_id: 1,
+        date: 0,
+        chat: { id: fromChat, type: "private", first_name: "user" },
+        from: { id: fromChat, is_bot: false, first_name: "user" },
+        text,
+        entities: [{ type: "bot_command", offset: 0, length: text.length }],
+      },
+    });
+  }
+
+  const replies = () =>
+    callApi.mock.calls
+      .filter(([method]) => method === "sendMessage")
+      .map(([, payload]) => (payload as { text: string }).text);
+
+  return { send, replies, callApi };
 }
 
 describe("commands", () => {
+  afterEach(() => jest.restoreAllMocks());
   describe("isAuthorizedChat", () => {
     it("accepts the configured chat", () => {
       expect(isAuthorizedChat(createContext(chatId))).toBe(true);
@@ -65,9 +85,9 @@ describe("commands", () => {
   });
 
   describe("formatStatus", () => {
-    it("reports an idle process without history", () => {
-      const status = formatStatus({
-        isRunning: () => false,
+    it("reports an idle process without history", async () => {
+      const status = await formatStatus({
+        isRunning: async () => false,
         getLastRun: () => undefined,
         getNextRunAt: () => undefined,
       });
@@ -77,9 +97,9 @@ describe("commands", () => {
       expect(status).toContain("No scheduled run configured");
     });
 
-    it("reports a running scrape", () => {
-      const status = formatStatus({
-        isRunning: () => true,
+    it("reports a running scrape", async () => {
+      const status = await formatStatus({
+        isRunning: async () => true,
         getLastRun: () => undefined,
         getNextRunAt: () => new Date("2026-03-01T21:00:00"),
       });
@@ -88,9 +108,9 @@ describe("commands", () => {
       expect(status).toContain("Next scheduled run at");
     });
 
-    it("summarizes the last run", () => {
-      const status = formatStatus({
-        isRunning: () => false,
+    it("summarizes the last run", async () => {
+      const status = await formatStatus({
+        isRunning: async () => false,
         getLastRun: () => ({
           trigger: "manual",
           startedAt: new Date("2026-03-01T09:00:00"),
@@ -106,75 +126,72 @@ describe("commands", () => {
   });
 
   describe("registerCommands", () => {
-    it("registers the scrape aliases, status, help and the menu", () => {
-      const { registered, bot } = registerBot(createHandlers());
+    it("registers the command menu", () => {
+      const { callApi } = registerBot(createHandlers());
 
-      expect([...registered.keys()].sort()).toEqual([
-        "fetch",
-        "help",
-        "scrape",
-        "status",
-      ]);
-      expect(bot.telegram.setMyCommands).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          { command: "scrape", description: expect.any(String) },
-        ]),
+      expect(callApi).toHaveBeenCalledWith(
+        "setMyCommands",
+        expect.objectContaining({
+          commands: expect.arrayContaining([
+            { command: "scrape", description: expect.any(String) },
+          ]),
+        }),
       );
     });
 
-    it("runs a scrape and replies with the result", async () => {
-      const handlers = createHandlers();
-      const { registered } = registerBot(handlers);
-      const ctx = createContext(chatId);
+    it.each(["/scrape", "/fetch"])(
+      "runs a scrape for %s and replies",
+      async (command) => {
+        const handlers = createHandlers();
+        const { send, replies } = registerBot(handlers);
 
-      await registered.get("scrape")!(ctx);
+        await send(command);
 
-      expect(handlers.scrape).toHaveBeenCalledTimes(1);
-      expect(ctx.reply).toHaveBeenCalledWith("🔄 Starting a scrape now...");
-    });
-
-    it("runs a scrape from the fetch alias too", async () => {
-      const handlers = createHandlers();
-      const { registered } = registerBot(handlers);
-      const ctx = createContext(chatId);
-
-      await registered.get("fetch")!(ctx);
-
-      expect(handlers.scrape).toHaveBeenCalledTimes(1);
-    });
+        expect(handlers.scrape).toHaveBeenCalledTimes(1);
+        expect(replies()).toEqual(["🔄 Starting a scrape now..."]);
+      },
+    );
 
     it("ignores commands from other chats", async () => {
       const handlers = createHandlers();
-      const { registered } = registerBot(handlers);
-      const ctx = createContext(999);
+      const { send, replies } = registerBot(handlers);
 
-      await registered.get("scrape")!(ctx);
-      await registered.get("status")!(ctx);
-      await registered.get("help")!(ctx);
+      await send("/scrape", 999);
+      await send("/status", 999);
+      await send("/help", 999);
 
       expect(handlers.scrape).not.toHaveBeenCalled();
-      expect(ctx.reply).not.toHaveBeenCalled();
+      expect(replies()).toEqual([]);
     });
 
     it("replies with the help message", async () => {
-      const { registered } = registerBot(createHandlers());
-      const ctx = createContext(chatId);
+      const { send, replies } = registerBot(createHandlers());
 
-      await registered.get("help")!(ctx);
+      await send("/help");
 
-      expect(ctx.reply).toHaveBeenCalledWith(HELP_MESSAGE);
+      expect(replies()).toEqual([HELP_MESSAGE]);
+    });
+
+    it("awaits the running state for /status", async () => {
+      const { send, replies } = registerBot(
+        createHandlers({ isRunning: jest.fn().mockResolvedValue(true) }),
+      );
+
+      await send("/status");
+
+      expect(replies()[0]).toContain("🔄 A scrape is running right now");
     });
 
     it("reports a failure instead of throwing", async () => {
-      const handlers = createHandlers({
-        scrape: jest.fn().mockRejectedValue(new Error("boom")),
-      });
-      const { registered } = registerBot(handlers);
-      const ctx = createContext(chatId);
+      const { send, replies } = registerBot(
+        createHandlers({
+          scrape: jest.fn().mockRejectedValue(new Error("boom")),
+        }),
+      );
 
-      await registered.get("scrape")!(ctx);
+      await send("/scrape");
 
-      expect(ctx.reply).toHaveBeenCalledWith("❌ Failed to handle /scrape");
+      expect(replies()).toEqual(["❌ Failed to handle the command"]);
     });
   });
 });

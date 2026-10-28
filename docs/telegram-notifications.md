@@ -58,7 +58,7 @@ Only the configured `chatId` can use them — messages from any other chat are i
 
 `/scrape` replies immediately, then the regular notifications (progress, summary, errors) are sent
 to the same chat while the scrape runs. Automatic runs are configured with
-[`options.scheduling.times`](../README.md#other-configurations).
+[`options.scheduling.cron`](../README.md#other-configurations).
 
 ## Using OTP 2FA with OneZero Accounts
 

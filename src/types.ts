@@ -50,11 +50,7 @@ export interface TransactionStorage {
     onProgress: (status: string) => Promise<void>,
     context?: SaveContext,
   ): Promise<SaveStats>;
-  /**
-   * Upload the logs of a run. The run id is passed explicitly because the
-   * upload happens after the run context has ended.
-   */
-  sendLogs?(logs: string, runId?: string): Promise<void>;
+  sendLogs?(logs: string): Promise<void>;
 }
 
 export type ScraperConfig = {
@@ -79,3 +75,12 @@ export interface RunnerHooks {
   failureScreenshotsHandler: (photos: ImageWithCaption[]) => Promise<unknown>;
 }
 export type Runner = (hooks: RunnerHooks) => Promise<void>;
+
+export type RunTrigger = "manual" | "scheduled" | "startup";
+
+export type RunStatus = {
+  trigger: RunTrigger;
+  startedAt: Date;
+  endedAt: Date;
+  failed: boolean;
+};

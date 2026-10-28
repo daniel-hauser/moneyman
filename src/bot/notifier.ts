@@ -1,12 +1,11 @@
-import { Context, Telegraf } from "telegraf";
-import { message } from "telegraf/filters";
+import { Telegraf } from "telegraf";
 import { config } from "../config.js";
 import type { ImageWithCaption } from "../types.js";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
-import { waitForAbortSignal } from "../utils/promises.js";
 import { formatUnknownError } from "../utils/utils.js";
 import { assignDeprecationHandler } from "./deprecationManager.js";
 import type { ReportTransport } from "./reportPublisher.js";
+import { createBot } from "./bot.js";
 
 const logger = createLogger("notifier");
 
@@ -32,66 +31,16 @@ if (bot && telegramConfig) {
   });
 }
 
-/**
- * Whether the bot is currently polling for updates.
- * Owned by this module so that the OTP flow and the long running server do not
- * try to launch (or stop) the same bot twice.
- */
-let botRunning = false;
-
-/**
- * Number of `requestOtpCode` calls currently waiting for a response, and
- * whether the OTP flow is the one that started the running bot. Overlapping
- * requests share the polling session, so it may only be stopped once the last
- * of them has settled.
- */
-let activeOtpRequests = 0;
-let otpFlowOwnsBot = false;
+export const {
+  isTelegramBotRunning,
+  launchTelegramBot,
+  stopTelegramBot,
+  requestOtpCode,
+} = createBot(bot);
 
 /** The shared Telegram bot, or `null` when Telegram is not configured */
 export function getTelegramBot() {
   return bot;
-}
-
-export function isTelegramBotRunning(): boolean {
-  return botRunning;
-}
-
-/**
- * Start polling for Telegram updates. Returns once the bot is up, and is a
- * no-op when it is already running.
- */
-export async function launchTelegramBot(): Promise<void> {
-  if (!bot) {
-    throw new Error("Telegram is not configured");
-  }
-  if (botRunning) {
-    return;
-  }
-
-  botRunning = true;
-  try {
-    await bot.launch(() => logger("Telegram bot launched"));
-  } catch (e) {
-    botRunning = false;
-    throw e;
-  }
-}
-
-export function stopTelegramBot() {
-  if (!bot || !botRunning) return;
-  botRunning = false;
-  try {
-    bot.stop();
-  } catch (e) {
-    /**
-     * Telegraf throws when it has nothing to stop, which happens when a
-     * signal arrives while `launchTelegramBot` is still awaiting `launch()`:
-     * the bot is flagged as running before polling is up. Shutting down must
-     * not fail over that.
-     */
-    logger(`Failed to stop the Telegram bot: ${formatUnknownError(e)}`);
-  }
 }
 
 export async function send(message: string, parseMode?: "HTML") {
@@ -220,125 +169,4 @@ export function sendError(message: unknown, caller: string = "") {
         : formatUnknownError(message),
     )}`.trim(),
   );
-}
-
-/**
- * Request an OTP code from the user via Telegram and wait for their response
- */
-export async function requestOtpCode(
-  companyId: string,
-  phoneNumber: string,
-): Promise<string> {
-  if (!bot || !telegramConfig?.chatId || !telegramConfig.enableOtp) {
-    throw new Error("Telegram OTP is not enabled or configured");
-  }
-
-  const requestMessage = await send(
-    `🔐 2FA Authentication Required\n\n` +
-      `Account: ${companyId}\n` +
-      `Please enter the OTP code sent to ${phoneNumber}:\n\n` +
-      `Reply to this message with the code.`,
-  );
-
-  if (!requestMessage) {
-    throw new Error("Failed to send OTP request message");
-  }
-
-  logger("Waiting for OTP code from user...");
-
-  const timeoutSeconds = telegramConfig.otpTimeoutSeconds;
-  const timeoutPromise = waitForAbortSignal(
-    AbortSignal.timeout(timeoutSeconds * 1000),
-  ).catch(() => {
-    throw new Error(
-      `OTP timeout: No response received within ${timeoutSeconds} seconds`,
-    );
-  });
-
-  /**
-   * In long running mode the bot is already polling for updates, so only
-   * launch (and later stop) it when this flow is the one that started it.
-   */
-  const ownsBot = !isTelegramBotRunning();
-  activeOtpRequests++;
-  if (ownsBot) {
-    otpFlowOwnsBot = true;
-  }
-
-  /**
-   * The handler below stays registered on the bot, so it must stop reacting
-   * once this request has settled (response, timeout or error).
-   */
-  let awaitingResponse = true;
-
-  const responsePromise = new Promise<string>((resolve, reject) => {
-    const handler = (ctx: Context, next: () => Promise<void>) => {
-      if (!awaitingResponse) {
-        // Leave the update for the current request's handler, if any
-        return next();
-      }
-
-      if (ctx.chat?.id?.toString() !== telegramConfig.chatId) {
-        return next();
-      }
-
-      if (!ctx.message || !("text" in ctx.message)) {
-        return next();
-      }
-
-      const text = ctx.message.text?.trim();
-      if (!text) {
-        return next();
-      }
-
-      /**
-       * Accounts are scraped in parallel, so more than one OTP request can be
-       * waiting at the same time and every waiting handler sees every message
-       * of the chat. Take a reply only when it targets this request's message,
-       * and a message that is not a reply only while this is the single
-       * outstanding request.
-       */
-      const replyToMessageId = ctx.message.reply_to_message?.message_id;
-      if (
-        replyToMessageId === undefined
-          ? activeOtpRequests > 1
-          : replyToMessageId !== requestMessage.message_id
-      ) {
-        return next();
-      }
-
-      logger(`Received OTP code: ${text}`);
-      awaitingResponse = false;
-      void ctx.reply("✅ OTP code received. Continuing authentication...");
-
-      resolve(text);
-    };
-
-    bot.on(message("text"), handler);
-
-    if (!ownsBot) {
-      return;
-    }
-
-    launchTelegramBot().catch((error) => {
-      sendError(error, "requestOtpCode");
-      reject(new Error(`Failed to start Telegram bot for OTP: ${error}`));
-    });
-  });
-
-  try {
-    return await Promise.race([responsePromise, timeoutPromise]);
-  } finally {
-    awaitingResponse = false;
-    activeOtpRequests--;
-
-    /**
-     * Only the flow that started the bot stops it, and only once no other
-     * request is still waiting for its code.
-     */
-    if (activeOtpRequests === 0 && otpFlowOwnsBot) {
-      otpFlowOwnsBot = false;
-      stopTelegramBot();
-    }
-  }
 }

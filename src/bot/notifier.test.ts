@@ -1,6 +1,7 @@
 import {
   getTelegramBot,
   launchTelegramBot,
+  isTelegramBotRunning,
   requestOtpCode,
   stopTelegramBot,
 } from "./notifier.js";
@@ -143,6 +144,40 @@ describe("requestOtpCode", () => {
 
     // The first message id is only used by its own request
     expect(firstMessageId).not.toBe(secondMessageId);
+    expect(isTelegramBotRunning()).toBe(false);
+  });
+
+  it("does not stop polling started by the server", async () => {
+    await launchTelegramBot();
+    const request = requestOtpCode("oneZero", "+97200000001");
+    await flush();
+
+    await bot().handlers[0](
+      createContext("123456"),
+      jest.fn().mockResolvedValue(undefined),
+    );
+
+    await expect(request).resolves.toBe("123456");
+    expect(isTelegramBotRunning()).toBe(true);
+    stopTelegramBot();
+  });
+
+  it("rejects the request when polling fails to start", async () => {
+    const launch = jest
+      .spyOn(bot(), "launch")
+      .mockRejectedValueOnce(new Error("polling failed"));
+    try {
+      await expect(requestOtpCode("oneZero", "+97200000001")).rejects.toThrow(
+        "Failed to start Telegram bot for OTP: Error: polling failed",
+      );
+      expect(isTelegramBotRunning()).toBe(false);
+      expect(bot().telegram.sendMessage).toHaveBeenLastCalledWith(
+        "555",
+        expect.stringContaining("requestOtpCode\n❌ polling failed"),
+      );
+    } finally {
+      launch.mockRestore();
+    }
   });
 });
 

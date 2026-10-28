@@ -170,18 +170,13 @@ export class MoneymanDashStorage implements TransactionStorage {
     return stats;
   }
 
-  /**
-   * Upload the logs of a run. The run id is the one the caller passes: this
-   * runs after the run context has ended, and the id of the last save would
-   * be the id of an earlier run whenever the current one saved nothing.
-   */
-  async sendLogs(logs: string, runId?: string) {
+  async sendLogs(logs: string) {
     if (!this.endpoint || !this.token) {
       logger("Cannot send logs: token not properly parsed");
       return;
     }
 
-    const uploadRunId = runId ?? runContextStore.getStore()?.runId;
+    const uploadRunId = runContextStore.getStore()?.runId;
 
     if (!uploadRunId) {
       logger("Warning: No runId available, skipping log upload");

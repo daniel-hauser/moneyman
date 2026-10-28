@@ -10,7 +10,6 @@
   "scripts": {
     "act": "go run github.com/nektos/act@latest",
     "start": "node dst/index.js",
-    "start:long-running": "node dst/server.js",
     "start:container": "docker compose up",
     "prepare": "husky",
     "postinstall": "patch-package",

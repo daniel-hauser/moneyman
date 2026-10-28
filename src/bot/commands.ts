@@ -1,14 +1,10 @@
 import { Context, Telegraf } from "telegraf";
 import { config } from "../config.js";
 import { createLogger } from "../utils/logger.js";
-import type { RunStatus } from "../runner.js";
+import type { RunStatus } from "../types.js";
 
 const logger = createLogger("commands");
 
-/**
- * The first entry is the one advertised in the Telegram command menu, the rest
- * are kept as aliases for convenience.
- */
 export const SCRAPE_COMMANDS = ["scrape", "fetch"];
 
 export const BOT_COMMANDS = [
@@ -26,12 +22,8 @@ export const HELP_MESSAGE = [
 ].join("\n");
 
 export type CommandHandlers = {
-  /**
-   * Start a scrape. Resolves with the message to reply to the user with, which
-   * may report that a run was already in progress.
-   */
   scrape: () => Promise<string>;
-  isRunning: () => boolean;
+  isRunning: () => Promise<boolean>;
   getLastRun: () => RunStatus | undefined;
   getNextRunAt: () => Date | undefined;
 };
@@ -41,11 +33,13 @@ export function isAuthorizedChat(ctx: Context): boolean {
   return Boolean(chatId) && ctx.chat?.id?.toString() === chatId;
 }
 
-export function formatStatus(
+export async function formatStatus(
   handlers: Pick<CommandHandlers, "isRunning" | "getLastRun" | "getNextRunAt">,
-): string {
+): Promise<string> {
   const lines = [
-    handlers.isRunning() ? "🔄 A scrape is running right now" : "😴 Idle",
+    (await handlers.isRunning())
+      ? "🔄 A scrape is running right now"
+      : "😴 Idle",
   ];
 
   const lastRun = handlers.getLastRun();
@@ -78,49 +72,27 @@ function formatDate(date: Date): string {
   });
 }
 
-/**
- * Register the Moneyman commands on an already configured Telegram bot.
- * Only the configured chat ID is allowed to trigger anything.
- */
 export function registerCommands(
   bot: Telegraf<Context>,
   handlers: CommandHandlers,
 ) {
-  /**
-   * A long running process must not die because one update failed to be
-   * handled: log it instead of letting telegraf rethrow.
-   */
-  bot.catch((e) => logger(`Unhandled error while processing an update`, e));
-
-  const guarded = (name: string, handler: (ctx: Context) => Promise<void>) => {
-    bot.command(name, async (ctx) => {
-      if (!isAuthorizedChat(ctx)) {
-        logger(`Ignoring /${name} from unauthorized chat ${ctx.chat?.id}`);
-        return;
-      }
-
-      try {
-        await handler(ctx);
-      } catch (e) {
-        logger(`Failed to handle /${name}`, e);
-        await ctx.reply(`❌ Failed to handle /${name}`).catch(() => {});
-      }
-    });
-  };
-
-  for (const command of SCRAPE_COMMANDS) {
-    guarded(command, async (ctx) => {
-      await ctx.reply(await handlers.scrape());
-    });
-  }
-
-  guarded("status", async (ctx) => {
-    await ctx.reply(formatStatus(handlers));
+  bot.catch(async (e, ctx) => {
+    logger("Failed to handle an update", e);
+    await ctx.reply("❌ Failed to handle the command").catch(() => {});
   });
 
-  guarded("help", async (ctx) => {
-    await ctx.reply(HELP_MESSAGE);
+  bot.use((ctx, next) => {
+    if (isAuthorizedChat(ctx)) return next();
+    logger(`Ignoring an update from unauthorized chat ${ctx.chat?.id}`);
   });
+
+  bot.command(SCRAPE_COMMANDS, async (ctx) => {
+    await ctx.reply(await handlers.scrape());
+  });
+  bot.command("status", async (ctx) => {
+    await ctx.reply(await formatStatus(handlers));
+  });
+  bot.command("help", (ctx) => ctx.reply(HELP_MESSAGE));
 
   bot.telegram
     .setMyCommands(BOT_COMMANDS)

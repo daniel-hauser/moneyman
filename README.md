@@ -47,7 +47,7 @@ Since logs are public for public repos, most logs are off by default and the pro
 2. Run `npm install`
 3. Run `npm run build`
 4. Provide your configuration via `MONEYMAN_CONFIG` (inline JSON) or point `MONEYMAN_CONFIG_PATH` to a JSON/JSONC file
-5. Run `npm start` (scrape once and exit), or `npm run start:long-running` to run on a schedule and accept Telegram commands
+5. Run `npm start`
 
 </details>
 
@@ -89,7 +89,7 @@ By default the container scrapes once and exits, which is meant to be triggered 
 scheduler (GitHub Actions, cron, ...). Set `MONEYMAN_LONG_RUNNING=true` to keep the container
 alive instead:
 
-- it runs automatically at every time listed in [`options.scheduling.times`](#other-configurations) (in the `TZ` of the container)
+- it runs automatically using [`options.scheduling.cron`](#other-configurations), e.g. `"0 9,21 * * *"` for 09:00 and 21:00 daily (in the `TZ` of the container)
 - it accepts `/scrape` and `/status` commands in your Telegram chat, so you can trigger a run on
   demand without waiting for the schedule
 - the Telegram bot stays connected between runs, so no external cron and no `docker start` is needed
@@ -214,13 +214,12 @@ options: {
   };
   scheduling: {
     /**
-     * Times of day, in the timezone of the process (`TZ`), at which to run the scraper
-     * when running in long running mode (`MONEYMAN_LONG_RUNNING=true`).
-     * Each entry must be a 24 hour `HH:mm` string.
-     * Leave empty to only run on demand from Telegram.
-     * @default []
+     * Cron expression, in the timezone of the process (`TZ`), for long running mode
+     * (`MONEYMAN_LONG_RUNNING=true`). Uses node-cron syntax (five fields, or six
+     * with seconds). For example, "0 9,21 * * *" runs daily at 09:00 and 21:00.
+     * Omit to only run on demand from Telegram.
      */
-    times?: string[];
+    cron?: string;
   };
 };
 ```
