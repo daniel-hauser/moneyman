@@ -149,6 +149,16 @@ export const NotificationOptionsSchema = z.object({
        * @default true
        */
       sendLogFileToTelegram: z.boolean().optional().default(true),
+      /**
+       * Minimum time in milliseconds between edits of the status message.
+       * Values below 250 are raised to 250 to stay within Telegram's rate limits.
+       * @default 500
+       */
+      updateIntervalMs: z
+        .number()
+        .optional()
+        .default(500)
+        .transform((value) => Math.max(250, value)),
     })
     .optional(),
 });

@@ -59,7 +59,9 @@
       //   // Enable OTP (One-Time Password) support for 2FA authentication (default: false)
       //   "enableOtp": false,
       //   // Maximum time in seconds to wait for OTP response (default: 300)
-      //   "otpTimeoutSeconds": 300
+      //   "otpTimeoutSeconds": 300,
+      //   // Minimum milliseconds between edits of the status message (default: 500, minimum: 250)
+      //   "updateIntervalMs": 500
       // }
     },
   },
