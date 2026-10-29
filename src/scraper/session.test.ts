@@ -365,6 +365,31 @@ describe("worker session locks", () => {
     ).toHaveBeenCalledTimes(1);
   });
 
+  it("routes a shared-phone OTP request past a token-bearing account", async () => {
+    callbacks.otp.mockResolvedValueOnce("123456");
+    scrapeAccounts.mockImplementationOnce(
+      async (_settings, _tracking, _status, _warning, runtime) => {
+        expect(await runtime!.requestOtpCode!("oneZero", "+97200000000")).toBe(
+          "123456",
+        );
+        return [];
+      },
+    );
+    const sharedPhoneSettings = WorkerConfigSchema.parse({
+      ...otpSettings,
+      accounts: [
+        { ...otpSettings.accounts[0], otpLongTermToken: "existing-token" },
+        otpSettings.accounts[0],
+      ],
+    });
+
+    await expect(
+      session.scrape(sharedPhoneSettings, callbacks),
+    ).resolves.toEqual({ results: [], domains: {} });
+    expect(callbacks.otp).toHaveBeenCalledWith(1);
+    expect(callbacks[releaseProxy]).toHaveBeenCalledTimes(1);
+  });
+
   it("aborts pending OTP when an unawaited progress callback fails", async () => {
     const failure = new Error("progress callback failed");
     callbacks.status.mockRejectedValueOnce(failure);

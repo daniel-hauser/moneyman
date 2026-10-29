@@ -74,6 +74,7 @@ function createScraperSession(): ScraperWorkerApi {
                           scraping.accounts.findIndex(
                             (account) =>
                               account.companyId === companyId &&
+                              !("otpLongTermToken" in account) &&
                               "phoneNumber" in account &&
                               account.phoneNumber === phoneNumber,
                           ),

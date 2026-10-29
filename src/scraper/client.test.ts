@@ -1,4 +1,4 @@
-import { EventEmitter } from "node:events";
+import { EventEmitter, getEventListeners } from "node:events";
 import { Worker, type MessagePort } from "node:worker_threads";
 import { finalizer, releaseProxy, wrap, type Remote } from "comlink";
 import { mock } from "jest-mock-extended";
@@ -156,27 +156,44 @@ describe("Comlink scraper client", () => {
     expect(api.cancel).not.toHaveBeenCalled();
   });
 
-  it.each(["SIGINT", "SIGTERM"] as const)(
-    "cooperatively cancels on %s before the worker is ready",
-    async (signal) => {
-      const run = scrapeAccounts(scraping);
-      process.rawListeners(signal).at(-1)!.call(process, signal);
-      await expect(run).rejects.toThrow("Scraper worker cancelled");
-      expect(api.cancel).toHaveBeenCalled();
-      expect(api[releaseProxy].mock.invocationCallOrder[0]).toBeLessThan(
-        worker.terminate.mock.invocationCallOrder[0],
-      );
-    },
-  );
+  it("does not construct a worker when the caller already cancelled", async () => {
+    const abort = new AbortController();
+    abort.abort(new Error("caller cancelled"));
+    await expect(
+      scrapeAccounts(scraping, undefined, undefined, abort.signal),
+    ).rejects.toThrow("caller cancelled");
+    expect(Worker).not.toHaveBeenCalled();
+  });
 
-  it("reports process errors while still awaiting cooperative worker cleanup", async () => {
-    const run = scrapeAccounts(scraping);
-    for (const listener of process.rawListeners("error").slice(-2)) {
-      listener.call(process, new Error("process failure"));
-    }
-    await expect(run).rejects.toThrow("process failure");
+  it("cooperatively cancels before the worker is ready and removes the caller listener", async () => {
+    const abort = new AbortController();
+    const run = scrapeAccounts(scraping, undefined, undefined, abort.signal);
+    abort.abort(new Error("caller cancelled"));
+    await expect(run).rejects.toThrow("caller cancelled");
     expect(api.cancel).toHaveBeenCalled();
-    expect(api[releaseProxy]).toHaveBeenCalled();
+    expect(api[releaseProxy].mock.invocationCallOrder[0]).toBeLessThan(
+      worker.terminate.mock.invocationCallOrder[0],
+    );
+    expect(getEventListeners(abort.signal, "abort")).toEqual([]);
+  });
+
+  it("leaves process signals to the caller while a scrape is active", async () => {
+    const run = scrapeAccounts(scraping);
+    expect(processEvents.map((event) => process.listenerCount(event))).toEqual(
+      processListeners,
+    );
+    expect(api.cancel).not.toHaveBeenCalled();
+    await expect(run).resolves.toEqual({ results, domains: {} });
+  });
+
+  it("removes the caller's abort listener after successful cleanup", async () => {
+    const abort = new AbortController();
+    await scrapeAccounts(scraping, undefined, undefined, abort.signal);
+    expect(getEventListeners(abort.signal, "abort")).toEqual([]);
+    expect(abort.signal.aborted).toBe(false);
+    const cancelCalls = api.cancel.mock.calls.length;
+    abort.abort();
+    expect(api.cancel).toHaveBeenCalledTimes(cancelCalls);
   });
 
   it("uses a separate allowlisted environment and default parent stdout/stderr routing", async () => {
@@ -330,17 +347,17 @@ describe("Comlink scraper client", () => {
         callbacks()[finalizer]();
       }
     });
-    const before = process.listenerCount("SIGTERM");
-    const run = scrapeAccounts(scraping);
+    const abort = new AbortController();
+    const run = scrapeAccounts(scraping, undefined, undefined, abort.signal);
     const cancelled = expect(run).rejects.toThrow("cancelled");
-    process.rawListeners("SIGTERM").at(-1)!.call(process, "SIGTERM");
+    abort.abort(new Error("caller cancelled"));
     await cancelled;
     expect(otpSignal?.aborted).toBe(true);
     expect(api.cancel).toHaveBeenCalled();
     expect(api.cancel.mock.invocationCallOrder[0]).toBeLessThan(
       worker.terminate.mock.invocationCallOrder[0],
     );
-    expect(process.listenerCount("SIGTERM")).toBe(before);
+    expect(getEventListeners(abort.signal, "abort")).toEqual([]);
   });
 
   it("keeps cancellation primary when the losing scrape RPC rejects during cleanup", async () => {
@@ -352,9 +369,10 @@ describe("Comlink scraper client", () => {
         callbacks()[finalizer]();
       }
     });
-    const run = scrapeAccounts(scraping);
+    const abort = new AbortController();
+    const run = scrapeAccounts(scraping, undefined, undefined, abort.signal);
     const cancelled = expect(run).rejects.toThrow("Scraper worker cancelled");
-    process.rawListeners("SIGTERM").at(-1)!.call(process, "SIGTERM");
+    abort.abort(new Error("Scraper worker cancelled"));
     await tick();
     expect(worker.terminate).not.toHaveBeenCalled();
     pending.reject(new Error("late scrape RPC failure"));

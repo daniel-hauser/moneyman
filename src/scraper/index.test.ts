@@ -135,6 +135,28 @@ describe("scraper runtime browser lifecycle", () => {
     expect(abort.signal.aborted).toBe(false);
   });
 
+  it("does not start queued accounts after cancellation", async () => {
+    const abort = new AbortController();
+    jest.mocked(getAccountTransactions).mockImplementationOnce(async () => {
+      abort.abort(new Error("worker cancelled"));
+      return { success: false };
+    });
+
+    await expect(
+      scrapeAccounts(
+        { ...config, accounts: [...config.accounts, ...config.accounts] },
+        initDomainTracking,
+        undefined,
+        undefined,
+        { signal: abort.signal },
+      ),
+    ).rejects.toThrow("worker cancelled");
+
+    expect(createSecureBrowserContext).toHaveBeenCalledTimes(1);
+    expect(getAccountTransactions).toHaveBeenCalledTimes(1);
+    expect(browser[Symbol.asyncDispose]).toHaveBeenCalledTimes(1);
+  });
+
   it("awaits browser disposal before completing a cancelled scrape", async () => {
     const abort = new AbortController();
     const started = Promise.withResolvers<void>();

@@ -1,7 +1,7 @@
 /// <reference lib="es2024.promise" />
 /// <reference lib="esnext.disposable" />
 import { MessageChannel, Worker } from "node:worker_threads";
-import { once } from "node:events";
+import { addAbortListener, once } from "node:events";
 import { aborted } from "node:util";
 import { finalizer, proxy, releaseProxy, wrap } from "comlink";
 import debug from "debug";
@@ -19,7 +19,9 @@ export async function scrapeAccounts(
   scraping: ScraperConfig,
   onStatus?: (status: string[], totalTime?: number) => Promise<void>,
   onError?: (error: unknown, caller: string) => void | Promise<void>,
+  signal?: AbortSignal,
 ): Promise<WorkerResult> {
+  signal?.throwIfAborted();
   const debugFilter = debug.disable();
   debug.enable(debugFilter);
   const settings = WorkerConfigSchema.parse({
@@ -85,14 +87,6 @@ export async function scrapeAccounts(
       abort.abort(reason);
       void rpc(api.cancel()).catch(fail);
     };
-    for (const signal of ["SIGINT", "SIGTERM"] as const) {
-      void once(process, signal, { signal: listeners.signal }).then(
-        () => cancel(),
-        (error) => {
-          if (!listeners.signal.aborted) cancel(error);
-        },
-      );
-    }
     const { promise: callbacksReleased, resolve: released } =
       Promise.withResolvers<void>();
     const scrapingResult = api.scrape(
@@ -134,6 +128,9 @@ export async function scrapeAccounts(
       await rpc(api.cancel());
       await rpc(callbacksReleased);
     });
+    if (signal) {
+      resources.use(addAbortListener(signal, () => cancel(signal.reason)));
+    }
     const result = await Promise.race([
       rpc(scrapingResult),
       aborted(abort.signal, worker),

@@ -64,7 +64,14 @@ function hooks(): RunnerHooks {
   return mockedHooks;
 }
 
-async function loadEntrypoint(longRunning: boolean) {
+async function loadEntrypoint(
+  longRunning: boolean,
+  configureScrape?: (
+    scrape: jest.MockedFunction<
+      typeof import("./scraper/client.js").scrapeAccounts
+    >,
+  ) => void,
+) {
   jest.resetModules();
   process.env.MONEYMAN_LONG_RUNNING = longRunning ? "true" : "";
   let started!: () => void;
@@ -82,6 +89,7 @@ async function loadEntrypoint(longRunning: boolean) {
   const runWithStorageMock = jest.mocked(runWithStorage);
   const startServerMock = jest.mocked(startServer);
   scrapeAccountsMock.mockResolvedValue({ results: [], domains: {} });
+  configureScrape?.(scrapeAccountsMock);
   startServerMock.mockImplementation(async () => started());
 
   await import("./index.js");
@@ -122,6 +130,9 @@ describe("index", () => {
   });
 
   it("runs once and exits by default", async () => {
+    const listeners = ["SIGINT", "SIGTERM"].map((signal) =>
+      process.listenerCount(signal),
+    );
     const { exit, runWithStorageMock, startServerMock, sendLogFileMock } =
       await loadEntrypoint(false);
 
@@ -129,7 +140,36 @@ describe("index", () => {
     expect(startServerMock).not.toHaveBeenCalled();
     expect(exit).toHaveBeenCalledWith(0);
     expect(sendLogFileMock).toHaveBeenCalledWith(true);
+    expect(
+      ["SIGINT", "SIGTERM"].map((signal) => process.listenerCount(signal)),
+    ).toEqual(listeners);
   });
+
+  it.each(["SIGINT", "SIGTERM"] as const)(
+    "cancels the one-shot scrape on %s and removes its signal listeners",
+    async (signalName) => {
+      const listeners = ["SIGINT", "SIGTERM"].map((signal) =>
+        process.listenerCount(signal),
+      );
+      const { exit, scrapeAccountsMock } = await loadEntrypoint(
+        false,
+        (scrape) =>
+          scrape.mockImplementationOnce(
+            async (_settings, _status, _error, signal) => {
+              expect(signal?.aborted).toBe(false);
+              process.emit(signalName);
+              expect(signal?.aborted).toBe(true);
+              throw signal!.reason;
+            },
+          ),
+      );
+      expect(scrapeAccountsMock).toHaveBeenCalledTimes(1);
+      expect(exit).toHaveBeenCalledWith(0);
+      expect(
+        ["SIGINT", "SIGTERM"].map((signal) => process.listenerCount(signal)),
+      ).toEqual(listeners);
+    },
+  );
 
   it("disposes the parent lifetime tracker on process exit", async () => {
     await loadEntrypoint(false);
@@ -157,6 +197,36 @@ describe("index", () => {
     it("hands the runner to the server without running", () => {
       expect(mocks.runWithStorageMock).not.toHaveBeenCalled();
       expect(mocks.exit).not.toHaveBeenCalled();
+    });
+
+    it("leaves signal ownership with the server during an active run", async () => {
+      const listeners = ["SIGINT", "SIGTERM"].map((signal) =>
+        process.listenerCount(signal),
+      );
+      const pending = Promise.withResolvers<{
+        results: AccountScrapeResult[];
+        domains: {};
+      }>();
+      const started = Promise.withResolvers<void>();
+      mocks.scrapeAccountsMock.mockImplementationOnce(
+        (_settings, _status, _error, signal) => {
+          expect(signal).toBeUndefined();
+          started.resolve();
+          return pending.promise;
+        },
+      );
+      const handle = await runner.startRun("manual");
+      await started.promise;
+      expect(
+        ["SIGINT", "SIGTERM"].map((signal) => process.listenerCount(signal)),
+      ).toEqual(listeners);
+      pending.resolve({
+        results: [accountResult(CompanyTypes.hapoalim, true)],
+        domains: {},
+      });
+      await expect(handle.finished).resolves.toMatchObject({ failed: false });
+      const { saveResults } = await import("./bot/storage/index.js");
+      expect(saveResults).toHaveBeenCalled();
     });
 
     it("reports a run where everything worked as successful", async () => {

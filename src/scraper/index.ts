@@ -66,6 +66,7 @@ export async function scrapeAccounts(
     logger(`Browser created, starting to scrape ${accounts.length} accounts`);
     const results = await parallelLimit<AccountConfig, AccountScrapeResult[]>(
       accounts.map((account, i) => async () => {
+        runtime.signal?.throwIfAborted();
         const { companyId } = account;
         return loggerContextStore.run(
           { prefix: `[#${i} ${companyId}]` },
