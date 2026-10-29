@@ -9,6 +9,7 @@ import {
 } from "./bot/notifier.js";
 import { registerCommands } from "./bot/commands.js";
 import type { RunHandle, RunStatus, RunTrigger } from "./types.js";
+import { waitForAbortSignal } from "./utils/promises.js";
 
 const logger = createLogger("server");
 
@@ -37,24 +38,17 @@ export async function startServer({
   }
 
   /** The run in progress, mirrored so a shutdown can wait for it. */
-  let activeRun: Promise<void> | undefined;
+  let activeRun: Promise<unknown> | undefined;
   let shuttingDown = false;
 
-  /**
-   * Starts a run and tracks it so a shutdown can wait for it. The tracked
-   * promise is settled-only: a caller that cares about the outcome attaches its
-   * own handler to the run, so an unexpected rejection cannot become unhandled.
-   */
   async function startTrackedRun(trigger: RunTrigger) {
     const handle = await startRun(trigger);
     if (handle.started) {
-      const settled = handle.finished.then(
-        () => undefined,
-        () => undefined,
-      );
-      activeRun = settled.finally(() => {
-        activeRun = undefined;
-      });
+      activeRun = handle.finished
+        .catch((error) => logger(`${trigger} run failed`, error))
+        .finally(() => {
+          activeRun = undefined;
+        });
     }
 
     return handle;
@@ -84,16 +78,12 @@ export async function startServer({
       logToPublicLog("A scrape is in progress, waiting for it to finish");
       // The Telegram bot keeps polling while draining, so a scrape waiting for
       // an OTP can still receive it.
-      const drained = await new Promise<boolean>((resolve) => {
-        const timeout = setTimeout(
-          () => resolve(false),
-          SHUTDOWN_DRAIN_TIMEOUT_MS,
-        );
-        activeRun?.then(() => {
-          clearTimeout(timeout);
-          resolve(true);
-        });
-      });
+      const drained = await Promise.race([
+        activeRun.then(() => true),
+        waitForAbortSignal(
+          AbortSignal.timeout(SHUTDOWN_DRAIN_TIMEOUT_MS),
+        ).catch(() => false),
+      ]);
       if (!drained) {
         logToPublicLog(
           `The scrape did not finish within ${SHUTDOWN_DRAIN_TIMEOUT_MS / 1000} seconds, shutting down anyway`,
@@ -124,7 +114,6 @@ export async function startServer({
       if (!started) return "⏳ A scrape is already in progress";
 
       finished.catch(async (e) => {
-        logger("Manual run failed", e);
         await sendError(e, "Manual scrape").catch((notificationError) =>
           logger("Failed to send manual scrape error", notificationError),
         );

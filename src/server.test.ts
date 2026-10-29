@@ -22,8 +22,12 @@ jest.mock("./bot/notifier.js", () => ({
   shutdownTelegramBot: jest.fn().mockResolvedValue(undefined),
   sendError: jest.fn().mockResolvedValue(undefined),
 }));
+const mockLogger = jest.fn();
 jest.mock("./utils/logger.js", () => ({
-  createLogger: () => jest.fn(),
+  createLogger:
+    () =>
+    (...args: unknown[]) =>
+      mockLogger(...args),
   logToPublicLog: jest.fn(),
 }));
 
@@ -146,7 +150,10 @@ describe("startServer", () => {
   });
 
   it("gives up waiting for the scrape after the drain timeout", async () => {
-    jest.useFakeTimers();
+    const controller = new AbortController();
+    const timeout = jest
+      .spyOn(AbortSignal, "timeout")
+      .mockReturnValue(controller.signal);
     try {
       runner.startRun.mockResolvedValue({
         started: true,
@@ -156,12 +163,15 @@ describe("startServer", () => {
       await handlers().scrape();
 
       process.emit("SIGTERM");
-      await jest.advanceTimersByTimeAsync(30_000);
+      expect(timeout).toHaveBeenCalledWith(30_000);
+      expect(exit).not.toHaveBeenCalled();
+      controller.abort();
+      await flush();
 
       expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
       expect(exit).toHaveBeenCalledWith(0);
     } finally {
-      jest.useRealTimers();
+      timeout.mockRestore();
     }
   });
 
@@ -181,5 +191,29 @@ describe("startServer", () => {
       throw new Error("Expected cron callback");
     await callback(mock<Parameters<typeof callback>[0]>());
     expect(runner.startRun).toHaveBeenCalledWith("scheduled");
+  });
+
+  it("logs scheduled run failures and clears tracking before shutdown", async () => {
+    let rejectRun!: (error: Error) => void;
+    const finished = new Promise<RunStatus>((_resolve, reject) => {
+      rejectRun = reject;
+    });
+    runner.startRun.mockResolvedValue({ started: true, finished });
+    await startServer(runner);
+    const callback = jest.mocked(schedule).mock.calls[0][1];
+    if (typeof callback !== "function")
+      throw new Error("Expected cron callback");
+    await callback(mock<Parameters<typeof callback>[0]>());
+    await flush();
+
+    const error = new Error("Scheduled scrape failed");
+    rejectRun(error);
+    await flush();
+
+    expect(mockLogger).toHaveBeenCalledWith("scheduled run failed", error);
+    process.emit("SIGTERM");
+    await flush();
+    expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
+    expect(exit).toHaveBeenCalledWith(0);
   });
 });
