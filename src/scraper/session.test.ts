@@ -1,5 +1,5 @@
 /// <reference lib="es2024.promise" />
-import { locks } from "node:worker_threads";
+import { locks, MessageChannel } from "node:worker_threads";
 import { getEventListeners } from "node:events";
 import type { Remote, ProxyMarked } from "comlink";
 import { mock } from "jest-mock-extended";
@@ -126,6 +126,92 @@ describe("worker session locks", () => {
     ).toHaveBeenCalledTimes(1);
     expect(callbacks[releaseProxy]).toHaveBeenCalledTimes(1);
   });
+
+  it.each(["scrape", "snapshot"])(
+    "preserves the %s failure when tracker disposal also fails",
+    async (operation) => {
+      const primary = new Error(`${operation} failed`);
+      const cleanup = new Error("tracker cleanup failed");
+      const tracker = mock<ReturnType<typeof createDomainTracker>>();
+      tracker.getUsedDomains.mockResolvedValue({});
+      tracker.dispose.mockImplementation(() => {
+        throw cleanup;
+      });
+      createDomainTracker.mockReturnValueOnce(tracker);
+      if (operation === "scrape") scrapeAccounts.mockRejectedValueOnce(primary);
+      else tracker.getUsedDomains.mockRejectedValueOnce(primary);
+
+      const failure = await session
+        .scrape(settings, callbacks)
+        .catch((error: unknown) => error);
+
+      expect(failure).toBeInstanceOf(SuppressedError);
+      expect(failure).toMatchObject({ error: cleanup, suppressed: primary });
+      expect(callbacks[releaseProxy]).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([false, true])(
+    "retains both disposal failures with an operation failure (%s)",
+    async (failOperation) => {
+      const primary = new Error("scrape failed");
+      const trackerError = new Error("tracker cleanup failed");
+      const releaseError = new Error("callback release failed");
+      const tracker = mock<ReturnType<typeof createDomainTracker>>();
+      tracker.getUsedDomains.mockResolvedValue({});
+      tracker.dispose.mockImplementation(() => {
+        throw trackerError;
+      });
+      callbacks[releaseProxy].mockImplementation(() => {
+        throw releaseError;
+      });
+      createDomainTracker.mockReturnValueOnce(tracker);
+      if (failOperation) scrapeAccounts.mockRejectedValueOnce(primary);
+
+      const failure = await session
+        .scrape(settings, callbacks)
+        .catch((error: unknown) => error);
+      const disposal = { error: releaseError, suppressed: trackerError };
+
+      expect(failure).toBeInstanceOf(SuppressedError);
+      expect(failure).toMatchObject(
+        failOperation ? { error: disposal, suppressed: primary } : disposal,
+      );
+      expect(tracker.dispose).toHaveBeenCalledTimes(1);
+      expect(callbacks[releaseProxy]).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([false, true])(
+    "preserves cleanup diagnostics across real Comlink with an operation failure (%s)",
+    async (failOperation) => {
+      const comlink = jest.requireActual<typeof import("comlink")>("comlink");
+      const tracker = mock<ReturnType<typeof createDomainTracker>>();
+      tracker.getUsedDomains.mockResolvedValue({});
+      tracker.dispose.mockImplementation(() => {
+        throw new Error("tracker cleanup failed");
+      });
+      callbacks[releaseProxy].mockImplementation(() => {
+        throw new Error("callback release failed");
+      });
+      createDomainTracker.mockReturnValueOnce(tracker);
+      if (failOperation)
+        scrapeAccounts.mockRejectedValueOnce(new Error("scrape failed"));
+      const { port1, port2 } = new MessageChannel();
+      const endpoint = { scrape: () => session.scrape(settings, callbacks) };
+      comlink.expose(endpoint, port2);
+      const api = comlink.wrap<typeof endpoint>(port1);
+      try {
+        await expect(api.scrape()).rejects.toThrow(
+          `${failOperation ? "scrape failed; cleanup failed: " : ""}tracker cleanup failed; cleanup failed: callback release failed`,
+        );
+      } finally {
+        api[comlink.releaseProxy]();
+        port1.close();
+        port2.close();
+      }
+    },
+  );
 
   it("rejects overlapping runs instead of queuing them", async () => {
     const started = Promise.withResolvers<void>();

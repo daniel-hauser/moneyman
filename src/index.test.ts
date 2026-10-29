@@ -112,10 +112,10 @@ describe("index", () => {
       if (!originalExceptionListeners.includes(listener)) {
         process.removeListener("uncaughtException", listener);
       }
-      for (const listener of process.listeners("exit")) {
-        if (!originalExitListeners.includes(listener))
-          process.removeListener("exit", listener);
-      }
+    }
+    for (const listener of process.listeners("exit")) {
+      if (!originalExitListeners.includes(listener))
+        process.removeListener("exit", listener);
     }
     process.env = originalEnv;
     jest.restoreAllMocks();
