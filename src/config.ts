@@ -92,15 +92,24 @@ function getAccounts(): Array<AccountConfig> {
       );
 }
 
-export const scraperConfig: ScraperConfig = {
-  accounts: getAccounts(),
-  startDate: subDays(Date.now(), config.options.scraping.daysBack),
-  parallelScrapers: config.options.scraping.maxParallelScrapers,
-  futureMonthsToScrape: config.options.scraping.futureMonths,
-  additionalTransactionInformation:
-    config.options.scraping.additionalTransactionInfo,
-  includeRawTransaction: config.options.scraping.includeRawTransaction,
-};
+/**
+ * Build the scraper configuration for a single run.
+ *
+ * This MUST be called per run: `startDate` is relative to "now", so a
+ * long-running process that reused a single config object would keep scraping
+ * from the date the process started and miss everything after `daysBack`.
+ */
+export function getScraperConfig(): ScraperConfig {
+  return {
+    accounts: getAccounts(),
+    startDate: subDays(Date.now(), config.options.scraping.daysBack),
+    parallelScrapers: config.options.scraping.maxParallelScrapers,
+    futureMonthsToScrape: config.options.scraping.futureMonths,
+    additionalTransactionInformation:
+      config.options.scraping.additionalTransactionInfo,
+    includeRawTransaction: config.options.scraping.includeRawTransaction,
+  };
+}
 
 /**
  * A function to send a telegram message if the config fails to load

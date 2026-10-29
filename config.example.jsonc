@@ -41,6 +41,12 @@
       // "getIpInfoUrl": "https://ipinfo.io/json"
       // "getIpInfoUrl": false
     },
+    "scheduling": {
+      // Cron schedule for long running mode
+      // (MONEYMAN_LONG_RUNNING=true). Interpreted in the TZ of the process.
+      // Omit to only run on demand with /scrape in Telegram.
+      // "cron": "0 9,21 * * *"
+    },
     "security": {
       // Block domains by default (default: false)
       // "blockByDefault": false

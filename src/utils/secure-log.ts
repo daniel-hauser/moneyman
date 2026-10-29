@@ -1,4 +1,4 @@
-import { existsSync, unlinkSync, readFileSync } from "fs";
+import { existsSync, unlinkSync, truncateSync, readFileSync } from "fs";
 import { config } from "../config.js";
 import { sendTextFile } from "../bot/notifier.js";
 import { logToPublicLog, unsafeStdout, createLogger } from "./logger.js";
@@ -25,7 +25,7 @@ export function enableDebugLoggingIfNeeded() {
   }
 }
 
-export async function sendAndDeleteLogFile() {
+export async function sendLogFile(deleteFile: boolean) {
   if (unsafeStdout) return;
 
   const logFilePath = process.env.MONEYMAN_LOG_FILE_PATH;
@@ -50,7 +50,10 @@ export async function sendAndDeleteLogFile() {
   try {
     if (telegram?.sendLogFileToTelegram) {
       logToPublicLog(`Sending log file`, logger);
-      await sendTextFile(logFilePath);
+      await sendTextFile(logFilePath).catch((error) => {
+        logger("Failed to send logs to Telegram:", error);
+        logToPublicLog("Failed to send logs to Telegram", logger);
+      });
     }
 
     // Send logs to all storages that support it
@@ -69,14 +72,25 @@ export async function sendAndDeleteLogFile() {
         if (result.status === "rejected") {
           const name = logStorages[i].constructor.name;
           logger(`Failed to send logs to ${name}:`, result.reason);
+          logToPublicLog(`Failed to send logs to ${name}`, logger);
         }
       }
     }
-
-    logToPublicLog(`Deleting log file`, logger);
-    unlinkSync(logFilePath);
   } catch (error) {
-    logger(`sendAndDeleteLogFile Failed:`, error);
-    logToPublicLog(`sendAndDeleteLogFile Failed`);
+    logger(`sendLogFile Failed:`, error);
+    logToPublicLog(`sendLogFile Failed`);
+  } finally {
+    try {
+      if (deleteFile) {
+        logToPublicLog(`Deleting log file`, logger);
+        unlinkSync(logFilePath);
+      } else {
+        logToPublicLog(`Clearing log file`, logger);
+        truncateSync(logFilePath, 0);
+      }
+    } catch (error) {
+      logger("Failed to clear log file:", error);
+      logToPublicLog("Failed to clear log file", logger);
+    }
   }
 }

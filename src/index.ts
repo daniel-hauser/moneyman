@@ -1,18 +1,26 @@
+import { randomUUID } from "crypto";
+import { locks } from "node:worker_threads";
 import { scrapeAccounts } from "./scraper/index.js";
-import { scraperConfig, sendConfigToTelegramIfRequested } from "./config.js";
+import { getScraperConfig, sendConfigToTelegramIfRequested } from "./config.js";
+import { BooleanEnvVarSchema } from "./config.schema.js";
 import { sendError } from "./bot/notifier.js";
 import { createLogger } from "./utils/logger.js";
-import {
-  sendAndDeleteLogFile,
-  enableDebugLoggingIfNeeded,
-} from "./utils/secure-log.js";
-import { RunnerHooks } from "./types.js";
+import { sendLogFile, enableDebugLoggingIfNeeded } from "./utils/secure-log.js";
+import { RunHandle, RunnerHooks, RunStatus, RunTrigger } from "./types.js";
 import { runWithStorage } from "./bot/index.js";
 import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
 import { monitorNodeConnections } from "./security/domains.js";
 import { getExternalIp, logRunMetadata } from "./runnerMetadata.js";
+import { runContextStore } from "./utils/asyncContext.js";
+import { startServer } from "./server.js";
 
 const logger = createLogger("main");
+const RUN_LOCK = "moneyman-run";
+const longRunning = BooleanEnvVarSchema.parse(
+  process.env.MONEYMAN_LONG_RUNNING,
+);
+let lastRun: RunStatus | undefined;
+
 console.log("Starting...");
 
 process.on("uncaughtException", (err, origin) => {
@@ -26,12 +34,67 @@ process.on("uncaughtException", (err, origin) => {
 enableDebugLoggingIfNeeded();
 monitorNodeConnections();
 getExternalIp().then((ipInfo) => logger("External IP info:", ipInfo));
-await sendConfigToTelegramIfRequested();
-await run();
-await sendAndDeleteLogFile();
+main();
 
-// kill internal browsers if stuck
-process.exit(0);
+async function main() {
+  await sendConfigToTelegramIfRequested();
+
+  if (longRunning) {
+    await startServer({ startRun, isRunning, getLastRun: () => lastRun });
+  } else {
+    await runOnce("startup");
+
+    // kill internal browsers if stuck
+    process.exit(0);
+  }
+}
+
+async function isRunning() {
+  const { held } = await locks.query();
+  return held.some((lock) => lock.name === RUN_LOCK);
+}
+
+/**
+ * Starts a run and resolves as soon as the run lock was decided, so a caller
+ * can answer honestly before the scrape finishes. A call made while another run
+ * holds the lock comes back with `started: false` instead of waiting for it.
+ */
+async function startRun(trigger: RunTrigger): Promise<RunHandle> {
+  let reportStarted!: (started: boolean) => void;
+  const started = new Promise<boolean>((resolve) => {
+    reportStarted = resolve;
+  });
+
+  const finished = locks.request(RUN_LOCK, { ifAvailable: true }, (lock) => {
+    if (!lock) {
+      reportStarted(false);
+      return undefined;
+    }
+
+    reportStarted(true);
+    return runContextStore.run({ runId: randomUUID() }, async () => {
+      const startedAt = new Date();
+      const failed = await run();
+      await sendLogFile(!longRunning);
+
+      lastRun = { trigger, startedAt, endedAt: new Date(), failed };
+      logger("Run finished", lastRun);
+      return lastRun;
+    });
+  });
+
+  return { started: await started, finished };
+}
+
+async function runOnce(trigger: RunTrigger): Promise<RunStatus> {
+  const status = await (await startRun(trigger)).finished;
+
+  if (!status) {
+    throw new Error("A scrape is already in progress");
+  }
+
+  return status;
+}
 
 async function runScraper(hooks: RunnerHooks) {
   try {
@@ -40,7 +103,7 @@ async function runScraper(hooks: RunnerHooks) {
 
     logger("Starting to scrape");
     const results = await scrapeAccounts(
-      scraperConfig,
+      getScraperConfig(),
       async (status, totalTime) => {
         logger("Status changed", { status, totalTime });
         return hooks.onStatusChanged(status, totalTime);
@@ -66,8 +129,16 @@ async function runScraper(hooks: RunnerHooks) {
 async function run() {
   try {
     logger("Running with storage");
-    await runWithStorage(runScraper);
+    const report = await runWithStorage(runScraper);
+    const failedStorages = Object.entries(report.storages)
+      .filter(([, row]) => row.state === "error")
+      .map(([name]) => name);
+    if (failedStorages.length) {
+      logger(`Storages that failed: ${failedStorages.join(", ")}`);
+    }
+    return report.failed || failedStorages.length > 0;
   } catch (error) {
     logger(error);
+    return true;
   }
 }

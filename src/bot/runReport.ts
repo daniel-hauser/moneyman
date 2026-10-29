@@ -24,6 +24,7 @@ export type StorageRow =
 
 export interface RunReport {
   startedAt: Date;
+  failed: boolean;
   scrape: { status: Array<string>; totalTimeSec?: number };
   summary?: { results: Array<AccountScrapeResult> };
   /** Keyed by storage name, ordered by insertion */
@@ -35,6 +36,7 @@ export interface RunReport {
 export function createRunReport(startedAt = new Date()): RunReport {
   return {
     startedAt,
+    failed: false,
     scrape: { status: ["Starting..."] },
     storages: {},
     notices: [],

@@ -9,16 +9,20 @@ Moneyman is a TypeScript/Node.js application that scrapes financial transaction 
 ### Core Structure
 
 - **Language**: TypeScript (compiled to JavaScript)
-- **Runtime**: Node.js 24+ (Dockerfile uses node:26)
+- **Runtime**: Node.js (see `engines.node` in [package.json](../package.json))
 - **Package Manager**: npm
 - **Build Output**: `dst/` directory
 - **Source Code**: `src/` directory
 
 ### Main Modules
 
-- `src/index.ts` - Main entry point
+- `src/index.ts` - Main entry point: scrape once and exit, or start the server with `MONEYMAN_LONG_RUNNING=true`
+- `src/server.ts` - Long running mode: runs on the `options.scheduling.cron` schedule and handles Telegram commands
 - `src/scraper/` - Bank scraping logic using israeli-bank-scrapers
 - `src/bot/` - Data processing and messaging logic
+- `src/bot/commands.ts` - Telegram command handlers for the long running mode
+- `src/bot/bot.ts` - Shared Telegram polling lifecycle
+- `src/bot/otp.ts` - OTP requests and reply matching
 - `src/bot/storage/` - Storage provider implementations (Google Sheets, YNAB, etc.)
 - `src/config.ts` - Configuration management with Zod validation
 - `src/security/` - Security and domain filtering logic
@@ -78,7 +82,7 @@ All configuration must use the `MONEYMAN_CONFIG` JSON format via `MONEYMAN_CONFI
 ### Testing
 
 - Unit tests for core business logic
-- Mock-based testing with `jest-mock-extended`
+- Always prefer `jest-mock-extended` for typed test doubles: use `mock<T>()` or `mockDeep<T>()` instead of handwritten fake classes or unsafe type assertions. Use plain typed objects for data fixtures that do not need mocked behavior.
 - Snapshot testing for message formatting
 - Separate test suites for scraper access validation
 
@@ -114,6 +118,7 @@ Key environment variables include:
 
 - `DEBUG=moneyman:*` - Enable debug logging
 - `MONEYMAN_CONFIG` - JSON configuration (preferred)
+- `MONEYMAN_LONG_RUNNING` - Set to `"true"` to keep running after the first scrape (schedule + Telegram commands)
 - `PUPPETEER_SKIP_DOWNLOAD=true` - Skip Chrome download in development
 - Various storage provider specific variables (see README.md)
 

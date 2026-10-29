@@ -5,6 +5,7 @@ import {
   BooleanEnvVarSchema,
   MoneymanConfigSchema,
   NotificationOptionsSchema,
+  SchedulingOptionsSchema,
 } from "./config.schema.js";
 
 jest.mock("dotenv/config", () => ({}));
@@ -41,6 +42,19 @@ describe("config", () => {
     expect(parsed.options.scraping.daysBack).toBe(10);
     expect(parsed.options.scraping.includeRawTransaction).toBe(false);
     expect(parsed.options.logging.getIpInfoUrl).toBe("https://ipinfo.io/json");
+  });
+
+  it("should allow manual-only runs or a valid cron schedule", () => {
+    expect(SchedulingOptionsSchema.parse({})).toEqual({});
+    for (const cron of ["0 9,21 * * *", "*/15 * * * *", "0 30 21 * * 1-5"]) {
+      expect(SchedulingOptionsSchema.parse({ cron })).toEqual({ cron });
+    }
+  });
+
+  it("should reject invalid cron schedules", () => {
+    for (const cron of ["", "09:00", "60 9 * * *", "0 24 * * *", "nope"]) {
+      expect(SchedulingOptionsSchema.safeParse({ cron }).success).toBe(false);
+    }
   });
 
   it("should use MONEYMAN_CONFIG when provided", async () => {

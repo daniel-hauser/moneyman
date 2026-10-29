@@ -44,6 +44,22 @@ options: {
 };
 ```
 
+## Commands
+
+When moneyman runs in [long running mode](../README.md#long-running-mode)
+(`MONEYMAN_LONG_RUNNING=true`) it stays connected to Telegram and listens for commands.
+Only the configured `chatId` can use them — messages from any other chat are ignored.
+
+| Command   | Description                                                                                        |
+| --------- | -------------------------------------------------------------------------------------------------- |
+| `/scrape` | Run a scrape right now (`/fetch` works as an alias)                                                |
+| `/status` | Report whether a scrape is running, how the last one ended and when the next scheduled run happens |
+| `/help`   | List the available commands                                                                        |
+
+`/scrape` replies immediately, then the regular notifications (progress, summary, errors) are sent
+to the same chat while the scrape runs. Automatic runs are configured with
+[`options.scheduling.cron`](../README.md#other-configurations).
+
 ## Using OTP 2FA with OneZero Accounts
 
 If you have OneZero accounts that require 2FA authentication, you can enable OTP support:
