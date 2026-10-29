@@ -30,7 +30,9 @@ describe("native Comlink worker smoke test", () => {
       import assert from "node:assert/strict";
       const checkEnvironment = () => {
         for (const key of ["MONEYMAN_CONFIG", "MONEYMAN_CONFIG_PATH", "MONEYMAN_PUBLIC_LOG_FD",
-          "TELEGRAM_TOKEN", "SECRET_PROVIDER_TOKEN", "NODE_OPTIONS", "DOTENV_CONFIG_PATH", "DOTENV_SENTINEL"]) {
+          "TELEGRAM_TOKEN", "SECRET_PROVIDER_TOKEN", "BITWARDEN_ACCESS_TOKEN", "MONEYMAN_CONFIG_SECRET",
+          "MONEYMAN_CONFIG_SECRET_ID", "MONEYMAN_CONFIG_SECRET_PROVIDER",
+          "NODE_OPTIONS", "DOTENV_CONFIG_PATH", "DOTENV_SENTINEL"]) {
           assert.equal(process.env[key], undefined, key + " leaked into worker");
         }
       };
@@ -56,6 +58,8 @@ describe("native Comlink worker smoke test", () => {
           transferList: [port2],
           env: workerEnvironment({ ...process.env, MONEYMAN_CONFIG: "private", MONEYMAN_CONFIG_PATH: "private.json",
             MONEYMAN_PUBLIC_LOG_FD: "3", TELEGRAM_TOKEN: "private", SECRET_PROVIDER_TOKEN: "private",
+            BITWARDEN_ACCESS_TOKEN: "private", MONEYMAN_CONFIG_SECRET: "private",
+            MONEYMAN_CONFIG_SECRET_ID: "private", MONEYMAN_CONFIG_SECRET_PROVIDER: "bitwarden",
             NODE_OPTIONS: "--require dotenv/config", DOTENV_CONFIG_PATH: ".env" }),
           execArgv: [],
         });

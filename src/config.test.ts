@@ -1,5 +1,6 @@
 import { jest } from "@jest/globals";
 import { mock } from "jest-mock-extended";
+import { subDays } from "date-fns";
 import type { Telegraf } from "telegraf";
 import {
   BooleanEnvVarSchema,
@@ -10,6 +11,11 @@ import {
 
 jest.mock("dotenv/config", () => ({}));
 jest.mock("telegraf", () => ({ Telegraf: mock<Telegraf>() }));
+const configLogger = jest.fn();
+jest.mock("./utils/logger.js", () => ({
+  createLogger: () => configLogger,
+  logToPublicLog: jest.fn(),
+}));
 
 describe("config", () => {
   let originalEnv: NodeJS.ProcessEnv;
@@ -17,6 +23,7 @@ describe("config", () => {
   beforeEach(() => {
     originalEnv = process.env;
     jest.resetModules();
+    configLogger.mockClear();
   });
 
   afterEach(() => {
@@ -93,6 +100,105 @@ describe("config", () => {
     expect(config.options.notifications.telegram?.apiKey).toBe("config-key");
     expect(config.options.notifications.telegram?.chatId).toBe(
       "config-chat-id",
+    );
+  });
+
+  it("builds narrow worker inputs from the per-run snapshot while keeping startup OTP infrastructure", async () => {
+    process.env = {
+      ...originalEnv,
+      MONEYMAN_CONFIG: JSON.stringify({
+        options: {
+          notifications: {
+            telegram: {
+              apiKey: "startup-token",
+              chatId: "123",
+              enableOtp: true,
+            },
+          },
+        },
+      }),
+    };
+    const { getScraperConfig } = await import("./config.js");
+    const snapshot = MoneymanConfigSchema.parse({
+      accounts: [
+        { companyId: "hapoalim", password: "fresh-bank" },
+        { companyId: "leumi", password: "excluded-bank" },
+      ],
+      storage: {
+        webPost: {
+          url: "https://storage.test",
+          authorizationToken: "storage-secret",
+        },
+      },
+      options: {
+        scraping: {
+          accountsToScrape: ["hapoalim"],
+          daysBack: 23,
+          futureMonths: 4,
+          maxParallelScrapers: 3,
+          additionalTransactionInfo: true,
+          includeRawTransaction: true,
+          puppeteerExecutablePath: "fresh-browser",
+          domainTracking: true,
+        },
+        security: {
+          blockByDefault: true,
+          firewallSettings: ["hapoalim ALLOW bank.test"],
+        },
+      },
+    });
+    const before = Date.now();
+    const settings = getScraperConfig(snapshot);
+    expect(settings).toMatchObject({
+      accounts: [snapshot.accounts[0]],
+      futureMonthsToScrape: 4,
+      parallelScrapers: 3,
+      additionalTransactionInformation: true,
+      includeRawTransaction: true,
+      executablePath: "fresh-browser",
+      domainTracking: true,
+      firewallSettings: ["hapoalim ALLOW bank.test"],
+      blockByDefault: true,
+      enableOtp: true,
+    });
+    expect(settings.startDate.getTime()).toBeGreaterThanOrEqual(
+      subDays(before, 23).getTime(),
+    );
+    expect(settings.startDate.getTime()).toBeLessThanOrEqual(
+      subDays(Date.now(), 23).getTime(),
+    );
+    expect(JSON.stringify(settings)).not.toMatch(
+      /storage-secret|startup-token|excluded-bank/,
+    );
+  });
+
+  it("logs successful Bitwarden config loading after validation", async () => {
+    process.env = {
+      ...originalEnv,
+      MONEYMAN_CONFIG: "{}",
+      MONEYMAN_CONFIG_PATH: undefined,
+      MONEYMAN_CONFIG_SECRET_PROVIDER: "bitwarden",
+    };
+
+    await import("./config.js");
+
+    expect(configLogger).toHaveBeenCalledWith(
+      "Configuration successfully loaded from Bitwarden Secrets Manager",
+    );
+  });
+
+  it("does not log successful Bitwarden loading for invalid config", async () => {
+    process.env = {
+      ...originalEnv,
+      MONEYMAN_CONFIG: "{ invalid",
+      MONEYMAN_CONFIG_PATH: undefined,
+      MONEYMAN_CONFIG_SECRET_PROVIDER: "bitwarden",
+    };
+
+    await import("./config.js");
+
+    expect(configLogger).not.toHaveBeenCalledWith(
+      "Configuration successfully loaded from Bitwarden Secrets Manager",
     );
   });
 

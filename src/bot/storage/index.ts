@@ -21,26 +21,29 @@ import { YNABStorage } from "./ynab.js";
 import { SqlStorage } from "./sql.js";
 import { MoneymanDashStorage } from "./moneyman.js";
 import { formatUnknownError } from "../../utils/utils.js";
-import { config } from "../../config.js";
+import type { MoneymanConfig } from "../../config.js";
 
 const baseLogger = createLogger("storage");
 
-export const storages = [
-  new LocalJsonStorage(config),
-  new GoogleSheetsStorage(config),
-  new AzureDataExplorerStorage(config),
-  new YNABStorage(config),
-  new BuxferStorage(config),
-  new WebPostStorage(config),
-  new TelegramStorage(config),
-  new ActualBudgetStorage(config),
-  new SqlStorage(config),
-  new MoneymanDashStorage(config),
-].filter((s) => s.canSave());
+export function createStorages(config: MoneymanConfig): TransactionStorage[] {
+  return [
+    new LocalJsonStorage(config),
+    new GoogleSheetsStorage(config),
+    new AzureDataExplorerStorage(config),
+    new YNABStorage(config),
+    new BuxferStorage(config),
+    new WebPostStorage(config),
+    new TelegramStorage(config),
+    new ActualBudgetStorage(config),
+    new SqlStorage(config),
+    new MoneymanDashStorage(config),
+  ].filter((s) => s.canSave());
+}
 
 export async function saveResults(
   results: Array<AccountScrapeResult>,
   report: RunReport,
+  storages: readonly TransactionStorage[],
 ) {
   if (storages.length === 0) {
     baseLogger("No storages found, skipping save");

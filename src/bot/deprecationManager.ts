@@ -21,7 +21,11 @@ ${deprecationMessages[messageId]}`;
 /**
  * Request a deprecation message to be sent
  */
-export function sendDeprecationMessage(messageId: DeprecationMessageId) {
+export function sendDeprecationMessage(
+  messageId: DeprecationMessageId,
+  hiddenDeprecations: readonly string[] = [],
+) {
+  if (hiddenDeprecations.includes(messageId)) return;
   logger(`Requesting deprecation message: ${messageId}`);
   if (sentDeprecationMessages.has(messageId)) {
     logger(`Deprecation message already sent: ${messageId}`);

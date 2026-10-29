@@ -6,6 +6,10 @@ if [ "$#" -eq 0 ]; then
   set -- node dst/index.js
 fi
 
+if [ -n "$MONEYMAN_CONFIG_SECRET" ]; then
+  set -- node dst/scripts/run-with-config-secret.js "$@"
+fi
+
 if [ "$MONEYMAN_UNSAFE_STDOUT" = "true" ]; then
   exec "$@"
 else

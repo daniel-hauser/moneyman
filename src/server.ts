@@ -16,14 +16,18 @@ const logger = createLogger("server");
 /** How long a shutdown waits for the scrape in progress before exiting anyway. */
 const SHUTDOWN_DRAIN_TIMEOUT_MS = 30_000;
 
+export type SecretRefreshResult = "refreshed" | "failed";
+
 export type ServerRunner = {
   startRun(trigger: RunTrigger): Promise<RunHandle>;
+  refreshSecrets?: () => Promise<SecretRefreshResult>;
   isRunning(): Promise<boolean>;
   getLastRun(): RunStatus | undefined;
 };
 
 export async function startServer({
   startRun,
+  refreshSecrets,
   isRunning,
   getLastRun,
 }: ServerRunner) {
@@ -110,6 +114,17 @@ export async function startServer({
   }
 
   registerCommands(bot, {
+    refreshSecrets: refreshSecrets
+      ? async () => {
+          if (shuttingDown) return "🛑 Shutting down, no secret refresh";
+          switch (await refreshSecrets()) {
+            case "refreshed":
+              return "✅ Secrets fetched and validated. No scrape started; the next scrape will refresh again. Telegram and scheduling changes require a restart.";
+            case "failed":
+              return "❌ Secret refresh failed. No scrape started. Check the private logs and provider access, then retry.";
+          }
+        }
+      : undefined,
     async scrape() {
       if (shuttingDown) return "🛑 Shutting down, no new scrapes";
 

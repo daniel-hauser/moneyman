@@ -25,6 +25,7 @@ export const WorkerConfigSchema = z.strictObject({
   debugFilter: z.string(),
 });
 export type WorkerConfig = z.infer<typeof WorkerConfigSchema>;
+export type ScraperRunConfig = Omit<WorkerConfig, "debugFilter">;
 
 export interface WorkerResult {
   results: AccountScrapeResult[];

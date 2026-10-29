@@ -1,5 +1,5 @@
-import { saveResults, storages } from "./storage/index.js";
-import { AccountScrapeResult, Runner } from "../types.js";
+import { saveResults } from "./storage/index.js";
+import { AccountScrapeResult, Runner, TransactionStorage } from "../types.js";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
 import { readFile } from "node:fs/promises";
 import { reportTransport, reportUpdateIntervalMs } from "./notifier.js";
@@ -9,7 +9,10 @@ import { createRunReport, type RunReport } from "./runReport.js";
 
 const logger = createLogger("bot");
 
-export async function runWithStorage(runScraper: Runner): Promise<RunReport> {
+export async function runWithStorage(
+  runScraper: Runner,
+  storages: readonly TransactionStorage[],
+): Promise<RunReport> {
   const { report, finish } = createReportPublisher(createRunReport(), {
     transport: reportTransport,
     intervalMs: reportUpdateIntervalMs,
@@ -37,7 +40,7 @@ export async function runWithStorage(runScraper: Runner): Promise<RunReport> {
             `Accounts that failed: ${failedAccounts.map(({ companyId }) => companyId).join(", ")}`,
           );
         }
-        await saveResults(results, report);
+        await saveResults(results, report, storages);
       },
       async onError(e: unknown, caller: string = "unknown") {
         report.failed = true;

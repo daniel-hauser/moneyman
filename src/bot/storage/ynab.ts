@@ -95,7 +95,10 @@ export class YNABStorage implements TransactionStorage {
       stats.existing = resp.data.duplicate_import_ids?.length ?? 0;
 
       if (this.config.options.scraping.transactionHashType !== "moneyman") {
-        sendDeprecationMessage("hashFiledChange");
+        sendDeprecationMessage(
+          "hashFiledChange",
+          this.config.options.scraping.hiddenDeprecations,
+        );
       }
     }
 

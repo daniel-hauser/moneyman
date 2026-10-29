@@ -5,8 +5,14 @@ import { mock } from "jest-mock-extended";
 import { CompanyTypes } from "israeli-bank-scrapers";
 
 jest.mock("./config.js", () => ({
-  config: { options: { scraping: {}, security: {} } },
-  getScraperConfig: jest.fn(() => ({})),
+  config: jest
+    .requireActual<typeof import("./config.schema.js")>("./config.schema.js")
+    .MoneymanConfigSchema.parse({}),
+  getScraperConfig: jest.fn((snapshot) => ({
+    accounts: snapshot.accounts,
+    ...snapshot.options.scraping,
+    ...snapshot.options.security,
+  })),
   sendConfigToTelegramIfRequested: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock("./scraper/client.js", () => ({ scrapeAccounts: jest.fn() }));
@@ -17,8 +23,14 @@ jest.mock("./bot/index.js", () => ({
   ),
 }));
 jest.mock("./bot/storage/index.js", () => ({
-  storages: [{}],
+  createStorages: jest.fn(() => [{}]),
   saveResults: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock("./configRefresh.js", () => ({
+  hasConfigSecretProvider: jest.fn(() => false),
+  loadRunConfig: jest.fn(async () => (await import("./config.js")).config),
+  SECRET_REFRESH_FAILURE:
+    "Secret refresh failed. No scrape started. Check the private logs and provider access, then retry.",
 }));
 jest.mock("./bot/notifier.js", () => ({
   sendError: jest.fn().mockResolvedValue(undefined),
@@ -66,6 +78,7 @@ function hooks(): RunnerHooks {
 
 async function loadEntrypoint(
   longRunning: boolean,
+  providerConfigured = false,
   configureScrape?: (
     scrape: jest.MockedFunction<
       typeof import("./scraper/client.js").scrapeAccounts
@@ -85,6 +98,8 @@ async function loadEntrypoint(
   const { sendLogFile } = await import("./utils/secure-log.js");
   const { startServer } = await import("./server.js");
   const { runContextStore } = await import("./utils/asyncContext.js");
+  const { hasConfigSecretProvider } = await import("./configRefresh.js");
+  jest.mocked(hasConfigSecretProvider).mockReturnValue(providerConfigured);
   const scrapeAccountsMock = jest.mocked(scrapeAccounts);
   const runWithStorageMock = jest.mocked(runWithStorage);
   const startServerMock = jest.mocked(startServer);
@@ -134,12 +149,14 @@ describe("index", () => {
       process.listenerCount(signal),
     );
     const { exit, runWithStorageMock, startServerMock, sendLogFileMock } =
-      await loadEntrypoint(false);
+      await loadEntrypoint(false, true);
 
     expect(runWithStorageMock).toHaveBeenCalledTimes(1);
     expect(startServerMock).not.toHaveBeenCalled();
     expect(exit).toHaveBeenCalledWith(0);
-    expect(sendLogFileMock).toHaveBeenCalledWith(true);
+    expect(sendLogFileMock).toHaveBeenCalledWith(true, [{}]);
+    const { loadRunConfig } = await import("./configRefresh.js");
+    expect(loadRunConfig).not.toHaveBeenCalled();
     expect(
       ["SIGINT", "SIGTERM"].map((signal) => process.listenerCount(signal)),
     ).toEqual(listeners);
@@ -152,6 +169,7 @@ describe("index", () => {
         process.listenerCount(signal),
       );
       const { exit, scrapeAccountsMock } = await loadEntrypoint(
+        false,
         false,
         (scrape) =>
           scrape.mockImplementationOnce(
@@ -171,23 +189,24 @@ describe("index", () => {
     },
   );
 
-  it("disposes the parent lifetime tracker on process exit", async () => {
+  it("disposes the per-run parent tracker after scraping", async () => {
     await loadEntrypoint(false);
     const { createDomainTracker } = await import("./security/domains.js");
     const tracker = jest.mocked(createDomainTracker).mock.results[0].value;
-    expect(tracker.dispose).not.toHaveBeenCalled();
-    process.rawListeners("exit").at(-1)!.call(process, 0);
     expect(tracker.dispose).toHaveBeenCalledTimes(1);
   });
 
   describe("long running", () => {
     let mocks: Awaited<ReturnType<typeof loadEntrypoint>>;
-    let runner: ServerRunner;
+    let runner: Required<ServerRunner>;
 
     beforeEach(async () => {
       process.env = { ...originalEnv };
-      mocks = await loadEntrypoint(true);
-      runner = mocks.startServerMock.mock.calls[0][0];
+      mocks = await loadEntrypoint(true, true);
+      const configured = mocks.startServerMock.mock.calls[0][0];
+      if (!configured.refreshSecrets)
+        throw new Error("Missing configured secret refresh capability");
+      runner = { ...configured, refreshSecrets: configured.refreshSecrets };
     });
 
     /** Runs to completion, the way the one-shot entrypoint does. */
@@ -197,6 +216,195 @@ describe("index", () => {
     it("hands the runner to the server without running", () => {
       expect(mocks.runWithStorageMock).not.toHaveBeenCalled();
       expect(mocks.exit).not.toHaveBeenCalled();
+    });
+
+    it.each(["manual", "scheduled"] as const)(
+      "refreshes before every %s scrape and passes the same fresh snapshot to storage and scraping",
+      async (trigger) => {
+        const { loadRunConfig } = await import("./configRefresh.js");
+        const { createStorages } = await import("./bot/storage/index.js");
+        const { MoneymanConfigSchema } = await import("./config.schema.js");
+        const fresh = MoneymanConfigSchema.parse({
+          accounts: [{ companyId: "hapoalim", password: "fresh-bank" }],
+          storage: {
+            webPost: {
+              url: "https://fresh.test",
+              authorizationToken: "fresh-storage",
+            },
+          },
+          options: {
+            scraping: {
+              daysBack: 28,
+              maxParallelScrapers: 3,
+              includeRawTransaction: true,
+            },
+            security: { blockByDefault: true },
+          },
+        });
+        const newer = structuredClone(fresh);
+        newer.accounts[0].password = "newer-bank";
+        newer.storage.webPost!.authorizationToken = "newer-storage";
+        jest
+          .mocked(loadRunConfig)
+          .mockResolvedValueOnce(fresh)
+          .mockResolvedValueOnce(newer);
+
+        await runOnce(trigger);
+        await runOnce(trigger);
+
+        expect(loadRunConfig).toHaveBeenCalledTimes(2);
+        expect(createStorages).toHaveBeenNthCalledWith(1, fresh);
+        expect(createStorages).toHaveBeenNthCalledWith(2, newer);
+        expect(mocks.scrapeAccountsMock.mock.calls[0][0]).toMatchObject({
+          accounts: fresh.accounts,
+          daysBack: 28,
+          maxParallelScrapers: 3,
+          includeRawTransaction: true,
+          blockByDefault: true,
+        });
+        expect(
+          mocks.scrapeAccountsMock.mock.calls[1][0].accounts[0].password,
+        ).toBe("newer-bank");
+        expect(
+          jest.mocked(loadRunConfig).mock.invocationCallOrder[0],
+        ).toBeLessThan(jest.mocked(createStorages).mock.invocationCallOrder[0]);
+      },
+    );
+
+    it("blocks a failed automatic refresh before creating clients or scraping, reports safely and permits retry", async () => {
+      const { loadRunConfig, SECRET_REFRESH_FAILURE } =
+        await import("./configRefresh.js");
+      const { createStorages } = await import("./bot/storage/index.js");
+      const { sendError } = await import("./bot/notifier.js");
+      const { logToPublicLog } = await import("./utils/logger.js");
+      jest
+        .mocked(loadRunConfig)
+        .mockRejectedValueOnce(new Error("provider-sensitive-token"));
+
+      expect(await runOnce("scheduled")).toMatchObject({ failed: true });
+      expect(createStorages).not.toHaveBeenCalled();
+      expect(mocks.scrapeAccountsMock).not.toHaveBeenCalled();
+      expect(sendError).toHaveBeenCalledWith(
+        new Error(SECRET_REFRESH_FAILURE),
+        "Secrets refresh",
+      );
+      expect(logToPublicLog).toHaveBeenCalledWith(SECRET_REFRESH_FAILURE);
+      expect(mocks.sendLogFileMock).toHaveBeenCalledWith(false, []);
+      expect(await runner.isRunning()).toBe(false);
+      expect(await runOnce("manual")).toMatchObject({ failed: false });
+    });
+
+    it("does not expose refresh when no provider is configured", async () => {
+      const unconfigured = await loadEntrypoint(true, false);
+      const { loadRunConfig } = await import("./configRefresh.js");
+      expect(
+        unconfigured.startServerMock.mock.calls[0][0].refreshSecrets,
+      ).toBeUndefined();
+      expect(loadRunConfig).not.toHaveBeenCalled();
+      expect(unconfigured.scrapeAccountsMock).not.toHaveBeenCalled();
+      expect(unconfigured.runWithStorageMock).not.toHaveBeenCalled();
+    });
+
+    it("actually fetches and validates for a refresh command without scraping, and still refreshes the next scrape", async () => {
+      const { loadRunConfig, hasConfigSecretProvider } =
+        await import("./configRefresh.js");
+      jest.mocked(hasConfigSecretProvider).mockReturnValue(true);
+      expect(await runner.refreshSecrets()).toBe("refreshed");
+      expect(loadRunConfig).toHaveBeenCalledTimes(1);
+      expect(mocks.scrapeAccountsMock).not.toHaveBeenCalled();
+      expect(mocks.runWithStorageMock).not.toHaveBeenCalled();
+      expect(runner.getLastRun()).toBeUndefined();
+      await runOnce("manual");
+      expect(loadRunConfig).toHaveBeenCalledTimes(2);
+    });
+
+    it("refreshes during scraping without altering the run's snapshot, and rejects duplicate scrapes through log delivery", async () => {
+      const { loadRunConfig, hasConfigSecretProvider } =
+        await import("./configRefresh.js");
+      const { config } = await import("./config.js");
+      const { createStorages } = await import("./bot/storage/index.js");
+      const fresh = structuredClone(config);
+      fresh.accounts = [{ companyId: "hapoalim", password: "retained-bank" }];
+      const newer = structuredClone(fresh);
+      newer.accounts[0].password = "refreshed-bank";
+      jest
+        .mocked(loadRunConfig)
+        .mockResolvedValueOnce(fresh)
+        .mockResolvedValue(newer);
+      jest.mocked(hasConfigSecretProvider).mockReturnValue(true);
+      const scrape =
+        Promise.withResolvers<
+          Awaited<
+            ReturnType<typeof import("./scraper/client.js").scrapeAccounts>
+          >
+        >();
+      mocks.scrapeAccountsMock.mockReturnValue(scrape.promise);
+      const log = Promise.withResolvers<void>();
+      mocks.sendLogFileMock.mockReturnValue(log.promise);
+
+      const handle = await runner.startRun("manual");
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(await runner.refreshSecrets()).toBe("refreshed");
+      expect((await runner.startRun("scheduled")).started).toBe(false);
+      expect(loadRunConfig).toHaveBeenCalledTimes(2);
+      expect(jest.mocked(createStorages).mock.calls[0][0]).toBe(fresh);
+      expect(mocks.scrapeAccountsMock.mock.calls[0][0].accounts).toBe(
+        fresh.accounts,
+      );
+      expect(fresh.accounts[0].password).toBe("retained-bank");
+      scrape.resolve({ results: [], domains: {} });
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(await runner.isRunning()).toBe(true);
+      expect((await runner.startRun("scheduled")).started).toBe(false);
+      expect(mocks.sendLogFileMock).toHaveBeenCalledWith(
+        false,
+        jest.mocked(createStorages).mock.results[0].value,
+      );
+      log.resolve();
+      await handle.finished;
+      expect(await runner.isRunning()).toBe(false);
+    });
+
+    it("allows scrapes and other refreshes while a manual refresh is pending", async () => {
+      const { loadRunConfig, hasConfigSecretProvider } =
+        await import("./configRefresh.js");
+      const { config } = await import("./config.js");
+      jest.mocked(hasConfigSecretProvider).mockReturnValue(true);
+      const loading = Promise.withResolvers<typeof config>();
+      jest.mocked(loadRunConfig).mockReturnValueOnce(loading.promise);
+      const scrape =
+        Promise.withResolvers<
+          Awaited<
+            ReturnType<typeof import("./scraper/client.js").scrapeAccounts>
+          >
+        >();
+      mocks.scrapeAccountsMock.mockReturnValue(scrape.promise);
+      const refresh = runner.refreshSecrets();
+      expect(await runner.isRunning()).toBe(false);
+      const secondRefresh = runner.refreshSecrets();
+      const handle = await runner.startRun("manual");
+      expect(handle.started).toBe(true);
+      expect((await runner.startRun("scheduled")).started).toBe(false);
+      expect(await secondRefresh).toBe("refreshed");
+      expect(loadRunConfig).toHaveBeenCalledTimes(3);
+      scrape.resolve({ results: [], domains: {} });
+      await handle.finished;
+      expect(await runner.isRunning()).toBe(false);
+      loading.resolve(config);
+      expect(await refresh).toBe("refreshed");
+    });
+
+    it("reports a manual refresh failure without scraping and releases ownership for retry", async () => {
+      const { loadRunConfig, hasConfigSecretProvider } =
+        await import("./configRefresh.js");
+      jest.mocked(hasConfigSecretProvider).mockReturnValue(true);
+      jest
+        .mocked(loadRunConfig)
+        .mockRejectedValueOnce(new Error("provider-sensitive"));
+      expect(await runner.refreshSecrets()).toBe("failed");
+      expect(mocks.scrapeAccountsMock).not.toHaveBeenCalled();
+      expect(mocks.runWithStorageMock).not.toHaveBeenCalled();
+      expect(await runner.refreshSecrets()).toBe("refreshed");
     });
 
     it("leaves signal ownership with the server during an active run", async () => {
@@ -247,7 +455,7 @@ describe("index", () => {
       });
       expect(result).toMatchObject({ trigger: "manual", failed: false });
       expect(runner.getLastRun()).toBe(result);
-      expect(mocks.sendLogFileMock).toHaveBeenCalledWith(false);
+      expect(mocks.sendLogFileMock).toHaveBeenCalledWith(false, [{}]);
       const { logRunMetadata } = await import("./runnerMetadata.js");
       expect(logRunMetadata).toHaveBeenCalledWith(
         { node: { main: ["GET parent.test"] } },

@@ -1,10 +1,5 @@
 import { Context, Telegram, Telegraf } from "telegraf";
-import {
-  CommandHandlers,
-  HELP_MESSAGE,
-  formatStatus,
-  registerCommands,
-} from "./commands.js";
+import { CommandHandlers, formatStatus, registerCommands } from "./commands.js";
 import { createBot, isAuthorizedChat } from "./bot.js";
 
 jest.mock("../config.js", () => ({
@@ -22,6 +17,7 @@ function createContext(id: number) {
 function createHandlers(overrides: Partial<CommandHandlers> = {}) {
   return {
     scrape: jest.fn().mockResolvedValue("🔄 Starting a scrape now..."),
+    refreshSecrets: jest.fn().mockResolvedValue("Secrets refreshed"),
     isRunning: jest.fn().mockResolvedValue(false),
     getLastRun: jest.fn().mockReturnValue(undefined),
     getNextRunAt: jest.fn().mockReturnValue(undefined),
@@ -135,9 +131,31 @@ describe("commands", () => {
         expect.objectContaining({
           commands: expect.arrayContaining([
             { command: "scrape", description: expect.any(String) },
+            { command: "refresh_secrets", description: expect.any(String) },
           ]),
         }),
       );
+    });
+
+    it("omits refresh from registration, the menu and help without a provider", async () => {
+      const { send, replies, callApi } = registerBot(
+        createHandlers({ refreshSecrets: undefined }),
+      );
+
+      expect(callApi).toHaveBeenCalledWith(
+        "setMyCommands",
+        expect.objectContaining({
+          commands: expect.not.arrayContaining([
+            { command: "refresh_secrets", description: expect.any(String) },
+          ]),
+        }),
+      );
+      await send("/refresh_secrets");
+      expect(replies()).toEqual([]);
+      await send("/help");
+      expect(replies()).toHaveLength(1);
+      expect(replies()[0]).toContain("/scrape");
+      expect(replies()[0]).not.toContain("/refresh_secrets");
     });
 
     it.each(["/scrape", "/fetch"])(
@@ -160,8 +178,10 @@ describe("commands", () => {
       await send("/scrape", 999);
       await send("/status", 999);
       await send("/help", 999);
+      await send("/refresh_secrets", 999);
 
       expect(handlers.scrape).not.toHaveBeenCalled();
+      expect(handlers.refreshSecrets).not.toHaveBeenCalled();
       expect(replies()).toEqual([]);
     });
 
@@ -170,7 +190,20 @@ describe("commands", () => {
 
       await send("/help");
 
-      expect(replies()).toEqual([HELP_MESSAGE]);
+      expect(replies()).toHaveLength(1);
+      expect(replies()[0]).toContain(
+        "Moneyman is running and listening for commands:",
+      );
+      expect(replies()[0]).toContain("/refresh_secrets");
+    });
+
+    it("refreshes secrets without scraping", async () => {
+      const handlers = createHandlers();
+      const { send, replies } = registerBot(handlers);
+      await send("/refresh_secrets");
+      expect(handlers.refreshSecrets).toHaveBeenCalledTimes(1);
+      expect(handlers.scrape).not.toHaveBeenCalled();
+      expect(replies()).toEqual(["Secrets refreshed"]);
     });
 
     it("awaits the running state for /status", async () => {

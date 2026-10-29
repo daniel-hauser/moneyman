@@ -24,10 +24,8 @@ if (bot && telegramConfig) {
   logger(`Telegram chat ID: ${telegramConfig.chatId}`);
 
   assignDeprecationHandler((messageId, message) => {
-    if (!config.options.scraping.hiddenDeprecations?.includes(messageId)) {
-      logger(`Sending deprecation message: ${messageId}`);
-      void send(message);
-    }
+    logger(`Sending deprecation message: ${messageId}`);
+    void send(message);
   });
 }
 

@@ -2,7 +2,6 @@ import { existsSync, unlinkSync, truncateSync, readFileSync } from "fs";
 import { config } from "../config.js";
 import { sendTextFile } from "../bot/notifier.js";
 import { logToPublicLog, unsafeStdout, createLogger } from "./logger.js";
-import { storages } from "../bot/storage/index.js";
 import type { TransactionStorage } from "../types.js";
 import debug from "debug";
 
@@ -25,14 +24,17 @@ export function enableDebugLoggingIfNeeded() {
   }
 }
 
-export async function sendLogFile(deleteFile: boolean) {
+export async function sendLogFile(
+  deleteFile: boolean,
+  storages: readonly TransactionStorage[] = [],
+) {
   if (unsafeStdout) return;
 
   const logFilePath = process.env.MONEYMAN_LOG_FILE_PATH;
   if (!logFilePath || !existsSync(logFilePath)) return;
 
   const telegram = config.options.notifications?.telegram;
-  const logStorages = (storages as TransactionStorage[]).filter(
+  const logStorages = storages.filter(
     (s): s is TransactionStorage & { sendLogs(logs: string): Promise<void> } =>
       typeof s.sendLogs === "function",
   );

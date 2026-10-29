@@ -5,18 +5,17 @@ import { addAbortListener, once } from "node:events";
 import { aborted } from "node:util";
 import { finalizer, proxy, releaseProxy, wrap } from "comlink";
 import debug from "debug";
-import { config } from "../config.js";
-import type { ScraperConfig } from "../types.js";
 import { requestOtpCode } from "../bot/notifier.js";
 import { workerEnvironment } from "./environment.js";
 import {
   WorkerConfigSchema,
   type ScraperWorkerApi,
   type WorkerResult,
+  type ScraperRunConfig,
 } from "./protocol.js";
 
 export async function scrapeAccounts(
-  scraping: ScraperConfig,
+  scraping: ScraperRunConfig,
   onStatus?: (status: string[], totalTime?: number) => Promise<void>,
   onError?: (error: unknown, caller: string) => void | Promise<void>,
   signal?: AbortSignal,
@@ -26,11 +25,6 @@ export async function scrapeAccounts(
   debug.enable(debugFilter);
   const settings = WorkerConfigSchema.parse({
     ...scraping,
-    executablePath: config.options.scraping.puppeteerExecutablePath,
-    domainTracking: config.options.scraping.domainTracking,
-    firewallSettings: config.options.security.firewallSettings ?? [],
-    blockByDefault: config.options.security.blockByDefault,
-    enableOtp: config.options.notifications.telegram?.enableOtp === true,
     debugFilter,
   });
   const resources = new AsyncDisposableStack();
