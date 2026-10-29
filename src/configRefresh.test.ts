@@ -213,6 +213,27 @@ describe("provider configuration refresh through the Varlock CLI", () => {
   });
 
   it.each([
+    { MONEYMAN_CONFIG_SECRET_PROVIDER: "unsupported" },
+    { MONEYMAN_CONFIG_SECRET_ID: "not-a-uuid" },
+    { MONEYMAN_CONFIG_SECRET_ID: undefined },
+    { BITWARDEN_ACCESS_TOKEN: "" },
+    { BITWARDEN_ACCESS_TOKEN: undefined },
+  ])(
+    "rejects invalid bootstrap inputs before launching the CLI: %j",
+    async (overrides) => {
+      process.env = { ...process.env, ...overrides };
+      const { loadRunConfig, SECRET_REFRESH_FAILURE } =
+        await import("./configRefresh.js");
+
+      await expect(loadRunConfig()).rejects.toEqual(
+        new Error(SECRET_REFRESH_FAILURE),
+      );
+      expect(mockExecFile).not.toHaveBeenCalled();
+      expect(mockPrivateLog).toHaveBeenCalled();
+    },
+  );
+
+  it.each([
     "provider",
     "validation",
     "config-json",

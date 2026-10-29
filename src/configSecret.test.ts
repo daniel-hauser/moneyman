@@ -4,21 +4,25 @@ import {
 } from "./configSecret.js";
 
 describe("getConfigSecretEnvironment", () => {
-  it("maps a Bitwarden descriptor to its Varlock environment", () => {
-    const environment = getConfigSecretEnvironment(
-      JSON.stringify({
+  it.each(["JSON", "object"] as const)(
+    "maps a Bitwarden %s descriptor to its Varlock environment",
+    (format) => {
+      const descriptor = {
         provider: "bitwarden",
         secretId: "11111111-2222-4333-8444-555555666666",
         accessToken: "test-access-token",
-      }),
-    );
+      };
+      const environment = getConfigSecretEnvironment(
+        format === "JSON" ? JSON.stringify(descriptor) : descriptor,
+      );
 
-    expect(environment).toEqual({
-      BITWARDEN_ACCESS_TOKEN: "test-access-token",
-      MONEYMAN_CONFIG_SECRET_ID: "11111111-2222-4333-8444-555555666666",
-      MONEYMAN_CONFIG_SECRET_PROVIDER: "bitwarden",
-    });
-  });
+      expect(environment).toEqual({
+        BITWARDEN_ACCESS_TOKEN: "test-access-token",
+        MONEYMAN_CONFIG_SECRET_ID: "11111111-2222-4333-8444-555555666666",
+        MONEYMAN_CONFIG_SECRET_PROVIDER: "bitwarden",
+      });
+    },
+  );
 
   it("rejects unsupported providers", () => {
     expect(() =>

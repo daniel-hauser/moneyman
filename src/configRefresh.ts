@@ -28,12 +28,13 @@ export async function loadRunConfig(): Promise<MoneymanConfig> {
   if (!hasConfigSecretProvider()) return config;
 
   try {
-    const environment = bootstrap.MONEYMAN_CONFIG_SECRET
-      ? getConfigSecretEnvironment(bootstrap.MONEYMAN_CONFIG_SECRET)
-      : bootstrap;
-    if (environment.MONEYMAN_CONFIG_SECRET_PROVIDER !== "bitwarden") {
-      throw new Error("Unsupported configuration secret provider");
-    }
+    const environment = getConfigSecretEnvironment(
+      bootstrap.MONEYMAN_CONFIG_SECRET || {
+        provider: bootstrap.MONEYMAN_CONFIG_SECRET_PROVIDER,
+        secretId: bootstrap.MONEYMAN_CONFIG_SECRET_ID,
+        accessToken: bootstrap.BITWARDEN_ACCESS_TOKEN,
+      },
+    );
 
     // The launcher removes the descriptor, but retains these bootstrap values.
     // Never let the already-resolved MONEYMAN_CONFIG override the provider.

@@ -10,9 +10,13 @@ const ConfigSecretSchema = z.discriminatedUnion("provider", [
 ]);
 
 export function getConfigSecretEnvironment(
-  configSecret: string,
+  configSecret: unknown,
 ): NodeJS.ProcessEnv {
-  const descriptor = ConfigSecretSchema.parse(parseJsoncConfig(configSecret));
+  const descriptor = ConfigSecretSchema.parse(
+    typeof configSecret === "string"
+      ? parseJsoncConfig(configSecret)
+      : configSecret,
+  );
 
   switch (descriptor.provider) {
     case "bitwarden":
