@@ -2,6 +2,7 @@ import { mock, mockDeep, type DeepMockProxy } from "jest-mock-extended";
 import { Context, Telegraf } from "telegraf";
 import { schedule } from "node-cron";
 import { startServer, type ServerRunner } from "./server.js";
+import type { RunStatus } from "./types.js";
 import { registerCommands } from "./bot/commands.js";
 import {
   getTelegramBot,
@@ -67,49 +68,118 @@ describe("startServer", () => {
     jest.restoreAllMocks();
   });
 
-  it("acknowledges requests without waiting and reports rejected runs", async () => {
-    const error = new Error("A scrape is already in progress");
-    runner.runOnce
-      .mockImplementationOnce(() => new Promise(() => {}))
-      .mockRejectedValueOnce(error);
+  it("answers that a scrape is already in progress when the lock is held", async () => {
+    runner.startRun.mockResolvedValue({
+      started: false,
+      finished: Promise.resolve(undefined),
+    });
+
     await startServer(runner);
-    const first = handlers().scrape();
-    const second = handlers().scrape();
-    await expect(first).resolves.toContain("Scrape requested");
-    await expect(second).resolves.toContain("Scrape requested");
+
+    await expect(handlers().scrape()).resolves.toContain(
+      "A scrape is already in progress",
+    );
+    expect(runner.startRun).toHaveBeenCalledWith("manual");
+    expect(sendError).not.toHaveBeenCalled();
+  });
+
+  it("acknowledges a started run without waiting for it and reports its failure", async () => {
+    const error = new Error("boom");
+    let rejectRun!: (e: unknown) => void;
+    const finished = new Promise<RunStatus | undefined>((_resolve, reject) => {
+      rejectRun = reject;
+    });
+    runner.startRun.mockResolvedValue({ started: true, finished });
+
+    await startServer(runner);
+
+    await expect(handlers().scrape()).resolves.toContain("Scrape started");
+
+    rejectRun(error);
     await flush();
     expect(sendError).toHaveBeenCalledWith(error, "Manual scrape");
     expect(runner.isRunning).not.toHaveBeenCalled();
   });
 
   it.each(["SIGINT", "SIGTERM"] as const)(
-    "clears commands on %s without waiting for the active run",
+    "waits for the run in progress on %s before exiting",
     async (signal) => {
-      runner.runOnce.mockImplementation(() => new Promise(() => {}));
+      let releaseRun!: () => void;
+      const finished = new Promise<RunStatus | undefined>((resolve) => {
+        releaseRun = () => resolve(undefined);
+      });
+      runner.startRun.mockResolvedValue({ started: true, finished });
       await startServer(runner);
       await handlers().scrape();
+
       process.emit(signal);
-      expect(task.stop).toHaveBeenCalledTimes(1);
-      expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
-      process.emit(signal === "SIGINT" ? "SIGTERM" : "SIGINT");
       await flush();
+      expect(task.stop).toHaveBeenCalledTimes(1);
+      expect(shutdownTelegramBot).not.toHaveBeenCalled();
+      expect(exit).not.toHaveBeenCalled();
+
+      releaseRun();
+      await flush();
+      expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
       expect(exit).toHaveBeenCalledWith(0);
       expect(exit).toHaveBeenCalledTimes(1);
     },
   );
 
+  it("refuses new scrapes while shutting down", async () => {
+    let releaseRun!: () => void;
+    const finished = new Promise<RunStatus | undefined>((resolve) => {
+      releaseRun = () => resolve(undefined);
+    });
+    runner.startRun.mockResolvedValue({ started: true, finished });
+    await startServer(runner);
+    await handlers().scrape();
+
+    process.emit("SIGTERM");
+    await flush();
+
+    await expect(handlers().scrape()).resolves.toContain("Shutting down");
+    expect(runner.startRun).toHaveBeenCalledTimes(1);
+
+    releaseRun();
+    await flush();
+  });
+
+  it("gives up waiting for the scrape after the drain timeout", async () => {
+    jest.useFakeTimers();
+    try {
+      runner.startRun.mockResolvedValue({
+        started: true,
+        finished: new Promise(() => {}),
+      });
+      await startServer(runner);
+      await handlers().scrape();
+
+      process.emit("SIGTERM");
+      await jest.advanceTimersByTimeAsync(30_000);
+
+      expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
+      expect(exit).toHaveBeenCalledWith(0);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it("runs scheduled scrapes", async () => {
-    runner.runOnce.mockResolvedValue({
-      trigger: "scheduled",
-      startedAt: new Date(),
-      endedAt: new Date(),
-      failed: false,
+    runner.startRun.mockResolvedValue({
+      started: true,
+      finished: Promise.resolve({
+        trigger: "scheduled",
+        startedAt: new Date(),
+        endedAt: new Date(),
+        failed: false,
+      }),
     });
     await startServer(runner);
     const callback = jest.mocked(schedule).mock.calls[0][1];
     if (typeof callback !== "function")
       throw new Error("Expected cron callback");
     await callback(mock<Parameters<typeof callback>[0]>());
-    expect(runner.runOnce).toHaveBeenCalledWith("scheduled");
+    expect(runner.startRun).toHaveBeenCalledWith("scheduled");
   });
 });

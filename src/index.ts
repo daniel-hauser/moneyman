@@ -6,7 +6,7 @@ import { BooleanEnvVarSchema } from "./config.schema.js";
 import { sendError } from "./bot/notifier.js";
 import { createLogger } from "./utils/logger.js";
 import { sendLogFile, enableDebugLoggingIfNeeded } from "./utils/secure-log.js";
-import { RunnerHooks, RunStatus, RunTrigger } from "./types.js";
+import { RunHandle, RunnerHooks, RunStatus, RunTrigger } from "./types.js";
 import { runWithStorage } from "./bot/index.js";
 import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
 import { monitorNodeConnections } from "./security/domains.js";
@@ -40,7 +40,7 @@ async function main() {
   await sendConfigToTelegramIfRequested();
 
   if (longRunning) {
-    await startServer({ runOnce, isRunning, getLastRun: () => lastRun });
+    await startServer({ startRun, isRunning, getLastRun: () => lastRun });
   } else {
     await runOnce("startup");
 
@@ -54,29 +54,46 @@ async function isRunning() {
   return held.some((lock) => lock.name === RUN_LOCK);
 }
 
+/**
+ * Starts a run and resolves as soon as the run lock was decided, so a caller
+ * can answer honestly before the scrape finishes. A call made while another run
+ * holds the lock comes back with `started: false` instead of waiting for it.
+ */
+async function startRun(trigger: RunTrigger): Promise<RunHandle> {
+  let reportStarted!: (started: boolean) => void;
+  const started = new Promise<boolean>((resolve) => {
+    reportStarted = resolve;
+  });
+
+  const finished = locks.request(RUN_LOCK, { ifAvailable: true }, (lock) => {
+    if (!lock) {
+      reportStarted(false);
+      return undefined;
+    }
+
+    reportStarted(true);
+    return runContextStore.run({ runId: randomUUID() }, async () => {
+      const startedAt = new Date();
+      const failed = await run();
+      await sendLogFile(!longRunning);
+
+      lastRun = { trigger, startedAt, endedAt: new Date(), failed };
+      logger("Run finished", lastRun);
+      return lastRun;
+    });
+  });
+
+  return { started: await started, finished };
+}
+
 async function runOnce(trigger: RunTrigger): Promise<RunStatus> {
-  const result = await locks.request(
-    RUN_LOCK,
-    { ifAvailable: true },
-    (lock) => {
-      if (!lock) return null;
-      return runContextStore.run({ runId: randomUUID() }, async () => {
-        const startedAt = new Date();
-        const failed = await run();
-        await sendLogFile(!longRunning);
+  const status = await (await startRun(trigger)).finished;
 
-        lastRun = { trigger, startedAt, endedAt: new Date(), failed };
-        logger("Run finished", lastRun);
-        return lastRun;
-      });
-    },
-  );
-
-  if (!result) {
+  if (!status) {
     throw new Error("A scrape is already in progress");
   }
 
-  return result;
+  return status;
 }
 
 async function runScraper(hooks: RunnerHooks) {

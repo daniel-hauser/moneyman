@@ -1,4 +1,4 @@
-import type { AccountScrapeResult, RunnerHooks } from "./types.js";
+import type { AccountScrapeResult, RunnerHooks, RunTrigger } from "./types.js";
 import type { ServerRunner } from "./server.js";
 import { createRunReport } from "./bot/runReport.js";
 import { mock } from "jest-mock-extended";
@@ -129,6 +129,10 @@ describe("index", () => {
       runner = mocks.startServerMock.mock.calls[0][0];
     });
 
+    /** Runs to completion, the way the one-shot entrypoint does. */
+    const runOnce = async (trigger: RunTrigger) =>
+      (await runner.startRun(trigger)).finished;
+
     it("hands the runner to the server without running", () => {
       expect(mocks.runWithStorageMock).not.toHaveBeenCalled();
       expect(mocks.exit).not.toHaveBeenCalled();
@@ -139,7 +143,7 @@ describe("index", () => {
         accountResult(CompanyTypes.hapoalim, true),
       ]);
 
-      const result = await runner.runOnce("manual");
+      const result = await runOnce("manual");
 
       const { sendError } = await import("./bot/notifier.js");
       expect(sendError).not.toHaveBeenCalled();
@@ -159,7 +163,7 @@ describe("index", () => {
         accountResult(CompanyTypes.oneZero, false),
       ]);
 
-      expect(await runner.runOnce("manual")).toMatchObject({ failed: true });
+      expect(await runOnce("manual")).toMatchObject({ failed: true });
     });
 
     it("fails the run when a storage reports an error", async () => {
@@ -170,7 +174,7 @@ describe("index", () => {
         return report;
       });
 
-      expect(await runner.runOnce("manual")).toMatchObject({ failed: true });
+      expect(await runOnce("manual")).toMatchObject({ failed: true });
     });
 
     it("fails the run when the report records an error", async () => {
@@ -178,13 +182,13 @@ describe("index", () => {
       report.failed = true;
       mocks.runWithStorageMock.mockResolvedValue(report);
 
-      expect(await runner.runOnce("manual")).toMatchObject({ failed: true });
+      expect(await runOnce("manual")).toMatchObject({ failed: true });
     });
 
     it("fails the run when scraping throws", async () => {
       mocks.scrapeAccountsMock.mockRejectedValue(new Error("scraping failed"));
 
-      expect(await runner.runOnce("manual")).toMatchObject({ failed: true });
+      expect(await runOnce("manual")).toMatchObject({ failed: true });
     });
 
     it("preserves an error callback failure even when accounts succeed", async () => {
@@ -195,23 +199,41 @@ describe("index", () => {
         },
       );
 
-      expect(await runner.runOnce("manual")).toMatchObject({ failed: true });
+      expect(await runOnce("manual")).toMatchObject({ failed: true });
     });
 
     it("fails the run when the storage wrapper throws", async () => {
       mocks.runWithStorageMock.mockRejectedValue(new Error("exploded"));
 
-      expect(await runner.runOnce("manual")).toMatchObject({ failed: true });
+      expect(await runOnce("manual")).toMatchObject({ failed: true });
     });
 
     it("does not carry a failure over to the next run", async () => {
       mocks.runWithStorageMock.mockRejectedValueOnce(new Error("exploded"));
-      await runner.runOnce("manual");
+      await runOnce("manual");
 
-      expect(await runner.runOnce("manual")).toMatchObject({ failed: false });
+      expect(await runOnce("manual")).toMatchObject({ failed: false });
     });
 
-    it("rejects a second run while one is in flight", async () => {
+    it("hands the run back before it finishes, so a caller can answer honestly", async () => {
+      let releaseRun!: () => void;
+      mocks.runWithStorageMock.mockImplementation(async () => {
+        await new Promise<void>((resolve) => {
+          releaseRun = resolve;
+        });
+        return createRunReport();
+      });
+
+      const handle = await runner.startRun("manual");
+
+      expect(handle.started).toBe(true);
+      expect(await runner.isRunning()).toBe(true);
+
+      releaseRun();
+      await expect(handle.finished).resolves.toMatchObject({ failed: false });
+    });
+
+    it("reports a second run while one is in flight as not started", async () => {
       let releaseRun!: () => void;
       const runIsHolding = new Promise<void>((resolve) => {
         releaseRun = resolve;
@@ -222,13 +244,11 @@ describe("index", () => {
         return createRunReport();
       });
 
-      const first = runner.runOnce("manual");
+      const first = runOnce("manual");
       await new Promise((resolve) => setImmediate(resolve));
 
       expect(await runner.isRunning()).toBe(true);
-      await expect(runner.runOnce("manual")).rejects.toThrow(
-        "A scrape is already in progress",
-      );
+      expect((await runner.startRun("manual")).started).toBe(false);
 
       releaseRun();
       await expect(first).resolves.toMatchObject({ failed: false });
@@ -247,8 +267,8 @@ describe("index", () => {
         recordRunId();
       });
 
-      await runner.runOnce("manual");
-      await runner.runOnce("manual");
+      await runOnce("manual");
+      await runOnce("manual");
 
       expect(runIds).toHaveLength(4);
       expect(runIds[0]).toEqual(expect.any(String));
@@ -260,7 +280,8 @@ describe("index", () => {
     it("releases the lock when the log upload fails", async () => {
       mocks.sendLogFileMock.mockRejectedValueOnce(new Error("boom"));
 
-      await expect(runner.runOnce("manual")).rejects.toThrow("boom");
+      const handle = await runner.startRun("manual");
+      await expect(handle.finished).rejects.toThrow("boom");
       expect(await runner.isRunning()).toBe(false);
     });
   });

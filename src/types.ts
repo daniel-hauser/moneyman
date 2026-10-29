@@ -84,3 +84,10 @@ export type RunStatus = {
   endedAt: Date;
   failed: boolean;
 };
+
+export type RunHandle = {
+  /** Whether this call took the run lock. When false, `finished` resolves to undefined. */
+  started: boolean;
+  /** Settles when the run this handle started has finished. */
+  finished: Promise<RunStatus | undefined>;
+};
