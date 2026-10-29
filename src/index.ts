@@ -10,13 +10,7 @@ import { BooleanEnvVarSchema } from "./config.schema.js";
 import { sendError } from "./bot/notifier.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 import { sendLogFile, enableDebugLoggingIfNeeded } from "./utils/secure-log.js";
-import {
-  RunHandle,
-  RunnerHooks,
-  RunStatus,
-  RunTrigger,
-  TransactionStorage,
-} from "./types.js";
+import { RunHandle, RunnerHooks, RunStatus, RunTrigger } from "./types.js";
 import { runWithStorage } from "./bot/index.js";
 import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
 import { createDomainTracker, type DomainTracker } from "./security/domains.js";
@@ -104,8 +98,7 @@ async function startRun(
     reportStarted(true);
     return runContextStore.run({ runId: randomUUID() }, async () => {
       const startedAt = new Date();
-      const { failed, storages } = await run(signal);
-      await sendLogFile(!longRunning, storages);
+      const failed = await run(signal);
 
       lastRun = { trigger, startedAt, endedAt: new Date(), failed };
       logger("Run finished", lastRun);
@@ -175,8 +168,7 @@ async function runScraper(
   }
 }
 
-async function run(signal?: AbortSignal) {
-  let storages: TransactionStorage[] = [];
+async function prepareRun() {
   try {
     let snapshot = config;
     if (longRunning) {
@@ -185,16 +177,26 @@ async function run(signal?: AbortSignal) {
       } catch {
         logToPublicLog(SECRET_REFRESH_FAILURE);
         await sendError(new Error(SECRET_REFRESH_FAILURE), "Secrets refresh");
-        return { failed: true, storages };
+        return;
       }
     }
+    return { snapshot, storages: createStorages(snapshot) };
+  } catch (error) {
+    logger(error);
+  }
+}
+
+async function run(signal?: AbortSignal) {
+  const prepared = await prepareRun();
+  try {
+    if (!prepared) return true;
+    const { snapshot, storages } = prepared;
     const domainTracker = createDomainTracker({
       domainTracking: snapshot.options.scraping.domainTracking,
       ...snapshot.options.security,
     });
     let report;
     try {
-      storages = createStorages(snapshot);
       logger("Running with storage");
       report = await runWithStorage(
         (hooks) => runScraper(hooks, snapshot, domainTracker, signal),
@@ -209,9 +211,11 @@ async function run(signal?: AbortSignal) {
     if (failedStorages.length) {
       logger(`Storages that failed: ${failedStorages.join(", ")}`);
     }
-    return { failed: report.failed || failedStorages.length > 0, storages };
+    return report.failed || failedStorages.length > 0;
   } catch (error) {
     logger(error);
-    return { failed: true, storages };
+    return true;
+  } finally {
+    await sendLogFile(!longRunning, prepared?.storages ?? []);
   }
 }

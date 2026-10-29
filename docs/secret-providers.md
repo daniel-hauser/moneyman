@@ -1,6 +1,6 @@
 # Secret Providers
 
-The Moneyman container can resolve its complete JSON/JSONC configuration from an external secret provider before Moneyman starts and refresh it before each scrape in long-running mode. It uses [Varlock](https://varlock.dev/) as the provider abstraction and currently includes direct support for Bitwarden Secrets Manager.
+Moneyman can load its complete JSON/JSONC configuration from an external secret provider at startup and refresh it before each scrape in long-running mode. This works in Docker, with `npm start`, and with configuration verification scripts. Provider support uses [Varlock](https://varlock.dev/) and currently includes Bitwarden Secrets Manager.
 
 Existing `MONEYMAN_CONFIG` and `MONEYMAN_CONFIG_PATH` configurations remain supported. Provider resolution is enabled whenever `MONEYMAN_CONFIG_SECRET` is set.
 
@@ -12,7 +12,7 @@ The configuration source precedence is:
 
 ## Bitwarden Secrets Manager
 
-Store the complete contents of your Moneyman configuration as one Bitwarden secret. The resolved value is injected as `MONEYMAN_CONFIG` and then parsed and validated normally.
+Store the complete contents of your Moneyman configuration as one Bitwarden secret. Moneyman retrieves and validates the configuration before initializing logging, Telegram, and scheduling.
 
 1. In Bitwarden Secrets Manager, create a project and a secret containing the complete configuration.
 2. Create a machine account with read-only access to that project or secret.
@@ -47,15 +47,7 @@ Add one `MONEYMAN_CONFIG_SECRET` Actions repository secret containing the compac
 
 The scrape workflow forwards both the new and legacy secrets to the container. `MONEYMAN_CONFIG_SECRET` has higher precedence, so you can test the provider-backed path while retaining `MONEYMAN_CONFIG` as a rollback option. Remove the legacy secret after a successful provider-backed run.
 
-At container startup:
-
-1. The entrypoint detects `MONEYMAN_CONFIG_SECRET` and starts the provider adapter.
-2. The adapter parses and validates the descriptor, then removes the descriptor and lower-precedence config variables from the child environment.
-3. The adapter maps the descriptor to provider-specific bootstrap variables and runs Varlock.
-4. Varlock retrieves the complete configuration and injects it as `MONEYMAN_CONFIG`.
-5. Moneyman starts and parses and validates `MONEYMAN_CONFIG` through its existing configuration path.
-
-After successful retrieval and validation, Moneyman writes `Configuration successfully loaded from Bitwarden Secrets Manager` to its normal log. With unsafe stdout disabled (the default), this message remains in the private log file.
+After successful retrieval and validation, Moneyman writes `Configuration successfully loaded from secret provider` to its normal log. With unsafe stdout disabled (the default), this message remains in the private log file.
 
 The GitHub workflow does not parse the descriptor or contact Bitwarden itself; those steps happen inside the container at runtime.
 
@@ -80,13 +72,15 @@ Rotate the machine account token in Bitwarden and update only `MONEYMAN_CONFIG_S
 
 In [long-running mode](../README.md#long-running-mode), Moneyman retrieves and validates the provider configuration before every scheduled or manually triggered scrape. Fresh bank credentials, storage credentials, and per-run scraping and security settings apply to that run. Logging, Telegram notification settings, and the schedule remain unchanged until the container restarts.
 
+One-shot runs use the startup configuration without fetching it a second time. Custom container commands that run Moneyman or its configuration verifier use the same configuration sources; unrelated commands do not retrieve or receive provider secrets.
+
 When a provider is configured, `/refresh_secrets` is available in the configured Telegram chat to refresh the provider configuration without starting a scrape. Manual refreshes can run alongside scraping or other refreshes without changing an active scrape's configuration. Duplicate scrape requests are still rejected. The next scrape still performs its own automatic refresh.
 
 If a refresh fails, that scrape does not start with stale credentials or fall back to another configuration source. The bot remains available so you can correct the provider configuration and try again. Refreshing applies only to provider-backed configuration; direct `MONEYMAN_CONFIG` and `MONEYMAN_CONFIG_PATH` configurations retain their startup behavior.
 
 Restart the container after changing the machine account token in the deployment environment.
 
-If provider authentication or secret retrieval fails, Varlock exits before Moneyman starts. With unsafe stdout disabled (the default), public logs receive only this fixed message:
+If the descriptor, provider access, or retrieved configuration is invalid at startup, Moneyman stops without falling back to `MONEYMAN_CONFIG` or `MONEYMAN_CONFIG_PATH`. With unsafe stdout disabled (the default), public logs receive only this fixed message:
 
 ```text
 Moneyman failed before completion. Sensitive error details were withheld from public logs.

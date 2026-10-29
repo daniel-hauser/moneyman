@@ -172,36 +172,6 @@ describe("config", () => {
     );
   });
 
-  it("logs successful Bitwarden config loading after validation", async () => {
-    process.env = {
-      ...originalEnv,
-      MONEYMAN_CONFIG: "{}",
-      MONEYMAN_CONFIG_PATH: undefined,
-      MONEYMAN_CONFIG_SECRET_PROVIDER: "bitwarden",
-    };
-
-    await import("./config.js");
-
-    expect(configLogger).toHaveBeenCalledWith(
-      "Configuration successfully loaded from Bitwarden Secrets Manager",
-    );
-  });
-
-  it("does not log successful Bitwarden loading for invalid config", async () => {
-    process.env = {
-      ...originalEnv,
-      MONEYMAN_CONFIG: "{ invalid",
-      MONEYMAN_CONFIG_PATH: undefined,
-      MONEYMAN_CONFIG_SECRET_PROVIDER: "bitwarden",
-    };
-
-    await import("./config.js");
-
-    expect(configLogger).not.toHaveBeenCalledWith(
-      "Configuration successfully loaded from Bitwarden Secrets Manager",
-    );
-  });
-
   it("should validate config with zod schema", async () => {
     // This should pass validation
     const validConfig = {

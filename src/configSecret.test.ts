@@ -1,7 +1,4 @@
-import {
-  createConfigSecretProcessEnvironment,
-  getConfigSecretEnvironment,
-} from "./configSecret.js";
+import { getConfigSecretEnvironment } from "./configSecret.js";
 
 describe("getConfigSecretEnvironment", () => {
   it.each(["JSON", "object"] as const)(
@@ -19,7 +16,6 @@ describe("getConfigSecretEnvironment", () => {
       expect(environment).toEqual({
         BITWARDEN_ACCESS_TOKEN: "test-access-token",
         MONEYMAN_CONFIG_SECRET_ID: "11111111-2222-4333-8444-555555666666",
-        MONEYMAN_CONFIG_SECRET_PROVIDER: "bitwarden",
       });
     },
   );
@@ -58,30 +54,5 @@ describe("getConfigSecretEnvironment", () => {
         }),
       ),
     ).toThrow();
-  });
-
-  it("removes lower-precedence config sources from the provider environment", () => {
-    const environment = createConfigSecretProcessEnvironment(
-      JSON.stringify({
-        provider: "bitwarden",
-        secretId: "11111111-2222-4333-8444-555555666666",
-        accessToken: "test-access-token",
-      }),
-      {
-        MONEYMAN_CONFIG: "legacy-config",
-        MONEYMAN_CONFIG_PATH: "/legacy/config.json",
-        MONEYMAN_CONFIG_SECRET: "provider-descriptor",
-        PRESERVED_VARIABLE: "preserved",
-      },
-    );
-
-    expect(environment).toMatchObject({
-      BITWARDEN_ACCESS_TOKEN: "test-access-token",
-      MONEYMAN_CONFIG_SECRET_ID: "11111111-2222-4333-8444-555555666666",
-      PRESERVED_VARIABLE: "preserved",
-    });
-    expect(environment.MONEYMAN_CONFIG).toBeUndefined();
-    expect(environment.MONEYMAN_CONFIG_PATH).toBeUndefined();
-    expect(environment.MONEYMAN_CONFIG_SECRET).toBeUndefined();
   });
 });

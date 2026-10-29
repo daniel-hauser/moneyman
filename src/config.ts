@@ -4,6 +4,7 @@ import { Telegraf } from "telegraf";
 import { readFileSync } from "fs";
 import { AccountConfig } from "./types.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
+import { loadConfigSecretSync } from "./configSecret.js";
 import { parseJsoncConfig } from "./utils/jsonc.js";
 import type { ScraperRunConfig } from "./scraper/protocol.js";
 import {
@@ -22,21 +23,23 @@ export const systemName = "moneyman";
 const logger = createLogger("config");
 
 logger("Parsing config");
+export const configSecret = process.env.MONEYMAN_CONFIG_SECRET;
 const config: MoneymanConfig = createConfig();
 export { config };
 
 function createConfig() {
+  if (configSecret) {
+    const validatedConfig = loadConfigSecretSync(configSecret);
+    logger("Configuration successfully loaded from secret provider");
+    return validatedConfig;
+  }
+
   const { MONEYMAN_CONFIG, MONEYMAN_CONFIG_PATH } = process.env;
   if (MONEYMAN_CONFIG) {
     logger("Using MONEYMAN_CONFIG");
     try {
       const parsedConfig = parseJsoncConfig(MONEYMAN_CONFIG);
       const validatedConfig = MoneymanConfigSchema.parse(parsedConfig);
-      if (process.env.MONEYMAN_CONFIG_SECRET_PROVIDER === "bitwarden") {
-        logger(
-          "Configuration successfully loaded from Bitwarden Secrets Manager",
-        );
-      }
       return validatedConfig;
     } catch (error) {
       logger(

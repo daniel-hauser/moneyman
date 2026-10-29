@@ -127,7 +127,7 @@ To enable debug output, set the `DEBUG` environment variable to `moneyman:*`.
 
 Moneyman uses a JSON configuration for all settings. You can provide configuration in three ways:
 
-1. **`MONEYMAN_CONFIG_SECRET` environment variable**: A provider descriptor used to resolve the complete config at container startup; see [Secret providers](./docs/secret-providers.md)
+1. **`MONEYMAN_CONFIG_SECRET` environment variable**: A provider descriptor used to load the complete config at startup; see [Secret providers](./docs/secret-providers.md)
 2. **`MONEYMAN_CONFIG` environment variable**: The JSON configuration as a string
 3. **`MONEYMAN_CONFIG_PATH` environment variable**: Path to a JSON or JSONC configuration file
 

@@ -11,6 +11,7 @@ jest.mock("node:child_process", () => ({
   execFile: mockExecFile,
 }));
 jest.mock("./config.js", () => ({
+  configSecret: process.env.MONEYMAN_CONFIG_SECRET,
   config: jest
     .requireActual<typeof import("./config.schema.js")>("./config.schema.js")
     .MoneymanConfigSchema.parse({
@@ -28,9 +29,9 @@ jest.mock("./utils/logger.js", () => ({
 
 const id = "12345678-1234-4234-8234-123456789abc";
 const bootstrap = {
-  MONEYMAN_CONFIG_SECRET_PROVIDER: "bitwarden",
-  MONEYMAN_CONFIG_SECRET_ID: id,
-  BITWARDEN_ACCESS_TOKEN: "machine-token",
+  provider: "bitwarden",
+  secretId: id,
+  accessToken: "machine-token",
 };
 const remoteConfig = (password: string) => ({
   accounts: [{ companyId: "hapoalim", password }],
@@ -63,7 +64,7 @@ describe("provider configuration refresh through the Varlock CLI", () => {
     mockExecFile.mockReset();
     process.env = {
       ...workerEnvironment(originalEnv),
-      ...bootstrap,
+      MONEYMAN_CONFIG_SECRET: JSON.stringify(bootstrap),
       MONEYMAN_CONFIG: JSON.stringify(remoteConfig("stale-resolved-secret")),
       MONEYMAN_CONFIG_PATH: "must-not-read.json",
     };
@@ -197,7 +198,10 @@ describe("provider configuration refresh through the Varlock CLI", () => {
     const { loadRunConfig } = await import("./configRefresh.js");
     const { execFile } = await import("node:child_process");
     complete('{"MONEYMAN_CONFIG":"{}"}');
-    process.env.BITWARDEN_ACCESS_TOKEN = "changed-after-startup";
+    process.env.MONEYMAN_CONFIG_SECRET = JSON.stringify({
+      ...bootstrap,
+      accessToken: "changed-after-startup",
+    });
     await loadRunConfig();
     expect(execFile).toHaveBeenCalledWith(
       process.execPath,
@@ -209,19 +213,24 @@ describe("provider configuration refresh through the Varlock CLI", () => {
       }),
       expect.any(Function),
     );
-    expect(process.env.BITWARDEN_ACCESS_TOKEN).toBe("changed-after-startup");
+    expect(process.env.MONEYMAN_CONFIG_SECRET).toContain(
+      "changed-after-startup",
+    );
   });
 
   it.each([
-    { MONEYMAN_CONFIG_SECRET_PROVIDER: "unsupported" },
-    { MONEYMAN_CONFIG_SECRET_ID: "not-a-uuid" },
-    { MONEYMAN_CONFIG_SECRET_ID: undefined },
-    { BITWARDEN_ACCESS_TOKEN: "" },
-    { BITWARDEN_ACCESS_TOKEN: undefined },
+    { provider: "unsupported" },
+    { secretId: "not-a-uuid" },
+    { secretId: undefined },
+    { accessToken: "" },
+    { accessToken: undefined },
   ])(
     "rejects invalid bootstrap inputs before launching the CLI: %j",
     async (overrides) => {
-      process.env = { ...process.env, ...overrides };
+      process.env.MONEYMAN_CONFIG_SECRET = JSON.stringify({
+        ...bootstrap,
+        ...overrides,
+      });
       const { loadRunConfig, SECRET_REFRESH_FAILURE } =
         await import("./configRefresh.js");
 
@@ -255,7 +264,10 @@ describe("provider configuration refresh through the Varlock CLI", () => {
         throw new Error("sensitive-launch-error");
       });
     } else if (failure === "unknown-provider") {
-      process.env.MONEYMAN_CONFIG_SECRET_PROVIDER = "unsupported";
+      process.env.MONEYMAN_CONFIG_SECRET = JSON.stringify({
+        ...bootstrap,
+        provider: "unsupported",
+      });
     } else {
       const values = {
         validation: '{"accounts":[{"password":""}]}',
@@ -280,11 +292,11 @@ describe("provider configuration refresh through the Varlock CLI", () => {
   });
 
   it("consumes the installed CLI's actual sensitive JSON output using an offline synthetic schema", async () => {
-    const actualExecFile =
+    const actual =
       jest.requireActual<typeof import("node:child_process")>(
         "node:child_process",
-      ).execFile;
-    const execute = promisify(actualExecFile);
+      );
+    const execute = promisify(actual.execFile);
     const directory = await mkdtemp(
       path.join(process.cwd(), ".config-refresh-cli-test-"),
     );
@@ -295,29 +307,32 @@ describe("provider configuration refresh through the Varlock CLI", () => {
         schema,
         `# @required @sensitive\nMONEYMAN_CONFIG='${secret}'\n`,
       );
-      const { stdout } = await execute(
-        process.execPath,
-        [
-          path.resolve("node_modules", "varlock", "bin", "cli.js"),
-          "load",
-          "--format",
-          "json",
-          "--filter",
-          "MONEYMAN_CONFIG",
-          "--path",
-          schema,
-          "--skip-cache",
-        ],
-        {
-          cwd: directory,
-          env: {
-            ...workerEnvironment(originalEnv),
-            VARLOCK_TELEMETRY_DISABLED: "1",
-          },
-          encoding: "utf8",
+      const args = [
+        path.resolve("node_modules", "varlock", "bin", "cli.js"),
+        "load",
+        "--format",
+        "json",
+        "--filter",
+        "MONEYMAN_CONFIG",
+        "--path",
+        schema,
+        "--skip-cache",
+      ];
+      const options = {
+        cwd: directory,
+        env: {
+          ...workerEnvironment(originalEnv),
+          VARLOCK_TELEMETRY_DISABLED: "1",
         },
-      );
+        encoding: "utf8" as const,
+      };
+      const { stdout } = await execute(process.execPath, args, options);
       expect(JSON.parse(stdout)).toEqual({ MONEYMAN_CONFIG: secret });
+      expect(
+        JSON.parse(actual.execFileSync(process.execPath, args, options)),
+      ).toEqual({
+        MONEYMAN_CONFIG: secret,
+      });
       const { execFile } = await import("node:child_process");
       complete(stdout);
       const { loadRunConfig } = await import("./configRefresh.js");

@@ -520,6 +520,59 @@ describe("index", () => {
       expect(await runOnce("manual")).toMatchObject({ failed: true });
     });
 
+    it("delivers logs without storage clients when storage construction fails and permits retry", async () => {
+      const { createStorages } = await import("./bot/storage/index.js");
+      jest.mocked(createStorages).mockImplementationOnce(() => {
+        throw new Error("storage setup failed");
+      });
+
+      expect(await runOnce("manual")).toMatchObject({ failed: true });
+      expect(mocks.scrapeAccountsMock).not.toHaveBeenCalled();
+      expect(mocks.sendLogFileMock).toHaveBeenCalledWith(false, []);
+      expect(await runOnce("manual")).toMatchObject({ failed: false });
+    });
+
+    it("retains the run's storage clients for logs when tracker construction fails", async () => {
+      const { createDomainTracker } = await import("./security/domains.js");
+      const { createStorages } = await import("./bot/storage/index.js");
+      jest.mocked(createDomainTracker).mockImplementationOnce(() => {
+        throw new Error("tracker setup failed");
+      });
+
+      expect(await runOnce("manual")).toMatchObject({ failed: true });
+      expect(mocks.scrapeAccountsMock).not.toHaveBeenCalled();
+      expect(mocks.sendLogFileMock).toHaveBeenCalledWith(
+        false,
+        jest.mocked(createStorages).mock.results[0].value,
+      );
+    });
+
+    it("finishes tracking before log delivery, retaining the clients when tracker cleanup fails", async () => {
+      const { createDomainTracker } = await import("./security/domains.js");
+      const { createStorages } = await import("./bot/storage/index.js");
+      const dispose = jest.fn(() => {
+        throw new Error("tracker cleanup failed");
+      });
+      const tracker = mock<ReturnType<typeof createDomainTracker>>();
+      tracker.dispose.mockImplementation(dispose);
+      tracker.getUsedDomains.mockResolvedValue({});
+      jest.mocked(createDomainTracker).mockReturnValueOnce(tracker);
+      mocks.runWithStorageMock.mockRejectedValueOnce(
+        new Error("storage operation failed"),
+      );
+
+      expect(await runOnce("manual")).toMatchObject({ failed: true });
+      expect(dispose).toHaveBeenCalledTimes(1);
+      expect(mocks.sendLogFileMock).toHaveBeenCalledWith(
+        false,
+        jest.mocked(createStorages).mock.results[0].value,
+      );
+      expect(dispose.mock.invocationCallOrder[0]).toBeLessThan(
+        mocks.sendLogFileMock.mock.invocationCallOrder[0],
+      );
+      expect(await runner.isRunning()).toBe(false);
+    });
+
     it("does not carry a failure over to the next run", async () => {
       mocks.runWithStorageMock.mockRejectedValueOnce(new Error("exploded"));
       await runOnce("manual");
