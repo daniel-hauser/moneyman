@@ -1,5 +1,6 @@
 import { Context, Telegraf } from "telegraf";
-import { createLogger } from "../utils/logger.js";
+import { createLogger, logToPublicLog } from "../utils/logger.js";
+import { waitForAbortSignal } from "../utils/promises.js";
 import { formatUnknownError } from "../utils/utils.js";
 import { createOtpHandler } from "./otp.js";
 import { config } from "../config.js";
@@ -48,11 +49,30 @@ export function createBot(bot: Telegraf<Context> | null) {
     }
   }
 
+  async function shutdownTelegramBot() {
+    stopTelegramBot();
+    if (!bot) return;
+
+    try {
+      await Promise.race([
+        bot.telegram.deleteMyCommands(),
+        waitForAbortSignal(AbortSignal.timeout(3_000)),
+      ]);
+    } catch (error) {
+      logger("Failed to clear Telegram command menu", error);
+      logToPublicLog("Failed to clear Telegram command menu", logger);
+    }
+  }
+
   const polling = {
     isTelegramBotRunning,
     launchTelegramBot,
     stopTelegramBot,
   };
 
-  return { ...polling, requestOtpCode: createOtpHandler(bot, polling) };
+  return {
+    ...polling,
+    shutdownTelegramBot,
+    requestOtpCode: createOtpHandler(bot, polling),
+  };
 }

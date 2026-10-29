@@ -4,7 +4,7 @@ import { createLogger, logToPublicLog } from "./utils/logger.js";
 import {
   getTelegramBot,
   launchTelegramBot,
-  stopTelegramBot,
+  shutdownTelegramBot,
   sendError,
 } from "./bot/notifier.js";
 import { registerCommands } from "./bot/commands.js";
@@ -45,13 +45,13 @@ export async function startServer({
   );
 
   let shuttingDown = false;
-  function shutdown(signal: string) {
+  async function shutdown(signal: string) {
     if (shuttingDown) return;
     shuttingDown = true;
 
     logger(`Received ${signal}, shutting down`);
     task?.stop();
-    stopTelegramBot();
+    await shutdownTelegramBot();
 
     process.exit(0);
   }

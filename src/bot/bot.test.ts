@@ -1,6 +1,12 @@
 import { mockDeep } from "jest-mock-extended";
 import { Context, Telegraf } from "telegraf";
 import { createBot } from "./bot.js";
+import { logToPublicLog } from "../utils/logger.js";
+
+jest.mock("../utils/logger.js", () => ({
+  createLogger: () => jest.fn(),
+  logToPublicLog: jest.fn(),
+}));
 
 jest.mock("../config.js", () => ({
   config: { options: { notifications: {} } },
@@ -13,7 +19,46 @@ describe("createBot", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     bot.launch.mockResolvedValue(undefined);
+    bot.telegram.deleteMyCommands.mockResolvedValue(true);
     controller = createBot(bot);
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it("stops polling and clears the command menu", async () => {
+    await controller.launchTelegramBot();
+    await controller.shutdownTelegramBot();
+
+    expect(bot.stop).toHaveBeenCalledTimes(1);
+    expect(bot.telegram.deleteMyCommands).toHaveBeenCalledWith();
+    expect(controller.isTelegramBotRunning()).toBe(false);
+  });
+
+  it("logs menu cleanup failures without rejecting shutdown", async () => {
+    bot.telegram.deleteMyCommands.mockRejectedValueOnce(
+      new Error("Telegram unavailable"),
+    );
+
+    await expect(controller.shutdownTelegramBot()).resolves.toBeUndefined();
+    expect(logToPublicLog).toHaveBeenCalledWith(
+      "Failed to clear Telegram command menu",
+      expect.any(Function),
+    );
+  });
+
+  it("bounds menu cleanup to three seconds", async () => {
+    const abort = new AbortController();
+    const timeout = jest
+      .spyOn(AbortSignal, "timeout")
+      .mockReturnValue(abort.signal);
+    bot.telegram.deleteMyCommands.mockImplementationOnce(
+      () => new Promise(() => {}),
+    );
+
+    const shutdown = controller.shutdownTelegramBot();
+    expect(timeout).toHaveBeenCalledWith(3_000);
+    abort.abort();
+    await expect(shutdown).resolves.toBeUndefined();
   });
 
   it("starts polling only once", async () => {
@@ -69,5 +114,6 @@ describe("createBot", () => {
       "Telegram is not configured",
     );
     expect(() => unconfigured.stopTelegramBot()).not.toThrow();
+    await expect(unconfigured.shutdownTelegramBot()).resolves.toBeUndefined();
   });
 });

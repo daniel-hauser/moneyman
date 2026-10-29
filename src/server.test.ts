@@ -1,4 +1,4 @@
-import { mock, mockDeep } from "jest-mock-extended";
+import { mock, mockDeep, type DeepMockProxy } from "jest-mock-extended";
 import { Context, Telegraf } from "telegraf";
 import { schedule } from "node-cron";
 import { startServer, type ServerRunner } from "./server.js";
@@ -6,7 +6,7 @@ import { registerCommands } from "./bot/commands.js";
 import {
   getTelegramBot,
   launchTelegramBot,
-  stopTelegramBot,
+  shutdownTelegramBot,
   sendError,
 } from "./bot/notifier.js";
 
@@ -18,7 +18,7 @@ jest.mock("./bot/commands.js", () => ({ registerCommands: jest.fn() }));
 jest.mock("./bot/notifier.js", () => ({
   getTelegramBot: jest.fn(),
   launchTelegramBot: jest.fn(),
-  stopTelegramBot: jest.fn(),
+  shutdownTelegramBot: jest.fn().mockResolvedValue(undefined),
   sendError: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock("./utils/logger.js", () => ({
@@ -34,6 +34,7 @@ describe("startServer", () => {
     ReturnType<typeof process.listeners>
   >;
   const task = mock<ReturnType<typeof schedule>>();
+  let bot: DeepMockProxy<Telegraf<Context>>;
   const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
   const handlers = () => jest.mocked(registerCommands).mock.calls[0][1];
 
@@ -50,7 +51,9 @@ describe("startServer", () => {
       .mockImplementation((() => undefined) as never);
     runner = mock<ServerRunner>();
     jest.mocked(schedule).mockReturnValue(task);
-    jest.mocked(getTelegramBot).mockReturnValue(mockDeep<Telegraf<Context>>());
+    bot = mockDeep<Telegraf<Context>>();
+    bot.telegram.deleteMyCommands.mockResolvedValue(true);
+    jest.mocked(getTelegramBot).mockReturnValue(bot);
     jest.mocked(launchTelegramBot).mockResolvedValue(undefined);
   });
 
@@ -80,16 +83,17 @@ describe("startServer", () => {
   });
 
   it.each(["SIGINT", "SIGTERM"] as const)(
-    "stops immediately on %s even with an active run",
+    "clears commands on %s without waiting for the active run",
     async (signal) => {
       runner.runOnce.mockImplementation(() => new Promise(() => {}));
       await startServer(runner);
       await handlers().scrape();
       process.emit(signal);
       expect(task.stop).toHaveBeenCalledTimes(1);
-      expect(stopTelegramBot).toHaveBeenCalledTimes(1);
-      expect(exit).toHaveBeenCalledWith(0);
+      expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
       process.emit(signal === "SIGINT" ? "SIGTERM" : "SIGINT");
+      await flush();
+      expect(exit).toHaveBeenCalledWith(0);
       expect(exit).toHaveBeenCalledTimes(1);
     },
   );

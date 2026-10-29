@@ -35,6 +35,7 @@ export const {
   isTelegramBotRunning,
   launchTelegramBot,
   stopTelegramBot,
+  shutdownTelegramBot,
   requestOtpCode,
 } = createBot(bot);
 
