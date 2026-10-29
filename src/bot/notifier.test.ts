@@ -27,3 +27,29 @@ it("shares the notifier's Telegram instance with the bot controller", async () =
   expect(notifier.isTelegramBotRunning).toBe(controller.isTelegramBotRunning);
   expect(notifier.requestOtpCode).toBe(controller.requestOtpCode);
 });
+
+it("includes both operation and disposal failures in Telegram errors", async () => {
+  const notifier = await import("./notifier.js");
+  const bot = notifier.getTelegramBot()!;
+  const send = jest
+    .spyOn(bot.telegram, "sendMessage")
+    .mockResolvedValue(mock());
+  try {
+    await notifier.sendError(
+      new SuppressedError(
+        new Error("worker cleanup failed"),
+        new Error("scraper failed"),
+      ),
+      "scraper",
+    );
+    expect(send).toHaveBeenCalledWith(
+      "555",
+      expect.stringContaining(
+        "scraper failed; cleanup failed: worker cleanup failed",
+      ),
+      { parse_mode: undefined },
+    );
+  } finally {
+    send.mockRestore();
+  }
+});

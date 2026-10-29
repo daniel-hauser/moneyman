@@ -1,7 +1,11 @@
 import { randomUUID } from "crypto";
 import { locks } from "node:worker_threads";
-import { scrapeAccounts } from "./scraper/index.js";
-import { getScraperConfig, sendConfigToTelegramIfRequested } from "./config.js";
+import { scrapeAccounts } from "./scraper/client.js";
+import {
+  config,
+  getScraperConfig,
+  sendConfigToTelegramIfRequested,
+} from "./config.js";
 import { BooleanEnvVarSchema } from "./config.schema.js";
 import { sendError } from "./bot/notifier.js";
 import { createLogger } from "./utils/logger.js";
@@ -9,7 +13,7 @@ import { sendLogFile, enableDebugLoggingIfNeeded } from "./utils/secure-log.js";
 import { RunHandle, RunnerHooks, RunStatus, RunTrigger } from "./types.js";
 import { runWithStorage } from "./bot/index.js";
 import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
-import { monitorNodeConnections } from "./security/domains.js";
+import { createDomainTracker } from "./security/domains.js";
 import { getExternalIp, logRunMetadata } from "./runnerMetadata.js";
 import { runContextStore } from "./utils/asyncContext.js";
 import { startServer } from "./server.js";
@@ -32,7 +36,11 @@ process.on("uncaughtException", (err, origin) => {
 });
 
 enableDebugLoggingIfNeeded();
-monitorNodeConnections();
+const domainTracker = createDomainTracker({
+  domainTracking: config.options.scraping.domainTracking,
+  ...config.options.security,
+});
+process.once("exit", domainTracker.dispose);
 getExternalIp().then((ipInfo) => logger("External IP info:", ipInfo));
 main();
 
@@ -102,7 +110,7 @@ async function runScraper(hooks: RunnerHooks) {
     await hooks.onBeforeStart();
 
     logger("Starting to scrape");
-    const results = await scrapeAccounts(
+    const { results, domains } = await scrapeAccounts(
       getScraperConfig(),
       async (status, totalTime) => {
         logger("Status changed", { status, totalTime });
@@ -119,7 +127,7 @@ async function runScraper(hooks: RunnerHooks) {
       sendFailureScreenShots(hooks.failureScreenshotsHandler),
     ]);
 
-    await logRunMetadata();
+    await logRunMetadata(await domainTracker.getUsedDomains(), domains);
   } catch (e) {
     logger("Error", e);
     await hooks.onError(e);

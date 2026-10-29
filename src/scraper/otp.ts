@@ -1,19 +1,21 @@
-import { AccountConfig } from "../types.js";
-import { config } from "../config.js";
-import { requestOtpCode } from "../bot/notifier.js";
+import type { AccountConfig } from "../types.js";
 import { createLogger } from "../utils/logger.js";
+
+export type OtpRequest = (
+  companyId: string,
+  phoneNumber: string,
+) => Promise<string>;
 
 const logger = createLogger("otp");
 
 /**
  * Creates an OTP code retriever function for OneZero accounts
  */
-function createOtpCodeRetriever(account: AccountConfig): () => Promise<string> {
+function createOtpCodeRetriever(
+  account: AccountConfig,
+  requestOtpCode: OtpRequest,
+): () => Promise<string> {
   return async () => {
-    if (!config.options.notifications.telegram?.enableOtp) {
-      throw new Error("OTP is not enabled in configuration");
-    }
-
     const phoneNumber = (account as any).phoneNumber;
     logger(
       `Requesting OTP code for ${account.companyId} account (phone: ${phoneNumber})`,
@@ -25,10 +27,13 @@ function createOtpCodeRetriever(account: AccountConfig): () => Promise<string> {
 /**
  * Checks if an account should have an OTP code retriever attached
  */
-export function shouldCreateOtpRetriever(account: AccountConfig): boolean {
+export function shouldCreateOtpRetriever(
+  account: AccountConfig,
+  enableOtp = false,
+): boolean {
   return (
     account.companyId === "oneZero" &&
-    config.options.notifications.telegram?.enableOtp === true &&
+    enableOtp &&
     "phoneNumber" in account &&
     !!account.phoneNumber &&
     !("otpLongTermToken" in account)
@@ -40,12 +45,13 @@ export function shouldCreateOtpRetriever(account: AccountConfig): boolean {
  */
 export function prepareAccountCredentials(
   account: AccountConfig,
+  requestOtpCode?: OtpRequest,
 ): Partial<AccountConfig> {
-  if (shouldCreateOtpRetriever(account)) {
+  if (shouldCreateOtpRetriever(account, !!requestOtpCode)) {
     logger(`Setting up OTP code retriever for OneZero account`);
 
     return {
-      otpCodeRetriever: createOtpCodeRetriever(account),
+      otpCodeRetriever: createOtpCodeRetriever(account, requestOtpCode!),
     };
   }
 

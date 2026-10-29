@@ -166,7 +166,7 @@ export function sendError(message: unknown, caller: string = "") {
   return send(
     `${caller}\n❌ ${String(
       message instanceof Error
-        ? `${message.message}\n${message.stack}`
+        ? `${formatUnknownError(message)}\n${message.stack}`
         : formatUnknownError(message),
     )}`.trim(),
   );

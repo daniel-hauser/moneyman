@@ -1,27 +1,20 @@
 import { shouldCreateOtpRetriever, prepareAccountCredentials } from "./otp.js";
 import { AccountConfig } from "../types.js";
 import { CompanyTypes } from "israeli-bank-scrapers";
-
-// Mock the config module
-jest.mock("../config.js", () => ({
-  config: {
-    options: {
-      notifications: {
-        telegram: {
-          enableOtp: true,
-        },
-      },
-    },
-  },
-}));
-
-// Mock the notifier module
-jest.mock("../bot/notifier.js", () => ({
-  requestOtpCode: jest.fn().mockResolvedValue("123456"),
-}));
+const requestOtpCode = jest.fn().mockResolvedValue("123456");
 
 describe("OTP utilities", () => {
   describe("shouldCreateOtpRetriever", () => {
+    it("does not enable OTP without an explicit parent capability", () => {
+      expect(
+        shouldCreateOtpRetriever({
+          companyId: CompanyTypes.oneZero,
+          email: "test@example.com",
+          password: "password",
+          phoneNumber: "+97200000000",
+        } as AccountConfig),
+      ).toBe(false);
+    });
     it("should return true for OneZero account with phone number and OTP enabled", () => {
       const account = {
         companyId: CompanyTypes.oneZero,
@@ -30,7 +23,7 @@ describe("OTP utilities", () => {
         phoneNumber: "+972501234567",
       } as AccountConfig;
 
-      expect(shouldCreateOtpRetriever(account)).toBe(true);
+      expect(shouldCreateOtpRetriever(account, true)).toBe(true);
     });
 
     it("should return false for OneZero account with otpLongTermToken", () => {
@@ -42,7 +35,7 @@ describe("OTP utilities", () => {
         otpLongTermToken: "token123",
       } as AccountConfig;
 
-      expect(shouldCreateOtpRetriever(account)).toBe(false);
+      expect(shouldCreateOtpRetriever(account, true)).toBe(false);
     });
 
     it("should return false for OneZero account without phone number", () => {
@@ -52,7 +45,7 @@ describe("OTP utilities", () => {
         password: "password",
       } as AccountConfig;
 
-      expect(shouldCreateOtpRetriever(account)).toBe(false);
+      expect(shouldCreateOtpRetriever(account, true)).toBe(false);
     });
 
     it("should return false for non-OneZero account", () => {
@@ -62,7 +55,7 @@ describe("OTP utilities", () => {
         password: "password",
       } as AccountConfig;
 
-      expect(shouldCreateOtpRetriever(account)).toBe(false);
+      expect(shouldCreateOtpRetriever(account, true)).toBe(false);
     });
   });
 
@@ -75,10 +68,13 @@ describe("OTP utilities", () => {
         phoneNumber: "+972501234567",
       } as AccountConfig;
 
-      const prepared = prepareAccountCredentials(account);
+      const prepared = prepareAccountCredentials(account, requestOtpCode);
 
       expect(prepared).toHaveProperty("otpCodeRetriever");
       expect(typeof (prepared as any).otpCodeRetriever).toBe("function");
+      return expect((prepared as any).otpCodeRetriever()).resolves.toBe(
+        "123456",
+      );
     });
 
     it("should not modify accounts that don't need OTP", () => {

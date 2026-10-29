@@ -9,7 +9,7 @@ import {
 } from "./bot/notifier.js";
 import { registerCommands } from "./bot/commands.js";
 import type { RunHandle, RunStatus, RunTrigger } from "./types.js";
-import { waitForAbortSignal } from "./utils/promises.js";
+import { aborted } from "node:util";
 
 const logger = createLogger("server");
 
@@ -78,12 +78,15 @@ export async function startServer({
       logToPublicLog("A scrape is in progress, waiting for it to finish");
       // The Telegram bot keeps polling while draining, so a scrape waiting for
       // an OTP can still receive it.
+      const completed = new AbortController();
+      const drainSignal = AbortSignal.any([
+        AbortSignal.timeout(SHUTDOWN_DRAIN_TIMEOUT_MS),
+        completed.signal,
+      ]);
       const drained = await Promise.race([
         activeRun.then(() => true),
-        waitForAbortSignal(
-          AbortSignal.timeout(SHUTDOWN_DRAIN_TIMEOUT_MS),
-        ).catch(() => false),
-      ]);
+        aborted(drainSignal, activeRun).then(() => false),
+      ]).finally(() => completed.abort());
       if (!drained) {
         logToPublicLog(
           `The scrape did not finish within ${SHUTDOWN_DRAIN_TIMEOUT_MS / 1000} seconds, shutting down anyway`,

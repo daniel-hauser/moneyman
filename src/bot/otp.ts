@@ -3,7 +3,7 @@ import { message } from "telegraf/filters";
 import { config } from "../config.js";
 import { createLogger } from "../utils/logger.js";
 import { formatUnknownError } from "../utils/utils.js";
-import { waitForAbortSignal } from "../utils/promises.js";
+import { aborted } from "node:util";
 
 const logger = createLogger("otp");
 
@@ -39,7 +39,9 @@ export function createOtpHandler(
   return async function requestOtpCode(
     companyId: string,
     phoneNumber: string,
+    signal?: AbortSignal,
   ): Promise<string> {
+    signal?.throwIfAborted();
     if (!bot || !telegramConfig?.chatId || !telegramConfig.enableOtp) {
       throw new Error("Telegram OTP is not enabled or configured");
     }
@@ -51,6 +53,7 @@ export function createOtpHandler(
         `Please enter the OTP code sent to ${phoneNumber}:\n\n` +
         `Reply to this message with the code.`,
     );
+    signal?.throwIfAborted();
 
     logger("Waiting for OTP code from user...");
 
@@ -60,13 +63,13 @@ export function createOtpHandler(
       otpFlowOwnsBot = true;
     }
 
-    const timeoutPromise = waitForAbortSignal(
-      AbortSignal.timeout(timeoutSeconds * 1000),
-    ).catch(() => {
-      throw new Error(
-        `OTP timeout: No response received within ${timeoutSeconds} seconds`,
-      );
-    });
+    const timeout = AbortSignal.timeout(timeoutSeconds * 1000);
+    const completed = new AbortController();
+    const combined = AbortSignal.any(
+      [signal, timeout, completed.signal].filter(
+        (signal) => signal !== undefined,
+      ),
+    );
     const responsePromise = new Promise<string>((resolve, reject) => {
       pending.set(requestMessage.message_id, (text) => {
         pending.delete(requestMessage.message_id);
@@ -93,8 +96,17 @@ export function createOtpHandler(
     });
 
     try {
-      return await Promise.race([responsePromise, timeoutPromise]);
+      const response = await Promise.race([
+        responsePromise,
+        aborted(combined, requestMessage),
+      ]);
+      if (typeof response === "string") return response;
+      signal?.throwIfAborted();
+      throw new Error(
+        `OTP timeout: No response received within ${timeoutSeconds} seconds`,
+      );
     } finally {
+      completed.abort();
       pending.delete(requestMessage.message_id);
 
       // OTP must not stop polling owned by the long-running server.

@@ -5,10 +5,11 @@ import { mock } from "jest-mock-extended";
 import { CompanyTypes } from "israeli-bank-scrapers";
 
 jest.mock("./config.js", () => ({
+  config: { options: { scraping: {}, security: {} } },
   getScraperConfig: jest.fn(() => ({})),
   sendConfigToTelegramIfRequested: jest.fn().mockResolvedValue(undefined),
 }));
-jest.mock("./scraper/index.js", () => ({ scrapeAccounts: jest.fn() }));
+jest.mock("./scraper/client.js", () => ({ scrapeAccounts: jest.fn() }));
 jest.mock("./bot/index.js", () => ({
   runWithStorage: jest.fn(
     jest.requireActual<typeof import("./bot/index.js")>("./bot/index.js")
@@ -33,7 +34,12 @@ jest.mock("./runnerMetadata.js", () => ({
   logRunMetadata: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock("./security/domains.js", () => ({
-  monitorNodeConnections: jest.fn(),
+  createDomainTracker: jest.fn(() => ({
+    getUsedDomains: jest.fn(async () => ({
+      node: { main: ["GET parent.test"] },
+    })),
+    dispose: jest.fn(),
+  })),
 }));
 jest.mock("./utils/failureScreenshot.js", () => ({
   sendFailureScreenShots: jest.fn().mockResolvedValue(undefined),
@@ -67,7 +73,7 @@ async function loadEntrypoint(longRunning: boolean) {
     .spyOn(process, "exit")
     .mockImplementation((() => started()) as never);
 
-  const { scrapeAccounts } = await import("./scraper/index.js");
+  const { scrapeAccounts } = await import("./scraper/client.js");
   const { runWithStorage } = await import("./bot/index.js");
   const { sendLogFile } = await import("./utils/secure-log.js");
   const { startServer } = await import("./server.js");
@@ -75,7 +81,7 @@ async function loadEntrypoint(longRunning: boolean) {
   const scrapeAccountsMock = jest.mocked(scrapeAccounts);
   const runWithStorageMock = jest.mocked(runWithStorage);
   const startServerMock = jest.mocked(startServer);
-  scrapeAccountsMock.mockResolvedValue([]);
+  scrapeAccountsMock.mockResolvedValue({ results: [], domains: {} });
   startServerMock.mockImplementation(async () => started());
 
   await import("./index.js");
@@ -94,15 +100,21 @@ async function loadEntrypoint(longRunning: boolean) {
 describe("index", () => {
   const originalEnv = process.env;
   let originalExceptionListeners: ReturnType<typeof process.listeners>;
+  let originalExitListeners: ReturnType<typeof process.listeners>;
 
   beforeEach(() => {
     originalExceptionListeners = process.listeners("uncaughtException");
+    originalExitListeners = process.listeners("exit");
   });
 
   afterEach(() => {
     for (const listener of process.listeners("uncaughtException")) {
       if (!originalExceptionListeners.includes(listener)) {
         process.removeListener("uncaughtException", listener);
+      }
+      for (const listener of process.listeners("exit")) {
+        if (!originalExitListeners.includes(listener))
+          process.removeListener("exit", listener);
       }
     }
     process.env = originalEnv;
@@ -117,6 +129,15 @@ describe("index", () => {
     expect(startServerMock).not.toHaveBeenCalled();
     expect(exit).toHaveBeenCalledWith(0);
     expect(sendLogFileMock).toHaveBeenCalledWith(true);
+  });
+
+  it("disposes the parent lifetime tracker on process exit", async () => {
+    await loadEntrypoint(false);
+    const { createDomainTracker } = await import("./security/domains.js");
+    const tracker = jest.mocked(createDomainTracker).mock.results[0].value;
+    expect(tracker.dispose).not.toHaveBeenCalled();
+    process.rawListeners("exit").at(-1)!.call(process, 0);
+    expect(tracker.dispose).toHaveBeenCalledTimes(1);
   });
 
   describe("long running", () => {
@@ -139,9 +160,11 @@ describe("index", () => {
     });
 
     it("reports a run where everything worked as successful", async () => {
-      mocks.scrapeAccountsMock.mockResolvedValue([
-        accountResult(CompanyTypes.hapoalim, true),
-      ]);
+      const domains = { hapoalim: { allowed: ["GET bank.test"] } };
+      mocks.scrapeAccountsMock.mockResolvedValue({
+        results: [accountResult(CompanyTypes.hapoalim, true)],
+        domains,
+      });
 
       const result = await runOnce("manual");
 
@@ -155,13 +178,21 @@ describe("index", () => {
       expect(result).toMatchObject({ trigger: "manual", failed: false });
       expect(runner.getLastRun()).toBe(result);
       expect(mocks.sendLogFileMock).toHaveBeenCalledWith(false);
+      const { logRunMetadata } = await import("./runnerMetadata.js");
+      expect(logRunMetadata).toHaveBeenCalledWith(
+        { node: { main: ["GET parent.test"] } },
+        domains,
+      );
     });
 
     it("fails the run when an account fails to scrape", async () => {
-      mocks.scrapeAccountsMock.mockResolvedValue([
-        accountResult(CompanyTypes.hapoalim, true),
-        accountResult(CompanyTypes.oneZero, false),
-      ]);
+      mocks.scrapeAccountsMock.mockResolvedValue({
+        results: [
+          accountResult(CompanyTypes.hapoalim, true),
+          accountResult(CompanyTypes.oneZero, false),
+        ],
+        domains: {},
+      });
 
       expect(await runOnce("manual")).toMatchObject({ failed: true });
     });
@@ -195,7 +226,10 @@ describe("index", () => {
       mocks.scrapeAccountsMock.mockImplementation(
         async (_config, _status, onError) => {
           await onError?.(new Error("browser close failed"), "browser.close");
-          return [accountResult(CompanyTypes.hapoalim, true)];
+          return {
+            results: [accountResult(CompanyTypes.hapoalim, true)],
+            domains: {},
+          };
         },
       );
 

@@ -2,6 +2,7 @@ import { mock, mockDeep } from "jest-mock-extended";
 import { Context, Telegraf, type MiddlewareFn } from "telegraf";
 import type { Message } from "telegraf/types";
 import { createOtpHandler } from "./otp.js";
+import { getEventListeners } from "node:events";
 
 jest.mock("../config.js", () => ({
   config: {
@@ -46,6 +47,8 @@ describe("createOtpHandler", () => {
     });
     requestOtpCode = createOtpHandler(bot, polling);
   });
+
+  afterEach(() => jest.restoreAllMocks());
 
   async function reply(index: number, text: string, replyToMessageId?: number) {
     const handler = bot.on.mock.calls[index][1] as MiddlewareFn<Context>;
@@ -131,6 +134,7 @@ describe("createOtpHandler", () => {
   });
 
   it("reuses one dispatcher across completed requests", async () => {
+    const combined = jest.spyOn(AbortSignal, "any");
     for (let i = 1; i <= 5; i++) {
       const request = requestOtpCode("oneZero", "+97200000001");
       await flush();
@@ -138,6 +142,39 @@ describe("createOtpHandler", () => {
       await expect(request).resolves.toBe("123456");
     }
     expect(bot.on).toHaveBeenCalledTimes(1);
+    for (const { value } of combined.mock.results) {
+      expect(getEventListeners(value as AbortSignal, "abort")).toEqual([]);
+    }
+  });
+
+  it.each([false, true])(
+    "cancels a worker OTP without stopping server-owned polling (%s)",
+    async (serverOwnsPolling) => {
+      polling.isTelegramBotRunning.mockReturnValue(serverOwnsPolling);
+      const abort = new AbortController();
+      const request = requestOtpCode("oneZero", "+97200000001", abort.signal);
+      const rejected = expect(request).rejects.toThrow("worker exited");
+      await flush();
+      abort.abort(new Error("worker exited"));
+      await rejected;
+      expect(polling.stopTelegramBot).toHaveBeenCalledTimes(
+        serverOwnsPolling ? 0 : 1,
+      );
+      const next = requestOtpCode("oneZero", "+97200000002");
+      await flush();
+      await reply(0, "654321");
+      await expect(next).resolves.toBe("654321");
+    },
+  );
+
+  it("does not start an OTP request after the worker already exited", async () => {
+    const abort = new AbortController();
+    abort.abort(new Error("worker exited"));
+    await expect(
+      requestOtpCode("oneZero", "+97200000001", abort.signal),
+    ).rejects.toThrow("worker exited");
+    expect(bot.telegram.sendMessage).not.toHaveBeenCalled();
+    expect(polling.launchTelegramBot).not.toHaveBeenCalled();
   });
 
   it("ignores commands and replies targeting completed requests", async () => {
@@ -155,26 +192,30 @@ describe("createOtpHandler", () => {
     await expect(second).resolves.toBe("222222");
   });
 
-  it("removes timed-out requests so a later plain reply is unambiguous", async () => {
-    const controller = new AbortController();
-    const timeout = jest
-      .spyOn(AbortSignal, "timeout")
-      .mockReturnValueOnce(controller.signal);
-    try {
-      const expired = requestOtpCode("oneZero", "+97200000001");
-      const rejected = expect(expired).rejects.toThrow("OTP timeout");
-      await flush();
-      expect(timeout).toHaveBeenCalledWith(3_600_000);
-      controller.abort();
-      await rejected;
+  it.each([false, true])(
+    "removes timed-out requests, including an expired deadline (%s)",
+    async (alreadyAborted) => {
+      const controller = new AbortController();
+      if (alreadyAborted) controller.abort(new Error("expired OTP deadline"));
+      const timeout = jest
+        .spyOn(AbortSignal, "timeout")
+        .mockReturnValueOnce(controller.signal);
+      try {
+        const expired = requestOtpCode("oneZero", "+97200000001");
+        const rejected = expect(expired).rejects.toThrow("OTP timeout");
+        await flush();
+        expect(timeout).toHaveBeenCalledWith(3_600_000);
+        controller.abort();
+        await rejected;
 
-      const next = requestOtpCode("oneZero", "+97200000002");
-      await flush();
-      await reply(0, "654321");
-      await expect(next).resolves.toBe("654321");
-      expect(bot.on).toHaveBeenCalledTimes(1);
-    } finally {
-      timeout.mockRestore();
-    }
-  });
+        const next = requestOtpCode("oneZero", "+97200000002");
+        await flush();
+        await reply(0, "654321");
+        await expect(next).resolves.toBe("654321");
+        expect(bot.on).toHaveBeenCalledTimes(1);
+      } finally {
+        timeout.mockRestore();
+      }
+    },
+  );
 });
