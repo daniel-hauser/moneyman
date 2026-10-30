@@ -130,6 +130,8 @@ describe("provider configuration refresh through the Varlock CLI", () => {
             MONEYMAN_CONFIG_SECRET_ID: id,
           },
           encoding: "utf8",
+          timeout: 60_000,
+          killSignal: "SIGKILL",
         }),
       );
       expect(JSON.stringify(args)).not.toContain("machine-token");
@@ -289,6 +291,45 @@ describe("provider configuration refresh through the Varlock CLI", () => {
       new Error(SECRET_REFRESH_FAILURE),
     );
     expect(mockPrivateLog).toHaveBeenCalled();
+  });
+
+  it("terminates a stalled provider, fails safely without stale fallback, and permits retry", async () => {
+    const actual =
+      jest.requireActual<typeof import("node:child_process")>(
+        "node:child_process",
+      );
+    mockExecFile.mockImplementationOnce((file, _args, options, callback) => {
+      expect(options).toEqual(
+        expect.objectContaining({ timeout: 60_000, killSignal: "SIGKILL" }),
+      );
+      return actual.execFile(
+        file,
+        [
+          "-e",
+          'process.on("SIGTERM", () => {}); console.error("sensitive-timeout-diagnostic"); setInterval(() => {}, 1000)',
+        ],
+        { ...options, timeout: 300 },
+        callback,
+      );
+    });
+    const { loadRunConfig, SECRET_REFRESH_FAILURE } =
+      await import("./configRefresh.js");
+
+    await expect(loadRunConfig()).rejects.toEqual(
+      new Error(SECRET_REFRESH_FAILURE),
+    );
+    expect(mockPrivateLog).toHaveBeenCalledWith(
+      "Varlock secret load failed",
+      expect.objectContaining({ killed: true, signal: "SIGKILL" }),
+      expect.any(String),
+    );
+    complete(
+      JSON.stringify({
+        MONEYMAN_CONFIG: JSON.stringify(remoteConfig("retry-password")),
+      }),
+    );
+    expect((await loadRunConfig()).accounts[0].password).toBe("retry-password");
+    expect(process.env.MONEYMAN_CONFIG).toContain("stale-resolved-secret");
   });
 
   it("consumes the installed CLI's actual sensitive JSON output using an offline synthetic schema", async () => {

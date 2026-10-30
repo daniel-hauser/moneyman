@@ -76,7 +76,7 @@ One-shot runs use the startup configuration without fetching it a second time. C
 
 When a provider is configured, `/refresh_secrets` is available in the configured Telegram chat to refresh the provider configuration without starting a scrape. Manual refreshes can run alongside scraping or other refreshes without changing an active scrape's configuration. Duplicate scrape requests are still rejected. The next scrape still performs its own automatic refresh.
 
-If a refresh fails, that scrape does not start with stale credentials or fall back to another configuration source. The bot remains available so you can correct the provider configuration and try again. Refreshing applies only to provider-backed configuration; direct `MONEYMAN_CONFIG` and `MONEYMAN_CONFIG_PATH` configurations retain their startup behavior.
+Provider retrieval is limited to 60 seconds, both at startup and during refresh. If a refresh fails, that scrape does not start with stale credentials or fall back to another configuration source. The bot remains available so you can correct the provider configuration and try again. Refreshing applies only to provider-backed configuration; direct `MONEYMAN_CONFIG` and `MONEYMAN_CONFIG_PATH` configurations retain their startup behavior.
 
 Restart the container after changing the machine account token in the deployment environment.
 

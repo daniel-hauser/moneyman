@@ -100,12 +100,44 @@ describe("provider-backed configuration startup", () => {
           MONEYMAN_CONFIG_SECRET_ID: "12345678-1234-4234-8234-123456789abc",
         },
         encoding: "utf8",
+        timeout: 60_000,
+        killSignal: "SIGKILL",
       }),
     );
     expect(mockPrivateLog).toHaveBeenCalledWith(
       "Configuration successfully loaded from secret provider",
     );
     expect(mockPublicLog).not.toHaveBeenCalled();
+  });
+
+  it("terminates a stalled provider at startup with only a safe public failure", async () => {
+    const actual =
+      jest.requireActual<typeof import("node:child_process")>(
+        "node:child_process",
+      );
+    const { execFileSync } = await import("node:child_process");
+    jest.mocked(execFileSync).mockImplementationOnce((file, _args, options) => {
+      expect(options).toEqual(
+        expect.objectContaining({ timeout: 60_000, killSignal: "SIGKILL" }),
+      );
+      return actual.execFileSync(
+        file,
+        [
+          "-e",
+          'process.on("SIGTERM", () => {}); console.error("sensitive-timeout-diagnostic"); setInterval(() => {}, 1000)',
+        ],
+        { ...options, timeout: 300, stdio: "pipe" },
+      );
+    });
+
+    await expect(import("./config.js")).rejects.toThrow(safeError);
+    expect(mockPublicLog).toHaveBeenCalledWith(safeError);
+    expect(mockPublicLog).toHaveBeenCalledTimes(1);
+    expect(console.error).toHaveBeenCalledWith(
+      "Unable to load configuration from secret provider:",
+      expect.objectContaining({ code: "ETIMEDOUT", signal: "SIGKILL" }),
+    );
+    expect(process.env.MONEYMAN_CONFIG).toContain("stale");
   });
 
   it.each([

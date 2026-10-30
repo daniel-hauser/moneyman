@@ -59,6 +59,9 @@ function configSecretCommand(configSecret: unknown) {
       },
       encoding: "utf8" as const,
       maxBuffer: 10 * 1024 * 1024,
+      timeout: 60_000,
+      // A child handling SIGTERM must not keep startup or a refresh blocked.
+      killSignal: "SIGKILL" as const,
     },
   };
 }
