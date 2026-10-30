@@ -110,8 +110,12 @@ export async function scrapeAccounts(
     try {
       await browser[Symbol.asyncDispose]();
     } catch (error) {
-      await onError?.(error, "browser.close");
       logger("failed to close browser", error);
+      try {
+        await onError?.(error, "browser.close");
+      } catch (notificationError) {
+        logger("failed to report browser close failure", notificationError);
+      }
     }
   }
 }

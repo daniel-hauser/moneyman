@@ -216,6 +216,35 @@ describe("scraper runtime browser lifecycle", () => {
     expect(browser[Symbol.asyncDispose]).toHaveBeenCalledTimes(1);
   });
 
+  it.each([false, true])(
+    "preserves the scrape outcome when reporting a close failure also fails (scrape failed: %s)",
+    async (scrapeFailed) => {
+      const scrapeError = new Error("context failed");
+      const closeError = new Error("close failed");
+      browser[Symbol.asyncDispose].mockRejectedValueOnce(closeError);
+      if (scrapeFailed) {
+        jest
+          .mocked(createSecureBrowserContext)
+          .mockRejectedValueOnce(scrapeError);
+      }
+      const onError = jest.fn().mockRejectedValue(new Error("report failed"));
+      const run = scrapeAccounts(
+        config,
+        initDomainTracking,
+        undefined,
+        onError,
+      );
+
+      if (scrapeFailed) {
+        await expect(run).rejects.toBe(scrapeError);
+      } else {
+        await expect(run).resolves.toHaveLength(1);
+      }
+      expect(onError).toHaveBeenCalledWith(closeError, "browser.close");
+      expect(browser[Symbol.asyncDispose]).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it("reports close failures while preserving results", async () => {
     browser[Symbol.asyncDispose].mockRejectedValueOnce(
       new Error("close failed"),
