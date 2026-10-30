@@ -27,6 +27,8 @@ export interface RunReport {
   failed: boolean;
   scrape: { status: Array<string>; totalTimeSec?: number };
   summary?: { results: Array<AccountScrapeResult> };
+  errors: Array<{ caller: string; message: string }>;
+  screenshots: Array<{ caption: string; dataUrl: string }>;
   /** Keyed by storage name, ordered by insertion */
   storages: Record<string, StorageRow>;
   /** Free-form notes, e.g. "No transactions found, skipping save" */
@@ -38,6 +40,8 @@ export function createRunReport(startedAt = new Date()): RunReport {
     startedAt,
     failed: false,
     scrape: { status: ["Starting..."] },
+    errors: [],
+    screenshots: [],
     storages: {},
     notices: [],
   };
@@ -167,4 +171,51 @@ export function renderRunReport(report: RunReport): string {
 /** The whole report with nothing shortened or dropped */
 export function renderFullReport(report: RunReport): string {
   return render(report, { details: true, full: true });
+}
+
+export function renderHTMLReport(report: RunReport): string {
+  const failed =
+    report.failed ||
+    Object.values(report.storages).some((row) => row.state === "error") ||
+    report.summary?.results.some(({ result }) => !result.success);
+  const errors = report.errors.length
+    ? `<section><h2>Errors</h2><ul>${report.errors
+        .map(
+          ({ caller, message }) =>
+            `<li><strong>${escapers.HTML(caller)}</strong><pre>${escapers.HTML(message)}</pre></li>`,
+        )
+        .join("")}</ul></section>`
+    : "";
+  const screenshots = report.screenshots.length
+    ? `<section><h2>Screenshots</h2>${report.screenshots
+        .map(
+          ({ caption, dataUrl }) =>
+            `<details><summary>${escapers.HTML(caption)}</summary><img src="${escapers.HTML(dataUrl)}" alt="${escapers.HTML(caption)}"></details>`,
+        )
+        .join("")}</section>`
+    : "";
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moneyman run report</title>
+<style>
+body{font:16px system-ui,sans-serif;line-height:1.5;max-width:960px;margin:2rem auto;padding:0 1rem;color:#202124}
+h1,h2{line-height:1.2} .status{padding:.75rem 1rem;border-radius:.5rem;background:${failed ? "#fde8e7" : "#e6f4ea"};color:${failed ? "#a50e0e" : "#137333"}}
+section{margin:2rem 0} details{margin:.75rem 0;padding:.75rem;border:1px solid #dadce0;border-radius:.5rem}
+summary{cursor:pointer;font-weight:600} img{display:block;max-width:100%;height:auto;margin:1rem 0}
+pre{white-space:pre-wrap;overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<h1>Moneyman run report</h1>
+<p class="status">${failed ? "❌ Failed" : "✅ Succeeded"}</p>
+<p>Started: <time datetime="${report.startedAt.toISOString()}">${escapers.HTML(report.startedAt.toISOString())}</time></p>
+<section><h2>Run details</h2><details open><summary>Status, results, and storage</summary>${renderFullReport(report)}</details></section>
+${errors}
+${screenshots}
+</body>
+</html>`;
 }

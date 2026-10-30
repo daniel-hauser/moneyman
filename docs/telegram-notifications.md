@@ -2,7 +2,7 @@
 
 We use telegram to send you the update status.
 
-Each run is reported in a single message that is edited as the run progresses: scraping status, a summary of the scraped transactions and one row per storage. Details (account status, storage steps, skipped and highlighted transactions) are collapsed in expandable quotes. If the message had to be shortened (long errors or Telegram's 4096 character limit), the full report is also sent once at the end of the run as `status.html` (open it in a browser). Errors are sent as separate messages. To understand update bursts and rate limiting, enable `DEBUG=moneyman:report`: a single `report stats {...}` line (renders, requests, skipped unchanged renders, 429s, largest burst of mutations) is logged at the end of each run.
+Each run is reported in a single message that is edited as the run progresses: scraping status, a summary of the scraped transactions and one row per storage. At the end of every run, a self-contained `report.html` is sent with the final status, full errors, and failure screenshots embedded. The report works offline; long sections and screenshots can be expanded in a browser. To understand update bursts and rate limiting, enable `DEBUG=moneyman:report`: a single `report stats {...}` line (renders, requests, skipped unchanged renders, 429s, largest burst of mutations) is logged at the end of each run.
 
 Setup instructions:
 
@@ -56,8 +56,8 @@ Only the configured `chatId` can use them — messages from any other chat are i
 | `/status` | Report whether a scrape is running, how the last one ended and when the next scheduled run happens |
 | `/help`   | List the available commands                                                                        |
 
-`/scrape` replies immediately, then the regular notifications (progress, summary, errors) are sent
-to the same chat while the scrape runs. Automatic runs are configured with
+`/scrape` replies immediately, then progress and the summary are sent to the same chat while the
+scrape runs. Errors and screenshots are included in the final HTML report. Automatic runs are configured with
 [`options.scheduling.cron`](../README.md#other-configurations).
 
 ## Using OTP 2FA with OneZero Accounts

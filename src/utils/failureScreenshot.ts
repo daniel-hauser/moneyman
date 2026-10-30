@@ -25,7 +25,7 @@ export async function sendFailureScreenShots(
 ) {
   try {
     const photos = await glob(`${tempFolder}/**/*.png`, { absolute: true });
-    logger("Sending failure screenshots", { photos });
+    logger("Collecting failure screenshots", { photos });
     await sendPhotos(
       photos.map((photoPath) => ({
         photoPath,

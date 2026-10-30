@@ -6,6 +6,7 @@ import { createSaveStats } from "./saveStats.js";
 import {
   createRunReport,
   renderFullReport,
+  renderHTMLReport,
   renderRunReport,
   TELEGRAM_MESSAGE_LIMIT,
   type RunReport,
@@ -169,5 +170,26 @@ describe("renderFullReport", () => {
       big.storages[`Storage ${i}`] = { state: "saving", steps: [] };
     }
     expect(renderFullReport(big)).not.toBe(renderRunReport(big));
+  });
+});
+
+describe("renderHTMLReport", () => {
+  it("embeds screenshots and errors in an offline report with final status", () => {
+    const report = baseReport();
+    report.failed = true;
+    report.errors.push({ caller: "scraper", message: "<failed>" });
+    report.screenshots.push({
+      caption: "Failure <image>",
+      dataUrl: "data:image/png;base64,aGVsbG8=",
+    });
+
+    const html = renderHTMLReport(report);
+
+    expect(html).toContain("<!doctype html>");
+    expect(html).toContain("❌ Failed");
+    expect(html).toContain("&lt;failed&gt;");
+    expect(html).toContain("&lt;image&gt;");
+    expect(html).toContain('src="data:image/png;base64,aGVsbG8="');
+    expect(html).not.toMatch(/<script|https?:\/\//i);
   });
 });
