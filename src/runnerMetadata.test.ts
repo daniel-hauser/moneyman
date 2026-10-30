@@ -4,6 +4,9 @@ import type { Telegraf } from "telegraf";
 
 jest.mock("dotenv/config", () => ({}));
 jest.mock("telegraf", () => ({ Telegraf: mock<Telegraf>() }));
+jest.mock("./utils/logger.js", () => ({
+  createLogger: jest.fn(() => jest.fn()),
+}));
 
 // Mock fetch globally
 const mockFetch = jest.fn<typeof fetch>();
@@ -20,6 +23,43 @@ describe("runnerMetadata", () => {
 
   afterEach(() => {
     process.env = originalEnv;
+  });
+
+  it("logs explicit worker unions without carrying worker domains into the next run", async () => {
+    process.env = {
+      ...originalEnv,
+      MONEYMAN_CONFIG: JSON.stringify({
+        accounts: [],
+        storage: { localJson: { enabled: true } },
+      }),
+    };
+    const { logRunMetadata } = await import("./runnerMetadata.js");
+    const { createLogger } = await import("./utils/logger.js");
+    const mockedLogger = jest.mocked(createLogger);
+    const index = mockedLogger.mock.calls.findIndex(
+      ([namespace]) => namespace === "runner-metadata",
+    );
+    const logger = mockedLogger.mock.results[index].value;
+    const parentDomains = { node: { shared: ["GET parent.test"] } };
+    await logRunMetadata(
+      parentDomains,
+      {
+        max: { allowed: ["GET first.test"] },
+        node: { shared: ["GET worker.test"] },
+      },
+      {
+        max: { allowed: ["GET second.test"] },
+        node: { shared: ["GET worker.test"] },
+      },
+    );
+    expect(logger).toHaveBeenLastCalledWith("Used domains:", {
+      max: { allowed: ["GET first.test", "GET second.test"] },
+      node: { shared: ["GET parent.test", "GET worker.test"] },
+    });
+    await logRunMetadata(parentDomains);
+    expect(logger).toHaveBeenLastCalledWith("Used domains:", {
+      node: { shared: ["GET parent.test"] },
+    });
   });
 
   describe("getExternalIp", () => {

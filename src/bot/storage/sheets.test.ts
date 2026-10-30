@@ -6,7 +6,6 @@ import {
 import { mock, mockClear } from "jest-mock-extended";
 import { config, transactionRow } from "../../utils/tests.js";
 import type { MoneymanConfig } from "../../config.js";
-import { LoggingOptionsSchema } from "../../config.schema.js";
 
 // Create mocks at top level
 const mockSheet = mock<GoogleSpreadsheetWorksheet>({
@@ -167,29 +166,7 @@ describe("GoogleSheetsStorage", () => {
 
   describe("canSave", () => {
     it("should return false when GOOGLE_SHEET_ID is missing", () => {
-      const configWithoutGoogleSheets: MoneymanConfig = {
-        accounts: [],
-        storage: {},
-        options: {
-          scraping: {
-            daysBack: 10,
-            futureMonths: 1,
-            transactionHashType: "",
-            additionalTransactionInfo: false,
-            includeRawTransaction: false,
-            hiddenDeprecations: [],
-            maxParallelScrapers: 1,
-            domainTracking: false,
-          },
-          security: {
-            blockByDefault: false,
-          },
-          notifications: {},
-          logging: LoggingOptionsSchema.parse({}),
-        },
-      };
-
-      const newStorage = new GoogleSheetsStorage(configWithoutGoogleSheets);
+      const newStorage = new GoogleSheetsStorage(config());
       expect(newStorage.canSave()).toBe(false);
     });
   });

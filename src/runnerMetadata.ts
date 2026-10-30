@@ -1,4 +1,4 @@
-import { getUsedDomains } from "./security/domains.js";
+import { mergeUsedDomains, type UsedDomains } from "./security/domains.js";
 import { createLogger } from "./utils/logger.js";
 import { config } from "./config.js";
 
@@ -20,7 +20,7 @@ export async function getExternalIp(): Promise<{ ip: string }> {
   }
 }
 
-export async function logRunMetadata(): Promise<void> {
-  const usedDomains = await getUsedDomains();
+export async function logRunMetadata(...domains: UsedDomains[]): Promise<void> {
+  const usedDomains = mergeUsedDomains(...domains);
   logger("Used domains:", usedDomains);
 }

@@ -17,6 +17,15 @@ describe("deprecationManager", () => {
   });
 
   describe("sendDeprecationMessage", () => {
+    it("uses each run's hidden deprecations without marking a suppressed warning as sent", () => {
+      const handler = jest.fn();
+      assignDeprecationHandler(handler);
+      sendDeprecationMessage("hashFiledChange", ["hashFiledChange"]);
+      expect(handler).not.toHaveBeenCalled();
+      sendDeprecationMessage("hashFiledChange", []);
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+
     it("should call handler immediately when handler is assigned", () => {
       const mockHandler = jest.fn();
       assignDeprecationHandler(mockHandler);

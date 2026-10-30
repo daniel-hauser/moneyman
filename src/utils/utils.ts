@@ -1,3 +1,4 @@
+/// <reference lib="esnext.disposable" />
 import { inspect } from "node:util";
 
 export function sleep(ms: number): Promise<void> {
@@ -14,6 +15,9 @@ function inspectUnknownObject(value: object): string {
 }
 
 export function formatUnknownError(value: unknown): string {
+  if (value instanceof SuppressedError) {
+    return `${formatUnknownError(value.suppressed)}; cleanup failed: ${formatUnknownError(value.error)}`;
+  }
   if (value instanceof Error) {
     return value.message;
   }

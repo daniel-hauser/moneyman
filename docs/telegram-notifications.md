@@ -2,6 +2,8 @@
 
 We use telegram to send you the update status.
 
+Each run is reported in a single message that is edited as the run progresses: scraping status, a summary of the scraped transactions and one row per storage. At the end of every run, a self-contained `report.html` is sent with the final status, full errors, and failure screenshots embedded. The report works offline; long sections and screenshots can be expanded in a browser. To understand update bursts and rate limiting, enable `DEBUG=moneyman:report`: a single `report stats {...}` line (renders, requests, skipped unchanged renders, 429s, largest burst of mutations) is logged at the end of each run.
+
 Setup instructions:
 
 1. Create your bot following [this](https://core.telegram.org/bots#creating-a-new-bot)
@@ -31,10 +33,35 @@ options: {
        * @default 300 (5 minutes)
        */
       otpTimeoutSeconds?: number;
+      /**
+       * Minimum time in milliseconds between edits of the status message.
+       * Values below 250 are raised to 250 to stay within Telegram's rate limits.
+       * @default 500
+       */
+      updateIntervalMs?: number;
     };
   };
 };
 ```
+
+## Commands
+
+When moneyman runs in [long running mode](../README.md#long-running-mode)
+(`MONEYMAN_LONG_RUNNING=true`) it stays connected to Telegram and listens for commands.
+Only the configured `chatId` can use them — messages from any other chat are ignored.
+
+| Command            | Description                                                                                        |
+| ------------------ | -------------------------------------------------------------------------------------------------- |
+| `/scrape`          | Run a scrape right now (`/fetch` works as an alias)                                                |
+| `/refresh_secrets` | Refresh the secret-provider configuration without starting a scrape                                |
+| `/status`          | Report whether a scrape is running, how the last one ended and when the next scheduled run happens |
+| `/help`            | List the available commands                                                                        |
+
+`/scrape` replies immediately, then progress and the summary are sent to the same chat while the
+scrape runs. Errors and screenshots are included in the final HTML report. Automatic runs are configured with
+[`options.scheduling.cron`](../README.md#other-configurations).
+
+`/refresh_secrets` is registered and listed only when a [secret provider](./secret-providers.md) is configured. It fetches and validates bank/storage credentials and per-run settings without changing the running Telegram bot or schedule. Manual refreshes can run alongside scraping or other refreshes without changing an active scrape's configuration. Duplicate scrape requests still receive an already-running response.
 
 ## Using OTP 2FA with OneZero Accounts
 

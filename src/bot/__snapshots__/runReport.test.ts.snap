@@ -1,0 +1,372 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`renderHTMLReport embeds screenshots and errors in an offline report with final status 1`] = `
+"<!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Moneyman run report</title>
+        <style>
+          body {
+    font:
+      16px system-ui,
+      sans-serif;
+    line-height: 1.5;
+    max-width: 960px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    color: #202124;
+  }
+  h1,
+  h2 {
+    line-height: 1.2;
+  }
+  .status {
+    display: inline-block;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+  }
+  .status.failed {
+    background: #fde8e7;
+    color: #a50e0e;
+  }
+  .status.succeeded {
+    background: #e6f4ea;
+    color: #137333;
+  }
+  section {
+    margin: 2rem 0;
+  }
+  details {
+    margin: 0.75rem 0;
+    padding: 0.75rem;
+    border: 1px solid #dadce0;
+    border-radius: 0.5rem;
+  }
+  summary {
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .run-details,
+  .storage-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+    gap: 0.75rem;
+  }
+  .run-details > div,
+  .storage-stats > div,
+  .account-result,
+  .storage-result {
+    min-width: 0;
+    padding: 0.75rem;
+    border: 1px solid #dadce0;
+    border-radius: 0.5rem;
+  }
+  .run-details dt,
+  .storage-stats dt {
+    font-weight: 600;
+  }
+  .run-details dd,
+  .storage-stats dd {
+    margin: 0.25rem 0 0;
+  }
+  .report-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 0.75rem;
+  }
+  .report-grid h3,
+  .report-grid h4 {
+    margin-top: 0;
+  }
+  .storage-state {
+    margin-top: -0.75rem;
+  }
+  .scraper-status,
+  .account-result ul,
+  .storage-result ul {
+    padding-left: 1.5rem;
+  }
+  .table-wrapper {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap;
+  }
+  th,
+  td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #dadce0;
+    text-align: left;
+  }
+  td:nth-child(4) {
+    white-space: normal;
+    min-width: 12rem;
+  }
+  .screenshots {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+    gap: 0.75rem;
+  }
+  .screenshot {
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid #dadce0;
+    border-radius: 0.5rem;
+  }
+  .screenshot a {
+    display: block;
+  }
+  .screenshot img {
+    display: block;
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+  }
+  .screenshot figcaption {
+    padding: 0.5rem 0.75rem;
+    overflow-wrap: anywhere;
+  }
+  .error-message {
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: pre;
+  }
+        </style>
+      </head>
+      <body>
+        <h1>Moneyman run report</h1>
+        <section>
+    <h2>Run details</h2>
+    <dl class="run-details">
+      <div>
+        <dt>Final status</dt>
+        <dd class="status failed">
+          ❌ Failed
+        </dd>
+      </div>
+      <div>
+        <dt>Started</dt>
+        <dd>
+          <time datetime="2024-01-01T10:00:00.000Z"
+            >2024-01-01T10:00:00.000Z</time
+          >
+        </dd>
+      </div>
+      <div>
+              <dt>Scraper time</dt>
+              <dd>12.3 seconds</dd>
+            </div>
+    </dl>
+    <h3>Scraper status</h3>
+    <ul class="scraper-status">
+      <li>max: scraping</li><li>&lt;b&gt;visa&lt;/b&gt;: done</li>
+    </ul>
+  </section>
+        <section>
+    <h2>Accounts</h2>
+    <div class="report-grid">
+      <article class="account-result">
+            <h3>✅ max</h3>
+            <ul>
+                    <li>
+                            Account 1234:
+                            1 transactions
+                          </li>
+                  </ul>
+          </article><article class="account-result">
+              <h3>❌ max</h3>
+              <p>GENERIC</p>
+              <details>
+    <summary>Error details</summary>
+    <pre class="error-message">Scraping failed
+    at scraper (bank.js:1:1)</pre>
+  </details>
+            </article>
+    </div>
+  </section>
+        <section>
+    <h2>Transactions</h2>
+    <details>
+      <summary>1 transactions</summary>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Company</th>
+              <th>Account</th>
+              <th>Description</th>
+              <th>Amount</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+                  <td>2026-01-30T00:00:00.000Z</td>
+                  <td>max</td>
+                  <td>1234</td>
+                  <td>Shop</td>
+                  <td>10.00 ILS</td>
+                  <td>completed</td>
+                </tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+        <section>
+    <h2>Storages</h2>
+    <div class="report-grid">
+      <article class="storage-result">
+            <h3>Sheets</h3>
+            <p class="storage-state">✅ Saved</p>
+            <p>Table: TheTable</p>
+                  <h4>Steps</h4>
+                          <ul>
+                            <li>
+                                    Upload transactions
+                                     — 0.80s
+                                  </li>
+                          </ul>
+                  <dl class="storage-stats">
+                          <div>
+                            <dt>Added</dt>
+                            <dd>1</dd>
+                          </div>
+                          <div>
+                            <dt>Existing</dt>
+                            <dd>0</dd>
+                          </div>
+                          <div>
+                            <dt>Pending</dt>
+                            <dd>0</dd>
+                          </div>
+                          <div>
+                            <dt>Other skipped</dt>
+                            <dd>0</dd>
+                          </div>
+                          <div>
+                            <dt>Total</dt>
+                            <dd>1</dd>
+                          </div>
+                          <div>
+                            <dt>Save time</dt>
+                            <dd>
+                              1.20 seconds
+                            </dd>
+                          </div>
+                        </dl>
+          </article><article class="storage-result">
+            <h3>Web</h3>
+            <p class="storage-state">❌ Failed</p>
+            <details>
+    <summary>Error details</summary>
+    <pre class="error-message">Storage failed
+    at save (storage.js:1:1)</pre>
+  </details>
+          </article>
+    </div>
+  </section>
+        <section>
+    <h2>Errors</h2>
+    <div class="report-grid">
+      <details>
+    <summary>scraper</summary>
+    <pre class="error-message">&lt;failed&gt;</pre>
+  </details>
+    </div>
+  </section>
+        <section>
+    <h2>Screenshots</h2>
+    <div class="screenshots">
+      <figure class="screenshot">
+              <a
+                href="data:image/png;base64,aGVsbG8="
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <img
+                  src="data:image/png;base64,aGVsbG8="
+                  alt="Failure &lt;image&gt;"
+                />
+              </a>
+              <figcaption>Failure &lt;image&gt;</figcaption>
+            </figure>
+    </div>
+  </section>
+      </body>
+    </html>"
+`;
+
+exports[`renderRunReport renders notices 1`] = `
+"max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done
+
+No transactions found, skipping save"
+`;
+
+exports[`renderRunReport renders status rows while scraping 1`] = `
+"max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done"
+`;
+
+exports[`renderRunReport renders storages in different states, each with its own quote 1`] = `
+"1 transactions scraped from 1 account.
+(0 pending, 1 completed)
+
+<blockquote expandable>Accounts updated
+	✔️ [max] 1234: 1</blockquote>
+
+<blockquote expandable>Status
+max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done</blockquote>
+
+📝 Sheets (TheTable)
+<blockquote expandable>	Step1, took 0.01s
+	Step2, took 1.00s
+	1 added
+	3 skipped (1 existing, 1 pending, 1 other)
+	took 1.23s
+	-----
+	Group1:
+		description1:	+10.00</blockquote>
+📝 YNAB ⏳ Saving...
+<blockquote expandable>	Loading, took 0.01s</blockquote>
+📝 Web ❌ Failed
+<blockquote expandable>	boom</blockquote>"
+`;
+
+exports[`renderRunReport renders summary first and status in a collapsed quote 1`] = `
+"1 transactions scraped from 1 account.
+(0 pending, 1 completed)
+
+<blockquote expandable>Accounts updated
+	✔️ [max] 1234: 1</blockquote>
+
+<blockquote expandable>Status
+max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done
+
+Total time: 12.3 seconds</blockquote>"
+`;
+
+exports[`renderRunReport truncates long errors before escaping 1`] = `
+"0 transactions scraped.
+
+<blockquote expandable>Accounts updated
+	❌ [max] GENERIC
+		Unexpected token '&lt;', "&lt;!DOCTYPE "... is not valid JSON</blockquote>
+
+<blockquote expandable>Status
+max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done</blockquote>
+
+📝 Sheets ❌ Failed
+<blockquote expandable>	&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;…</blockquote>"
+`;

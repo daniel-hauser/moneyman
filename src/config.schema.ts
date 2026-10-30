@@ -1,4 +1,5 @@
 import z from "zod/v4";
+import { validate } from "node-cron";
 
 // TODO: Use the actual login field combinations from israeli-bank-scrapers once available
 // Account configuration schema based on israeli-bank-scrapers login field combinations
@@ -149,6 +150,16 @@ export const NotificationOptionsSchema = z.object({
        * @default true
        */
       sendLogFileToTelegram: z.boolean().optional().default(true),
+      /**
+       * Minimum time in milliseconds between edits of the status message.
+       * Values below 250 are raised to 250 to stay within Telegram's rate limits.
+       * @default 500
+       */
+      updateIntervalMs: z
+        .number()
+        .optional()
+        .default(500)
+        .transform((value) => Math.max(250, value)),
     })
     .optional(),
 });
@@ -160,11 +171,19 @@ export const LoggingOptionsSchema = z.object({
   debugFilter: z.string().optional().default("moneyman:*"),
 });
 
+export const SchedulingOptionsSchema = z.object({
+  cron: z
+    .string()
+    .refine(validate, { error: "Invalid cron expression" })
+    .optional(),
+});
+
 const OptionsSchemaObject = z.object({
   scraping: ScrapingOptionsSchema.prefault({}),
   security: SecurityOptionsSchema.prefault({}),
   notifications: NotificationOptionsSchema.prefault({}),
   logging: LoggingOptionsSchema.prefault({}),
+  scheduling: SchedulingOptionsSchema.prefault({}),
 });
 
 // Complete configuration schema

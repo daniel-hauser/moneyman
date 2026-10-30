@@ -75,3 +75,19 @@ export interface RunnerHooks {
   failureScreenshotsHandler: (photos: ImageWithCaption[]) => Promise<unknown>;
 }
 export type Runner = (hooks: RunnerHooks) => Promise<void>;
+
+export type RunTrigger = "manual" | "scheduled" | "startup";
+
+export type RunStatus = {
+  trigger: RunTrigger;
+  startedAt: Date;
+  endedAt: Date;
+  failed: boolean;
+};
+
+export type RunHandle = {
+  /** Whether this call took the run lock. When false, `finished` resolves to undefined. */
+  started: boolean;
+  /** Settles when the run this handle started has finished. */
+  finished: Promise<RunStatus | undefined>;
+};

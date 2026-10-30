@@ -401,7 +401,7 @@ describe("MoneymanDashStorage", () => {
   });
 
   describe("sendLogs", () => {
-    it("should send logs using lastRunId from saveTransactions", async () => {
+    it("should send logs under the run id from context", async () => {
       const url = "https://api.example.com/ingest";
       const secret = "secret123";
       const token = makeMmToken(url, secret);
@@ -410,21 +410,9 @@ describe("MoneymanDashStorage", () => {
       const logs = "2024-01-15 10:00:00 Starting scrape...";
       const runId = randomUUID();
 
-      fetchMock.mockResolvedValue(mockSuccessResponse());
-
-      // First, call saveTransactions within runContext to store runId
-      await new Promise((resolve) => {
-        runContextStore.run({ runId }, async () => {
-          await storage.saveTransactions([transactionRow({})], async () => {});
-          resolve(undefined);
-        });
-      });
-
-      fetchMock.mockClear();
       fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) });
 
-      // Now call sendLogs OUTSIDE runContext (like sendAndDeleteLogFile does)
-      await storage.sendLogs(logs);
+      await runContextStore.run({ runId }, () => storage.sendLogs(logs));
 
       expect(fetchMock).toHaveBeenCalledWith(
         "https://api.example.com/ingest/logs",
@@ -440,18 +428,17 @@ describe("MoneymanDashStorage", () => {
       );
     });
 
-    it("should derive /logs URL from endpoint", async () => {
-      const ingestUrl = "https://myapp.example.com/ingest";
-      const secret = "my-secret";
-      const token = makeMmToken(ingestUrl, secret);
+    it("should upload the logs of a run that saved nothing under its own run id", async () => {
+      const token = makeMmToken("https://api.example.com/ingest", "secret123");
 
       const storage = new MoneymanDashStorage(mockConfig(token));
-      const runId = randomUUID();
+      const firstRunId = randomUUID();
+      const secondRunId = randomUUID();
 
       fetchMock.mockResolvedValue(mockSuccessResponse());
 
       await new Promise((resolve) => {
-        runContextStore.run({ runId }, async () => {
+        runContextStore.run({ runId: firstRunId }, async () => {
           await storage.saveTransactions([transactionRow({})], async () => {});
           resolve(undefined);
         });
@@ -460,7 +447,24 @@ describe("MoneymanDashStorage", () => {
       fetchMock.mockClear();
       fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) });
 
-      await storage.sendLogs("test logs");
+      await runContextStore.run({ runId: secondRunId }, () =>
+        storage.sendLogs("test logs"),
+      );
+
+      expect(fetchMock.mock.calls[0][1].headers["X-Run-Id"]).toBe(secondRunId);
+    });
+
+    it("should derive /logs URL from endpoint", async () => {
+      const ingestUrl = "https://myapp.example.com/ingest";
+      const secret = "my-secret";
+      const token = makeMmToken(ingestUrl, secret);
+
+      const storage = new MoneymanDashStorage(mockConfig(token));
+      const runId = randomUUID();
+
+      fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) });
+
+      await runContextStore.run({ runId }, () => storage.sendLogs("test logs"));
 
       expect(fetchMock).toHaveBeenCalledWith(
         "https://myapp.example.com/ingest/logs",
@@ -483,11 +487,10 @@ describe("MoneymanDashStorage", () => {
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it("should skip logs if no runId ever stored", async () => {
+    it("should skip logs when there is no run id", async () => {
       const token = makeMmToken("https://api.example.com", "secret123");
       const storage = new MoneymanDashStorage(mockConfig(token));
 
-      // Call without ever calling saveTransactions or being in runContext
       await storage.sendLogs("some logs");
 
       expect(fetchMock).not.toHaveBeenCalled();
@@ -495,19 +498,8 @@ describe("MoneymanDashStorage", () => {
 
     it("should handle log upload errors gracefully", async () => {
       const token = makeMmToken("https://api.example.com/ingest", "secret123");
-
-      // First save to populate lastRunId
-      fetchMock.mockResolvedValue(mockSuccessResponse());
       const storage = new MoneymanDashStorage(mockConfig(token));
 
-      await new Promise((resolve) => {
-        runContextStore.run({ runId: randomUUID() }, async () => {
-          await storage.saveTransactions([transactionRow({})], async () => {});
-          resolve(undefined);
-        });
-      });
-
-      // Now fail the logs upload
       fetchMock.mockResolvedValue({
         ok: false,
         status: 500,
@@ -515,7 +507,10 @@ describe("MoneymanDashStorage", () => {
       });
 
       // Should not throw, just log the error
-      await storage.sendLogs("logs");
+      await runContextStore.run({ runId: randomUUID() }, () =>
+        storage.sendLogs("logs"),
+      );
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
 

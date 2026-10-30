@@ -6,7 +6,7 @@ import {
 import { AccountConfig } from "../types.js";
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
 import { createLogger } from "../utils/logger.js";
-import { prepareAccountCredentials } from "./otp.js";
+import { prepareAccountCredentials, type OtpRequest } from "./otp.js";
 import { isCloudflareBlock } from "./cloudflareSolver.js";
 
 const logger = createLogger("scrape");
@@ -15,6 +15,7 @@ export async function getAccountTransactions(
   account: AccountConfig,
   options: ScraperOptions,
   onProgress: (companyId: string, status: string) => void,
+  requestOtpCode?: OtpRequest,
 ): Promise<ScraperScrapingResult> {
   logger(`started`);
   try {
@@ -27,7 +28,7 @@ export async function getAccountTransactions(
 
     const result = await scraper.scrape({
       ...account,
-      ...prepareAccountCredentials(account),
+      ...prepareAccountCredentials(account, requestOtpCode),
     });
 
     if (!result.success) {

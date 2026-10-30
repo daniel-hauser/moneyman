@@ -25,7 +25,6 @@ export async function sendFailureScreenShots(
 ) {
   try {
     const photos = await glob(`${tempFolder}/**/*.png`, { absolute: true });
-    logger("Sending failure screenshots", { photos });
     await sendPhotos(
       photos.map((photoPath) => ({
         photoPath,
@@ -34,6 +33,6 @@ export async function sendFailureScreenShots(
     );
     fs.rmSync(tempFolder, { recursive: true, force: true });
   } catch (e) {
-    logger("Failed to send failure screenshots", e);
+    logger("Failed to collect failure screenshots", e);
   }
 }

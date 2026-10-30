@@ -39,7 +39,6 @@ interface IngestionResponse {
 export class MoneymanDashStorage implements TransactionStorage {
   private endpoint?: string;
   private token?: string;
-  private lastRunId?: string;
 
   constructor(private config: MoneymanConfig) {
     if (this.config.storage.moneyman?.token) {
@@ -115,21 +114,16 @@ export class MoneymanDashStorage implements TransactionStorage {
 
     logger(`Posting ${nonPendingTxns.length} transactions to ${endpoint}`);
 
-    const runContext = runContextStore.getStore();
-    const runId = runContext?.runId;
-
-    if (runId) {
-      this.lastRunId = runId;
-    } else {
+    const runId = runContextStore.getStore()?.runId;
+    if (!runId) {
       logger("Warning: No runId found in context");
-      this.lastRunId = undefined;
     }
 
     const payload = this.buildIngestionPayload(nonPendingTxns, context);
 
     // Include runId in metadata for server-side correlation
-    if (this.lastRunId) {
-      payload.metadata.runId = this.lastRunId;
+    if (runId) {
+      payload.metadata.runId = runId;
     }
 
     // Run progress update in parallel with the network request
@@ -182,9 +176,9 @@ export class MoneymanDashStorage implements TransactionStorage {
       return;
     }
 
-    const runId = this.lastRunId ?? runContextStore.getStore()?.runId;
+    const uploadRunId = runContextStore.getStore()?.runId;
 
-    if (!runId) {
+    if (!uploadRunId) {
       logger("Warning: No runId available, skipping log upload");
       return;
     }
@@ -200,7 +194,7 @@ export class MoneymanDashStorage implements TransactionStorage {
         headers: {
           Authorization: `Bearer ${this.token}`,
           "Content-Type": "text/plain",
-          "X-Run-Id": runId,
+          "X-Run-Id": uploadRunId,
         },
         body: logs,
         signal,
