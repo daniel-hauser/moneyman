@@ -36,6 +36,7 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/package-lock.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dst ./dst
+COPY .env.schema ./
 COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/
 
 ENV MONEYMAN_UNSAFE_STDOUT=false

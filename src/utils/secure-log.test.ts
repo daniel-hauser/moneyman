@@ -1,6 +1,5 @@
 const mockLoggerState = { unsafeStdout: false };
 
-jest.mock("../bot/storage/index.js", () => ({ storages: [] }));
 jest.mock("../bot/notifier.js", () => ({ sendTextFile: jest.fn() }));
 jest.mock("../config.js", () => ({
   config: { options: { notifications: {} } },
@@ -22,7 +21,6 @@ import {
 } from "fs";
 import { mock } from "jest-mock-extended";
 import type { MoneymanDashStorage } from "../bot/storage/moneyman.js";
-import { tmpdir } from "os";
 import { join } from "path";
 
 describe("sendLogFile", () => {
@@ -34,7 +32,7 @@ describe("sendLogFile", () => {
     mockLoggerState.unsafeStdout = false;
 
     logFilePath = join(
-      mkdtempSync(join(tmpdir(), "moneyman-log-")),
+      mkdtempSync(join(process.cwd(), ".moneyman-log-test-")),
       "moneyman.log",
     );
     writeFileSync(logFilePath, "the logs of the run");
@@ -76,15 +74,13 @@ describe("sendLogFile", () => {
   );
 
   it("tries every storage and clears logs even when a storage upload fails", async () => {
-    const { storages } = await import("../bot/storage/index.js");
     const first = mock<MoneymanDashStorage>();
     const second = mock<MoneymanDashStorage>();
     first.sendLogs.mockRejectedValue(new Error("storage failed"));
     second.sendLogs.mockResolvedValue(undefined);
-    storages.push(first, second);
     const { sendLogFile } = await import("./secure-log.js");
 
-    await sendLogFile(false);
+    await sendLogFile(false, [first, second]);
 
     expect(first.sendLogs).toHaveBeenCalledWith("the logs of the run");
     expect(second.sendLogs).toHaveBeenCalledWith("the logs of the run");
@@ -96,7 +92,6 @@ describe("sendLogFile", () => {
     async (deleteFile) => {
       const { config } = await import("../config.js");
       const { sendTextFile } = await import("../bot/notifier.js");
-      const { storages } = await import("../bot/storage/index.js");
       const { logToPublicLog } = await import("./logger.js");
       config.options.notifications.telegram = {
         apiKey: "test-token",
@@ -109,10 +104,9 @@ describe("sendLogFile", () => {
       jest.mocked(sendTextFile).mockRejectedValue(new Error("Telegram failed"));
       const storage = mock<MoneymanDashStorage>();
       storage.sendLogs.mockResolvedValue(undefined);
-      storages.push(storage);
       const { sendLogFile } = await import("./secure-log.js");
 
-      await sendLogFile(deleteFile);
+      await sendLogFile(deleteFile, [storage]);
 
       expect(sendTextFile).toHaveBeenCalled();
       expect(storage.sendLogs).toHaveBeenCalledWith("the logs of the run");

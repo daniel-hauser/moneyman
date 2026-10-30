@@ -8,18 +8,25 @@ import {
 } from "./config.js";
 import { BooleanEnvVarSchema } from "./config.schema.js";
 import { sendError } from "./bot/notifier.js";
-import { createLogger } from "./utils/logger.js";
+import { createLogger, logToPublicLog } from "./utils/logger.js";
 import { sendLogFile, enableDebugLoggingIfNeeded } from "./utils/secure-log.js";
 import { RunHandle, RunnerHooks, RunStatus, RunTrigger } from "./types.js";
 import { runWithStorage } from "./bot/index.js";
 import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
-import { createDomainTracker } from "./security/domains.js";
+import { createDomainTracker, type DomainTracker } from "./security/domains.js";
 import { getExternalIp, logRunMetadata } from "./runnerMetadata.js";
 import { runContextStore } from "./utils/asyncContext.js";
-import { startServer } from "./server.js";
+import { startServer, type SecretRefreshResult } from "./server.js";
+import {
+  hasConfigSecretProvider,
+  loadRunConfig,
+  SECRET_REFRESH_FAILURE,
+} from "./configRefresh.js";
+import { createStorages } from "./bot/storage/index.js";
+import type { MoneymanConfig } from "./config.js";
 
 const logger = createLogger("main");
-const RUN_LOCK = "moneyman-run";
+const SCRAPE_LOCK = "moneyman-scrape";
 const longRunning = BooleanEnvVarSchema.parse(
   process.env.MONEYMAN_LONG_RUNNING,
 );
@@ -36,11 +43,6 @@ process.on("uncaughtException", (err, origin) => {
 });
 
 enableDebugLoggingIfNeeded();
-const domainTracker = createDomainTracker({
-  domainTracking: config.options.scraping.domainTracking,
-  ...config.options.security,
-});
-process.once("exit", domainTracker.dispose);
 getExternalIp().then((ipInfo) => logger("External IP info:", ipInfo));
 main();
 
@@ -48,7 +50,12 @@ async function main() {
   await sendConfigToTelegramIfRequested();
 
   if (longRunning) {
-    await startServer({ startRun, isRunning, getLastRun: () => lastRun });
+    await startServer({
+      startRun,
+      refreshSecrets: hasConfigSecretProvider() ? refreshSecrets : undefined,
+      isRunning,
+      getLastRun: () => lastRun,
+    });
   } else {
     const abort = new AbortController();
     const cancel = () => abort.abort(new Error("Scraper worker cancelled"));
@@ -68,24 +75,21 @@ async function main() {
 
 async function isRunning() {
   const { held } = await locks.query();
-  return held.some((lock) => lock.name === RUN_LOCK);
+  return held.some((lock) => lock.name === SCRAPE_LOCK);
 }
 
 /**
- * Starts a run and resolves as soon as the run lock was decided, so a caller
- * can answer honestly before the scrape finishes. A call made while another run
- * holds the lock comes back with `started: false` instead of waiting for it.
+ * Rejects duplicate scrapes. Resolves once the run starts, without waiting for
+ * it to finish.
  */
 async function startRun(
   trigger: RunTrigger,
   signal?: AbortSignal,
 ): Promise<RunHandle> {
-  let reportStarted!: (started: boolean) => void;
-  const started = new Promise<boolean>((resolve) => {
-    reportStarted = resolve;
-  });
+  const { promise: started, resolve: reportStarted } =
+    Promise.withResolvers<boolean>();
 
-  const finished = locks.request(RUN_LOCK, { ifAvailable: true }, (lock) => {
+  const finished = locks.request(SCRAPE_LOCK, { ifAvailable: true }, (lock) => {
     if (!lock) {
       reportStarted(false);
       return undefined;
@@ -95,7 +99,6 @@ async function startRun(
     return runContextStore.run({ runId: randomUUID() }, async () => {
       const startedAt = new Date();
       const failed = await run(signal);
-      await sendLogFile(!longRunning);
 
       lastRun = { trigger, startedAt, endedAt: new Date(), failed };
       logger("Run finished", lastRun);
@@ -104,6 +107,16 @@ async function startRun(
   });
 
   return { started: await started, finished };
+}
+
+async function refreshSecrets(): Promise<SecretRefreshResult> {
+  try {
+    await loadRunConfig();
+    return "refreshed";
+  } catch (error) {
+    logger("Manual secret refresh failed", error);
+    return "failed";
+  }
 }
 
 async function runOnce(
@@ -119,14 +132,19 @@ async function runOnce(
   return status;
 }
 
-async function runScraper(hooks: RunnerHooks, signal?: AbortSignal) {
+async function runScraper(
+  hooks: RunnerHooks,
+  snapshot: MoneymanConfig,
+  domainTracker: DomainTracker,
+  signal?: AbortSignal,
+) {
   try {
     logger("About to start");
     await hooks.onBeforeStart();
 
     logger("Starting to scrape");
     const { results, domains } = await scrapeAccounts(
-      getScraperConfig(),
+      getScraperConfig(snapshot),
       async (status, totalTime) => {
         logger("Status changed", { status, totalTime });
         return hooks.onStatusChanged(status, totalTime);
@@ -150,10 +168,43 @@ async function runScraper(hooks: RunnerHooks, signal?: AbortSignal) {
   }
 }
 
-async function run(signal?: AbortSignal) {
+async function prepareRun() {
   try {
-    logger("Running with storage");
-    const report = await runWithStorage((hooks) => runScraper(hooks, signal));
+    let snapshot = config;
+    if (longRunning) {
+      try {
+        snapshot = await loadRunConfig();
+      } catch {
+        logToPublicLog(SECRET_REFRESH_FAILURE);
+        await sendError(new Error(SECRET_REFRESH_FAILURE), "Secrets refresh");
+        return;
+      }
+    }
+    return { snapshot, storages: createStorages(snapshot) };
+  } catch (error) {
+    logger(error);
+  }
+}
+
+async function run(signal?: AbortSignal) {
+  const prepared = await prepareRun();
+  try {
+    if (!prepared) return true;
+    const { snapshot, storages } = prepared;
+    const domainTracker = createDomainTracker({
+      domainTracking: snapshot.options.scraping.domainTracking,
+      ...snapshot.options.security,
+    });
+    let report;
+    try {
+      logger("Running with storage");
+      report = await runWithStorage(
+        (hooks) => runScraper(hooks, snapshot, domainTracker, signal),
+        storages,
+      );
+    } finally {
+      domainTracker.dispose();
+    }
     const failedStorages = Object.entries(report.storages)
       .filter(([, row]) => row.state === "error")
       .map(([name]) => name);
@@ -164,5 +215,7 @@ async function run(signal?: AbortSignal) {
   } catch (error) {
     logger(error);
     return true;
+  } finally {
+    await sendLogFile(!longRunning, prepared?.storages ?? []);
   }
 }

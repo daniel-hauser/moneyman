@@ -6,22 +6,9 @@ const logger = createLogger("commands");
 
 export const SCRAPE_COMMANDS = ["scrape", "fetch"];
 
-export const BOT_COMMANDS = [
-  { command: SCRAPE_COMMANDS[0], description: "Run a scrape now" },
-  { command: "status", description: "Show the last run and the next one" },
-  { command: "help", description: "List the available commands" },
-];
-
-export const HELP_MESSAGE = [
-  "Moneyman is running and listening for commands:",
-  "",
-  ...BOT_COMMANDS.map(
-    ({ command, description }) => `/${command} — ${description}`,
-  ),
-].join("\n");
-
 export type CommandHandlers = {
   scrape: () => Promise<string>;
+  refreshSecrets?: () => Promise<string>;
   isRunning: () => Promise<boolean>;
   getLastRun: () => RunStatus | undefined;
   getNextRunAt: () => Date | undefined;
@@ -70,6 +57,26 @@ export function registerCommands(
   bot: Telegraf<Context>,
   handlers: CommandHandlers,
 ) {
+  const refreshSecrets = handlers.refreshSecrets;
+  const commands = [
+    { command: SCRAPE_COMMANDS[0], description: "Run a scrape now" },
+    refreshSecrets
+      ? {
+          command: "refresh_secrets",
+          description: "Fetch and validate provider secrets without scraping",
+        }
+      : undefined,
+    { command: "status", description: "Show the last run and the next one" },
+    { command: "help", description: "List the available commands" },
+  ].filter((command) => command !== undefined);
+  const help = [
+    "Moneyman is running and listening for commands:",
+    "",
+    ...commands.map(
+      ({ command, description }) => `/${command} — ${description}`,
+    ),
+  ].join("\n");
+
   bot.catch(async (e, ctx) => {
     logger("Failed to handle an update", e);
     await ctx.reply("❌ Failed to handle the command").catch(() => {});
@@ -81,9 +88,14 @@ export function registerCommands(
   bot.command("status", async (ctx) => {
     await ctx.reply(await formatStatus(handlers));
   });
-  bot.command("help", (ctx) => ctx.reply(HELP_MESSAGE));
+  if (refreshSecrets) {
+    bot.command("refresh_secrets", async (ctx) => {
+      await ctx.reply(await refreshSecrets());
+    });
+  }
+  bot.command("help", (ctx) => ctx.reply(help));
 
   bot.telegram
-    .setMyCommands(BOT_COMMANDS)
+    .setMyCommands(commands)
     .catch((e) => logger("Failed to set the Telegram command menu", e));
 }

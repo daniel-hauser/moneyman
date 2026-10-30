@@ -34,7 +34,7 @@ jest.mock("./utils/logger.js", () => ({
 }));
 
 describe("startServer", () => {
-  let runner: ReturnType<typeof mock<ServerRunner>>;
+  let runner: ReturnType<typeof mock<Required<ServerRunner>>>;
   let exit: jest.SpyInstance;
   let listeners: Map<
     "SIGINT" | "SIGTERM",
@@ -56,7 +56,7 @@ describe("startServer", () => {
     exit = jest
       .spyOn(process, "exit")
       .mockImplementation((() => undefined) as never);
-    runner = mock<ServerRunner>();
+    runner = mock<Required<ServerRunner>>();
     jest.mocked(schedule).mockReturnValue(task);
     bot = mockDeep<Telegraf<Context>>();
     bot.telegram.deleteMyCommands.mockResolvedValue(true);
@@ -87,6 +87,25 @@ describe("startServer", () => {
     );
     expect(runner.startRun).toHaveBeenCalledWith("manual");
     expect(sendError).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["refreshed", "Secrets fetched and validated"],
+    ["failed", "Secret refresh failed"],
+  ] as const)(
+    "replies truthfully to a %s refresh without starting a scrape",
+    async (result, message) => {
+      runner.refreshSecrets.mockResolvedValue(result);
+      await startServer(runner);
+      await expect(handlers().refreshSecrets!()).resolves.toContain(message);
+      expect(runner.refreshSecrets).toHaveBeenCalledTimes(1);
+      expect(runner.startRun).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not offer refresh when the runner has no provider capability", async () => {
+    await startServer({ ...runner, refreshSecrets: undefined });
+    expect(handlers().refreshSecrets).toBeUndefined();
   });
 
   it("acknowledges a started run without waiting for it and reports its failure", async () => {
@@ -155,6 +174,10 @@ describe("startServer", () => {
     await flush();
 
     await expect(handlers().scrape()).resolves.toContain("Shutting down");
+    await expect(handlers().refreshSecrets!()).resolves.toContain(
+      "Shutting down",
+    );
+    expect(runner.refreshSecrets).not.toHaveBeenCalled();
     expect(runner.startRun).toHaveBeenCalledTimes(1);
 
     releaseRun();

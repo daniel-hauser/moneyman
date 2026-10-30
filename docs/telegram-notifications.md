@@ -50,15 +50,18 @@ When moneyman runs in [long running mode](../README.md#long-running-mode)
 (`MONEYMAN_LONG_RUNNING=true`) it stays connected to Telegram and listens for commands.
 Only the configured `chatId` can use them — messages from any other chat are ignored.
 
-| Command   | Description                                                                                        |
-| --------- | -------------------------------------------------------------------------------------------------- |
-| `/scrape` | Run a scrape right now (`/fetch` works as an alias)                                                |
-| `/status` | Report whether a scrape is running, how the last one ended and when the next scheduled run happens |
-| `/help`   | List the available commands                                                                        |
+| Command            | Description                                                                                        |
+| ------------------ | -------------------------------------------------------------------------------------------------- |
+| `/scrape`          | Run a scrape right now (`/fetch` works as an alias)                                                |
+| `/refresh_secrets` | Refresh the secret-provider configuration without starting a scrape                                |
+| `/status`          | Report whether a scrape is running, how the last one ended and when the next scheduled run happens |
+| `/help`            | List the available commands                                                                        |
 
 `/scrape` replies immediately, then progress and the summary are sent to the same chat while the
 scrape runs. Errors and screenshots are included in the final HTML report. Automatic runs are configured with
 [`options.scheduling.cron`](../README.md#other-configurations).
+
+`/refresh_secrets` is registered and listed only when a [secret provider](./secret-providers.md) is configured. It fetches and validates bank/storage credentials and per-run settings without changing the running Telegram bot or schedule. Manual refreshes can run alongside scraping or other refreshes without changing an active scrape's configuration. Duplicate scrape requests still receive an already-running response.
 
 ## Using OTP 2FA with OneZero Accounts
 

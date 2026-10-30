@@ -11,6 +11,7 @@ import type {
   ScraperWorkerApi,
   WorkerCallbacks,
   WorkerResult,
+  ScraperRunConfig,
 } from "./protocol.js";
 
 jest.mock("node:worker_threads", () => ({
@@ -21,24 +22,9 @@ jest.mock("comlink", () => ({
   ...jest.requireActual("comlink"),
   wrap: jest.fn(),
 }));
-jest.mock("../config.js", () => ({
-  config: {
-    storage: { secret: "storage-secret" },
-    options: {
-      scraping: { domainTracking: true, puppeteerExecutablePath: "browser" },
-      security: {
-        firewallSettings: ["oneZero ALLOW bank.test"],
-        blockByDefault: true,
-      },
-      notifications: {
-        telegram: { enableOtp: true, apiKey: "telegram-secret" },
-      },
-    },
-  },
-}));
 jest.mock("../bot/notifier.js", () => ({ requestOtpCode: jest.fn() }));
 
-const scraping: ScraperConfig = {
+const scraping: ScraperRunConfig = {
   accounts: [
     {
       companyId: CompanyTypes.oneZero,
@@ -52,6 +38,11 @@ const scraping: ScraperConfig = {
   parallelScrapers: 1,
   additionalTransactionInformation: false,
   includeRawTransaction: true,
+  executablePath: "browser",
+  domainTracking: true,
+  firewallSettings: ["oneZero ALLOW bank.test"],
+  blockByDefault: true,
+  enableOtp: true,
 };
 const results: AccountScrapeResult[] = [
   { companyId: CompanyTypes.oneZero, result: { success: true, accounts: [] } },
@@ -205,6 +196,10 @@ describe("Comlink scraper client", () => {
       MONEYMAN_PUBLIC_LOG_FD: "3",
       TELEGRAM_TOKEN: "private",
       SECRET_PROVIDER_TOKEN: "private",
+      BITWARDEN_ACCESS_TOKEN: "provider-token",
+      MONEYMAN_CONFIG_SECRET_PROVIDER: "bitwarden",
+      MONEYMAN_CONFIG_SECRET_ID: "secret-id",
+      MONEYMAN_CONFIG_SECRET: "descriptor",
       NODE_OPTIONS: "--require dotenv/config",
       DOTENV_CONFIG_PATH: ".env",
       DEBUG: "private",
@@ -225,6 +220,10 @@ describe("Comlink scraper client", () => {
         "MONEYMAN_PUBLIC_LOG_FD",
         "TELEGRAM_TOKEN",
         "SECRET_PROVIDER_TOKEN",
+        "BITWARDEN_ACCESS_TOKEN",
+        "MONEYMAN_CONFIG_SECRET_PROVIDER",
+        "MONEYMAN_CONFIG_SECRET_ID",
+        "MONEYMAN_CONFIG_SECRET",
         "NODE_OPTIONS",
         "DOTENV_CONFIG_PATH",
         "DEBUG",
@@ -254,6 +253,7 @@ describe("Comlink scraper client", () => {
       callbacks()[finalizer]();
       return { results, domains: { oneZero: { allowed: ["GET bank.test"] } } };
     });
+
     const result = await scrapeAccounts(scraping, onStatus, onError);
     expect(onStatus).toHaveBeenCalledWith(["working"], 2);
     expect(onError).toHaveBeenCalledWith(
@@ -263,6 +263,26 @@ describe("Comlink scraper client", () => {
     expect(result.domains).toEqual({
       oneZero: { allowed: ["GET bank.test"] },
     });
+  });
+
+  it("uses explicit fresh bank, scraper and firewall inputs for each worker", async () => {
+    const fresh = {
+      ...scraping,
+      accounts: [{ ...scraping.accounts[0], password: "rotated-bank" }],
+      executablePath: "fresh-browser",
+      domainTracking: false,
+      firewallSettings: ["oneZero DENY old.test"],
+      blockByDefault: false,
+      parallelScrapers: 2,
+      includeRawTransaction: false,
+    };
+    await scrapeAccounts(scraping);
+    await scrapeAccounts(fresh);
+    expect(api.scrape.mock.calls[0][0]).toMatchObject(scraping);
+    expect(api.scrape.mock.calls[1][0]).toMatchObject(fresh);
+    expect(api.scrape.mock.calls[0][0].accounts[0].password).toBe(
+      "bank-password",
+    );
   });
 
   it("routes concurrent OTP callbacks without custom request IDs and propagates OTP failures", async () => {
