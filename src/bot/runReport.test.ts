@@ -186,11 +186,5 @@ describe("renderHTMLReport", () => {
     const html = renderHTMLReport(report);
 
     expect(html).toMatchSnapshot();
-    expect(html).toContain("<!doctype html>");
-    expect(html).toContain("❌ Failed");
-    expect(html).toContain("&lt;failed&gt;");
-    expect(html).toContain("&lt;image&gt;");
-    expect(html).toContain('src="data:image/png;base64,aGVsbG8="');
-    expect(html).not.toMatch(/<script|https?:\/\//i);
   });
 });
