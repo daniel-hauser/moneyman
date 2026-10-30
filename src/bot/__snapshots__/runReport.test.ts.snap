@@ -23,6 +23,7 @@ exports[`renderHTMLReport embeds screenshots and errors in an offline report wit
     line-height: 1.2;
   }
   .status {
+    display: inline-block;
     padding: 0.75rem 1rem;
     border-radius: 0.5rem;
   }
@@ -46,6 +47,65 @@ exports[`renderHTMLReport embeds screenshots and errors in an offline report wit
   summary {
     cursor: pointer;
     font-weight: 600;
+  }
+  .run-details,
+  .storage-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+    gap: 0.75rem;
+  }
+  .run-details > div,
+  .storage-stats > div,
+  .account-result,
+  .storage-result {
+    min-width: 0;
+    padding: 0.75rem;
+    border: 1px solid #dadce0;
+    border-radius: 0.5rem;
+  }
+  .run-details dt,
+  .storage-stats dt {
+    font-weight: 600;
+  }
+  .run-details dd,
+  .storage-stats dd {
+    margin: 0.25rem 0 0;
+  }
+  .report-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 0.75rem;
+  }
+  .report-grid h3,
+  .report-grid h4 {
+    margin-top: 0;
+  }
+  .storage-state {
+    margin-top: -0.75rem;
+  }
+  .scraper-status,
+  .account-result ul,
+  .storage-result ul {
+    padding-left: 1.5rem;
+  }
+  .table-wrapper {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap;
+  }
+  th,
+  td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #dadce0;
+    text-align: left;
+  }
+  td:nth-child(4) {
+    white-space: normal;
+    min-width: 12rem;
   }
   .screenshots {
     display: grid;
@@ -72,39 +132,155 @@ exports[`renderHTMLReport embeds screenshots and errors in an offline report wit
     padding: 0.5rem 0.75rem;
     overflow-wrap: anywhere;
   }
-  pre {
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
+  .error-message {
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: pre;
   }
         </style>
       </head>
       <body>
         <h1>Moneyman run report</h1>
-        <p class="status failed">
+        <section>
+    <h2>Run details</h2>
+    <dl class="run-details">
+      <div>
+        <dt>Final status</dt>
+        <dd class="status failed">
           ❌ Failed
-        </p>
-        <p>
-          Started:
+        </dd>
+      </div>
+      <div>
+        <dt>Started</dt>
+        <dd>
           <time datetime="2024-01-01T10:00:00.000Z"
             >2024-01-01T10:00:00.000Z</time
           >
-        </p>
+        </dd>
+      </div>
+      <div>
+              <dt>Scraper time</dt>
+              <dd>12.3 seconds</dd>
+            </div>
+    </dl>
+    <h3>Scraper status</h3>
+    <ul class="scraper-status">
+      <li>max: scraping</li><li>&lt;b&gt;visa&lt;/b&gt;: done</li>
+    </ul>
+  </section>
         <section>
-          <h2>Run details</h2>
-          <details open>
-            <summary>Status, results, and storage</summary>
-            max: scraping
-&lt;b&gt;visa&lt;/b&gt;: done
-          </details>
-        </section>
+    <h2>Accounts</h2>
+    <div class="report-grid">
+      <article class="account-result">
+            <h3>✅ max</h3>
+            <ul>
+                    <li>
+                            Account 1234:
+                            1 transactions
+                          </li>
+                  </ul>
+          </article><article class="account-result">
+              <h3>❌ max</h3>
+              <p>GENERIC</p>
+              <details>
+    <summary>Error details</summary>
+    <pre class="error-message">Scraping failed
+    at scraper (bank.js:1:1)</pre>
+  </details>
+            </article>
+    </div>
+  </section>
+        <section>
+    <h2>Transactions</h2>
+    <details>
+      <summary>1 transactions</summary>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Company</th>
+              <th>Account</th>
+              <th>Description</th>
+              <th>Amount</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+                  <td>2026-01-30T00:00:00.000Z</td>
+                  <td>max</td>
+                  <td>1234</td>
+                  <td>Shop</td>
+                  <td>10.00 ILS</td>
+                  <td>completed</td>
+                </tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+        <section>
+    <h2>Storages</h2>
+    <div class="report-grid">
+      <article class="storage-result">
+            <h3>Sheets</h3>
+            <p class="storage-state">✅ Saved</p>
+            <p>Table: TheTable</p>
+                  <h4>Steps</h4>
+                          <ul>
+                            <li>
+                                    Upload transactions
+                                     — 0.80s
+                                  </li>
+                          </ul>
+                  <dl class="storage-stats">
+                          <div>
+                            <dt>Added</dt>
+                            <dd>1</dd>
+                          </div>
+                          <div>
+                            <dt>Existing</dt>
+                            <dd>0</dd>
+                          </div>
+                          <div>
+                            <dt>Pending</dt>
+                            <dd>0</dd>
+                          </div>
+                          <div>
+                            <dt>Other skipped</dt>
+                            <dd>0</dd>
+                          </div>
+                          <div>
+                            <dt>Total</dt>
+                            <dd>1</dd>
+                          </div>
+                          <div>
+                            <dt>Save time</dt>
+                            <dd>
+                              1.20 seconds
+                            </dd>
+                          </div>
+                        </dl>
+          </article><article class="storage-result">
+            <h3>Web</h3>
+            <p class="storage-state">❌ Failed</p>
+            <details>
+    <summary>Error details</summary>
+    <pre class="error-message">Storage failed
+    at save (storage.js:1:1)</pre>
+  </details>
+          </article>
+    </div>
+  </section>
         <section>
     <h2>Errors</h2>
-    <ul>
-      <li>
-              <strong>scraper</strong>
-              <pre>&lt;failed&gt;</pre>
-            </li>
-    </ul>
+    <div class="report-grid">
+      <details>
+    <summary>scraper</summary>
+    <pre class="error-message">&lt;failed&gt;</pre>
+  </details>
+    </div>
   </section>
         <section>
     <h2>Screenshots</h2>

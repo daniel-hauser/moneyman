@@ -3,8 +3,12 @@ import type { AccountScrapeResult } from "../types.js";
 import { blockquote, getSummaryMessages } from "./messages.js";
 import { html } from "./report/html.js";
 import {
+  renderReportAccounts,
   renderReportErrors,
   renderReportScreenshots,
+  renderReportRunDetails,
+  renderReportStorages,
+  renderReportTransactions,
 } from "./report/components.js";
 import { reportStyles } from "./report/styles.js";
 import { statsDetailsLines, type SaveStats } from "./saveStats.js";
@@ -183,7 +187,7 @@ export function renderHTMLReport(report: RunReport): string {
   const failed =
     report.failed ||
     Object.values(report.storages).some((row) => row.state === "error") ||
-    report.summary?.results.some(({ result }) => !result.success);
+    Boolean(report.summary?.results.some(({ result }) => !result.success));
 
   return html`<!doctype html>
     <html lang="en">
@@ -197,22 +201,16 @@ export function renderHTMLReport(report: RunReport): string {
       </head>
       <body>
         <h1>Moneyman run report</h1>
-        <p class="status ${failed ? "failed" : "succeeded"}">
-          ${failed ? "❌ Failed" : "✅ Succeeded"}
-        </p>
-        <p>
-          Started:
-          <time datetime="${report.startedAt.toISOString()}"
-            >${escapers.HTML(report.startedAt.toISOString())}</time
-          >
-        </p>
-        <section>
-          <h2>Run details</h2>
-          <details open>
-            <summary>Status, results, and storage</summary>
-            ${renderFullReport(report)}
-          </details>
-        </section>
+        ${renderReportRunDetails({
+          startedAt: report.startedAt,
+          failed,
+          ...report.scrape,
+        })}
+        ${report.summary ? renderReportAccounts(report.summary.results) : ""}
+        ${
+          report.summary ? renderReportTransactions(report.summary.results) : ""
+        }
+        ${renderReportStorages(report.storages)}
         ${renderReportErrors(report.errors)}
         ${renderReportScreenshots(report.screenshots)}
       </body>
