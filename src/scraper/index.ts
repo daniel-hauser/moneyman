@@ -10,6 +10,7 @@ import { ScraperOptions } from "israeli-bank-scrapers";
 import { parallelLimit } from "async";
 import type { OtpRequest } from "./otp.js";
 import type { DomainTracker } from "../security/domains.js";
+import { aborted } from "node:util";
 
 const logger = createLogger("scraper");
 
@@ -111,10 +112,22 @@ export async function scrapeAccounts(
       await browser[Symbol.asyncDispose]();
     } catch (error) {
       logger("failed to close browser", error);
+      const completed = new AbortController();
+      const warningDeadline = AbortSignal.any([
+        AbortSignal.timeout(3_000),
+        completed.signal,
+      ]);
       try {
-        await onError?.(error, "browser.close");
+        await Promise.race([
+          onError?.(error, "browser.close"),
+          aborted(warningDeadline, browser).then(() => {
+            throw warningDeadline.reason;
+          }),
+        ]);
       } catch (notificationError) {
         logger("failed to report browser close failure", notificationError);
+      } finally {
+        completed.abort();
       }
     }
   }

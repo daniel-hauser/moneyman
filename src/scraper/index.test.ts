@@ -34,6 +34,7 @@ describe("scraper runtime browser lifecycle", () => {
   const browser = mock<Browser>();
   const initDomainTracking = jest.fn(async () => {});
   beforeEach(() => {
+    jest.restoreAllMocks();
     jest.clearAllMocks();
     browser[Symbol.asyncDispose].mockResolvedValue(undefined);
     jest.mocked(createBrowser).mockResolvedValue(browser);
@@ -41,6 +42,9 @@ describe("scraper runtime browser lifecycle", () => {
     jest
       .mocked(getAccountTransactions)
       .mockResolvedValue({ success: true, accounts: [] });
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it("passes narrow browser/OTP settings and closes the browser before returning results", async () => {
@@ -241,6 +245,45 @@ describe("scraper runtime browser lifecycle", () => {
         await expect(run).resolves.toHaveLength(1);
       }
       expect(onError).toHaveBeenCalledWith(closeError, "browser.close");
+      expect(browser[Symbol.asyncDispose]).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([false, true])(
+    "bounds a stalled close-warning callback without changing the scrape outcome (scrape failed: %s)",
+    async (scrapeFailed) => {
+      const deadline = new AbortController();
+      const timeout = jest
+        .spyOn(AbortSignal, "timeout")
+        .mockReturnValue(deadline.signal);
+      const reporting = Promise.withResolvers<void>();
+      const scrapeError = new Error("context failed");
+      browser[Symbol.asyncDispose].mockRejectedValueOnce(
+        new Error("close failed"),
+      );
+      if (scrapeFailed) {
+        jest
+          .mocked(createSecureBrowserContext)
+          .mockRejectedValueOnce(scrapeError);
+      }
+      const onError = jest.fn(() => {
+        reporting.resolve();
+        return new Promise<void>(() => {});
+      });
+      const run = scrapeAccounts(
+        config,
+        initDomainTracking,
+        undefined,
+        onError,
+      );
+      const outcome = scrapeFailed
+        ? expect(run).rejects.toBe(scrapeError)
+        : expect(run).resolves.toHaveLength(1);
+      await reporting.promise;
+      deadline.abort(new Error("warning deadline"));
+
+      await outcome;
+      expect(timeout).toHaveBeenCalledWith(3_000);
       expect(browser[Symbol.asyncDispose]).toHaveBeenCalledTimes(1);
     },
   );
