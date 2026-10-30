@@ -1,5 +1,5 @@
 import { escapers } from "@telegraf/entity";
-import type { AccountScrapeResult } from "../types.js";
+import type { AccountScrapeResult, RunTiming } from "../types.js";
 import { blockquote, getSummaryMessages } from "./messages.js";
 import { hashInlineContent, html } from "./report/html.js";
 import {
@@ -7,6 +7,7 @@ import {
   renderReportErrors,
   renderReportScreenshots,
   renderReportRunDetails,
+  renderReportTimings,
   renderReportStorages,
   renderReportTransactions,
   renderReportLogs,
@@ -35,6 +36,8 @@ export type StorageRow =
 
 export interface RunReport {
   startedAt: Date;
+  endedAt?: Date;
+  timings?: RunTiming[];
   failed: boolean;
   scrape: { status: Array<string>; totalTimeSec?: number };
   summary?: { results: Array<AccountScrapeResult> };
@@ -49,6 +52,7 @@ export interface RunReport {
 export function createRunReport(startedAt = new Date()): RunReport {
   return {
     startedAt,
+    timings: [],
     failed: false,
     scrape: { status: ["Starting..."] },
     errors: [],
@@ -185,10 +189,6 @@ export function renderFullReport(report: RunReport): string {
 }
 
 export function renderHTMLReport(report: RunReport, logs?: string): string {
-  const failed =
-    report.failed ||
-    Object.values(report.storages).some((row) => row.state === "error") ||
-    Boolean(report.summary?.results.some(({ result }) => !result.success));
   const transactions = report.summary
     ? renderReportTransactions(report.summary.results)
     : "";
@@ -234,9 +234,8 @@ export function renderHTMLReport(report: RunReport, logs?: string): string {
         <h1>Moneyman run report</h1>
         ${renderReportRunDetails({
           startedAt: report.startedAt,
-          failed,
           ...report.scrape,
-        })}
+        })}${renderReportTimings(report.timings, report.startedAt, report.endedAt)}
         ${renderReportAccounts(report.summary?.results ?? [], screenshots)}
         ${transactions} ${renderReportStorages(report.storages)}
         ${renderReportErrors(report.errors)}${logs === undefined ? "" : renderReportLogs(logs)}

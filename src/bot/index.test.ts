@@ -37,6 +37,50 @@ describe("runWithStorage report logs", () => {
     expect(finish).toHaveBeenCalledWith("captured logs");
   });
 
+  it("updates timing entries by ID and ends the run before publishing", async () => {
+    const startedAt = 1_000;
+    const runner: Runner = async ({ onTiming }) => {
+      await onTiming?.({
+        id: "account-1",
+        kind: "scraper",
+        name: "same-bank",
+        startedAt,
+      });
+      await onTiming?.({
+        id: "account-2",
+        kind: "scraper",
+        name: "same-bank",
+        startedAt,
+      });
+      await onTiming?.({
+        id: "account-1",
+        kind: "scraper",
+        name: "same-bank",
+        startedAt,
+        endedAt: 1_100,
+        failed: true,
+      });
+    };
+    finish.mockImplementationOnce(async () => {
+      const current = jest.mocked(createReportPublisher).mock.results.at(-1)!
+        .value.report;
+      expect(current.endedAt).toBeInstanceOf(Date);
+    });
+    const result = await runWithStorage(runner, [mock<TransactionStorage>()]);
+    expect(result.timings).toEqual([
+      {
+        id: "account-1",
+        kind: "scraper",
+        name: "same-bank",
+        startedAt,
+        endedAt: 1_100,
+        failed: true,
+      },
+      { id: "account-2", kind: "scraper", name: "same-bank", startedAt },
+    ]);
+    expect(result.endedAt).toBeInstanceOf(Date);
+  });
+
   it("still finalizes with captured logs when the scraper throws", async () => {
     await expect(
       runWithStorage(async () => {

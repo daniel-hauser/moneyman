@@ -4,7 +4,9 @@ import {
   TransactionRow,
   TransactionStorage,
   SaveContext,
+  RunTiming,
 } from "../../types.js";
+import { randomUUID } from "node:crypto";
 import { createLogger } from "../../utils/logger.js";
 import { loggerContextStore } from "../../utils/asyncContext.js";
 import { sendError } from "../notifier.js";
@@ -76,10 +78,25 @@ export async function saveResults(
       const { name } = storage.constructor;
       const logger = baseLogger.extend(name);
       const steps: Array<Step> = [];
+      report.timings ??= [];
+      const timings = report.timings;
+      timings.push({
+        id: `storage-${randomUUID()}`,
+        kind: "storage",
+        name,
+        startedAt: Date.now(),
+      });
+      const timing = timings[timings.length - 1];
+      let activeStep: RunTiming | undefined;
       let stepStart = performance.now();
       const endStep = () => {
         const now = performance.now();
         if (steps.length) steps[steps.length - 1].durationMs = now - stepStart;
+        if (activeStep) {
+          activeStep.endedAt = Date.now();
+          if (timing.failed) activeStep.failed = true;
+          activeStep = undefined;
+        }
         stepStart = now;
       };
 
@@ -93,6 +110,14 @@ export async function saveResults(
             async (step) => {
               endStep();
               steps.push({ name: step });
+              timings.push({
+                id: `step-${randomUUID()}`,
+                parentId: timing.id,
+                kind: "step",
+                name: step,
+                startedAt: Date.now(),
+              });
+              activeStep = timings[timings.length - 1];
               logger(`step "${step}"`);
               report.storages[name] = { state: "saving", steps: [...steps] };
             },
@@ -105,9 +130,13 @@ export async function saveResults(
           );
           report.storages[name] = { state: "done", stats, durationMs, steps };
         } catch (e) {
+          timing.failed = true;
           logger(`error saving transactions`, e);
           const message = formatUnknownError(e);
           report.storages[name] = { state: "error", message };
+        } finally {
+          if (activeStep) endStep();
+          timing.endedAt = Date.now();
         }
       });
     }),

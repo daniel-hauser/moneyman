@@ -27,16 +27,9 @@ h2 {
   clip-path: inset(50%);
   white-space: nowrap;
 }
-.status,
 summary,
 .run-details dt {
   font-weight: 600;
-}
-.status.failed {
-  color: #a50e0e;
-}
-.status.succeeded {
-  color: #137333;
 }
 section {
   margin: 2rem 0;
@@ -157,7 +150,8 @@ td {
 .storages-table col:nth-child(-n + 2) {
   width: 25%;
 }
-.storage-table {
+.storage-table,
+.timing-kind {
   display: block;
   margin-top: 0.125rem;
   color: #5f6368;
@@ -174,15 +168,67 @@ td .error-message {
   overflow-wrap: anywhere;
   min-width: 0;
 }
-.transactions-wrapper {
+.transactions-wrapper,
+.timings-wrapper {
   max-height: 28rem;
   overflow: auto;
 }
-.transactions-table th {
+.transactions-table th,
+.timings-table thead th {
   position: sticky;
   top: 0;
   z-index: 1;
   background: #fff;
+}
+.timings-table {
+  table-layout: fixed;
+  min-width: 36rem;
+}
+.timings-table col:first-child {
+  width: 28%;
+}
+.timings-table col:last-child {
+  width: 14%;
+}
+.timings-table th,
+.timings-table td {
+  vertical-align: middle;
+}
+.timings-table th[scope="row"] {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.timings-table .timing-step th {
+  padding-inline-start: 1.75rem;
+  font-weight: 400;
+}
+.timing-chart {
+  display: block;
+  width: 100%;
+  height: 24px;
+}
+.timing-axis {
+  fill: #5f6368;
+  font-size: 12px;
+}
+.timing-grid {
+  stroke: #dadce0;
+  vector-effect: non-scaling-stroke;
+}
+.timing-bar {
+  fill: #1a73e8;
+}
+.timing-storage .timing-bar {
+  fill: #137333;
+}
+.timing-step .timing-bar {
+  fill: #7794b7;
+}
+.timing-failed .timing-bar {
+  fill: #a50e0e;
+}
+.timing-running .timing-bar {
+  opacity: 0.5;
 }
 .account-screenshots,
 .screenshots {

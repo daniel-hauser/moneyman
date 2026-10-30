@@ -60,6 +60,18 @@ function createScraperSession(): ScraperWorkerApi {
             {
               executablePath: scraping.executablePath,
               signal: abort.signal,
+              onTiming: (timing) =>
+                locks
+                  .request(progressLock, async () => {
+                    try {
+                      await callbacks.timing(timing);
+                    } catch (error) {
+                      abort.abort(error);
+                    }
+                  })
+                  .catch((error) => {
+                    abort.abort(error);
+                  }),
               requestOtpCode: scraping.enableOtp
                 ? async (companyId, phoneNumber) => {
                     abort.signal.throwIfAborted();

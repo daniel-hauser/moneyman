@@ -27,6 +27,12 @@ export async function runWithStorage(
     }
 
     await runScraper({
+      onTiming(timing) {
+        const timings = (report.timings ??= []);
+        const index = timings.findIndex(({ id }) => id === timing.id);
+        if (index === -1) timings.push({ ...timing });
+        else timings[index] = { ...timing };
+      },
       async onStatusChanged(status: Array<string>, totalTime?: number) {
         logger(`scrape status: ${status.join(" | ")}`);
         report.scrape = { status, totalTimeSec: totalTime };
@@ -69,6 +75,7 @@ export async function runWithStorage(
 
     logToPublicLog("Scraping ended", logger);
   } finally {
+    report.endedAt = new Date();
     await finish(readReportLogs());
   }
 

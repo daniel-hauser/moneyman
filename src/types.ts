@@ -67,7 +67,19 @@ export type ImageWithCaption = {
   caption: string;
 };
 
+export interface RunTiming {
+  id: string;
+  parentId?: string;
+  kind: "scraper" | "storage" | "step";
+  name: string;
+  /** Epoch milliseconds, shared across the runner and scraper worker. */
+  startedAt: number;
+  endedAt?: number;
+  failed?: boolean;
+}
+
 export interface RunnerHooks {
+  onTiming?(timing: RunTiming): Promise<void> | void;
   onBeforeStart(): Promise<void>;
   onStatusChanged(rows: string[], totalTime?: number): Promise<void>;
   onResultsReady(results: AccountScrapeResult[]): Promise<void>;

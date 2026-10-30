@@ -4,7 +4,7 @@ import { mock } from "jest-mock-extended";
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
-import { AccountScrapeResult } from "../types.js";
+import { AccountScrapeResult, type RunTiming } from "../types.js";
 import { transaction } from "../utils/tests.js";
 import { createSaveStats } from "./saveStats.js";
 import { hashInlineContent } from "./report/html.js";
@@ -15,6 +15,7 @@ import {
   renderReportScreenshots,
   renderReportTransactions,
   renderReportLogs,
+  renderReportTimings,
 } from "./report/components.js";
 import {
   createRunReport,
@@ -196,6 +197,108 @@ describe("renderFullReport", () => {
       fullEnd: full.slice(-80),
       sentEnd: sent.slice(-80),
     }).toMatchSnapshot();
+  });
+});
+
+describe("renderReportTimings", () => {
+  const at = (offset: number) => startedAt.getTime() + offset;
+
+  it("uses one real-time axis for parallel scrapers, storages, and grouped steps", () => {
+    const timings: RunTiming[] = [
+      {
+        id: "scraper-1",
+        kind: "scraper",
+        name: "max",
+        startedAt: at(0),
+        endedAt: at(4000),
+      },
+      {
+        id: "scraper-2",
+        kind: "scraper",
+        name: "max",
+        startedAt: at(1000),
+        endedAt: at(3000),
+        failed: true,
+      },
+      {
+        id: "storage-1",
+        kind: "storage",
+        name: 'Sheets <&> "one"',
+        startedAt: at(4000),
+        endedAt: at(8000),
+      },
+      {
+        id: "storage-2",
+        kind: "storage",
+        name: "YNAB",
+        startedAt: at(4000),
+        endedAt: at(6000),
+      },
+      {
+        id: "step-2",
+        parentId: "storage-1",
+        kind: "step",
+        name: "Upload </svg><script>alert(1)</script>",
+        startedAt: at(5000),
+        endedAt: at(8000),
+      },
+      {
+        id: "step-1",
+        parentId: "storage-1",
+        kind: "step",
+        name: "Connect",
+        startedAt: at(4000),
+        endedAt: at(5000),
+      },
+    ];
+    expect(
+      renderReportTimings(timings, startedAt, new Date(at(10000))),
+    ).toMatchSnapshot();
+  });
+
+  it("omits a waterfall when no measured timing records exist", () => {
+    expect({
+      olderReport: renderReportTimings(undefined, startedAt),
+      emptyRun: renderReportTimings([], startedAt),
+    }).toMatchSnapshot();
+  });
+
+  it("shows elapsed running time without inventing a completion timestamp", () => {
+    const now = jest.spyOn(Date, "now").mockReturnValue(at(1500));
+    try {
+      expect(
+        renderReportTimings(
+          [
+            {
+              id: "running",
+              kind: "scraper",
+              name: "max",
+              startedAt: at(500),
+            },
+          ],
+          startedAt,
+        ),
+      ).toMatchSnapshot();
+    } finally {
+      now.mockRestore();
+    }
+  });
+
+  it("keeps zero-duration activities finite and does not fabricate a duration", () => {
+    expect(
+      renderReportTimings(
+        [
+          {
+            id: "instant",
+            kind: "storage",
+            name: "Local JSON",
+            startedAt: at(0),
+            endedAt: at(0),
+          },
+        ],
+        startedAt,
+      ),
+    ).toMatchSnapshot();
   });
 });
 
@@ -769,7 +872,7 @@ describe("renderHTMLReport", () => {
     expect(renderReportLogs(logs)).toMatchSnapshot();
   });
 
-  it("embeds screenshots and errors in an offline report with final status", () => {
+  it("embeds screenshots and errors in an offline report without a final-status block", () => {
     const report = baseReport();
     report.failed = true;
     report.scrape.totalTimeSec = 12.34;

@@ -5,6 +5,7 @@ import { addAbortListener, once } from "node:events";
 import { aborted } from "node:util";
 import { finalizer, proxy, releaseProxy, wrap } from "comlink";
 import debug from "debug";
+import type { RunnerHooks, RunTiming } from "../types.js";
 import { requestOtpCode } from "../bot/notifier.js";
 import { workerEnvironment } from "./environment.js";
 import {
@@ -19,6 +20,7 @@ export async function scrapeAccounts(
   onStatus?: (status: string[], totalTime?: number) => Promise<void>,
   onError?: (error: unknown, caller: string) => void | Promise<void>,
   signal?: AbortSignal,
+  onTiming?: RunnerHooks["onTiming"],
 ): Promise<WorkerResult> {
   signal?.throwIfAborted();
   const debugFilter = debug.disable();
@@ -28,6 +30,7 @@ export async function scrapeAccounts(
     debugFilter,
   });
   const resources = new AsyncDisposableStack();
+  const activeTimings = new Map<string, RunTiming>();
   try {
     const { port1, port2 } = new MessageChannel();
     resources.defer(() => {
@@ -86,6 +89,12 @@ export async function scrapeAccounts(
     const scrapingResult = api.scrape(
       settings,
       proxy({
+        timing: async (timing: RunTiming) => {
+          if (timing.endedAt === undefined)
+            activeTimings.set(timing.id, timing);
+          else activeTimings.delete(timing.id);
+          await onTiming?.(timing);
+        },
         status: async (status: string[], totalTime?: number) => {
           await onStatus?.(status, totalTime);
         },
@@ -137,5 +146,11 @@ export async function scrapeAccounts(
       throw new SuppressedError(cleanup, error);
     });
     throw error;
+  } finally {
+    // Termination may prevent active accounts from sending their final update.
+    const endedAt = Date.now();
+    for (const timing of activeTimings.values()) {
+      await onTiming?.({ ...timing, endedAt, failed: true });
+    }
   }
 }

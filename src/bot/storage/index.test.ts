@@ -7,6 +7,8 @@ import { MoneymanDashStorage } from "./moneyman.js";
 import { WebPostStorage } from "./web-post.js";
 import type { MoneymanConfig } from "../../config.schema.js";
 import { runContextStore } from "../../utils/asyncContext.js";
+import type { TransactionStorage } from "../../types.js";
+import { createSaveStats } from "../saveStats.js";
 
 jest.mock("../../config.js", () => ({ systemName: "moneyman" }));
 jest.mock("../notifier.js", () => ({
@@ -32,6 +34,129 @@ function snapshot(secret: string): MoneymanConfig {
   };
   return result;
 }
+
+describe("storage waterfall timings", () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it("captures parallel storage execution and sequential progress steps, including failures", async () => {
+    let now = 1_000;
+    jest.spyOn(Date, "now").mockImplementation(() => now);
+    const first = Promise.withResolvers<void>();
+    const second = Promise.withResolvers<void>();
+    class TimedStorage implements TransactionStorage {
+      canSave = () => true;
+      constructor(private readonly fail: boolean) {}
+      async saveTransactions(
+        txns: Parameters<TransactionStorage["saveTransactions"]>[0],
+        progress: Parameters<TransactionStorage["saveTransactions"]>[1],
+      ) {
+        await progress("connect");
+        await (this.fail ? second.promise : first.promise);
+        await progress("write");
+        if (this.fail) throw new Error("storage failed");
+        return createSaveStats("TimedStorage", undefined, txns, { added: 1 });
+      }
+    }
+    const report = createRunReport();
+    const run = saveResults(
+      [
+        {
+          companyId: CompanyTypes.hapoalim,
+          result: {
+            success: true,
+            accounts: [{ accountNumber: "123", txns: [transaction({})] }],
+          },
+        },
+      ],
+      report,
+      [new TimedStorage(false), new TimedStorage(true)],
+    );
+    const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
+    await tick();
+    expect(report.timings).toHaveLength(4);
+    expect(
+      report.timings!.every(
+        ({ startedAt, endedAt }) =>
+          startedAt === 1_000 && endedAt === undefined,
+      ),
+    ).toBe(true);
+
+    now = 1_100;
+    first.resolve();
+    await tick();
+    now = 1_200;
+    second.resolve();
+    await run;
+
+    const parents = report.timings!.filter(({ kind }) => kind === "storage");
+    expect(
+      parents.map(({ startedAt, endedAt, failed }) => ({
+        startedAt,
+        endedAt,
+        failed,
+      })),
+    ).toEqual([
+      { startedAt: 1_000, endedAt: 1_100, failed: undefined },
+      { startedAt: 1_000, endedAt: 1_200, failed: true },
+    ]);
+    expect(new Set(report.timings!.map(({ id }) => id)).size).toBe(6);
+    for (const parent of parents) {
+      const steps = report.timings!.filter(
+        ({ parentId }) => parentId === parent.id,
+      );
+      expect(steps.map(({ name }) => name)).toEqual(["connect", "write"]);
+      expect(steps[0]).toMatchObject({
+        startedAt: 1_000,
+        endedAt: parent.endedAt,
+      });
+      expect(steps[0].failed).toBeUndefined();
+      expect(steps[1]).toMatchObject({
+        startedAt: parent.endedAt,
+        endedAt: parent.endedAt,
+        ...(parent.failed ? { failed: true } : {}),
+      });
+    }
+    expect(report.storages.TimedStorage).toEqual({
+      state: "error",
+      message: "storage failed",
+    });
+  });
+
+  it("retains storage stats and monotonic step durations and initializes legacy reports lazily", async () => {
+    const report = createRunReport();
+    delete report.timings;
+    const storage: TransactionStorage = {
+      canSave: () => true,
+      async saveTransactions(txns, progress) {
+        await progress("write");
+        return createSaveStats("Object", undefined, txns, { added: 1 });
+      },
+    };
+    await saveResults(
+      [
+        {
+          companyId: CompanyTypes.hapoalim,
+          result: {
+            success: true,
+            accounts: [{ accountNumber: "123", txns: [transaction({})] }],
+          },
+        },
+      ],
+      report,
+      [storage],
+    );
+    expect(report.storages.Object).toMatchObject({
+      state: "done",
+      durationMs: expect.any(Number),
+      stats: { added: 1 },
+      steps: [{ name: "write", durationMs: expect.any(Number) }],
+    });
+    expect(report.timings).toHaveLength(2);
+    expect(report.timings!.every(({ endedAt }) => endedAt !== undefined)).toBe(
+      true,
+    );
+  });
+});
 
 describe("per-run storage ownership", () => {
   const fetchMock = jest.fn<

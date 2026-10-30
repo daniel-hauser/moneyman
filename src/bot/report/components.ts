@@ -1,5 +1,5 @@
 import { escapers } from "@telegraf/entity";
-import type { AccountScrapeResult } from "../../types.js";
+import type { AccountScrapeResult, RunTiming } from "../../types.js";
 import type { StorageRow } from "../runReport.js";
 import { html } from "./html.js";
 
@@ -85,20 +85,12 @@ function renderSortButton(key: string) {
 
 export function renderReportRunDetails({
   startedAt,
-  failed,
   totalTimeSec,
 }: {
   startedAt: Date;
-  failed: boolean;
   totalTimeSec?: number;
 }) {
   return html`<dl class="run-details">
-    <div>
-      <dt>Final status</dt>
-      <dd class="status ${failed ? "failed" : "succeeded"}">
-        ${failed ? "❌ Failed" : "✅ Succeeded"}
-      </dd>
-    </div>
     <div>
       <dt>Started</dt>
       <dd>
@@ -119,6 +111,148 @@ export function renderReportRunDetails({
           </div>`
     }
   </dl>`;
+}
+
+export function renderReportTimings(
+  timings: readonly RunTiming[] | undefined,
+  startedAt: Date,
+  endedAt?: Date,
+) {
+  if (!timings?.length) return "";
+
+  const start = startedAt.getTime();
+  const currentEnd = endedAt?.getTime() ?? Date.now();
+  const end = Math.max(
+    start,
+    endedAt?.getTime() ?? start,
+    ...timings.map((timing) => timing.endedAt ?? currentEnd),
+  );
+  const totalMs = end - start;
+  const scale = totalMs || 1;
+  const duration = (ms: number) =>
+    ms < 1000
+      ? `${Number(ms.toFixed(1))} ms`
+      : `${Number((ms / 1000).toFixed(2))} s`;
+  const children = new Map<string, RunTiming[]>();
+  const ids = new Set(timings.map(({ id }) => id));
+  for (const timing of timings) {
+    if (timing.parentId && ids.has(timing.parentId)) {
+      const siblings = children.get(timing.parentId) ?? [];
+      siblings.push(timing);
+      children.set(timing.parentId, siblings);
+    }
+  }
+  const rows = timings
+    .filter(({ parentId }) => !parentId || !ids.has(parentId))
+    .sort((a, b) => a.startedAt - b.startedAt)
+    .flatMap((timing) => [
+      timing,
+      ...(children.get(timing.id) ?? []).sort(
+        (a, b) => a.startedAt - b.startedAt,
+      ),
+    ]);
+
+  return html`<section class="timings-section">
+    <h2>Timings</h2>
+    <div
+      class="table-wrapper timings-wrapper"
+      tabindex="0"
+      role="region"
+      aria-label="Run timing waterfall"
+    >
+      <table class="timings-table">
+        <caption class="visually-hidden">
+          Scrapers and storages share an elapsed-time axis. Indented rows show
+          storage steps.
+        </caption>
+        <colgroup>
+          <col />
+          <col />
+          <col />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">Activity</th>
+            <th scope="col">
+              <span class="visually-hidden">Elapsed from run start</span>
+              <svg class="timing-chart timing-axis" aria-hidden="true">
+                ${[0, 1, 2, 3, 4]
+                  .map(
+                    (tick) =>
+                      html`<text
+                        x="${String(tick * 25)}%"
+                        y="17"
+                        text-anchor="${tick === 0 ? "start" : tick === 4 ? "end" : "middle"}"
+                      >
+                        ${duration((tick * totalMs) / 4)}
+                      </text>`,
+                  )
+                  .join("")}
+              </svg>
+            </th>
+            <th scope="col">Duration</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows
+            .map((timing) => {
+              const elapsed = Math.max(0, timing.startedAt - start);
+              const durationMs = Math.max(
+                0,
+                (timing.endedAt ?? currentEnd) - timing.startedAt,
+              );
+              const kind =
+                timing.kind === "scraper"
+                  ? "Scraper"
+                  : timing.kind === "storage"
+                    ? "Storage"
+                    : "Step";
+              const state = timing.failed
+                ? "Failed"
+                : timing.endedAt === undefined
+                  ? "Running"
+                  : "Completed";
+              const label = `${kind} ${timing.name}: ${state}; start ${duration(elapsed)}; duration ${duration(durationMs)}`;
+              return html`<tr
+                class="${timing.parentId ? "timing-step" : "timing-row"}"
+              >
+                <th scope="row">
+                  ${escaped(timing.name)}
+                  <small class="timing-kind"
+                    >${kind}${state === "Completed" ? "" : ` &middot; ${state}`}</small
+                  >
+                </th>
+                <td>
+                  <svg
+                    class="timing-chart timing-${escaped(timing.kind)}${timing.failed ? " timing-failed" : ""}${timing.endedAt === undefined ? " timing-running" : ""}"
+                    viewBox="0 0 1000 24"
+                    preserveAspectRatio="none"
+                    role="img"
+                    aria-label="${escaped(label)}"
+                  >
+                    <title>${escaped(label)}</title>
+                    <path
+                      class="timing-grid"
+                      d="M0 0V24M250 0V24M500 0V24M750 0V24M1000 0V24"
+                    />
+                    <rect
+                      class="timing-bar"
+                      x="${((elapsed / scale) * 1000).toFixed(3)}"
+                      y="6"
+                      width="${((durationMs / scale) * 1000).toFixed(3)}"
+                      height="12"
+                      rx="3"
+                    />
+                  </svg>
+                </td>
+                <td>${duration(durationMs)}</td>
+              </tr>`;
+            })
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+  </section>`;
 }
 
 export function renderReportAccounts(
