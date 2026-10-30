@@ -1,5 +1,97 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
+exports[`renderHTMLReport embeds screenshots and errors in an offline report with final status 1`] = `
+"<!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Moneyman run report</title>
+        <style>
+          body {
+            font:
+              16px system-ui,
+              sans-serif;
+            line-height: 1.5;
+            max-width: 960px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            color: #202124;
+          }
+          h1,
+          h2 {
+            line-height: 1.2;
+          }
+          .status {
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            background: #fde8e7;
+            color: #a50e0e;
+          }
+          section {
+            margin: 2rem 0;
+          }
+          details {
+            margin: 0.75rem 0;
+            padding: 0.75rem;
+            border: 1px solid #dadce0;
+            border-radius: 0.5rem;
+          }
+          summary {
+            cursor: pointer;
+            font-weight: 600;
+          }
+          img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            margin: 1rem 0;
+          }
+          pre {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+          }
+        </style>
+      </head>
+      <body>
+        <h1>Moneyman run report</h1>
+        <p class="status">❌ Failed</p>
+        <p>
+          Started:
+          <time datetime="2024-01-01T10:00:00.000Z"
+            >2024-01-01T10:00:00.000Z</time
+          >
+        </p>
+        <section>
+          <h2>Run details</h2>
+          <details open>
+            <summary>Status, results, and storage</summary>
+            max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done
+          </details>
+        </section>
+        <section>
+        <h2>Errors</h2>
+        <ul>
+          <li>
+                  <strong>scraper</strong>
+                  <pre>&lt;failed&gt;</pre>
+                </li>
+        </ul>
+      </section> <section>
+        <h2>Screenshots</h2>
+        <details>
+                <summary>Failure &lt;image&gt;</summary>
+                <img
+                  src="data:image/png;base64,aGVsbG8="
+                  alt="Failure &lt;image&gt;"
+                />
+              </details>
+      </section>
+      </body>
+    </html>"
+`;
+
 exports[`renderRunReport renders notices 1`] = `
 "max: scraping
 &lt;b&gt;visa&lt;/b&gt;: done

@@ -4,6 +4,9 @@ import { blockquote, getSummaryMessages } from "./messages.js";
 import { statsDetailsLines, type SaveStats } from "./saveStats.js";
 import { truncateError } from "./truncateError.js";
 
+const html = (strings: TemplateStringsArray, ...values: string[]) =>
+  String.raw({ raw: strings }, ...values);
+
 export const TELEGRAM_MESSAGE_LIMIT = 4096;
 
 export interface Step {
@@ -179,43 +182,108 @@ export function renderHTMLReport(report: RunReport): string {
     Object.values(report.storages).some((row) => row.state === "error") ||
     report.summary?.results.some(({ result }) => !result.success);
   const errors = report.errors.length
-    ? `<section><h2>Errors</h2><ul>${report.errors
-        .map(
-          ({ caller, message }) =>
-            `<li><strong>${escapers.HTML(caller)}</strong><pre>${escapers.HTML(message)}</pre></li>`,
-        )
-        .join("")}</ul></section>`
+    ? html`<section>
+        <h2>Errors</h2>
+        <ul>
+          ${report.errors
+            .map(
+              ({ caller, message }) =>
+                html`<li>
+                  <strong>${escapers.HTML(caller)}</strong>
+                  <pre>${escapers.HTML(message)}</pre>
+                </li>`,
+            )
+            .join("")}
+        </ul>
+      </section>`
     : "";
   const screenshots = report.screenshots.length
-    ? `<section><h2>Screenshots</h2>${report.screenshots
-        .map(
-          ({ caption, dataUrl }) =>
-            `<details><summary>${escapers.HTML(caption)}</summary><img src="${escapers.HTML(dataUrl)}" alt="${escapers.HTML(caption)}"></details>`,
-        )
-        .join("")}</section>`
+    ? html`<section>
+        <h2>Screenshots</h2>
+        ${report.screenshots
+          .map(
+            ({ caption, dataUrl }) =>
+              html`<details>
+                <summary>${escapers.HTML(caption)}</summary>
+                <img
+                  src="${escapers.HTML(dataUrl)}"
+                  alt="${escapers.HTML(caption)}"
+                />
+              </details>`,
+          )
+          .join("")}
+      </section>`
     : "";
 
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Moneyman run report</title>
-<style>
-body{font:16px system-ui,sans-serif;line-height:1.5;max-width:960px;margin:2rem auto;padding:0 1rem;color:#202124}
-h1,h2{line-height:1.2} .status{padding:.75rem 1rem;border-radius:.5rem;background:${failed ? "#fde8e7" : "#e6f4ea"};color:${failed ? "#a50e0e" : "#137333"}}
-section{margin:2rem 0} details{margin:.75rem 0;padding:.75rem;border:1px solid #dadce0;border-radius:.5rem}
-summary{cursor:pointer;font-weight:600} img{display:block;max-width:100%;height:auto;margin:1rem 0}
-pre{white-space:pre-wrap;overflow-wrap:anywhere}
-</style>
-</head>
-<body>
-<h1>Moneyman run report</h1>
-<p class="status">${failed ? "❌ Failed" : "✅ Succeeded"}</p>
-<p>Started: <time datetime="${report.startedAt.toISOString()}">${escapers.HTML(report.startedAt.toISOString())}</time></p>
-<section><h2>Run details</h2><details open><summary>Status, results, and storage</summary>${renderFullReport(report)}</details></section>
-${errors}
-${screenshots}
-</body>
-</html>`;
+  return html`<!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Moneyman run report</title>
+        <style>
+          body {
+            font:
+              16px system-ui,
+              sans-serif;
+            line-height: 1.5;
+            max-width: 960px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            color: #202124;
+          }
+          h1,
+          h2 {
+            line-height: 1.2;
+          }
+          .status {
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            background: ${failed ? "#fde8e7" : "#e6f4ea"};
+            color: ${failed ? "#a50e0e" : "#137333"};
+          }
+          section {
+            margin: 2rem 0;
+          }
+          details {
+            margin: 0.75rem 0;
+            padding: 0.75rem;
+            border: 1px solid #dadce0;
+            border-radius: 0.5rem;
+          }
+          summary {
+            cursor: pointer;
+            font-weight: 600;
+          }
+          img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            margin: 1rem 0;
+          }
+          pre {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+          }
+        </style>
+      </head>
+      <body>
+        <h1>Moneyman run report</h1>
+        <p class="status">${failed ? "❌ Failed" : "✅ Succeeded"}</p>
+        <p>
+          Started:
+          <time datetime="${report.startedAt.toISOString()}"
+            >${escapers.HTML(report.startedAt.toISOString())}</time
+          >
+        </p>
+        <section>
+          <h2>Run details</h2>
+          <details open>
+            <summary>Status, results, and storage</summary>
+            ${renderFullReport(report)}
+          </details>
+        </section>
+        ${errors} ${screenshots}
+      </body>
+    </html>`;
 }

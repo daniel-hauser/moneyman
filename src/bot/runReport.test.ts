@@ -185,6 +185,7 @@ describe("renderHTMLReport", () => {
 
     const html = renderHTMLReport(report);
 
+    expect(html).toMatchSnapshot();
     expect(html).toContain("<!doctype html>");
     expect(html).toContain("❌ Failed");
     expect(html).toContain("&lt;failed&gt;");
