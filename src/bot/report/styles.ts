@@ -131,6 +131,30 @@ export const reportStyles = css`
     overflow-x: auto;
     white-space: pre;
   }
+  .logs-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .download-logs {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.375rem;
+    border: 1px solid #dadce0;
+    border-radius: 0.375rem;
+    background: transparent;
+    color: #5f6368;
+    cursor: pointer;
+  }
+  .download-logs:hover {
+    background: #f1f3f4;
+    color: #202124;
+  }
+  .download-logs:focus-visible {
+    outline: 2px solid #1a73e8;
+    outline-offset: 2px;
+  }
   .run-logs {
     height: 24rem;
     overflow: auto;

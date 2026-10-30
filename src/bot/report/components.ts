@@ -302,18 +302,41 @@ export function renderReportScreenshots(
 export function renderReportLogs(logs: string) {
   const escapedLogs = escaped(logs).replaceAll("\r", "&#13;");
   return html`<section>
-    <h2>Logs</h2>
-    <button id="download-logs" type="button">Download logs as JSON</button>
+    <h2 class="logs-heading">
+      Logs
+      <button
+        id="download-logs"
+        class="download-logs"
+        type="button"
+        aria-label="Download logs"
+        title="Download logs"
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M12 3v12m-5-5 5 5 5-5M5 16v5h14v-5" />
+        </svg>
+      </button>
+    </h2>
     <pre id="run-logs" class="run-logs"><code>${escapedLogs}</code></pre>
     <script>
       document.getElementById("download-logs").addEventListener("click", () => {
         const logs = document.getElementById("run-logs").textContent;
         const url = URL.createObjectURL(
-          new Blob([JSON.stringify({ logs })], { type: "application/json" }),
+          new Blob([logs], { type: "text/plain;charset=utf-8" }),
         );
         const link = document.createElement("a");
         link.href = url;
-        link.download = "logs.json";
+        link.download = "logs.txt";
         document.body.appendChild(link);
         try {
           link.click();
