@@ -9,53 +9,80 @@ exports[`renderHTMLReport embeds screenshots and errors in an offline report wit
         <title>Moneyman run report</title>
         <style>
           body {
-            font:
-              16px system-ui,
-              sans-serif;
-            line-height: 1.5;
-            max-width: 960px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-            color: #202124;
-          }
-          h1,
-          h2 {
-            line-height: 1.2;
-          }
-          .status {
-            padding: 0.75rem 1rem;
-            border-radius: 0.5rem;
-            background: #fde8e7;
-            color: #a50e0e;
-          }
-          section {
-            margin: 2rem 0;
-          }
-          details {
-            margin: 0.75rem 0;
-            padding: 0.75rem;
-            border: 1px solid #dadce0;
-            border-radius: 0.5rem;
-          }
-          summary {
-            cursor: pointer;
-            font-weight: 600;
-          }
-          img {
-            display: block;
-            max-width: 100%;
-            height: auto;
-            margin: 1rem 0;
-          }
-          pre {
-            white-space: pre-wrap;
-            overflow-wrap: anywhere;
-          }
+    font:
+      16px system-ui,
+      sans-serif;
+    line-height: 1.5;
+    max-width: 960px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    color: #202124;
+  }
+  h1,
+  h2 {
+    line-height: 1.2;
+  }
+  .status {
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+  }
+  .status.failed {
+    background: #fde8e7;
+    color: #a50e0e;
+  }
+  .status.succeeded {
+    background: #e6f4ea;
+    color: #137333;
+  }
+  section {
+    margin: 2rem 0;
+  }
+  details {
+    margin: 0.75rem 0;
+    padding: 0.75rem;
+    border: 1px solid #dadce0;
+    border-radius: 0.5rem;
+  }
+  summary {
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .screenshots {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+    gap: 0.75rem;
+  }
+  .screenshot {
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid #dadce0;
+    border-radius: 0.5rem;
+  }
+  .screenshot a {
+    display: block;
+  }
+  .screenshot img {
+    display: block;
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+  }
+  .screenshot figcaption {
+    padding: 0.5rem 0.75rem;
+    overflow-wrap: anywhere;
+  }
+  pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
         </style>
       </head>
       <body>
         <h1>Moneyman run report</h1>
-        <p class="status">❌ Failed</p>
+        <p class="status failed">
+          ❌ Failed
+        </p>
         <p>
           Started:
           <time datetime="2024-01-01T10:00:00.000Z"
@@ -71,23 +98,32 @@ exports[`renderHTMLReport embeds screenshots and errors in an offline report wit
           </details>
         </section>
         <section>
-        <h2>Errors</h2>
-        <ul>
-          <li>
-                  <strong>scraper</strong>
-                  <pre>&lt;failed&gt;</pre>
-                </li>
-        </ul>
-      </section> <section>
-        <h2>Screenshots</h2>
-        <details>
-                <summary>Failure &lt;image&gt;</summary>
+    <h2>Errors</h2>
+    <ul>
+      <li>
+              <strong>scraper</strong>
+              <pre>&lt;failed&gt;</pre>
+            </li>
+    </ul>
+  </section>
+        <section>
+    <h2>Screenshots</h2>
+    <div class="screenshots">
+      <figure class="screenshot">
+              <a
+                href="data:image/png;base64,aGVsbG8="
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <img
                   src="data:image/png;base64,aGVsbG8="
                   alt="Failure &lt;image&gt;"
                 />
-              </details>
-      </section>
+              </a>
+              <figcaption>Failure &lt;image&gt;</figcaption>
+            </figure>
+    </div>
+  </section>
       </body>
     </html>"
 `;
