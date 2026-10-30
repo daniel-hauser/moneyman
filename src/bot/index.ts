@@ -6,6 +6,7 @@ import { reportTransport, reportUpdateIntervalMs } from "./notifier.js";
 import { formatUnknownError } from "../utils/utils.js";
 import { createReportPublisher } from "./reportPublisher.js";
 import { createRunReport, type RunReport } from "./runReport.js";
+import { readReportLogs } from "../utils/secure-log.js";
 
 const logger = createLogger("bot");
 
@@ -68,7 +69,7 @@ export async function runWithStorage(
 
     logToPublicLog("Scraping ended", logger);
   } finally {
-    await finish();
+    await finish(readReportLogs());
   }
 
   return report;

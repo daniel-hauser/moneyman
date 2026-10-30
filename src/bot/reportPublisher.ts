@@ -107,7 +107,7 @@ export function createReportPublisher(
     });
   }
 
-  async function finish() {
+  async function finish(logs?: string) {
     if (!transport) return;
     dirty = true;
     while (dirty || running) {
@@ -117,7 +117,7 @@ export function createReportPublisher(
 
     try {
       log("Sending report.html");
-      await transport.sendFile("report.html", renderHTMLReport(report));
+      await transport.sendFile("report.html", renderHTMLReport(report, logs));
     } catch (e) {
       log("Failed to send report.html", e);
     }
