@@ -131,22 +131,24 @@ describe("createReportPublisher", () => {
     await tick(500);
     await done;
     expect(transport.edit.mock.calls.at(-1)![1]).toContain("b");
-    expect(transport.sendFile).not.toHaveBeenCalled();
+    expect(transport.sendFile).toHaveBeenCalledTimes(1);
+    expect(transport.sendFile.mock.calls[0][0]).toBe("report.html");
     const statsLines = log.mock.calls.filter(([m]) =>
       String(m).startsWith("report stats"),
     );
     expect(statsLines).toHaveLength(1);
   });
 
-  it("sends status.html once, only when the message was truncated", async () => {
+  it("sends one complete report.html at finish", async () => {
     const { transport, report, finish } = setup();
     report.storages["Sheets"] = { state: "error", message: "x".repeat(1000) };
     const done = finish();
     await tick(500);
     await done;
     expect(transport.sendFile).toHaveBeenCalledTimes(1);
-    expect(transport.sendFile.mock.calls[0][0]).toBe("status.html");
+    expect(transport.sendFile.mock.calls[0][0]).toBe("report.html");
     expect(transport.sendFile.mock.calls[0][1]).toContain("x".repeat(1000));
+    expect(transport.sendFile.mock.calls[0][1]).toContain("❌ Failed");
   });
 
   it("does nothing without a transport", async () => {

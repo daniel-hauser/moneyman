@@ -6,6 +6,7 @@ import { createSaveStats } from "./saveStats.js";
 import {
   createRunReport,
   renderFullReport,
+  renderHTMLReport,
   renderRunReport,
   TELEGRAM_MESSAGE_LIMIT,
   type RunReport,
@@ -169,5 +170,55 @@ describe("renderFullReport", () => {
       big.storages[`Storage ${i}`] = { state: "saving", steps: [] };
     }
     expect(renderFullReport(big)).not.toBe(renderRunReport(big));
+  });
+});
+
+describe("renderHTMLReport", () => {
+  it("embeds screenshots and errors in an offline report with final status", () => {
+    const report = baseReport();
+    report.failed = true;
+    report.scrape.totalTimeSec = 12.34;
+    report.summary = {
+      results: [
+        successResult(),
+        {
+          companyId: CompanyTypes.max,
+          result: {
+            success: false,
+            errorType: ScraperErrorTypes.Generic,
+            errorMessage: "Scraping failed\n    at scraper (bank.js:1:1)",
+          },
+        },
+      ],
+    };
+    const tx = {
+      ...transaction({ description: "Shop" }),
+      hash: "h",
+      uniqueId: "u",
+      account: "1234",
+      companyId: CompanyTypes.max,
+    };
+    report.storages["Sheets"] = {
+      state: "done",
+      stats: createSaveStats("Sheets", "TheTable", [tx], {
+        added: 1,
+        existing: 0,
+      }),
+      durationMs: 1200,
+      steps: [step("Upload transactions", 800)],
+    };
+    report.storages["Web"] = {
+      state: "error",
+      message: "Storage failed\n    at save (storage.js:1:1)",
+    };
+    report.errors.push({ caller: "scraper", message: "<failed>" });
+    report.screenshots.push({
+      caption: "Failure <image>",
+      dataUrl: "data:image/png;base64,aGVsbG8=",
+    });
+
+    const html = renderHTMLReport(report);
+
+    expect(html).toMatchSnapshot();
   });
 });

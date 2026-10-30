@@ -1,6 +1,16 @@
 import { escapers } from "@telegraf/entity";
 import type { AccountScrapeResult } from "../types.js";
 import { blockquote, getSummaryMessages } from "./messages.js";
+import { html } from "./report/html.js";
+import {
+  renderReportAccounts,
+  renderReportErrors,
+  renderReportScreenshots,
+  renderReportRunDetails,
+  renderReportStorages,
+  renderReportTransactions,
+} from "./report/components.js";
+import { reportStyles } from "./report/styles.js";
 import { statsDetailsLines, type SaveStats } from "./saveStats.js";
 import { truncateError } from "./truncateError.js";
 
@@ -27,6 +37,8 @@ export interface RunReport {
   failed: boolean;
   scrape: { status: Array<string>; totalTimeSec?: number };
   summary?: { results: Array<AccountScrapeResult> };
+  errors: Array<{ caller: string; message: string }>;
+  screenshots: Array<{ caption: string; dataUrl: string }>;
   /** Keyed by storage name, ordered by insertion */
   storages: Record<string, StorageRow>;
   /** Free-form notes, e.g. "No transactions found, skipping save" */
@@ -38,6 +50,8 @@ export function createRunReport(startedAt = new Date()): RunReport {
     startedAt,
     failed: false,
     scrape: { status: ["Starting..."] },
+    errors: [],
+    screenshots: [],
     storages: {},
     notices: [],
   };
@@ -167,4 +181,38 @@ export function renderRunReport(report: RunReport): string {
 /** The whole report with nothing shortened or dropped */
 export function renderFullReport(report: RunReport): string {
   return render(report, { details: true, full: true });
+}
+
+export function renderHTMLReport(report: RunReport): string {
+  const failed =
+    report.failed ||
+    Object.values(report.storages).some((row) => row.state === "error") ||
+    Boolean(report.summary?.results.some(({ result }) => !result.success));
+
+  return html`<!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Moneyman run report</title>
+        <style>
+          ${reportStyles}
+        </style>
+      </head>
+      <body>
+        <h1>Moneyman run report</h1>
+        ${renderReportRunDetails({
+          startedAt: report.startedAt,
+          failed,
+          ...report.scrape,
+        })}
+        ${report.summary ? renderReportAccounts(report.summary.results) : ""}
+        ${
+          report.summary ? renderReportTransactions(report.summary.results) : ""
+        }
+        ${renderReportStorages(report.storages)}
+        ${renderReportErrors(report.errors)}
+        ${renderReportScreenshots(report.screenshots)}
+      </body>
+    </html>`;
 }

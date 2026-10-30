@@ -1,12 +1,9 @@
 import { saveResults, storages } from "./storage/index.js";
 import { AccountScrapeResult, Runner } from "../types.js";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
-import {
-  reportTransport,
-  reportUpdateIntervalMs,
-  sendError,
-  sendPhotos,
-} from "./notifier.js";
+import { readFile } from "node:fs/promises";
+import { reportTransport, reportUpdateIntervalMs } from "./notifier.js";
+import { formatUnknownError } from "../utils/utils.js";
 import { createReportPublisher } from "./reportPublisher.js";
 import { createRunReport, type RunReport } from "./runReport.js";
 
@@ -44,11 +41,25 @@ export async function runWithStorage(runScraper: Runner): Promise<RunReport> {
       },
       async onError(e: unknown, caller: string = "unknown") {
         report.failed = true;
-        await sendError(e, caller);
+        report.errors.push({
+          caller,
+          message:
+            e instanceof Error && e.stack
+              ? `${e.message}\n${e.stack}`
+              : formatUnknownError(e),
+        });
       },
       async onBeforeStart() {},
       async failureScreenshotsHandler(photos) {
-        await sendPhotos(photos);
+        if (!reportTransport) return;
+        report.screenshots.push(
+          ...(await Promise.all(
+            photos.map(async ({ photoPath, caption }) => ({
+              caption,
+              dataUrl: `data:image/png;base64,${(await readFile(photoPath)).toString("base64")}`,
+            })),
+          )),
+        );
       },
     });
 
