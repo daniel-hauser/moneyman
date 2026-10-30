@@ -24,6 +24,7 @@ import {
 } from "./configRefresh.js";
 import { createStorages } from "./bot/storage/index.js";
 import type { MoneymanConfig } from "./config.js";
+import { getBuildMetadata } from "./buildMetadata.js";
 
 const logger = createLogger("main");
 const SCRAPE_LOCK = "moneyman-scrape";
@@ -33,6 +34,7 @@ const longRunning = BooleanEnvVarSchema.parse(
 let lastRun: RunStatus | undefined;
 
 console.log("Starting...");
+logger("Build metadata", getBuildMetadata());
 
 process.on("uncaughtException", (err, origin) => {
   console.error("uncaughtException, sending error");

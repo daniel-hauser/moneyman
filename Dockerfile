@@ -18,9 +18,12 @@ RUN npm run build && \
 
 FROM node:25-slim AS runner
 
+ARG MONEYMAN_BUILD_SHA=unknown
+
 ENV NODE_ENV=production
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV MONEYMAN_BUILD_SHA=$MONEYMAN_BUILD_SHA
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
