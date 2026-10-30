@@ -1,14 +1,10 @@
 import { escapers } from "@telegraf/entity";
-import {
-  TransactionStatuses,
-  TransactionTypes,
-} from "israeli-bank-scrapers/lib/transactions.js";
 import type { AccountScrapeResult } from "../../types.js";
-import { normalizeCurrency } from "../../utils/currency.js";
 import type { StorageRow } from "../runReport.js";
 import { html } from "./html.js";
 
-const escaped = (value: string | number) => escapers.HTML(String(value));
+const escaped = (value: string | number) =>
+  escapers.HTML(String(value)).replaceAll('"', "&quot;");
 
 function renderErrorDetails(summary: string, message: string) {
   const escapedMessage = escaped(message);
@@ -18,92 +14,186 @@ function renderErrorDetails(summary: string, message: string) {
   </details>`;
 }
 
+function renderDownloadButton(
+  id: string,
+  label: string,
+  target: string,
+  filename: string,
+  type: string,
+) {
+  return html`<button
+    id="${escaped(id)}"
+    class="download-button"
+    type="button"
+    aria-label="${escaped(label)}"
+    title="${escaped(label)}"
+    data-download="${escaped(target)}"
+    data-filename="${escaped(filename)}"
+    data-type="${escaped(type)}"
+  >
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <use href="#download-icon" />
+    </svg>
+  </button>`;
+}
+
+function renderSearch(id: string, label: string, controls: string) {
+  return html`<input
+    id="${escaped(id)}"
+    class="report-search"
+    type="search"
+    aria-label="${escaped(label)}"
+    aria-controls="${escaped(controls)}"
+    placeholder="Search: * any text, ? one character"
+    title="Case-insensitive: * any text, ? one character; ~* literal *, ~? literal ?, ~~ literal ~."
+  />`;
+}
+
+function renderSortButton(key: string) {
+  return html`<button
+    type="button"
+    class="sort-button"
+    data-sort="${escaped(key)}"
+    aria-label="Sort ${escaped(key)} ascending"
+    title="Sort ${escaped(key)} ascending"
+  >
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <use href="#sort-icon" />
+    </svg>
+  </button>`;
+}
+
 export function renderReportRunDetails({
   startedAt,
   failed,
-  status,
   totalTimeSec,
 }: {
   startedAt: Date;
   failed: boolean;
-  status: Array<string>;
   totalTimeSec?: number;
 }) {
-  return html`<section>
-    <h2>Run details</h2>
-    <dl class="run-details">
-      <div>
-        <dt>Final status</dt>
-        <dd class="status ${failed ? "failed" : "succeeded"}">
-          ${failed ? "❌ Failed" : "✅ Succeeded"}
-        </dd>
-      </div>
-      <div>
-        <dt>Started</dt>
-        <dd>
-          <time datetime="${startedAt.toISOString()}"
-            >${escaped(startedAt.toISOString())}</time
-          >
-        </dd>
-      </div>
-      ${
-        totalTimeSec === undefined
-          ? ""
-          : html`<div>
-              <dt>Scraper time</dt>
-              <dd>${totalTimeSec.toFixed(1)} seconds</dd>
-            </div>`
-      }
-    </dl>
-    <h3>Scraper status</h3>
-    <ul class="scraper-status">
-      ${status.map((line) => html`<li>${escaped(line)}</li>`).join("")}
-    </ul>
-  </section>`;
+  return html`<dl class="run-details">
+    <div>
+      <dt>Final status</dt>
+      <dd class="status ${failed ? "failed" : "succeeded"}">
+        ${failed ? "❌ Failed" : "✅ Succeeded"}
+      </dd>
+    </div>
+    <div>
+      <dt>Started</dt>
+      <dd>
+        <time
+          id="run-started"
+          datetime="${startedAt.toISOString()}"
+          title="${startedAt.toISOString()}"
+          >${escaped(startedAt.toISOString())}</time
+        >
+      </dd>
+    </div>
+    ${
+      totalTimeSec === undefined
+        ? ""
+        : html`<div>
+            <dt>Scraper time</dt>
+            <dd>${totalTimeSec.toFixed(1)} seconds</dd>
+          </div>`
+    }
+  </dl>`;
 }
 
-export function renderReportAccounts(results: Array<AccountScrapeResult>) {
-  if (!results.length) return "";
+export function renderReportAccounts(
+  results: Array<AccountScrapeResult>,
+  screenshotsHTML = "",
+) {
+  if (!results.length && !screenshotsHTML) return "";
 
-  return html`<section>
-    <h2>Accounts</h2>
-    <div class="report-grid">
-      ${results
-        .map(({ companyId, result }) => {
-          if (!result.success) {
-            return html`<article class="account-result">
-              <h3>❌ ${escaped(companyId)}</h3>
-              <p>${escaped(result.errorType ?? "Unknown error")}</p>
-              ${
-                result.errorMessage
-                  ? renderErrorDetails("Error details", result.errorMessage)
-                  : ""
-              }
-            </article>`;
-          }
+  const table = results.length
+    ? html`<div class="table-wrapper">
+        <table class="accounts-table results-table">
+          <caption class="visually-hidden">
+            Account scrape results
+          </caption>
+          <colgroup>
+            <col />
+            <col />
+            <col />
+            <col />
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col">Company</th>
+              <th scope="col">Status</th>
+              <th scope="col">Account</th>
+              <th scope="col">Transactions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${results
+              .map(({ companyId, result }) => {
+                if (!result.success) {
+                  const failure = `❌ Failed: ${result.errorType ?? "Unknown error"}`;
+                  return html`<tr>
+                    <td>${escaped(companyId)}</td>
+                    <td>
+                      ${
+                        result.errorMessage
+                          ? renderErrorDetails(failure, result.errorMessage)
+                          : escaped(failure)
+                      }
+                    </td>
+                    <td>—</td>
+                    <td>—</td>
+                  </tr>`;
+                }
 
-          const accounts = result.accounts ?? [];
-          return html`<article class="account-result">
-            <h3>✅ ${escaped(companyId)}</h3>
-            ${
-              accounts.length
-                ? html`<ul>
-                    ${accounts
+                const accounts = result.accounts ?? [];
+                return accounts.length
+                  ? accounts
                       .map(
                         (account) =>
-                          html`<li>
-                            Account ${escaped(account.accountNumber)}:
-                            ${escaped(account.txns.length)} transactions
-                          </li>`,
+                          html`<tr>
+                            <td>${escaped(companyId)}</td>
+                            <td>✅ Succeeded</td>
+                            <td>${escaped(account.accountNumber)}</td>
+                            <td>${escaped(account.txns.length)}</td>
+                          </tr>`,
                       )
-                      .join("")}
-                  </ul>`
-                : html`<p>No accounts returned</p>`
-            }
-          </article>`;
-        })
-        .join("")}
-    </div>
+                      .join("")
+                  : html`<tr>
+                      <td>${escaped(companyId)}</td>
+                      <td>✅ Succeeded</td>
+                      <td>No accounts returned</td>
+                      <td>0</td>
+                    </tr>`;
+              })
+              .join("")}
+          </tbody>
+        </table>
+      </div>`
+    : "";
+  return html`<section class="accounts-section">
+    <h2>Accounts</h2>
+    ${table}${screenshotsHTML}
   </section>`;
 }
 
@@ -113,82 +203,67 @@ export function renderReportStorages(storages: Record<string, StorageRow>) {
 
   return html`<section>
     <h2>Storages</h2>
-    <div class="report-grid">
-      ${entries
-        .map(([name, row]) => {
-          const state =
-            row.state === "done"
-              ? "✅ Saved"
-              : row.state === "error"
-                ? "❌ Failed"
-                : "⏳ Saving";
-          return html`<article class="storage-result">
-            <h3>${escaped(name)}</h3>
-            <p class="storage-state">${state}</p>
-            ${
-              row.state === "error"
-                ? renderErrorDetails("Error details", row.message)
-                : html`${
-                    row.state === "done" && row.stats.table
-                      ? html`<p>Table: ${escaped(row.stats.table)}</p>`
-                      : ""
-                  }
-                  ${
-                    row.steps.length
-                      ? html`<h4>Steps</h4>
-                          <ul>
+    <div class="table-wrapper">
+      <table class="storages-table results-table">
+        <caption class="visually-hidden">
+          Storage save results
+        </caption>
+        <colgroup>
+          <col />
+          <col />
+          <col />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Status</th>
+            <th scope="col">Summary</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${entries
+            .map(([name, row]) => {
+              const state =
+                row.state === "done"
+                  ? "✅ Saved"
+                  : row.state === "error"
+                    ? "❌ Failed"
+                    : "⏳ Saving";
+              const summary =
+                row.state === "done"
+                  ? `${row.stats.total} total · ${row.stats.added} added · ${row.stats.existing} existing · ${row.stats.pending} pending · ${row.stats.otherSkipped} other skipped · ${(row.durationMs / 1000).toFixed(2)}s`
+                  : "—";
+              return html`<tr class="storage-row">
+                  <td>
+                    ${escaped(name)}${row.state === "done" && row.stats.table ? html`<small class="storage-table">${escaped(row.stats.table)}</small>` : ""}
+                  </td>
+                  <td>
+                    ${row.state === "error" ? renderErrorDetails(state, row.message) : state}
+                  </td>
+                  <td>${escaped(summary)}</td>
+                </tr>
+                ${
+                  row.state !== "error" && row.steps.length
+                    ? html`<tr class="storage-detail-row">
+                        <td colspan="3">
+                          <ol class="storage-steps" aria-label="Storage steps">
                             ${row.steps
                               .map(
                                 ({ name: stepName, durationMs }) =>
                                   html`<li>
-                                    ${escaped(stepName)}
-                                    ${
-                                      durationMs === undefined
-                                        ? ""
-                                        : ` — ${(durationMs / 1000).toFixed(2)}s`
-                                    }
+                                    ${escaped(stepName)}${durationMs === undefined ? "" : ` (${(durationMs / 1000).toFixed(2)}s)`}
                                   </li>`,
                               )
                               .join("")}
-                          </ul>`
-                      : ""
-                  }
-                  ${
-                    row.state === "done"
-                      ? html`<dl class="storage-stats">
-                          <div>
-                            <dt>Added</dt>
-                            <dd>${escaped(row.stats.added)}</dd>
-                          </div>
-                          <div>
-                            <dt>Existing</dt>
-                            <dd>${escaped(row.stats.existing)}</dd>
-                          </div>
-                          <div>
-                            <dt>Pending</dt>
-                            <dd>${escaped(row.stats.pending)}</dd>
-                          </div>
-                          <div>
-                            <dt>Other skipped</dt>
-                            <dd>${escaped(row.stats.otherSkipped)}</dd>
-                          </div>
-                          <div>
-                            <dt>Total</dt>
-                            <dd>${escaped(row.stats.total)}</dd>
-                          </div>
-                          <div>
-                            <dt>Save time</dt>
-                            <dd>
-                              ${(row.durationMs / 1000).toFixed(2)} seconds
-                            </dd>
-                          </div>
-                        </dl>`
-                      : ""
-                  }`
-            }
-          </article>`;
-        })
-        .join("")}
+                          </ol>
+                        </td>
+                      </tr>`
+                    : ""
+                }`.trimEnd();
+            })
+            .join("")}
+        </tbody>
+      </table>
     </div>
   </section>`;
 }
@@ -198,9 +273,9 @@ export function renderReportTransactions(results: Array<AccountScrapeResult>) {
     result.success
       ? (result.accounts ?? []).flatMap((account) =>
           account.txns.map((transaction) => ({
+            ...transaction,
             companyId,
             accountNumber: account.accountNumber,
-            transaction,
           })),
         )
       : [],
@@ -208,49 +283,51 @@ export function renderReportTransactions(results: Array<AccountScrapeResult>) {
   if (!transactions.length) return "";
 
   return html`<section>
-    <h2>Transactions</h2>
-    <details>
-      <summary>${escaped(transactions.length)} transactions</summary>
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Company</th>
-              <th>Account</th>
-              <th>Description</th>
-              <th>Amount</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${transactions
-              .map(({ companyId, accountNumber, transaction }) => {
-                const pendingOriginal =
-                  transaction.type === TransactionTypes.Normal &&
-                  transaction.status === TransactionStatuses.Pending;
-                const amount = pendingOriginal
-                  ? transaction.originalAmount
-                  : transaction.chargedAmount;
-                const currency =
-                  (pendingOriginal
-                    ? normalizeCurrency(transaction.originalCurrency)
-                    : normalizeCurrency(transaction.chargedCurrency)) ||
-                  normalizeCurrency(transaction.originalCurrency);
-                return html`<tr>
-                  <td>${escaped(transaction.date)}</td>
-                  <td>${escaped(companyId)}</td>
-                  <td>${escaped(accountNumber)}</td>
-                  <td>${escaped(transaction.description)}</td>
-                  <td>${amount.toFixed(2)} ${escaped(currency ?? "")}</td>
-                  <td>${escaped(transaction.status)}</td>
-                </tr>`;
-              })
-              .join("")}
-          </tbody>
-        </table>
+    <div class="section-heading">
+      <h2>
+        Transactions
+        <span id="transaction-count" aria-live="polite"
+          >(${escaped(transactions.length)})</span
+        >
+      </h2>
+      <div class="heading-actions">
+        ${renderSearch("search-transactions", "Search transactions", "transaction-rows")}
+        ${renderDownloadButton("download-transactions", "Download transactions as JSON", "transactions-json", "transactions.json", "application/json;charset=utf-8")}
       </div>
-    </details>
+    </div>
+    <template id="transactions-json">
+      ${escaped(JSON.stringify(transactions, null, 2))}
+    </template>
+    <div
+      class="table-wrapper transactions-wrapper"
+      tabindex="0"
+      role="region"
+      aria-label="Transactions"
+    >
+      <table class="transactions-table">
+        <caption class="visually-hidden">
+          Scraped transactions
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col" aria-sort="none">
+              Date ${renderSortButton("date")}
+            </th>
+            <th scope="col">Company</th>
+            <th scope="col" aria-sort="none">
+              Account ${renderSortButton("account")}
+            </th>
+            <th scope="col">Description</th>
+            <th scope="col" aria-sort="none">
+              Amount ${renderSortButton("amount")}
+            </th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody id="transaction-rows"></tbody>
+      </table>
+    </div>
+    <noscript>Enable JavaScript to view or download transactions.</noscript>
   </section>`;
 }
 
@@ -272,29 +349,63 @@ export function renderReportErrors(
 export function renderReportScreenshots(
   screenshots: Array<{ caption: string; dataUrl: string }>,
 ) {
-  if (!screenshots.length) return "";
+  const usableScreenshots = screenshots.filter(({ dataUrl }) => dataUrl.trim());
+  if (!usableScreenshots.length) return "";
 
+  return html`<div class="account-screenshots">
+    <details class="screenshots-details">
+      <summary>Screenshots (${escaped(usableScreenshots.length)})</summary>
+      <div class="screenshots">
+        ${usableScreenshots
+          .map(
+            ({ caption, dataUrl }) =>
+              html`<figure class="screenshot">
+                <button
+                  type="button"
+                  class="screenshot-open"
+                  aria-label="${escaped(`Enlarge screenshot: ${caption}`)}"
+                >
+                  <img src="${escaped(dataUrl)}" alt="${escaped(caption)}" />
+                </button>
+                <figcaption>${escaped(caption)}</figcaption>
+              </figure>`,
+          )
+          .join("")}
+      </div>
+    </details>
+    <dialog
+      id="screenshot-dialog"
+      class="screenshot-dialog"
+      aria-labelledby="screenshot-full-caption"
+      closedby="any"
+    >
+      <button
+        type="button"
+        class="screenshot-close"
+        commandfor="screenshot-dialog"
+        command="close"
+        autofocus
+      >
+        Close screenshot
+      </button>
+      <figure>
+        <img id="screenshot-full" alt="" />
+        <figcaption id="screenshot-full-caption"></figcaption>
+      </figure>
+    </dialog>
+  </div>`;
+}
+
+export function renderReportLogs(logs: string) {
+  const escapedLogs = escaped(logs).replaceAll("\r", "&#13;");
   return html`<section>
-    <h2>Screenshots</h2>
-    <div class="screenshots">
-      ${screenshots
-        .map(
-          ({ caption, dataUrl }) =>
-            html`<figure class="screenshot">
-              <a
-                href="${escapers.HTML(dataUrl)}"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <img
-                  src="${escapers.HTML(dataUrl)}"
-                  alt="${escapers.HTML(caption)}"
-                />
-              </a>
-              <figcaption>${escapers.HTML(caption)}</figcaption>
-            </figure>`,
-        )
-        .join("")}
+    <div class="logs-heading section-heading">
+      <h2>Logs</h2>
+      <div class="heading-actions">
+        ${renderSearch("search-logs", "Search logs", "run-logs")}
+        ${renderDownloadButton("download-logs", "Download logs", "run-logs", "logs.txt", "text/plain;charset=utf-8")}
+      </div>
     </div>
+    <pre id="run-logs" class="run-logs"><code>${escapedLogs}</code></pre>
   </section>`;
 }

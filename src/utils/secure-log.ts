@@ -1,6 +1,5 @@
 import { existsSync, unlinkSync, truncateSync, readFileSync } from "fs";
 import { config } from "../config.js";
-import { sendTextFile } from "../bot/notifier.js";
 import { logToPublicLog, unsafeStdout, createLogger } from "./logger.js";
 import type { TransactionStorage } from "../types.js";
 import debug from "debug";
@@ -21,6 +20,25 @@ export function enableDebugLoggingIfNeeded() {
     !process.env.DEBUG
   ) {
     debug.enable(config.options.logging.debugFilter);
+  }
+}
+
+export function readReportLogs(): string | undefined {
+  const telegram = config.options.notifications?.telegram;
+  const logFilePath = process.env.MONEYMAN_LOG_FILE_PATH;
+  if (
+    unsafeStdout ||
+    !telegram?.chatId ||
+    !telegram.sendLogFileToTelegram ||
+    !logFilePath
+  ) {
+    return;
+  }
+
+  try {
+    return readFileSync(logFilePath, "utf-8");
+  } catch (error) {
+    logger("Failed to read logs for report:", error);
   }
 }
 
@@ -50,14 +68,6 @@ export async function sendLogFile(
   }
 
   try {
-    if (telegram?.sendLogFileToTelegram) {
-      logToPublicLog(`Sending log file`, logger);
-      await sendTextFile(logFilePath).catch((error) => {
-        logger("Failed to send logs to Telegram:", error);
-        logToPublicLog("Failed to send logs to Telegram", logger);
-      });
-    }
-
     // Send logs to all storages that support it
     if (logStorages.length > 0) {
       const logContent = readFileSync(logFilePath, "utf-8");
