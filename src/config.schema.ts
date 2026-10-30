@@ -145,7 +145,7 @@ export const NotificationOptionsSchema = z.object({
        */
       otpTimeoutSeconds: z.number().min(30).max(600).optional().default(300),
       /**
-       * Whether to send the log file to Telegram when using secure logging (MONEYMAN_UNSAFE_STDOUT=false).
+       * Whether to include logs in the HTML report sent to Telegram when using secure logging (MONEYMAN_UNSAFE_STDOUT=false).
        * Only applies when output redirection is enabled.
        * @default true
        */

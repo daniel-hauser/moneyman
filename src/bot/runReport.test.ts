@@ -1,4 +1,6 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
+import { runInNewContext } from "node:vm";
+import { mock } from "jest-mock-extended";
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
 import { AccountScrapeResult } from "../types.js";
 import { transaction } from "../utils/tests.js";
@@ -174,6 +176,78 @@ describe("renderFullReport", () => {
 });
 
 describe("renderHTMLReport", () => {
+  it("omits the log viewer and download script when logs are unavailable", () => {
+    const html = renderHTMLReport(baseReport());
+
+    expect(html).not.toContain("<h2>Logs</h2>");
+    expect(html).not.toContain('id="run-logs"');
+    expect(html).not.toContain("<script>");
+  });
+
+  it("inlines the complete escaped log exactly once in a fixed-height viewer", () => {
+    const logs = '\n  unique-log <&> "</pre><script>alert(1)</script>"\n\tend';
+    const escaped =
+      '\n  unique-log &lt;&amp;&gt; "&lt;/pre&gt;&lt;script&gt;alert(1)&lt;/script&gt;"\n\tend';
+    const html = renderHTMLReport(baseReport(), logs);
+
+    expect(html).toContain(
+      `<pre id="run-logs" class="run-logs"><code>${escaped}</code></pre>`,
+    );
+    expect(html.split("unique-log")).toHaveLength(2);
+    expect(html).not.toContain(logs);
+    expect(html).toMatch(
+      /\.run-logs \{\s*height: 24rem;\s*overflow: auto;\s*white-space: pre;\s*content-visibility: auto;/,
+    );
+  });
+
+  it("preserves CR and CRLF in the DOM log source using character references", () => {
+    const html = renderHTMLReport(baseReport(), "\r\nfirst\rsecond\r\nlast");
+
+    expect(html).toContain(
+      '<pre id="run-logs" class="run-logs"><code>&#13;\nfirst&#13;second&#13;\nlast</code></pre>',
+    );
+  });
+
+  it("downloads JSON from the viewer text, with a temporary object URL", async () => {
+    const html = renderHTMLReport(baseReport(), "original log");
+    const script = html.match(/<script>([\s\S]*?)<\/script>/)![1];
+    const logs = '\n  DOM log <&> "</script>"\n\tend';
+    const button = { addEventListener: jest.fn() };
+    const link = mock<HTMLAnchorElement>();
+    const document = {
+      getElementById: jest.fn((id: string) =>
+        id === "download-logs" ? button : { textContent: logs },
+      ),
+      createElement: jest.fn(() => link),
+      body: { appendChild: jest.fn() },
+    };
+    const URL = {
+      createObjectURL: jest.fn((blob: Blob) => "blob:logs"),
+      revokeObjectURL: jest.fn(),
+    };
+    const setTimeout = jest.fn();
+    runInNewContext(script, { document, URL, Blob, setTimeout });
+    expect(button.addEventListener).toHaveBeenCalledWith(
+      "click",
+      expect.any(Function),
+    );
+
+    button.addEventListener.mock.calls[0][1]();
+
+    const blob = URL.createObjectURL.mock.calls[0][0];
+    expect(blob.type).toBe("application/json");
+    expect(JSON.parse(await blob.text())).toEqual({ logs });
+    expect(document.createElement).toHaveBeenCalledWith("a");
+    expect(link.download).toBe("logs.json");
+    expect(link.href).toBe("blob:logs");
+    expect(document.body.appendChild).toHaveBeenCalledWith(link);
+    expect(link.click).toHaveBeenCalledTimes(1);
+    expect(link.remove).toHaveBeenCalledTimes(1);
+    expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 0);
+    setTimeout.mock.calls[0][0]();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:logs");
+  });
+
   it("embeds screenshots and errors in an offline report with final status", () => {
     const report = baseReport();
     report.failed = true;

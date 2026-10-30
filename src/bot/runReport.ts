@@ -9,6 +9,7 @@ import {
   renderReportRunDetails,
   renderReportStorages,
   renderReportTransactions,
+  renderReportLogs,
 } from "./report/components.js";
 import { reportStyles } from "./report/styles.js";
 import { statsDetailsLines, type SaveStats } from "./saveStats.js";
@@ -183,7 +184,7 @@ export function renderFullReport(report: RunReport): string {
   return render(report, { details: true, full: true });
 }
 
-export function renderHTMLReport(report: RunReport): string {
+export function renderHTMLReport(report: RunReport, logs?: string): string {
   const failed =
     report.failed ||
     Object.values(report.storages).some((row) => row.state === "error") ||
@@ -212,7 +213,9 @@ export function renderHTMLReport(report: RunReport): string {
         }
         ${renderReportStorages(report.storages)}
         ${renderReportErrors(report.errors)}
-        ${renderReportScreenshots(report.screenshots)}
+        ${renderReportScreenshots(report.screenshots)}${
+          logs === undefined ? "" : renderReportLogs(logs)
+        }
       </body>
     </html>`;
 }

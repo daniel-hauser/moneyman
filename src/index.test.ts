@@ -40,6 +40,7 @@ jest.mock("./server.js", () => ({ startServer: jest.fn() }));
 jest.mock("./utils/secure-log.js", () => ({
   enableDebugLoggingIfNeeded: jest.fn(),
   sendLogFile: jest.fn(),
+  readReportLogs: jest.fn(),
 }));
 jest.mock("./runnerMetadata.js", () => ({
   getExternalIp: jest.fn().mockResolvedValue({}),

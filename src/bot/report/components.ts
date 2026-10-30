@@ -298,3 +298,30 @@ export function renderReportScreenshots(
     </div>
   </section>`;
 }
+
+export function renderReportLogs(logs: string) {
+  const escapedLogs = escaped(logs).replaceAll("\r", "&#13;");
+  return html`<section>
+    <h2>Logs</h2>
+    <button id="download-logs" type="button">Download logs as JSON</button>
+    <pre id="run-logs" class="run-logs"><code>${escapedLogs}</code></pre>
+    <script>
+      document.getElementById("download-logs").addEventListener("click", () => {
+        const logs = document.getElementById("run-logs").textContent;
+        const url = URL.createObjectURL(
+          new Blob([JSON.stringify({ logs })], { type: "application/json" }),
+        );
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "logs.json";
+        document.body.appendChild(link);
+        try {
+          link.click();
+        } finally {
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 0);
+        }
+      });
+    </script>
+  </section>`;
+}

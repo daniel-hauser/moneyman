@@ -131,4 +131,11 @@ export const reportStyles = css`
     overflow-x: auto;
     white-space: pre;
   }
+  .run-logs {
+    height: 24rem;
+    overflow: auto;
+    white-space: pre;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 24rem;
+  }
 `;
