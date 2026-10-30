@@ -2,6 +2,7 @@ import { mockDeep } from "jest-mock-extended";
 import { Context, Telegraf } from "telegraf";
 import { createBot } from "./bot.js";
 import { logToPublicLog } from "../utils/logger.js";
+import { getEventListeners } from "node:events";
 
 jest.mock("../utils/logger.js", () => ({
   createLogger: () => jest.fn(),
@@ -46,19 +47,53 @@ describe("createBot", () => {
     );
   });
 
-  it("bounds menu cleanup to three seconds", async () => {
-    const abort = new AbortController();
-    const timeout = jest
-      .spyOn(AbortSignal, "timeout")
-      .mockReturnValue(abort.signal);
-    bot.telegram.deleteMyCommands.mockImplementationOnce(
-      () => new Promise(() => {}),
-    );
+  it.each([false, true])(
+    "logs menu cleanup timeouts, including an expired deadline (%s)",
+    async (alreadyAborted) => {
+      const abort = new AbortController();
+      if (alreadyAborted) abort.abort(new Error("menu timeout"));
+      const timeout = jest
+        .spyOn(AbortSignal, "timeout")
+        .mockReturnValue(abort.signal);
+      bot.telegram.deleteMyCommands.mockImplementationOnce(
+        () => new Promise(() => {}),
+      );
 
+      const shutdown = controller.shutdownTelegramBot();
+      expect(timeout).toHaveBeenCalledWith(3_000);
+      abort.abort();
+      await expect(shutdown).resolves.toBeUndefined();
+      expect(logToPublicLog).toHaveBeenCalledWith(
+        "Failed to clear Telegram command menu",
+        expect.any(Function),
+      );
+    },
+  );
+
+  it("releases the deadline wait when menu cleanup completes first", async () => {
+    const timeout = new AbortController();
+    jest.spyOn(AbortSignal, "timeout").mockReturnValue(timeout.signal);
+    const combined = jest.spyOn(AbortSignal, "any");
+    await controller.shutdownTelegramBot();
+    expect(
+      getEventListeners(combined.mock.results[0].value as AbortSignal, "abort"),
+    ).toEqual([]);
+    timeout.abort(new Error("late timeout"));
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(logToPublicLog).not.toHaveBeenCalled();
+  });
+
+  it("handles a command RPC rejection after the deadline already won", async () => {
+    const timeout = new AbortController();
+    const deletion = Promise.withResolvers<true>();
+    jest.spyOn(AbortSignal, "timeout").mockReturnValue(timeout.signal);
+    bot.telegram.deleteMyCommands.mockReturnValueOnce(deletion.promise);
     const shutdown = controller.shutdownTelegramBot();
-    expect(timeout).toHaveBeenCalledWith(3_000);
-    abort.abort();
-    await expect(shutdown).resolves.toBeUndefined();
+    timeout.abort(new Error("menu timeout"));
+    await shutdown;
+    deletion.reject(new Error("late Telegram RPC failure"));
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(logToPublicLog).toHaveBeenCalledTimes(1);
   });
 
   it("starts polling only once", async () => {

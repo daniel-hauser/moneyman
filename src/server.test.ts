@@ -3,6 +3,8 @@ import { Context, Telegraf } from "telegraf";
 import { schedule } from "node-cron";
 import { startServer, type ServerRunner } from "./server.js";
 import type { RunStatus } from "./types.js";
+import { getEventListeners } from "node:events";
+import { logToPublicLog } from "./utils/logger.js";
 import { registerCommands } from "./bot/commands.js";
 import {
   getTelegramBot,
@@ -108,6 +110,7 @@ describe("startServer", () => {
   it.each(["SIGINT", "SIGTERM"] as const)(
     "waits for the run in progress on %s before exiting",
     async (signal) => {
+      const combined = jest.spyOn(AbortSignal, "any");
       let releaseRun!: () => void;
       const finished = new Promise<RunStatus | undefined>((resolve) => {
         releaseRun = () => resolve(undefined);
@@ -127,6 +130,15 @@ describe("startServer", () => {
       expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
       expect(exit).toHaveBeenCalledWith(0);
       expect(exit).toHaveBeenCalledTimes(1);
+      expect(
+        getEventListeners(
+          combined.mock.results[0].value as AbortSignal,
+          "abort",
+        ),
+      ).toEqual([]);
+      expect(logToPublicLog).not.toHaveBeenCalledWith(
+        expect.stringContaining("did not finish"),
+      );
     },
   );
 
@@ -149,31 +161,38 @@ describe("startServer", () => {
     await flush();
   });
 
-  it("gives up waiting for the scrape after the drain timeout", async () => {
-    const controller = new AbortController();
-    const timeout = jest
-      .spyOn(AbortSignal, "timeout")
-      .mockReturnValue(controller.signal);
-    try {
-      runner.startRun.mockResolvedValue({
-        started: true,
-        finished: new Promise(() => {}),
-      });
-      await startServer(runner);
-      await handlers().scrape();
+  it.each([false, true])(
+    "honors the drain timeout, including an expired deadline (%s)",
+    async (alreadyAborted) => {
+      const controller = new AbortController();
+      if (alreadyAborted) controller.abort();
+      const timeout = jest
+        .spyOn(AbortSignal, "timeout")
+        .mockReturnValue(controller.signal);
+      try {
+        runner.startRun.mockResolvedValue({
+          started: true,
+          finished: new Promise(() => {}),
+        });
+        await startServer(runner);
+        await handlers().scrape();
 
-      process.emit("SIGTERM");
-      expect(timeout).toHaveBeenCalledWith(30_000);
-      expect(exit).not.toHaveBeenCalled();
-      controller.abort();
-      await flush();
+        process.emit("SIGTERM");
+        expect(timeout).toHaveBeenCalledWith(30_000);
+        expect(exit).not.toHaveBeenCalled();
+        controller.abort();
+        await flush();
 
-      expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
-      expect(exit).toHaveBeenCalledWith(0);
-    } finally {
-      timeout.mockRestore();
-    }
-  });
+        expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
+        expect(exit).toHaveBeenCalledWith(0);
+        expect(logToPublicLog).toHaveBeenCalledWith(
+          "The scrape did not finish within 30 seconds, shutting down anyway",
+        );
+      } finally {
+        timeout.mockRestore();
+      }
+    },
+  );
 
   it("runs scheduled scrapes", async () => {
     runner.startRun.mockResolvedValue({

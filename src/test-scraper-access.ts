@@ -11,6 +11,7 @@ import { createLogger } from "./utils/logger.js";
 import { getExternalIp } from "./runnerMetadata.js";
 import { scraperOptions } from "./scraper/index.js";
 import { config } from "./config.js";
+import { createDomainTracker } from "./security/domains.js";
 
 const logger = createLogger("test-scraper-access");
 
@@ -25,8 +26,11 @@ const firewallSettings = [
   ),
 ];
 
-config.options.scraping.domainTracking = true;
-config.options.security.firewallSettings = firewallSettings;
+const domainTracker = createDomainTracker({
+  domainTracking: true,
+  firewallSettings,
+  blockByDefault: config.options.security.blockByDefault,
+});
 
 debug.enable(
   "moneyman:browser,moneyman:test-scraper-access,moneyman:cloudflare-solver,moneyman:domain-rules,israeli-bank-scrapers:*",
@@ -38,11 +42,17 @@ describe("Sites access tests", () => {
   before(async () => {
     logger("Starting tests");
     logger("Connecting from: ", await getExternalIp());
-    browser = await createBrowser();
+    browser = await createBrowser(
+      config.options.scraping.puppeteerExecutablePath,
+    );
   });
 
   after(async () => {
-    await browser.close();
+    try {
+      await browser?.close();
+    } finally {
+      domainTracker.dispose();
+    }
   });
 
   describe("basic access", () => {
@@ -61,7 +71,11 @@ describe("Sites access tests", () => {
       },
     ] as const) {
       test(`should access ${company} at ${url}`, async () => {
-        const context = await createSecureBrowserContext(browser, company);
+        const context = await createSecureBrowserContext(
+          browser,
+          company,
+          domainTracker.initDomainTracking,
+        );
         const page = await context.newPage();
         await page.setViewport({ width: 1920, height: 1080 });
         await page.goto(url, { waitUntil: "networkidle2" });
@@ -110,6 +124,7 @@ describe("Sites access tests", () => {
           browserContext: (await createSecureBrowserContext(
             browser,
             companyId,
+            domainTracker.initDomainTracking,
           )) as any,
           ...scraperOptions,
         });

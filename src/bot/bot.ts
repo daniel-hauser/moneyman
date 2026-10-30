@@ -1,6 +1,6 @@
 import { Context, Telegraf } from "telegraf";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
-import { waitForAbortSignal } from "../utils/promises.js";
+import { aborted } from "node:util";
 import { formatUnknownError } from "../utils/utils.js";
 import { createOtpHandler } from "./otp.js";
 import { config } from "../config.js";
@@ -53,14 +53,22 @@ export function createBot(bot: Telegraf<Context> | null) {
     stopTelegramBot();
     if (!bot) return;
 
+    const completed = new AbortController();
+    const signal = AbortSignal.any([
+      AbortSignal.timeout(3_000),
+      completed.signal,
+    ]);
     try {
-      await Promise.race([
+      const cleared = await Promise.race([
         bot.telegram.deleteMyCommands(),
-        waitForAbortSignal(AbortSignal.timeout(3_000)),
+        aborted(signal, bot),
       ]);
+      if (cleared !== true) signal.throwIfAborted();
     } catch (error) {
       logger("Failed to clear Telegram command menu", error);
       logToPublicLog("Failed to clear Telegram command menu", logger);
+    } finally {
+      completed.abort();
     }
   }
 

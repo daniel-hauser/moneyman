@@ -1,7 +1,11 @@
 import { randomUUID } from "crypto";
 import { locks } from "node:worker_threads";
-import { scrapeAccounts } from "./scraper/index.js";
-import { getScraperConfig, sendConfigToTelegramIfRequested } from "./config.js";
+import { scrapeAccounts } from "./scraper/client.js";
+import {
+  config,
+  getScraperConfig,
+  sendConfigToTelegramIfRequested,
+} from "./config.js";
 import { BooleanEnvVarSchema } from "./config.schema.js";
 import { sendError } from "./bot/notifier.js";
 import { createLogger } from "./utils/logger.js";
@@ -9,7 +13,7 @@ import { sendLogFile, enableDebugLoggingIfNeeded } from "./utils/secure-log.js";
 import { RunHandle, RunnerHooks, RunStatus, RunTrigger } from "./types.js";
 import { runWithStorage } from "./bot/index.js";
 import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
-import { monitorNodeConnections } from "./security/domains.js";
+import { createDomainTracker } from "./security/domains.js";
 import { getExternalIp, logRunMetadata } from "./runnerMetadata.js";
 import { runContextStore } from "./utils/asyncContext.js";
 import { startServer } from "./server.js";
@@ -32,7 +36,11 @@ process.on("uncaughtException", (err, origin) => {
 });
 
 enableDebugLoggingIfNeeded();
-monitorNodeConnections();
+const domainTracker = createDomainTracker({
+  domainTracking: config.options.scraping.domainTracking,
+  ...config.options.security,
+});
+process.once("exit", domainTracker.dispose);
 getExternalIp().then((ipInfo) => logger("External IP info:", ipInfo));
 main();
 
@@ -42,7 +50,16 @@ async function main() {
   if (longRunning) {
     await startServer({ startRun, isRunning, getLastRun: () => lastRun });
   } else {
-    await runOnce("startup");
+    const abort = new AbortController();
+    const cancel = () => abort.abort(new Error("Scraper worker cancelled"));
+    process.once("SIGINT", cancel);
+    process.once("SIGTERM", cancel);
+    try {
+      await runOnce("startup", abort.signal);
+    } finally {
+      process.removeListener("SIGINT", cancel);
+      process.removeListener("SIGTERM", cancel);
+    }
 
     // kill internal browsers if stuck
     process.exit(0);
@@ -59,7 +76,10 @@ async function isRunning() {
  * can answer honestly before the scrape finishes. A call made while another run
  * holds the lock comes back with `started: false` instead of waiting for it.
  */
-async function startRun(trigger: RunTrigger): Promise<RunHandle> {
+async function startRun(
+  trigger: RunTrigger,
+  signal?: AbortSignal,
+): Promise<RunHandle> {
   let reportStarted!: (started: boolean) => void;
   const started = new Promise<boolean>((resolve) => {
     reportStarted = resolve;
@@ -74,7 +94,7 @@ async function startRun(trigger: RunTrigger): Promise<RunHandle> {
     reportStarted(true);
     return runContextStore.run({ runId: randomUUID() }, async () => {
       const startedAt = new Date();
-      const failed = await run();
+      const failed = await run(signal);
       await sendLogFile(!longRunning);
 
       lastRun = { trigger, startedAt, endedAt: new Date(), failed };
@@ -86,8 +106,11 @@ async function startRun(trigger: RunTrigger): Promise<RunHandle> {
   return { started: await started, finished };
 }
 
-async function runOnce(trigger: RunTrigger): Promise<RunStatus> {
-  const status = await (await startRun(trigger)).finished;
+async function runOnce(
+  trigger: RunTrigger,
+  signal?: AbortSignal,
+): Promise<RunStatus> {
+  const status = await (await startRun(trigger, signal)).finished;
 
   if (!status) {
     throw new Error("A scrape is already in progress");
@@ -96,13 +119,13 @@ async function runOnce(trigger: RunTrigger): Promise<RunStatus> {
   return status;
 }
 
-async function runScraper(hooks: RunnerHooks) {
+async function runScraper(hooks: RunnerHooks, signal?: AbortSignal) {
   try {
     logger("About to start");
     await hooks.onBeforeStart();
 
     logger("Starting to scrape");
-    const results = await scrapeAccounts(
+    const { results, domains } = await scrapeAccounts(
       getScraperConfig(),
       async (status, totalTime) => {
         logger("Status changed", { status, totalTime });
@@ -112,6 +135,7 @@ async function runScraper(hooks: RunnerHooks) {
         logger("Error while scraping", e);
         return hooks.onError(e, caller);
       },
+      signal,
     );
     logger("Scraping ended");
     await Promise.all([
@@ -119,17 +143,17 @@ async function runScraper(hooks: RunnerHooks) {
       sendFailureScreenShots(hooks.failureScreenshotsHandler),
     ]);
 
-    await logRunMetadata();
+    await logRunMetadata(await domainTracker.getUsedDomains(), domains);
   } catch (e) {
     logger("Error", e);
     await hooks.onError(e);
   }
 }
 
-async function run() {
+async function run(signal?: AbortSignal) {
   try {
     logger("Running with storage");
-    const report = await runWithStorage(runScraper);
+    const report = await runWithStorage((hooks) => runScraper(hooks, signal));
     const failedStorages = Object.entries(report.storages)
       .filter(([, row]) => row.state === "error")
       .map(([name]) => name);
