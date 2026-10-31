@@ -2,6 +2,7 @@ import { escapers } from "@telegraf/entity";
 import type { AccountScrapeResult, RunTiming } from "../../types.js";
 import type { StorageRow } from "../runReport.js";
 import { html } from "./html.js";
+import { transactionView } from "./transactions.js";
 
 const escaped = (value: string | number) =>
   escapers.HTML(String(value)).replaceAll('"', "&quot;");
@@ -23,7 +24,7 @@ function renderDownloadButton(
 ) {
   return html`<button
     id="${escaped(id)}"
-    class="download-button"
+    class="download-button interactive"
     type="button"
     aria-label="${escaped(label)}"
     title="${escaped(label)}"
@@ -51,7 +52,7 @@ function renderDownloadButton(
 function renderSearch(id: string, label: string, controls: string) {
   return html`<input
     id="${escaped(id)}"
-    class="report-search"
+    class="report-search interactive"
     type="search"
     aria-label="${escaped(label)}"
     aria-controls="${escaped(controls)}"
@@ -63,7 +64,7 @@ function renderSearch(id: string, label: string, controls: string) {
 function renderSortButton(key: string) {
   return html`<button
     type="button"
-    class="sort-button"
+    class="sort-button interactive"
     data-sort="${escaped(key)}"
     aria-label="Sort ${escaped(key)} ascending"
     title="Sort ${escaped(key)} ascending"
@@ -404,6 +405,10 @@ export function renderReportTransactions(results: Array<AccountScrapeResult>) {
       : [],
   );
   if (!transactions.length) return "";
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "short",
+    timeZone: "UTC",
+  });
 
   return html`<section>
     <div class="section-heading">
@@ -447,7 +452,32 @@ export function renderReportTransactions(results: Array<AccountScrapeResult>) {
             <th scope="col">Status</th>
           </tr>
         </thead>
-        <tbody id="transaction-rows"></tbody>
+        <tbody id="transaction-rows">
+          ${transactions
+            .map((transaction, index) => {
+              const { cells } = transactionView(transaction, index, formatter);
+              return html`<tr>
+                ${cells
+                  .map(
+                    (value, column) =>
+                      html`<td>
+                        ${
+                          column === 0
+                            ? html`<time
+                                class="transaction-date"
+                                datetime="${escaped(transaction.date)}"
+                                title="${escaped(transaction.date)}"
+                                >${escaped(value)}</time
+                              >`
+                            : escaped(value)
+                        }
+                      </td>`,
+                  )
+                  .join("")}
+              </tr>`;
+            })
+            .join("")}
+        </tbody>
       </table>
     </div>
   </section>`;

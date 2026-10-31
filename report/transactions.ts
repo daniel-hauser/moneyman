@@ -1,52 +1,11 @@
-import {
-  TransactionStatuses,
-  TransactionTypes,
-  type Transaction,
-} from "israeli-bank-scrapers/lib/transactions.js";
-import { normalizeCurrency } from "../src/utils/currency.js";
-
-export type ReportTransaction = Transaction & {
-  companyId: string;
-  accountNumber: string;
-};
+import type { TransactionView } from "../src/bot/report/transactions.js";
+export {
+  transactionView,
+  type ReportTransaction,
+  type TransactionView,
+} from "../src/bot/report/transactions.js";
 export type SortKey = "date" | "amount" | "account";
 export type Direction = "ascending" | "descending";
-
-export function transactionView(
-  transaction: ReportTransaction,
-  index: number,
-  formatter: Intl.DateTimeFormat,
-) {
-  const date = new Date(transaction.date);
-  const pendingOriginal =
-    transaction.type === TransactionTypes.Normal &&
-    transaction.status === TransactionStatuses.Pending;
-  const amount = pendingOriginal
-    ? transaction.originalAmount
-    : transaction.chargedAmount;
-  const currency =
-    (pendingOriginal
-      ? normalizeCurrency(transaction.originalCurrency)
-      : normalizeCurrency(transaction.chargedCurrency)) ||
-    normalizeCurrency(transaction.originalCurrency) ||
-    "";
-  return {
-    transaction,
-    index,
-    timestamp: date.getTime(),
-    amount,
-    cells: [
-      Number.isNaN(date.getTime()) ? transaction.date : formatter.format(date),
-      `${amount?.toFixed(2) ?? "NaN"} ${currency}`.trim(),
-      transaction.description,
-      transaction.accountNumber,
-      transaction.companyId,
-      transaction.status,
-    ],
-  };
-}
-
-export type TransactionView = ReturnType<typeof transactionView>;
 
 export function sortTransactions(
   rows: TransactionView[],
