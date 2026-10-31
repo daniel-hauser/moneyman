@@ -46,6 +46,7 @@ export function initializeScreenshots(document: Document) {
   const caption = document.querySelector<HTMLElement>(
     "#screenshot-full-caption",
   );
+  const size = document.querySelector<HTMLElement>("#screenshot-full-size");
   if (!dialog || !image || !caption) return;
   document
     .querySelectorAll<HTMLButtonElement>(".screenshot-open")
@@ -56,6 +57,7 @@ export function initializeScreenshots(document: Document) {
         image.src = preview.src;
         image.alt = preview.alt;
         caption.textContent = preview.alt;
+        if (size) size.textContent = button.dataset.size ?? "Size unavailable";
         dialog.showModal();
       });
     });
@@ -89,7 +91,9 @@ export function initializeDownloads(document: Document) {
 function downloadContent(source: HTMLElement | HTMLTemplateElement) {
   const content =
     "content" in source ? source.content.textContent : source.textContent;
-  return source.id === "logs-json" ? JSON.parse(content ?? '""') : content;
+  return source.hasAttribute("data-json")
+    ? JSON.parse(content ?? '""')
+    : content;
 }
 
 export async function initializeReport(document: Document) {

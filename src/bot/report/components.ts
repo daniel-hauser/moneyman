@@ -1,4 +1,5 @@
 import { escapers } from "@telegraf/entity";
+import { Buffer } from "node:buffer";
 import { render } from "@lit-labs/ssr";
 import { collectResultSync } from "@lit-labs/ssr/lib/render-result.js";
 import type { AccountScrapeResult, RunTiming } from "../../types.js";
@@ -368,6 +369,36 @@ export function renderReportErrors(
   </section>`;
 }
 
+function screenshotSize(dataUrl: string) {
+  const comma = dataUrl.indexOf(",");
+  if (comma < 0 || !/^data:image\//i.test(dataUrl)) return undefined;
+  const payload = dataUrl.slice(comma + 1);
+  if (/%(?![a-f\d]{2})/i.test(payload)) return undefined;
+  let bytes: number;
+  if (/;base64$/i.test(dataUrl.slice(0, comma))) {
+    const base64 = payload
+      .replace(/%[a-f\d]{2}/gi, (escape) =>
+        String.fromCharCode(Number.parseInt(escape.slice(1), 16)),
+      )
+      .replace(/[\t\n\f\r ]/g, "");
+    if (!/^[A-Za-z0-9+/]*={0,2}$/.test(base64)) return undefined;
+    const padding = base64.length - base64.replace(/=+$/, "").length;
+    const length = base64.length - padding;
+    if (
+      length % 4 === 1 ||
+      (padding > 0 && (base64.length % 4 !== 0 || length % 4 !== 4 - padding))
+    )
+      return undefined;
+    bytes = Math.floor((length * 3) / 4);
+  } else {
+    // Each percent escape is one original byte; literal Unicode is UTF-8.
+    bytes = Buffer.byteLength(payload.replace(/%[a-f\d]{2}/gi, "x"), "utf8");
+  }
+  return bytes > 0 && bytes < 10_000
+    ? "<0.01 MB"
+    : `${(bytes / 1_000_000).toFixed(2)} MB`;
+}
+
 export function renderReportScreenshots(
   screenshots: Array<{ caption: string; dataUrl: string }>,
 ) {
@@ -379,19 +410,23 @@ export function renderReportScreenshots(
       <summary>Screenshots (${escaped(usableScreenshots.length)})</summary>
       <div class="screenshots">
         ${usableScreenshots
-          .map(
-            ({ caption, dataUrl }) =>
-              html`<figure class="screenshot">
-                <button
-                  type="button"
-                  class="screenshot-open"
-                  aria-label="${escaped(`Enlarge screenshot: ${caption}`)}"
-                >
-                  <img src="${escaped(dataUrl)}" alt="${escaped(caption)}" />
-                </button>
-                <figcaption>${escaped(caption)}</figcaption>
-              </figure>`,
-          )
+          .map(({ caption, dataUrl }) => {
+            const size = screenshotSize(dataUrl) ?? "Size unavailable";
+            return html`<figure class="screenshot">
+              <button
+                type="button"
+                class="screenshot-open"
+                aria-label="${escaped(`Enlarge screenshot: ${caption}`)}"
+                data-size="${escaped(size)}"
+              >
+                <img src="${escaped(dataUrl)}" alt="${escaped(caption)}" />
+              </button>
+              <figcaption>
+                ${escaped(caption)}
+                <small class="screenshot-size">${escaped(size)}</small>
+              </figcaption>
+            </figure>`;
+          })
           .join("")}
       </div>
     </details>
@@ -406,13 +441,20 @@ export function renderReportScreenshots(
         class="screenshot-close"
         commandfor="screenshot-dialog"
         command="close"
+        aria-label="Close screenshot"
+        title="Close screenshot"
         autofocus
       >
-        Close screenshot
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="m6 6 12 12M6 18 18 6" />
+        </svg>
       </button>
       <figure>
         <img id="screenshot-full" alt="" />
-        <figcaption id="screenshot-full-caption"></figcaption>
+        <figcaption>
+          <span id="screenshot-full-caption"></span>
+          <small id="screenshot-full-size" class="screenshot-size"></small>
+        </figcaption>
       </figure>
     </dialog>
   </div>`;
@@ -420,7 +462,7 @@ export function renderReportScreenshots(
 
 export function renderReportLogs(logs: string) {
   // Character references preserve CR through HTML parsing, unlike literal CR.
-  return html`<template id="logs-json"
+  return html`<template id="logs-json" data-json
       >${escaped(JSON.stringify(logs))}</template
     >
     ${collectResultSync(

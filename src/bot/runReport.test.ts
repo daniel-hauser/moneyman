@@ -1,5 +1,5 @@
 /** @jest-environment ./report/test-environment.cjs */
-import { Blob } from "node:buffer";
+import { Blob, Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
 import type { ReportLightElement } from "./report/light-element.js";
 import { CompanyTypes } from "israeli-bank-scrapers";
@@ -215,6 +215,91 @@ describe("renderFullReport", () => {
       sentEnd: sent.slice(-80),
     }).toMatchSnapshot();
   });
+});
+
+describe("screenshot file sizes", () => {
+  it.each([
+    ["exact decimal MB", Buffer.alloc(1_250_000).toString("base64"), "1.25 MB"],
+    ["two padding bytes", "AA==", "<0.01 MB"],
+    ["one padding byte", "AAA=", "<0.01 MB"],
+    ["no padding", "AAAA", "<0.01 MB"],
+    ["unpadded single byte", "AA", "<0.01 MB"],
+    ["unpadded two bytes", "AAA", "<0.01 MB"],
+    ["ASCII whitespace", " \tA\nA\f=\r= ", "<0.01 MB"],
+    ["percent-encoded alphabet and padding", "%2B%2F8%3D", "<0.01 MB"],
+    ["percent-encoded ASCII whitespace", "%20%09A%0AA%0C%3D%0D%3D", "<0.01 MB"],
+    ["whitespace only", " \t\n\f\r", "0.00 MB"],
+    ["percent-encoded empty", "%20%09%0A%0C%0D", "0.00 MB"],
+    ["empty", "", "0.00 MB"],
+  ])("renders decoded base64 size: %s", (_name, payload, expected) => {
+    const dataUrl = `data:image/png;base64,${payload}`;
+    const caption = 'Failure </figcaption><script>alert("hostile")</script> &';
+    document.body.innerHTML = renderReportScreenshots([{ caption, dataUrl }]);
+    const preview =
+      document.querySelector<HTMLImageElement>(".screenshot img")!;
+    expect(preview.getAttribute("src")).toBe(dataUrl.replace(/\r\n?/g, "\n"));
+    expect(preview.alt).toBe(caption);
+    expect(document.querySelector(".screenshot-size")!.textContent).toBe(
+      expected,
+    );
+    expect(
+      document.querySelector<HTMLButtonElement>(".screenshot-open")!.dataset
+        .size,
+    ).toBe(expected);
+    expect(
+      document.querySelector(".screenshot figcaption")!.textContent,
+    ).toContain(caption);
+    expect(document.querySelector("script")).toBeNull();
+    if (expected === "1.25 MB")
+      expect((Buffer.byteLength(payload) / 1_000_000).toFixed(2)).toBe("1.67");
+  });
+
+  it.each([
+    ["<svg>😀</svg>", "<0.01 MB"],
+    [`<svg>${"😀".repeat(2500)}</svg>`, "0.01 MB"],
+    [`<svg>${"€".repeat(125_000)}</svg>`, "0.38 MB"],
+    ["", "0.00 MB"],
+  ])("counts percent-encoded SVG UTF-8 bytes (%#)", (svg, expected) => {
+    const dataUrl = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+    document.body.innerHTML = renderReportScreenshots([
+      { caption: "SVG", dataUrl },
+    ]);
+    expect(document.querySelector(".screenshot-size")!.textContent).toBe(
+      expected,
+    );
+    expect(document.querySelector("img")!.getAttribute("src")).toBe(dataUrl);
+  });
+
+  it.each([
+    "data:image/png;base64,A",
+    "data:image/png;base64,AAAA=",
+    "data:image/png;base64,===",
+    "data:image/png;base64,invalid!",
+    "data:image/png;base64,%ZZ",
+    "data:image/png;base64,%FF",
+    "data:image/png;base64,AA==\u00a0",
+    "data:image/png;base64,AA==\u000b",
+    "data:image/svg+xml,%ZZ",
+    "https://example.com/image.png",
+  ])(
+    "shows size unavailable for an invalid or non-data source (%s)",
+    (dataUrl) => {
+      document.body.innerHTML = renderReportScreenshots([
+        { caption: "Unknown", dataUrl },
+      ]);
+      expect(
+        document.querySelector(".screenshot .screenshot-size")!.textContent,
+      ).toBe("Size unavailable");
+      expect(
+        document.querySelector<HTMLButtonElement>(".screenshot-open")!.dataset
+          .size,
+      ).toBe("Size unavailable");
+      expect(
+        document.querySelector(".screenshot figcaption")!.textContent,
+      ).toContain("Unknown");
+      expect(document.querySelector("img")!.getAttribute("src")).toBe(dataUrl);
+    },
+  );
 });
 
 describe("renderReportTimings", () => {

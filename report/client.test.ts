@@ -18,6 +18,7 @@ import type { ReportTransaction, SortKey } from "./transactions.js";
 import {
   renderReportTransactions,
   renderReportLogs,
+  renderReportScreenshots,
 } from "../src/bot/report/components.js";
 import type { AccountScrapeResult } from "../src/types.js";
 
@@ -658,6 +659,104 @@ it("hydrates escaped marker-like input and exact CRLF logs without changing serv
   expect(payload.content.textContent).toBe(originalJSON);
 });
 
+it("decodes marked text downloads regardless of ID and preserves unmarked original JSON", async () => {
+  const logs = 'first\r\n<hostile> & "quote"\nlast';
+  const rawJSON = '[\n  {"description": "original", "amount": 12}\n]';
+  const markup = document.createElement("template");
+  markup.innerHTML = renderReportLogs(logs);
+  const marked =
+    markup.content.querySelector<HTMLTemplateElement>("#logs-json")!;
+  document.body.replaceChildren(marked);
+  marked.id = "arbitrary-text-payload";
+  const unmarked = document.createElement("template");
+  unmarked.id = "logs-json";
+  unmarked.content.textContent = rawJSON;
+  document.body.append(unmarked);
+  const buttons = [marked, unmarked].map((source) => {
+    const button = document.createElement("button");
+    button.dataset.download = source.id;
+    button.dataset.type = source === marked ? "text/plain" : "application/json";
+    document.body.append(button);
+    return button;
+  });
+  const createObjectURL = jest.fn((_blob: Blob) => "blob:download");
+  const originalBlob = window.Blob;
+  const originalCreate = URL.createObjectURL;
+  const originalRevoke = URL.revokeObjectURL;
+  const revokeObjectURL = jest.fn();
+  Object.assign(window, { Blob });
+  Object.assign(URL, { createObjectURL, revokeObjectURL });
+  const click = jest
+    .spyOn(HTMLAnchorElement.prototype, "click")
+    .mockImplementation(() => {});
+  try {
+    initializeDownloads(document);
+    buttons.forEach((button) => button.click());
+    expect(
+      await Promise.all(
+        createObjectURL.mock.calls.map(([blob]) => blob.text()),
+      ),
+    ).toEqual([logs, rawJSON]);
+    expect(marked.hasAttribute("data-json")).toBe(true);
+    expect(unmarked.hasAttribute("data-json")).toBe(false);
+    expect(marked.content.textContent).toBe(JSON.stringify(logs));
+    expect(unmarked.content.textContent).toBe(rawJSON);
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    expect(
+      revokeObjectURL.mock.calls.filter(([url]) => url === "blob:download"),
+    ).toHaveLength(2);
+  } finally {
+    click.mockRestore();
+    Object.assign(window, { Blob: originalBlob });
+    Object.assign(URL, {
+      createObjectURL: originalCreate,
+      revokeObjectURL: originalRevoke,
+    });
+  }
+});
+
+it("updates the native screenshot dialog with each selected image, hostile caption and size", () => {
+  const screenshots = [
+    {
+      caption: 'Failure </span><script>alert(1)</script> "caption"',
+      dataUrl: `data:image/png;base64,${Buffer.alloc(1_250_000).toString("base64")}`,
+    },
+    { caption: "Empty image", dataUrl: "data:image/png;base64," },
+    { caption: "Unknown size", dataUrl: "data:image/png;base64,invalid!" },
+  ];
+  document.body.innerHTML = renderReportScreenshots(screenshots);
+  const dialog =
+    document.querySelector<HTMLDialogElement>("#screenshot-dialog")!;
+  dialog.showModal = jest.fn();
+  const image = document.querySelector<HTMLImageElement>("#screenshot-full")!;
+  const caption = document.querySelector<HTMLElement>(
+    "#screenshot-full-caption",
+  )!;
+  const size = document.querySelector<HTMLElement>("#screenshot-full-size")!;
+  initializeScreenshots(document);
+  const buttons =
+    document.querySelectorAll<HTMLButtonElement>(".screenshot-open");
+  buttons.forEach((button, index) => {
+    button.click();
+    expect(image.getAttribute("src")).toBe(screenshots[index].dataUrl);
+    expect(image.alt).toBe(screenshots[index].caption);
+    expect(caption.textContent).toBe(screenshots[index].caption);
+    expect(size.textContent).toBe(
+      ["1.25 MB", "0.00 MB", "Size unavailable"][index],
+    );
+    expect(caption.querySelector("script")).toBeNull();
+  });
+  expect(dialog.showModal).toHaveBeenCalledTimes(3);
+  const close = dialog.querySelector<HTMLButtonElement>(".screenshot-close")!;
+  expect(close.getAttribute("aria-label")).toBe("Close screenshot");
+  expect(close.title).toBe("Close screenshot");
+  expect(close.getAttribute("commandfor")).toBe("screenshot-dialog");
+  expect(close.getAttribute("command")).toBe("close");
+  expect(close.hasAttribute("autofocus")).toBe(true);
+  expect(close.textContent!.trim()).toBe("");
+  expect(close.querySelector("svg")!.getAttribute("aria-hidden")).toBe("true");
+});
+
 it("opens the native screenshot dialog using the selected preview image and caption", () => {
   const dialog = mock<HTMLDialogElement>();
   const image = mock<HTMLImageElement>();
@@ -678,7 +777,9 @@ it("opens the native screenshot dialog using the selected preview image and capt
       ? dialog
       : id === "#screenshot-full"
         ? image
-        : caption,
+        : id === "#screenshot-full-caption"
+          ? caption
+          : null,
   );
   document.querySelectorAll.mockReturnValue(buttons);
   initializeScreenshots(document);
