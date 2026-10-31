@@ -37,10 +37,10 @@ export function transactionView(
     amount,
     cells: [
       Number.isNaN(date.getTime()) ? transaction.date : formatter.format(date),
-      transaction.companyId,
-      transaction.accountNumber,
-      transaction.description,
       `${amount.toFixed(2)} ${currency}`,
+      transaction.description,
+      transaction.accountNumber,
+      transaction.companyId,
       transaction.status,
     ],
   };

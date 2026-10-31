@@ -219,15 +219,15 @@ it.each(["date", "amount", "account"] as const)(
   (key) => {
     const page = browser();
     const index = ["date", "amount", "account"].indexOf(key);
-    const orders = [page.rows().map((row) => row[3])];
+    const orders = [page.rows().map((row) => row[2])];
     page.sort(key);
     expect(page.headers[index].setAttribute).toHaveBeenLastCalledWith(
       "aria-sort",
       "ascending",
     );
-    orders.push(page.rows().map((row) => row[3]));
+    orders.push(page.rows().map((row) => row[2]));
     page.sort(key);
-    orders.push(page.rows().map((row) => row[3]));
+    orders.push(page.rows().map((row) => row[2]));
     expect(orders).toMatchSnapshot();
     expect(page.headers[index].setAttribute).toHaveBeenLastCalledWith(
       "aria-sort",
@@ -246,6 +246,7 @@ it.each([
   "acct10",
   "Beta ? <script> &",
   "100.00 EUR",
+  "100.00 EUR*Alpha first*acct10",
   "pending",
   "SECRET_HIDDEN",
 ])("filters displayed columns using wildcard query %s", (term) => {

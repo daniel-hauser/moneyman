@@ -343,41 +343,32 @@ export function renderReportStorages(storages: Record<string, StorageRow>) {
         <colgroup>
           <col />
           <col />
-          <col />
         </colgroup>
         <thead>
           <tr>
             <th scope="col">Name</th>
-            <th scope="col">Status</th>
             <th scope="col">Summary</th>
           </tr>
         </thead>
         <tbody>
           ${entries
             .map(([name, row]) => {
-              const state =
-                row.state === "done"
-                  ? "✅ Saved"
-                  : row.state === "error"
-                    ? "❌ Failed"
-                    : "⏳ Saving";
               const summary =
                 row.state === "done"
                   ? `${row.stats.total} total · ${row.stats.added} added · ${row.stats.existing} existing · ${row.stats.pending} pending · ${row.stats.otherSkipped} other skipped · ${(row.durationMs / 1000).toFixed(2)}s`
-                  : "—";
+                  : "⏳ Saving";
               return html`<tr class="storage-row">
                   <td>
                     ${escaped(name)}${row.state === "done" && row.stats.table ? html`<small class="storage-table">${escaped(row.stats.table)}</small>` : ""}
                   </td>
                   <td>
-                    ${row.state === "error" ? renderErrorDetails(state, row.message) : state}
+                    ${row.state === "error" ? renderErrorDetails("❌ Failed", row.message) : escaped(summary)}
                   </td>
-                  <td>${escaped(summary)}</td>
                 </tr>
                 ${
                   row.state !== "error" && row.steps.length
                     ? html`<tr class="storage-detail-row">
-                        <td colspan="3">
+                        <td colspan="2">
                           <ol class="storage-steps" aria-label="Storage steps">
                             ${row.steps
                               .map(
@@ -445,14 +436,14 @@ export function renderReportTransactions(results: Array<AccountScrapeResult>) {
             <th scope="col" aria-sort="none">
               Date ${renderSortButton("date")}
             </th>
-            <th scope="col">Company</th>
-            <th scope="col" aria-sort="none">
-              Account ${renderSortButton("account")}
-            </th>
-            <th scope="col">Description</th>
             <th scope="col" aria-sort="none">
               Amount ${renderSortButton("amount")}
             </th>
+            <th scope="col">Description</th>
+            <th scope="col" aria-sort="none">
+              Account ${renderSortButton("account")}
+            </th>
+            <th scope="col">Company</th>
             <th scope="col">Status</th>
           </tr>
         </thead>

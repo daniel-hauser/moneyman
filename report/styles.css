@@ -140,7 +140,7 @@ td {
   border-bottom: 1px solid var(--report-border);
   text-align: left;
 }
-.transactions-table td:nth-child(4) {
+.transactions-table td:nth-child(3) {
   white-space: normal;
   min-width: 12rem;
 }
@@ -157,11 +157,13 @@ td {
 .accounts-table col:nth-child(3) {
   width: 24%;
 }
-.storages-table {
-  min-width: 32rem;
+.storages-table,
+.timings-table {
+  min-width: 0;
 }
-.storages-table col:nth-child(-n + 2) {
-  width: 25%;
+.storages-table col:first-child,
+.timings-table col:first-child {
+  width: 28%;
 }
 .storage-table,
 .timing-kind {
@@ -195,10 +197,6 @@ td .error-message {
 }
 .timings-table {
   table-layout: fixed;
-  min-width: 32rem;
-}
-.timings-table col:first-child {
-  width: 28%;
 }
 .timings-table th,
 .timings-table td {
@@ -245,6 +243,14 @@ td .error-message {
 }
 .timing-running .timing-bar {
   opacity: 0.5;
+}
+@media (max-width: 40rem) {
+  .timings-table col:first-child {
+    width: 40%;
+  }
+  .timing-axis text:nth-child(even) {
+    display: none;
+  }
 }
 .account-screenshots,
 .screenshots {
