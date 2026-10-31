@@ -182,17 +182,20 @@ td .error-message {
 }
 .timings-table {
   table-layout: fixed;
-  min-width: 36rem;
+  min-width: 32rem;
 }
 .timings-table col:first-child {
   width: 28%;
 }
-.timings-table col:last-child {
-  width: 14%;
-}
 .timings-table th,
 .timings-table td {
+  padding: 0.25rem 0.5rem;
+  line-height: 1.25;
   vertical-align: middle;
+}
+.timing-kind {
+  margin-top: 0;
+  font-weight: 400;
 }
 .timings-table th[scope="row"] {
   white-space: normal;
@@ -365,7 +368,7 @@ figcaption {
 .download-button:focus-visible,
 .sort-button:focus-visible {
   outline: 2px solid #1a73e8;
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 .run-logs {
   height: 24rem;

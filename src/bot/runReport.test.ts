@@ -303,6 +303,28 @@ describe("renderReportTimings", () => {
 });
 
 describe("renderHTMLReport", () => {
+  it("places timings after storages and before errors and logs", () => {
+    const report = baseReport();
+    report.storages["Sheets"] = { state: "saving", steps: [] };
+    report.errors.push({ caller: "Sheets", message: "Example error" });
+    report.timings = [
+      {
+        id: "sheets",
+        kind: "storage",
+        name: "Sheets",
+        startedAt: startedAt.getTime(),
+        endedAt: startedAt.getTime() + 1000,
+      },
+    ];
+    expect(
+      [
+        ...renderHTMLReport(report, "Example logs").matchAll(
+          /<h2>([\s\S]*?)<\/h2>/gi,
+        ),
+      ].map(([, heading]) => heading),
+    ).toMatchSnapshot();
+  });
+
   function contentSecurityPolicy(report: string) {
     const meta = report.match(
       /<meta http-equiv="Content-Security-Policy" content="([^"]+)" \/>/,

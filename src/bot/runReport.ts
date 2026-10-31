@@ -235,9 +235,10 @@ export function renderHTMLReport(report: RunReport, logs?: string): string {
         ${renderReportRunDetails({
           startedAt: report.startedAt,
           ...report.scrape,
-        })}${renderReportTimings(report.timings, report.startedAt, report.endedAt)}
+        })}
         ${renderReportAccounts(report.summary?.results ?? [], screenshots)}
-        ${transactions} ${renderReportStorages(report.storages)}
+        ${transactions}
+        ${renderReportStorages(report.storages)}${renderReportTimings(report.timings, report.startedAt, report.endedAt)}
         ${renderReportErrors(report.errors)}${logs === undefined ? "" : renderReportLogs(logs)}
         <footer class="report-footer">
           <a

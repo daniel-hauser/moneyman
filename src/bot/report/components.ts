@@ -55,7 +55,7 @@ function renderSearch(id: string, label: string, controls: string) {
     type="search"
     aria-label="${escaped(label)}"
     aria-controls="${escaped(controls)}"
-    placeholder="Search: * any text, ? one character"
+    placeholder="Filter: * any text, ? one character"
     title="Case-insensitive: * any text, ? one character; ~* literal *, ~? literal ?, ~~ literal ~."
   />`;
 }
@@ -168,7 +168,6 @@ export function renderReportTimings(
         <colgroup>
           <col />
           <col />
-          <col />
         </colgroup>
         <thead>
           <tr>
@@ -190,7 +189,6 @@ export function renderReportTimings(
                   .join("")}
               </svg>
             </th>
-            <th scope="col">Duration</th>
           </tr>
         </thead>
         <tbody>
@@ -219,7 +217,8 @@ export function renderReportTimings(
                 <th scope="row">
                   ${escaped(timing.name)}
                   <small class="timing-kind"
-                    >${kind}${state === "Completed" ? "" : ` &middot; ${state}`}</small
+                    >${kind} &middot;
+                    ${duration(durationMs)}${state === "Completed" ? "" : ` &middot; ${state}`}</small
                   >
                 </th>
                 <td>
@@ -245,7 +244,6 @@ export function renderReportTimings(
                     />
                   </svg>
                 </td>
-                <td>${duration(durationMs)}</td>
               </tr>`;
             })
             .join("")}
@@ -425,7 +423,7 @@ export function renderReportTransactions(results: Array<AccountScrapeResult>) {
         >
       </h2>
       <div class="heading-actions">
-        ${renderSearch("search-transactions", "Search transactions", "transaction-rows")}
+        ${renderSearch("search-transactions", "Filter transactions", "transaction-rows")}
         ${renderDownloadButton("download-transactions", "Download transactions as JSON", "transactions-json", "transactions.json", "application/json;charset=utf-8")}
       </div>
     </div>
@@ -536,7 +534,7 @@ export function renderReportLogs(logs: string) {
     <div class="logs-heading section-heading">
       <h2>Logs</h2>
       <div class="heading-actions">
-        ${renderSearch("search-logs", "Search logs", "run-logs")}
+        ${renderSearch("search-logs", "Filter logs", "run-logs")}
         ${renderDownloadButton("download-logs", "Download logs", "run-logs", "logs.txt", "text/plain;charset=utf-8")}
       </div>
     </div>
