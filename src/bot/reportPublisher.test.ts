@@ -1,22 +1,26 @@
-import { jest } from "@jest/globals";
 import {
   createReportPublisher,
   type ReportTransport,
 } from "./reportPublisher.js";
-import { createRunReport } from "./runReport.js";
+import { createRunReport, renderHTMLReport } from "./runReport.js";
+import { mock } from "jest-mock-extended";
 
-function setup(intervalMs = 500) {
+jest.mock("./runReport.js", () => {
+  const actual =
+    jest.requireActual<typeof import("./runReport.js")>("./runReport.js");
+  return { ...actual, renderHTMLReport: jest.fn(actual.renderHTMLReport) };
+});
+
+function setup(intervalMs = 500, sendReportFile = true) {
   const log = jest.fn();
-  const transport = {
-    send: jest.fn<ReportTransport["send"]>().mockResolvedValue(7),
-    edit: jest.fn<ReportTransport["edit"]>().mockResolvedValue(undefined),
-    sendFile: jest
-      .fn<ReportTransport["sendFile"]>()
-      .mockResolvedValue(undefined),
-  };
+  const transport = mock<ReportTransport>();
+  transport.send.mockResolvedValue(7);
+  transport.edit.mockResolvedValue(undefined);
+  transport.sendFile.mockResolvedValue(undefined);
   const { report, finish } = createReportPublisher(createRunReport(), {
     transport,
     intervalMs,
+    sendReportFile,
     log,
   });
   const set = (...status: string[]) => {
@@ -28,7 +32,10 @@ function setup(intervalMs = 500) {
 const tick = (ms: number) => jest.advanceTimersByTimeAsync(ms);
 
 describe("createReportPublisher", () => {
-  beforeEach(() => jest.useFakeTimers());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+  });
   afterEach(() => jest.useRealTimers());
 
   it("sends the first message, then edits it on nested mutations", async () => {
@@ -169,5 +176,26 @@ describe("createReportPublisher", () => {
     const { report, finish } = createReportPublisher(createRunReport());
     report.scrape.status = ["a"];
     await expect(finish()).resolves.toBe(false);
+    expect(renderHTMLReport).not.toHaveBeenCalled();
+  });
+
+  it("skips HTML rendering and sending but preserves status updates and stats when disabled", async () => {
+    const { transport, set, finish, log } = setup(500, false);
+    set("Scraping");
+    await tick(0);
+    set("Done");
+    const done = finish("invented log");
+    await tick(500);
+    await expect(done).resolves.toBe(false);
+
+    expect(transport.send.mock.calls[0][0]).toContain("Scraping");
+    expect(transport.edit.mock.calls.at(-1)![1]).toContain("Done");
+    expect(renderHTMLReport).not.toHaveBeenCalled();
+    expect(transport.sendFile).not.toHaveBeenCalled();
+    expect(
+      log.mock.calls.filter(([message]) =>
+        String(message).startsWith("report stats"),
+      ),
+    ).toHaveLength(1);
   });
 });

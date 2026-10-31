@@ -136,6 +136,7 @@ describe("secure logs", () => {
 
   it.each([
     "disabled",
+    "report disabled",
     "unconfigured",
     "unsafe",
     "no path",
@@ -147,7 +148,7 @@ describe("secure logs", () => {
       apiKey: "test-token",
       chatId: "555",
       sendLogFileToTelegram: condition !== "disabled",
-      sendReportFileToTelegram: true,
+      sendReportFileToTelegram: condition !== "report disabled",
       enableOtp: false,
       otpTimeoutSeconds: 300,
       updateIntervalMs: 500,
@@ -165,6 +166,31 @@ describe("secure logs", () => {
 
     expect(readReportLogs()).toBeUndefined();
   });
+
+  it.each([true, false])(
+    "keeps standalone logs independent when reports are disabled (logs=%s)",
+    async (sendLogs) => {
+      const { config } = await import("../config.js");
+      const { NotificationOptionsSchema } = await import("../config.schema.js");
+      config.options.notifications = NotificationOptionsSchema.parse({
+        telegram: {
+          apiKey: "test-token",
+          chatId: "555",
+          sendReportFileToTelegram: false,
+          sendLogFileToTelegram: sendLogs,
+        },
+      });
+      const { readReportLogs, sendLogFile } = await import("./secure-log.js");
+      const { sendTextFile } = await import("../bot/notifier.js");
+
+      expect(readReportLogs()).toBeUndefined();
+      await sendLogFile(false);
+
+      if (sendLogs) expect(sendTextFile).toHaveBeenCalledWith(logFilePath);
+      else expect(sendTextFile).not.toHaveBeenCalled();
+      expect(readFileSync(logFilePath, "utf-8")).toBe("");
+    },
+  );
 
   it("warns when neither embedded report logs nor storage logs are configured", async () => {
     const { sendLogFile } = await import("./secure-log.js");
