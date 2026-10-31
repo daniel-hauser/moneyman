@@ -15,6 +15,7 @@ export function transactionView(
   index: number,
   formatter: Intl.DateTimeFormat,
 ) {
+  const displayDate = String(transaction.date);
   const date = new Date(transaction.date);
   const pendingOriginal =
     transaction.type === TransactionTypes.Normal &&
@@ -34,12 +35,12 @@ export function transactionView(
     timestamp: date.getTime(),
     amount,
     cells: [
-      Number.isNaN(date.getTime()) ? transaction.date : formatter.format(date),
+      Number.isNaN(date.getTime()) ? displayDate : formatter.format(date),
       `${amount?.toFixed(2) ?? "NaN"} ${currency}`.trim(),
-      transaction.description,
-      transaction.accountNumber,
-      transaction.companyId,
-      transaction.status,
+      String(transaction.description),
+      String(transaction.accountNumber),
+      String(transaction.companyId),
+      String(transaction.status),
     ],
   };
 }

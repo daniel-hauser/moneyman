@@ -412,3 +412,7 @@ figcaption {
   content-visibility: auto;
   contain-intrinsic-size: auto 24rem;
 }
+report-transactions,
+report-logs {
+  display: block;
+}

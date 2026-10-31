@@ -3,6 +3,7 @@ import type { ServerRunner } from "./server.js";
 import { createRunReport } from "./bot/runReport.js";
 import { mock } from "jest-mock-extended";
 import { CompanyTypes } from "israeli-bank-scrapers";
+import { CustomElementRegistry } from "@lit-labs/ssr-dom-shim";
 
 jest.mock("./config.js", () => ({
   config: jest
@@ -86,6 +87,8 @@ async function loadEntrypoint(
     >,
   ) => void,
 ) {
+  // Each reset loads new component constructors; isolate the SSR registry too.
+  globalThis.customElements = new CustomElementRegistry();
   jest.resetModules();
   process.env.MONEYMAN_LONG_RUNNING = longRunning ? "true" : "";
   let started!: () => void;

@@ -1,7 +1,7 @@
 /** @jest-environment ./report/test-environment.cjs */
 import { Blob } from "node:buffer";
 import { createHash } from "node:crypto";
-import { runInNewContext } from "node:vm";
+import type { ReportLightElement } from "./report/light-element.js";
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
@@ -27,6 +27,22 @@ import {
 } from "./runReport.js";
 
 const startedAt = new Date("2024-01-01T10:00:00Z");
+
+declare function createReportWindow(): Window & typeof globalThis;
+
+async function runScripts(realm: Window & typeof globalThis, output: string) {
+  for (const script of output.matchAll(/<script>([\s\S]*?)<\/script>/gi))
+    realm.eval(script[1]);
+  await Promise.all(
+    Array.from(
+      realm.document.querySelectorAll<ReportLightElement>(
+        "report-transactions, report-logs",
+      ),
+      (element) => element.ready(),
+    ),
+  );
+  await Promise.resolve();
+}
 
 afterEach(() => jest.restoreAllMocks());
 
@@ -396,11 +412,12 @@ describe("renderHTMLReport", () => {
     expect(hashInlineContent(content.trim())).not.toBe(expected);
   });
 
-  it("formats the run start with short date and time even without other report data", () => {
+  it("formats the run start with short date and time even without other report data", async () => {
     const output = renderHTMLReport(baseReport());
     const scripts = [...output.matchAll(/<script>([\s\S]*?)<\/script>/gi)];
     expect(scripts).toHaveLength(2);
-    const document = window.document.implementation.createHTMLDocument();
+    const realm = createReportWindow();
+    const document = realm.document;
     document.body.innerHTML = output;
     const time = document.querySelector<HTMLTimeElement>("#run-started")!;
     const dateTimeFormat = jest.fn(
@@ -411,11 +428,9 @@ describe("renderHTMLReport", () => {
           timeZone: "UTC",
         }),
     );
-    runInNewContext(scripts.at(-1)![1], {
-      document,
-      Intl: { DateTimeFormat: dateTimeFormat },
-      Date,
-    });
+    realm.Intl.DateTimeFormat =
+      dateTimeFormat as unknown as typeof Intl.DateTimeFormat;
+    await runScripts(realm, output);
     expect(
       document.documentElement.classList.contains("report-interactive"),
     ).toBe(true);
@@ -476,9 +491,10 @@ describe("renderHTMLReport", () => {
     ).toMatchSnapshot();
   });
 
-  function runLogScript(logs: string) {
+  async function runLogScript(logs: string) {
     const report = renderHTMLReport(baseReport(), logs);
-    const document = window.document.implementation.createHTMLDocument();
+    const realm = createReportWindow();
+    const document = realm.document;
     document.body.innerHTML = report;
     const code = document.querySelector<HTMLElement>("#run-logs code")!;
     expect(code.textContent).toBe(logs);
@@ -487,31 +503,24 @@ describe("renderHTMLReport", () => {
     );
     let link: HTMLAnchorElement;
     const click = jest
-      .spyOn(window.HTMLAnchorElement.prototype, "click")
+      .spyOn(realm.HTMLAnchorElement.prototype, "click")
       .mockImplementation(function (this: HTMLAnchorElement) {
         link = this;
       });
-    const remove = jest.spyOn(window.HTMLAnchorElement.prototype, "remove");
+    const remove = jest.spyOn(realm.HTMLAnchorElement.prototype, "remove");
     const highlights = new Map<string, Set<Range>>();
     const createObjectURL = jest.fn((_blob: Blob) => "blob:logs");
     const revokeObjectURL = jest.fn();
     const timers: Array<() => void> = [];
 
-    const context = {
-      document,
-      NodeFilter: window.NodeFilter,
-      ShadowRoot: window.ShadowRoot,
-      btoa: window.btoa,
-      addEventListener: jest.fn(),
+    Object.assign(realm, {
       Highlight: Set,
       CSS: { highlights },
       Blob,
       URL: { createObjectURL, revokeObjectURL },
       setTimeout: (callback: () => void) => timers.push(callback),
-    };
-    for (const script of report.matchAll(/<script>([\s\S]*?)<\/script>/gi)) {
-      runInNewContext(script[1], context);
-    }
+    });
+    await runScripts(realm, report);
     if (serverText) expect(Array.from(code.childNodes)).toContain(serverText);
 
     return {
@@ -525,11 +534,14 @@ describe("renderHTMLReport", () => {
       createObjectURL,
       revokeObjectURL,
       timers,
-      search(term: string) {
+      async search(term: string) {
         const search =
           document.querySelector<HTMLInputElement>("#search-logs")!;
         search.value = term;
-        search.dispatchEvent(new Event("input", { bubbles: true }));
+        search.dispatchEvent(new realm.Event("input", { bubbles: true }));
+        await document
+          .querySelector<ReportLightElement>("report-logs")!
+          .ready();
       },
       download() {
         document.querySelector<HTMLButtonElement>("#download-logs")!.click();
@@ -537,11 +549,11 @@ describe("renderHTMLReport", () => {
     };
   }
 
-  it("filters literal log matches case-insensitively and highlights every occurrence", () => {
+  it("filters literal log matches case-insensitively and highlights every occurrence", async () => {
     const logs =
       "\n  Alpha .+ ALPHA .+\r\nunrelated\r<script>.+</script>\n\tend";
-    const browser = runLogScript(logs);
-    browser.search(".+");
+    const browser = await runLogScript(logs);
+    await browser.search(".+");
     expect(browser.code.textContent).toMatchSnapshot("literal matches");
     expect(browser.highlights.get("log-search")?.size).toBe(3);
     const ranges = [...browser.highlights.get("log-search")!];
@@ -552,15 +564,15 @@ describe("renderHTMLReport", () => {
       expect(ranges[index].toString()).toBe(".+");
     }
 
-    browser.search("alpha");
+    await browser.search("alpha");
     expect(browser.code.textContent).toMatchSnapshot(
       "case-insensitive matches",
     );
     expect(browser.highlights.get("log-search")?.size).toBe(2);
-    browser.search("[no matches]");
+    await browser.search("[no matches]");
     expect(browser.code.textContent).toMatchSnapshot("no matches");
     expect(browser.highlights.get("log-search")?.size).toBe(0);
-    browser.search("");
+    await browser.search("");
     expect(browser.code.textContent).toMatchSnapshot("restored original");
     expect(browser.highlights.get("log-search")?.size).toBe(0);
   });
@@ -578,18 +590,18 @@ describe("renderHTMLReport", () => {
     ["[.~*]", 1],
     ['<script>& "', 1],
     ["missing*value", 0],
-  ])("matches Excel-style log pattern %s", (term, count) => {
+  ])("matches Excel-style log pattern %s", async (term, count) => {
     const logs =
       'Alpha beta\nALPHA zz BETA\nliteral symbols: * ? ~ [.*]\nspecial <script>& "quotes"\n';
-    const browser = runLogScript(logs);
-    browser.search(term);
+    const browser = await runLogScript(logs);
+    await browser.search(term);
     expect(browser.code.textContent).toMatchSnapshot();
     expect(browser.highlights.get("log-search")?.size).toBe(count);
   });
 
-  it("treats question marks as Unicode code points and highlights UTF-16 ranges", () => {
-    const browser = runLogScript("prefix A😀B suffix\r\nAxxB\r\n");
-    browser.search("a?b");
+  it("treats question marks as Unicode code points and highlights UTF-16 ranges", async () => {
+    const browser = await runLogScript("prefix A😀B suffix\r\nAxxB\r\n");
+    await browser.search("a?b");
     expect(browser.code.textContent).toMatchSnapshot();
     expect(browser.highlights.get("log-search")?.size).toBe(1);
     const [range] = browser.highlights.get("log-search")!;
@@ -599,17 +611,17 @@ describe("renderHTMLReport", () => {
     expect(range.toString()).toBe("A😀B");
   });
 
-  it("bounds wildcard work without regex backtracking and handles empty logs", () => {
-    const browser = runLogScript(`${"a".repeat(2000)}\n`);
-    browser.search(`${"*a".repeat(80)}*z`);
+  it("bounds wildcard work without regex backtracking and handles empty logs", async () => {
+    const browser = await runLogScript(`${"a".repeat(2000)}\n`);
+    await browser.search(`${"*a".repeat(80)}*z`);
     expect(browser.code.textContent).toMatchSnapshot("no pathological match");
     expect(browser.highlights.get("log-search")?.size).toBe(0);
-    browser.search("*".repeat(1000));
+    await browser.search("*".repeat(1000));
     expect(browser.code.textContent).toHaveLength(2001);
     expect(browser.highlights.get("log-search")?.size).toBe(1);
-    const empty = runLogScript("");
+    const empty = await runLogScript("");
     for (const term of ["", "*", "?"]) {
-      empty.search(term);
+      await empty.search(term);
       expect(empty.code.textContent).toMatchSnapshot(`empty pattern ${term}`);
       expect(empty.highlights.get("log-search")?.size).toBe(0);
     }
@@ -617,8 +629,8 @@ describe("renderHTMLReport", () => {
 
   it("downloads original log whitespace and line endings after filtering", async () => {
     const logs = '\n  <script>" &\r\nfirst\rsecond\r\n\tend  ';
-    const browser = runLogScript(logs);
-    browser.search("f*st");
+    const browser = await runLogScript(logs);
+    await browser.search("f*st");
     browser.download();
 
     const blob = browser.createObjectURL.mock.calls[0][0];
@@ -684,35 +696,35 @@ describe("renderHTMLReport", () => {
       { ...second, companyId: CompanyTypes.visaCal, accountNumber: 'other<&"' },
     ];
     expect(JSON.parse(serialized)).toEqual(expected);
-    const document = window.document.implementation.createHTMLDocument();
+    const realm = createReportWindow();
+    const document = realm.document;
     document.body.innerHTML = output;
     let link: HTMLAnchorElement;
     const click = jest
-      .spyOn(window.HTMLAnchorElement.prototype, "click")
+      .spyOn(realm.HTMLAnchorElement.prototype, "click")
       .mockImplementation(function (this: HTMLAnchorElement) {
         link = this;
       });
-    const remove = jest.spyOn(window.HTMLAnchorElement.prototype, "remove");
+    const remove = jest.spyOn(realm.HTMLAnchorElement.prototype, "remove");
     const createObjectURL = jest.fn((_blob: Blob) => "blob:transactions");
     const revokeObjectURL = jest.fn();
     const timers: Array<() => void> = [];
-    const scripts = [...output.matchAll(/<script>([\s\S]*?)<\/script>/gi)];
-    runInNewContext(scripts.at(-1)![1], {
-      document,
-      NodeFilter: window.NodeFilter,
-      ShadowRoot: window.ShadowRoot,
-      btoa: window.btoa,
+    Object.assign(realm, {
       Highlight: Set,
       CSS: { highlights: new Map() },
       Blob,
       URL: { createObjectURL, revokeObjectURL },
       setTimeout: (callback: () => void) => timers.push(callback),
     });
+    await runScripts(realm, output);
     const search = document.querySelector<HTMLInputElement>(
       "#search-transactions",
     )!;
     search.value = "Second account";
-    search.dispatchEvent(new Event("input", { bubbles: true }));
+    search.dispatchEvent(new realm.Event("input", { bubbles: true }));
+    await document
+      .querySelector<ReportLightElement>("report-transactions")!
+      .ready();
     document
       .querySelector<HTMLButtonElement>("#download-transactions")!
       .click();

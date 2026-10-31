@@ -4,8 +4,10 @@ import { collectResultSync } from "@lit-labs/ssr/lib/render-result.js";
 import type { AccountScrapeResult, RunTiming } from "../../types.js";
 import type { StorageRow } from "../runReport.js";
 import { html } from "./html.js";
-import { transactionView } from "./transactions.js";
-import { transactionsTemplate, logsTemplate } from "./interactive.js";
+import { html as litHtml } from "lit";
+import { renderLight } from "@lit-labs/ssr-client/directives/render-light.js";
+import "./interactive.js";
+import { ReportLightRenderer } from "./light-renderer.js";
 
 const escaped = (value: string | number) =>
   escapers.HTML(String(value)).replaceAll('"', "&quot;");
@@ -339,24 +341,16 @@ export function renderReportTransactions(results: Array<AccountScrapeResult>) {
       : [],
   );
   if (!transactions.length) return "";
-  const formatter = new Intl.DateTimeFormat("en-GB", {
-    dateStyle: "short",
-    timeZone: "UTC",
-  });
-
-  const views = transactions.map((transaction, index) =>
-    transactionView(transaction, index, formatter),
-  );
   // Template contents aren't traversed by hydration; keep downloads outside it.
   return html`<template id="transactions-json">
       ${escaped(JSON.stringify(transactions, null, 2))}
     </template>
-    <div id="transactions-ui">
-      ${collectResultSync(render(transactionsTemplate(views))).replaceAll(
-        "\r",
-        "&#13;",
-      )}
-    </div>`;
+    ${collectResultSync(
+      render(
+        litHtml`<report-transactions id="transactions-ui" data-ssr .transactions=${transactions}>${renderLight()}</report-transactions>`,
+        { elementRenderers: [ReportLightRenderer] },
+      ),
+    ).replaceAll("\r", "&#13;")}`;
 }
 
 export function renderReportErrors(
@@ -429,7 +423,10 @@ export function renderReportLogs(logs: string) {
   return html`<template id="logs-json"
       >${escaped(JSON.stringify(logs))}</template
     >
-    <div id="logs-ui">
-      ${collectResultSync(render(logsTemplate(logs))).replaceAll("\r", "&#13;")}
-    </div>`;
+    ${collectResultSync(
+      render(
+        litHtml`<report-logs id="logs-ui" data-ssr .logs=${logs}>${renderLight()}</report-logs>`,
+        { elementRenderers: [ReportLightRenderer] },
+      ),
+    ).replaceAll("\r", "&#13;")}`;
 }
