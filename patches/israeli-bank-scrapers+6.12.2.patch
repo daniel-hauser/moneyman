@@ -1,0 +1,15 @@
+diff --git a/node_modules/israeli-bank-scrapers/lib/transactions.d.ts b/node_modules/israeli-bank-scrapers/lib/transactions.d.ts
+--- a/node_modules/israeli-bank-scrapers/lib/transactions.d.ts
++++ b/node_modules/israeli-bank-scrapers/lib/transactions.d.ts
+@@ -44,9 +44,9 @@ export interface Transaction {
+      * ISO date string
+      */
+     processedDate: string;
+-    originalAmount: number;
++    originalAmount: number | null;
+     originalCurrency: string;
+-    chargedAmount: number;
++    chargedAmount: number | null;
+     chargedCurrency?: string;
+     description: string;
+     memo?: string;

@@ -1,0 +1,48 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`collapses repeated stars and handles adversarial nonmatching patterns without backtracking 1`] = `
+{
+  "matched": false,
+  "spans": [],
+}
+`;
+
+exports[`matches bounded literal/wildcard spans in <script>& .+ (test) 1`] = `
+{
+  "matched": true,
+  "spans": [
+    [
+      10,
+      19,
+    ],
+  ],
+}
+`;
+
+exports[`matches bounded literal/wildcard spans in A😀B aXb 1`] = `
+{
+  "matched": true,
+  "spans": [
+    [
+      0,
+      4,
+    ],
+    [
+      5,
+      8,
+    ],
+  ],
+}
+`;
+
+exports[`matches bounded literal/wildcard spans in literal * ? ~ [.*] 1`] = `
+{
+  "matched": true,
+  "spans": [
+    [
+      8,
+      13,
+    ],
+  ],
+}
+`;

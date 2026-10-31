@@ -10,11 +10,12 @@ COPY patches ./patches
 RUN npm ci
 
 COPY src ./src
+COPY report ./report
 
 RUN npm run build && \
     npm prune --omit=dev && \
     npm cache clean --force && \
-    rm -rf src
+    rm -rf src report
 
 FROM node:25-slim AS runner
 

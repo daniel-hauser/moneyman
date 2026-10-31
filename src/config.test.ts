@@ -51,6 +51,22 @@ describe("config", () => {
     expect(parsed.options.logging.getIpInfoUrl).toBe("https://ipinfo.io/json");
   });
 
+  it.each([
+    [{}, true],
+    [{ sendReportFileToTelegram: true }, true],
+    [{ sendReportFileToTelegram: false }, false],
+  ])("preserves the report attachment setting %j", (extra, expected) => {
+    const parsed = NotificationOptionsSchema.parse({
+      telegram: { apiKey: "test-token", chatId: "1", ...extra },
+    });
+    expect(parsed.telegram?.sendReportFileToTelegram).toBe(expected);
+    expect(parsed.telegram?.sendLogFileToTelegram).toBe(true);
+  });
+
+  it("does not configure Telegram when omitted", () => {
+    expect(NotificationOptionsSchema.parse({}).telegram).toBeUndefined();
+  });
+
   it("should allow manual-only runs or a valid cron schedule", () => {
     expect(SchedulingOptionsSchema.parse({})).toEqual({});
     for (const cron of ["0 9,21 * * *", "*/15 * * * *", "0 30 21 * * 1-5"]) {

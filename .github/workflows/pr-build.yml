@@ -33,6 +33,7 @@ jobs:
           # Check if any build-relevant files were changed
           build_relevant_patterns=(
             "src/"
+            "report/"
             "patches/"
             "package.json"
             "package-lock.json"

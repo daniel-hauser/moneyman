@@ -106,6 +106,10 @@ export class BuxferStorage implements TransactionStorage {
     tx: TransactionRow,
     accountId: string,
   ): BuxferTransaction {
+    assert(
+      tx.chargedAmount !== null,
+      "Cannot export a null charged amount to Buxfer",
+    );
     return {
       accountId: Number(accountId),
       date: format(parseISO(tx.date), BUXFER_DATE_FORMAT, {}),

@@ -1,6 +1,10 @@
 import z from "zod/v4";
 import type { ProxyMarked, Remote } from "comlink";
-import type { AccountConfig, AccountScrapeResult } from "../types.js";
+import type {
+  AccountConfig,
+  AccountScrapeResult,
+  RunTiming,
+} from "../types.js";
 import type { UsedDomains } from "../security/domains.js";
 
 export const WorkerConfigSchema = z.strictObject({
@@ -33,6 +37,7 @@ export interface WorkerResult {
 }
 
 export interface WorkerCallbacks {
+  timing(timing: RunTiming): Promise<void>;
   status(status: string[], totalTime?: number): Promise<void>;
   warning(error: unknown, caller: string): Promise<void>;
   otp(accountIndex: number): Promise<string>;

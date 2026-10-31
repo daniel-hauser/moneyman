@@ -3,6 +3,15 @@ import type { ServerRunner } from "./server.js";
 import { createRunReport } from "./bot/runReport.js";
 import { mock } from "jest-mock-extended";
 import { CompanyTypes } from "israeli-bank-scrapers";
+import type { ReportTransport } from "./bot/reportPublisher.js";
+
+jest.mock("./bot/runReport.js", () => {
+  const actual =
+    jest.requireActual<typeof import("./bot/runReport.js")>(
+      "./bot/runReport.js",
+    );
+  return { ...actual, renderHTMLReport: jest.fn(actual.renderHTMLReport) };
+});
 
 jest.mock("./config.js", () => ({
   config: jest
@@ -33,13 +42,16 @@ jest.mock("./configRefresh.js", () => ({
     "Secret refresh failed. No scrape started. Check the private logs and provider access, then retry.",
 }));
 jest.mock("./bot/notifier.js", () => ({
+  __esModule: true,
   sendError: jest.fn().mockResolvedValue(undefined),
   sendPhotos: jest.fn().mockResolvedValue(undefined),
+  reportTransport: undefined,
 }));
 jest.mock("./server.js", () => ({ startServer: jest.fn() }));
 jest.mock("./utils/secure-log.js", () => ({
   enableDebugLoggingIfNeeded: jest.fn(),
   sendLogFile: jest.fn(),
+  readReportLogs: jest.fn(),
 }));
 jest.mock("./runnerMetadata.js", () => ({
   getExternalIp: jest.fn().mockResolvedValue({}),
@@ -154,7 +166,7 @@ describe("index", () => {
     expect(runWithStorageMock).toHaveBeenCalledTimes(1);
     expect(startServerMock).not.toHaveBeenCalled();
     expect(exit).toHaveBeenCalledWith(0);
-    expect(sendLogFileMock).toHaveBeenCalledWith(true, [{}]);
+    expect(sendLogFileMock).toHaveBeenCalledWith(true, [{}], false);
     const { loadRunConfig } = await import("./configRefresh.js");
     expect(loadRunConfig).not.toHaveBeenCalled();
     expect(
@@ -194,6 +206,33 @@ describe("index", () => {
     const { createDomainTracker } = await import("./security/domains.js");
     const tracker = jest.mocked(createDomainTracker).mock.results[0].value;
     expect(tracker.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("bridges worker timing updates into the real run report", async () => {
+    const timing = {
+      id: "scraper-1",
+      kind: "scraper" as const,
+      name: "hapoalim",
+      startedAt: 1_000,
+      endedAt: 1_100,
+      failed: false,
+    };
+    const { runWithStorageMock } = await loadEntrypoint(
+      false,
+      false,
+      (scrape) => {
+        scrape.mockImplementationOnce(
+          async (_settings, _status, _error, _signal, onTiming) => {
+            expect(onTiming).toEqual(expect.any(Function));
+            await onTiming?.(timing);
+            return { results: [], domains: {} };
+          },
+        );
+      },
+    );
+    const { report } = await runWithStorageMock.mock.results[0].value;
+    expect(report.timings).toEqual([timing]);
+    expect(report.endedAt).toBeInstanceOf(Date);
   });
 
   describe("long running", () => {
@@ -289,10 +328,86 @@ describe("index", () => {
         "Secrets refresh",
       );
       expect(logToPublicLog).toHaveBeenCalledWith(SECRET_REFRESH_FAILURE);
-      expect(mocks.sendLogFileMock).toHaveBeenCalledWith(false, []);
+      expect(mocks.sendLogFileMock).toHaveBeenCalledWith(false, [], false);
       expect(await runner.isRunning()).toBe(false);
       expect(await runOnce("manual")).toMatchObject({ failed: false });
     });
+
+    it.each(["default", "disabled", "unconfigured", "uninitialized"])(
+      "honors %s Telegram reports on early setup failure",
+      async (setting) => {
+        const { config } = await import("./config.js");
+        const { NotificationOptionsSchema } =
+          await import("./config.schema.js");
+        const notifier = await import("./bot/notifier.js");
+        const { readReportLogs } = await import("./utils/secure-log.js");
+        const { renderHTMLReport } = await import("./bot/runReport.js");
+        const { loadRunConfig } = await import("./configRefresh.js");
+        const transport = mock<ReportTransport>();
+        transport.send.mockResolvedValue(1);
+        transport.sendFile.mockResolvedValue(undefined);
+        config.options.notifications = NotificationOptionsSchema.parse(
+          setting === "unconfigured"
+            ? {}
+            : {
+                telegram: {
+                  apiKey: "test-token",
+                  chatId: "1",
+                  ...(setting === "disabled"
+                    ? { sendReportFileToTelegram: false }
+                    : {}),
+                },
+              },
+        );
+        jest.replaceProperty(
+          notifier,
+          "reportTransport",
+          setting === "unconfigured" || setting === "uninitialized"
+            ? undefined
+            : transport,
+        );
+        if (setting === "uninitialized") {
+          expect(
+            config.options.notifications.telegram?.sendReportFileToTelegram,
+          ).toBe(true);
+        }
+        jest.mocked(readReportLogs).mockReturnValue("invented early-run logs");
+        jest
+          .mocked(loadRunConfig)
+          .mockRejectedValueOnce(new Error("setup failed"));
+
+        expect(await runOnce("manual")).toMatchObject({ failed: true });
+
+        expect(mocks.runWithStorageMock).not.toHaveBeenCalled();
+        if (setting === "default") {
+          expect(readReportLogs).toHaveBeenCalledTimes(1);
+          expect(renderHTMLReport).toHaveBeenCalledWith(
+            expect.objectContaining({ failed: true }),
+            "invented early-run logs",
+          );
+          expect(transport.sendFile).toHaveBeenCalledWith(
+            "report.html",
+            expect.stringContaining("invented early-run logs"),
+          );
+        } else {
+          expect(readReportLogs).not.toHaveBeenCalled();
+          expect(renderHTMLReport).not.toHaveBeenCalled();
+          expect(transport.sendFile).not.toHaveBeenCalled();
+        }
+        if (setting === "unconfigured" || setting === "uninitialized") {
+          expect(transport.send).not.toHaveBeenCalled();
+        } else {
+          expect(transport.send).toHaveBeenCalledWith(
+            expect.stringContaining("Starting..."),
+          );
+        }
+        expect(mocks.sendLogFileMock).toHaveBeenCalledWith(
+          false,
+          [],
+          setting === "default",
+        );
+      },
+    );
 
     it("does not expose refresh when no provider is configured", async () => {
       const unconfigured = await loadEntrypoint(true, false);
@@ -359,6 +474,7 @@ describe("index", () => {
       expect(mocks.sendLogFileMock).toHaveBeenCalledWith(
         false,
         jest.mocked(createStorages).mock.results[0].value,
+        false,
       );
       log.resolve();
       await handle.finished;
@@ -451,11 +567,11 @@ describe("index", () => {
       await expect(
         mocks.runWithStorageMock.mock.results[0].value,
       ).resolves.toMatchObject({
-        failed: false,
+        report: { failed: false },
       });
       expect(result).toMatchObject({ trigger: "manual", failed: false });
       expect(runner.getLastRun()).toBe(result);
-      expect(mocks.sendLogFileMock).toHaveBeenCalledWith(false, [{}]);
+      expect(mocks.sendLogFileMock).toHaveBeenCalledWith(false, [{}], false);
       const { logRunMetadata } = await import("./runnerMetadata.js");
       expect(logRunMetadata).toHaveBeenCalledWith(
         { node: { main: ["GET parent.test"] } },
@@ -480,7 +596,7 @@ describe("index", () => {
       report.storages.sql = { state: "error", message: "boom" };
       mocks.runWithStorageMock.mockImplementation(async (runScraper) => {
         await runScraper(hooks());
-        return report;
+        return { report, reportSent: false };
       });
 
       expect(await runOnce("manual")).toMatchObject({ failed: true });
@@ -489,7 +605,7 @@ describe("index", () => {
     it("fails the run when the report records an error", async () => {
       const report = createRunReport();
       report.failed = true;
-      mocks.runWithStorageMock.mockResolvedValue(report);
+      mocks.runWithStorageMock.mockResolvedValue({ report, reportSent: false });
 
       expect(await runOnce("manual")).toMatchObject({ failed: true });
     });
@@ -528,7 +644,7 @@ describe("index", () => {
 
       expect(await runOnce("manual")).toMatchObject({ failed: true });
       expect(mocks.scrapeAccountsMock).not.toHaveBeenCalled();
-      expect(mocks.sendLogFileMock).toHaveBeenCalledWith(false, []);
+      expect(mocks.sendLogFileMock).toHaveBeenCalledWith(false, [], false);
       expect(await runOnce("manual")).toMatchObject({ failed: false });
     });
 
@@ -544,6 +660,7 @@ describe("index", () => {
       expect(mocks.sendLogFileMock).toHaveBeenCalledWith(
         false,
         jest.mocked(createStorages).mock.results[0].value,
+        false,
       );
     });
 
@@ -566,6 +683,7 @@ describe("index", () => {
       expect(mocks.sendLogFileMock).toHaveBeenCalledWith(
         false,
         jest.mocked(createStorages).mock.results[0].value,
+        false,
       );
       expect(dispose.mock.invocationCallOrder[0]).toBeLessThan(
         mocks.sendLogFileMock.mock.invocationCallOrder[0],
@@ -586,7 +704,7 @@ describe("index", () => {
         await new Promise<void>((resolve) => {
           releaseRun = resolve;
         });
-        return createRunReport();
+        return { report: createRunReport(), reportSent: false };
       });
 
       const handle = await runner.startRun("manual");
@@ -606,7 +724,7 @@ describe("index", () => {
       mocks.runWithStorageMock.mockImplementation(async (runScraper) => {
         await runScraper(hooks());
         await runIsHolding;
-        return createRunReport();
+        return { report: createRunReport(), reportSent: false };
       });
 
       const first = runOnce("manual");
@@ -626,7 +744,7 @@ describe("index", () => {
         runIds.push(mocks.runContextStore.getStore()?.runId);
       mocks.runWithStorageMock.mockImplementation(async () => {
         recordRunId();
-        return createRunReport();
+        return { report: createRunReport(), reportSent: false };
       });
       mocks.sendLogFileMock.mockImplementation(async () => {
         recordRunId();

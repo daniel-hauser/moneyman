@@ -94,7 +94,9 @@ export class GoogleSheetsStorage implements TransactionStorage {
       stats.highlightedTransactions.Added.push(...newTxns);
       stats.added = rows.length;
       const [addRowsResult] = await Promise.allSettled([
-        sheet.addRows(rows),
+        sheet.addRows(
+          rows.map((row) => ({ ...row, amount: row.amount ?? "" })),
+        ),
         onProgress(`Saving ${rows.length} rows`),
       ]);
       if (this.config.options.scraping.transactionHashType !== "moneyman") {

@@ -1,0 +1,377 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`composes filters and sorts, clears only transaction highlights, and leaves original JSON untouched 1`] = `
+{
+  "filtered": {
+    "count": "(3 of 5)",
+    "rows": [
+      [
+        "02/01/2024",
+        "20.00 ILS",
+        "Alpha second",
+        "acct2",
+        "max",
+        "completed",
+      ],
+      [
+        "02/01/2024",
+        "20.00 ILS",
+        "Alpha tie",
+        "acct02",
+        "visaCal",
+        "completed",
+      ],
+      [
+        "03/01/2024",
+        "100.00 EUR",
+        "Alpha first",
+        "acct10",
+        "max",
+        "completed",
+      ],
+    ],
+  },
+  "reset": {
+    "count": "(5)",
+    "rows": [
+      [
+        "01/01/2024",
+        "-5.00 USD",
+        "Beta 😀 <script> &",
+        "acct2",
+        "max",
+        "pending",
+      ],
+      [
+        "02/01/2024",
+        "20.00 ILS",
+        "Alpha second",
+        "acct2",
+        "max",
+        "completed",
+      ],
+      [
+        "02/01/2024",
+        "20.00 ILS",
+        "Alpha tie",
+        "acct02",
+        "visaCal",
+        "completed",
+      ],
+      [
+        "03/01/2024",
+        "100.00 EUR",
+        "Alpha first",
+        "acct10",
+        "max",
+        "completed",
+      ],
+      [
+        "invalid date",
+        "0.00 ILS",
+        "Invalid",
+        "acct1",
+        "max",
+        "completed",
+      ],
+    ],
+  },
+}
+`;
+
+exports[`executes the generated offline bundle with transaction rendering, filtering and sorting 1`] = `
+{
+  "count": "(3 of 5)",
+  "highlights": [
+    "Alpha second",
+    "acct2",
+    "max",
+    "completed",
+    "Alpha tie",
+    "acct02",
+    "visaCal",
+    "completed",
+    "Alpha first",
+    "acct10",
+    "max",
+    "completed",
+  ],
+  "rows": [
+    [
+      "02/01/2024",
+      "20.00 ILS",
+      "Alpha second",
+      "acct2",
+      "max",
+      "completed",
+    ],
+    [
+      "02/01/2024",
+      "20.00 ILS",
+      "Alpha tie",
+      "acct02",
+      "visaCal",
+      "completed",
+    ],
+    [
+      "03/01/2024",
+      "100.00 EUR",
+      "Alpha first",
+      "acct10",
+      "max",
+      "completed",
+    ],
+  ],
+  "timestamps": [
+    {
+      "dateTime": "2024-01-03T12:00:00Z",
+      "title": "2024-01-03T12:00:00Z",
+    },
+    {
+      "dateTime": "2024-01-01T12:00:00Z",
+      "title": "2024-01-01T12:00:00Z",
+    },
+    {
+      "dateTime": "2024-01-02T12:00:00Z",
+      "title": "2024-01-02T12:00:00Z",
+    },
+    {
+      "dateTime": "2024-01-02T12:00:00Z",
+      "title": "2024-01-02T12:00:00Z",
+    },
+    {
+      "dateTime": "invalid date",
+      "title": "invalid date",
+    },
+  ],
+}
+`;
+
+exports[`filters displayed columns using wildcard query 01/01/2024 1`] = `
+{
+  "count": "(1 of 5)",
+  "highlights": [
+    "01/01/2024",
+  ],
+  "rows": [
+    [
+      "01/01/2024",
+      "-5.00 USD",
+      "Beta 😀 <script> &",
+      "acct2",
+      "max",
+      "pending",
+    ],
+  ],
+}
+`;
+
+exports[`filters displayed columns using wildcard query 100.00 EUR 1`] = `
+{
+  "count": "(1 of 5)",
+  "highlights": [
+    "100.00 EUR",
+  ],
+  "rows": [
+    [
+      "03/01/2024",
+      "100.00 EUR",
+      "Alpha first",
+      "acct10",
+      "max",
+      "completed",
+    ],
+  ],
+}
+`;
+
+exports[`filters displayed columns using wildcard query 100.00 EUR*Alpha first*acct10 1`] = `
+{
+  "count": "(1 of 5)",
+  "highlights": [
+    "100.00 EUR",
+    "Alpha first",
+    "acct10",
+  ],
+  "rows": [
+    [
+      "03/01/2024",
+      "100.00 EUR",
+      "Alpha first",
+      "acct10",
+      "max",
+      "completed",
+    ],
+  ],
+}
+`;
+
+exports[`filters displayed columns using wildcard query Beta ? <script> & 1`] = `
+{
+  "count": "(1 of 5)",
+  "highlights": [
+    "Beta 😀 <script> &",
+  ],
+  "rows": [
+    [
+      "01/01/2024",
+      "-5.00 USD",
+      "Beta 😀 <script> &",
+      "acct2",
+      "max",
+      "pending",
+    ],
+  ],
+}
+`;
+
+exports[`filters displayed columns using wildcard query SECRET_HIDDEN 1`] = `
+{
+  "count": "(0 of 5)",
+  "highlights": [],
+  "rows": [],
+}
+`;
+
+exports[`filters displayed columns using wildcard query acct10 1`] = `
+{
+  "count": "(1 of 5)",
+  "highlights": [
+    "acct10",
+  ],
+  "rows": [
+    [
+      "03/01/2024",
+      "100.00 EUR",
+      "Alpha first",
+      "acct10",
+      "max",
+      "completed",
+    ],
+  ],
+}
+`;
+
+exports[`filters displayed columns using wildcard query pending 1`] = `
+{
+  "count": "(1 of 5)",
+  "highlights": [
+    "pending",
+  ],
+  "rows": [
+    [
+      "01/01/2024",
+      "-5.00 USD",
+      "Beta 😀 <script> &",
+      "acct2",
+      "max",
+      "pending",
+    ],
+  ],
+}
+`;
+
+exports[`filters displayed columns using wildcard query visaCal 1`] = `
+{
+  "count": "(1 of 5)",
+  "highlights": [
+    "visaCal",
+  ],
+  "rows": [
+    [
+      "02/01/2024",
+      "20.00 ILS",
+      "Alpha tie",
+      "acct02",
+      "visaCal",
+      "completed",
+    ],
+  ],
+}
+`;
+
+exports[`opens the native screenshot dialog using the selected preview image and caption 1`] = `
+{
+  "alt": "Failure <image> "caption"",
+  "caption": "Failure <image> "caption"",
+  "src": "data:image/png;base64,aGVsbG8=",
+}
+`;
+
+exports[`sorts account both ways with stable original-order ties 1`] = `
+[
+  [
+    "Alpha first",
+    "Beta 😀 <script> &",
+    "Alpha second",
+    "Alpha tie",
+    "Invalid",
+  ],
+  [
+    "Invalid",
+    "Beta 😀 <script> &",
+    "Alpha second",
+    "Alpha tie",
+    "Alpha first",
+  ],
+  [
+    "Alpha first",
+    "Beta 😀 <script> &",
+    "Alpha second",
+    "Alpha tie",
+    "Invalid",
+  ],
+]
+`;
+
+exports[`sorts amount both ways with stable original-order ties 1`] = `
+[
+  [
+    "Alpha first",
+    "Beta 😀 <script> &",
+    "Alpha second",
+    "Alpha tie",
+    "Invalid",
+  ],
+  [
+    "Beta 😀 <script> &",
+    "Invalid",
+    "Alpha second",
+    "Alpha tie",
+    "Alpha first",
+  ],
+  [
+    "Alpha first",
+    "Alpha second",
+    "Alpha tie",
+    "Invalid",
+    "Beta 😀 <script> &",
+  ],
+]
+`;
+
+exports[`sorts date both ways with stable original-order ties 1`] = `
+[
+  [
+    "Alpha first",
+    "Beta 😀 <script> &",
+    "Alpha second",
+    "Alpha tie",
+    "Invalid",
+  ],
+  [
+    "Beta 😀 <script> &",
+    "Alpha second",
+    "Alpha tie",
+    "Alpha first",
+    "Invalid",
+  ],
+  [
+    "Alpha first",
+    "Alpha second",
+    "Alpha tie",
+    "Beta 😀 <script> &",
+    "Invalid",
+  ],
+]
+`;

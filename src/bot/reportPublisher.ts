@@ -17,6 +17,7 @@ export interface ReportTransport {
 
 export interface ReportPublisherOptions {
   transport?: ReportTransport;
+  sendReportFile?: boolean;
   intervalMs?: number;
   log?: (message: string, ...args: unknown[]) => void;
 }
@@ -33,6 +34,7 @@ export function createReportPublisher(
   initial: RunReport,
   {
     transport,
+    sendReportFile = true,
     intervalMs = 500,
     log = defaultLog,
   }: ReportPublisherOptions = {},
@@ -107,21 +109,26 @@ export function createReportPublisher(
     });
   }
 
-  async function finish() {
-    if (!transport) return;
+  async function finish(logs?: string) {
+    if (!transport) return false;
     dirty = true;
     while (dirty || running) {
       kick();
       await running;
     }
 
-    try {
-      log("Sending report.html");
-      await transport.sendFile("report.html", renderHTMLReport(report));
-    } catch (e) {
-      log("Failed to send report.html", e);
+    let reportSent = false;
+    if (sendReportFile) {
+      try {
+        log("Sending report.html");
+        await transport.sendFile("report.html", renderHTMLReport(report, logs));
+        reportSent = true;
+      } catch (e) {
+        log("Failed to send report.html", e);
+      }
     }
     log(`report stats ${JSON.stringify(stats)}`);
+    return reportSent;
   }
 
   return { report, finish };
