@@ -127,6 +127,35 @@ describe("worker session locks", () => {
     expect(callbacks[releaseProxy]).toHaveBeenCalledTimes(1);
   });
 
+  it("drains timing callbacks before releasing the worker callback proxy", async () => {
+    const timing = {
+      id: "account-1",
+      kind: "scraper" as const,
+      name: "oneZero",
+      startedAt: 1_000,
+    };
+    const received = Promise.withResolvers<void>();
+    const complete = Promise.withResolvers<void>();
+    callbacks.timing.mockImplementationOnce(async (update) => {
+      expect(update).toEqual(timing);
+      received.resolve();
+      await complete.promise;
+    });
+    scrapeAccounts.mockImplementationOnce(
+      async (_settings, _tracking, _status, _warning, runtime) => {
+        void runtime!.onTiming!(timing);
+        return [];
+      },
+    );
+    const run = session.scrape(settings, callbacks);
+    await received.promise;
+    expect(callbacks[releaseProxy]).not.toHaveBeenCalled();
+    complete.resolve();
+    await run;
+    expect(callbacks.timing).toHaveBeenCalledTimes(1);
+    expect(callbacks[releaseProxy]).toHaveBeenCalledTimes(1);
+  });
+
   it.each(["scrape", "snapshot"])(
     "preserves the %s failure when tracker disposal also fails",
     async (operation) => {

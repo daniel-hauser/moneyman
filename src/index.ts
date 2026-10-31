@@ -154,6 +154,7 @@ async function runScraper(
         return hooks.onError(e, caller);
       },
       signal,
+      hooks.onTiming,
     );
     logger("Scraping ended");
     await Promise.all([

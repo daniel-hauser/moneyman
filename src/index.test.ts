@@ -40,6 +40,7 @@ jest.mock("./server.js", () => ({ startServer: jest.fn() }));
 jest.mock("./utils/secure-log.js", () => ({
   enableDebugLoggingIfNeeded: jest.fn(),
   sendLogFile: jest.fn(),
+  readReportLogs: jest.fn(),
 }));
 jest.mock("./runnerMetadata.js", () => ({
   getExternalIp: jest.fn().mockResolvedValue({}),
@@ -194,6 +195,33 @@ describe("index", () => {
     const { createDomainTracker } = await import("./security/domains.js");
     const tracker = jest.mocked(createDomainTracker).mock.results[0].value;
     expect(tracker.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("bridges worker timing updates into the real run report", async () => {
+    const timing = {
+      id: "scraper-1",
+      kind: "scraper" as const,
+      name: "hapoalim",
+      startedAt: 1_000,
+      endedAt: 1_100,
+      failed: false,
+    };
+    const { runWithStorageMock } = await loadEntrypoint(
+      false,
+      false,
+      (scrape) => {
+        scrape.mockImplementationOnce(
+          async (_settings, _status, _error, _signal, onTiming) => {
+            expect(onTiming).toEqual(expect.any(Function));
+            await onTiming?.(timing);
+            return { results: [], domains: {} };
+          },
+        );
+      },
+    );
+    const report = await runWithStorageMock.mock.results[0].value;
+    expect(report.timings).toEqual([timing]);
+    expect(report.endedAt).toBeInstanceOf(Date);
   });
 
   describe("long running", () => {

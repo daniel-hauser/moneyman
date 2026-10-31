@@ -17,8 +17,10 @@ export default {
     ],
   },
   testEnvironment: "node",
-  rootDir: "./src",
+  roots: ["<rootDir>/src", "<rootDir>/report"],
   moduleNameMapper: {
+    "^(?:\\./(?:report/)?|\\.\\./src/bot/report/)assets\\.generated\\.js$":
+      "<rootDir>/dst/bot/report/assets.generated.js",
     "^(\\.\\.?\\/.+)\\.jsx?$": "$1",
   },
   reporters: ["default", ["github-actions", { silent: false }], "summary"],

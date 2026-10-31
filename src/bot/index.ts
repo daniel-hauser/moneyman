@@ -6,6 +6,7 @@ import { reportTransport, reportUpdateIntervalMs } from "./notifier.js";
 import { formatUnknownError } from "../utils/utils.js";
 import { createReportPublisher } from "./reportPublisher.js";
 import { createRunReport, type RunReport } from "./runReport.js";
+import { readReportLogs } from "../utils/secure-log.js";
 
 const logger = createLogger("bot");
 
@@ -26,6 +27,12 @@ export async function runWithStorage(
     }
 
     await runScraper({
+      onTiming(timing) {
+        const timings = (report.timings ??= []);
+        const index = timings.findIndex(({ id }) => id === timing.id);
+        if (index === -1) timings.push({ ...timing });
+        else timings[index] = { ...timing };
+      },
       async onStatusChanged(status: Array<string>, totalTime?: number) {
         logger(`scrape status: ${status.join(" | ")}`);
         report.scrape = { status, totalTimeSec: totalTime };
@@ -68,7 +75,8 @@ export async function runWithStorage(
 
     logToPublicLog("Scraping ended", logger);
   } finally {
-    await finish();
+    report.endedAt = new Date();
+    await finish(readReportLogs());
   }
 
   return report;

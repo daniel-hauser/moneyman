@@ -71,7 +71,7 @@ All configuration must use the `MONEYMAN_CONFIG` JSON format via `MONEYMAN_CONFI
 ### Focused Changes and Lifecycle Ownership
 
 - Minimize diffs: every changed file and edit must be necessary for the task or correctness. Defer unrelated fixes and avoid incidental renames, formatting churn, and refactors.
-- Keep user-facing Markdown focused on behavior and configuration, not internal implementation details.
+- Keep user-facing Markdown focused on necessary behavior and configuration documentation. README is not a changelog or work journal: do not add task histories, validation results, or internal implementation details.
 - Keep prerequisite refactors in separate commits from feature behavior. When adding orchestration around existing logic, preserve the original implementation's file and put the new orchestration in a new file rather than replacing and relocating the old body.
 - Prefer explicit parameters and per-run return values over global configuration access, singleton setters, and shared caches. Return worker metadata to its caller so concurrent workers cannot overwrite each other's state.
 - Minimize captured mutable lifecycle state, not just module globals. Prefer scoped resource ownership and native locks or signals over manually maintained active promises, progress chains, and lifecycle flags when they simplify the code.
