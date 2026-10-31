@@ -25,7 +25,7 @@ export type TableRow = Omit<
   Record<(typeof TableHeaders)[number], string>,
   "amount" | "raw"
 > & {
-  amount: number;
+  amount: number | null;
   raw?: string;
 };
 

@@ -365,7 +365,7 @@ describe("renderHTMLReport", () => {
       const policy = contentSecurityPolicy(output);
       const scripts = [...output.matchAll(/<script>([\s\S]*?)<\/script>/gi)];
       const styles = [...output.matchAll(/<style>([\s\S]*?)<\/style>/gi)];
-      expect(scripts).toHaveLength(1);
+      expect(scripts).toHaveLength(2);
       expect(styles).toHaveLength(1);
       expect(policy.get("script-src")).toEqual(
         scripts.length
@@ -402,7 +402,7 @@ describe("renderHTMLReport", () => {
   it("formats the run start with short date and time even without other report data", () => {
     const output = renderHTMLReport(baseReport());
     const scripts = [...output.matchAll(/<script>([\s\S]*?)<\/script>/gi)];
-    expect(scripts).toHaveLength(1);
+    expect(scripts).toHaveLength(2);
     const time = mock<HTMLTimeElement>({
       dateTime: startedAt.toISOString(),
       title: startedAt.toISOString(),
@@ -421,7 +421,7 @@ describe("renderHTMLReport", () => {
           timeZone: "UTC",
         }),
     );
-    runInNewContext(scripts[0][1], {
+    runInNewContext(scripts.at(-1)![1], {
       document,
       Intl: { DateTimeFormat: dateTimeFormat },
       Date,
@@ -506,7 +506,7 @@ describe("renderHTMLReport", () => {
     const output = renderHTMLReport(report, `${hostile}\r\nraw\rlogs`);
     const policy = contentSecurityPolicy(output);
     expect(policy).toEqual(contentSecurityPolicy(original));
-    expect(output.match(/<script>/gi)).toHaveLength(1);
+    expect(output.match(/<script>/gi)).toHaveLength(2);
     expect(output.match(/<style>/gi)).toHaveLength(1);
     expect(policy.get("script-src")).not.toContain(independentHash(hostile));
     expect(
@@ -579,6 +579,7 @@ describe("renderHTMLReport", () => {
 
     const context = {
       document,
+      addEventListener: jest.fn(),
       Highlight: Set,
       CSS: { highlights },
       Blob,

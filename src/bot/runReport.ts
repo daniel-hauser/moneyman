@@ -18,6 +18,14 @@ import { truncateError } from "./truncateError.js";
 
 export const TELEGRAM_MESSAGE_LIMIT = 4096;
 
+const reportErrorScript = `addEventListener("error", (event) => {
+  const message = document.createElement("p");
+  message.setAttribute("role", "alert");
+  message.textContent = "Report error: " + (event.error?.name ?? "Error");
+  document.body.prepend(message);
+  event.preventDefault();
+});`;
+
 export interface Step {
   name: string;
   /** Unset while the step is running */
@@ -196,7 +204,7 @@ export function renderHTMLReport(report: RunReport, logs?: string): string {
   // Approve only static application code, never rendered report or log data.
   const policy = [
     "default-src 'none'",
-    `script-src ${hashInlineContent(reportClientScript)}`,
+    `script-src ${hashInlineContent(reportErrorScript)} ${hashInlineContent(reportClientScript)}`,
     "script-src-attr 'none'",
     `style-src ${hashInlineContent(reportStyles)}`,
     "style-src-attr 'none'",
@@ -217,6 +225,7 @@ export function renderHTMLReport(report: RunReport, logs?: string): string {
         ${`<style>${reportStyles}</style>`}
       </head>
       <body>
+        ${`<script>${reportErrorScript}</script>`}
         <svg
           class="report-icons"
           width="0"
@@ -232,6 +241,12 @@ export function renderHTMLReport(report: RunReport, logs?: string): string {
           </symbol>
         </svg>
         <h1>Moneyman run report</h1>
+        <noscript>
+          <p class="javascript-warning" role="alert">
+            JavaScript is disabled. Enable JavaScript to view the transaction
+            table, filter transactions and logs, and download report data.
+          </p>
+        </noscript>
         ${renderReportRunDetails({
           startedAt: report.startedAt,
           ...report.scrape,

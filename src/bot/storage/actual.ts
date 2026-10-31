@@ -200,6 +200,10 @@ export class ActualBudgetStorage implements TransactionStorage {
     tx: TransactionRow,
     actualAccountId: string,
   ): ImportTransactionEntity {
+    assert(
+      tx.chargedAmount !== null,
+      "Cannot export a null charged amount to Actual Budget",
+    );
     const amount = actualApi.utils.amountToInteger(tx.chargedAmount);
 
     return {

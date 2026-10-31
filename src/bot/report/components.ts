@@ -450,7 +450,6 @@ export function renderReportTransactions(results: Array<AccountScrapeResult>) {
         <tbody id="transaction-rows"></tbody>
       </table>
     </div>
-    <noscript>Enable JavaScript to view or download transactions.</noscript>
   </section>`;
 }
 

@@ -122,6 +122,10 @@ export class YNABStorage implements TransactionStorage {
     tx: TransactionRow,
     accountId: string,
   ): ynab.SaveTransactionWithIdOrImportId {
+    assert(
+      tx.chargedAmount !== null,
+      "Cannot export a null charged amount to YNAB",
+    );
     const amount = Math.round(tx.chargedAmount * 1000);
 
     return {

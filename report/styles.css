@@ -15,6 +15,14 @@ body {
   color: CanvasText;
   background: Canvas;
 }
+.javascript-warning {
+  padding: 1rem;
+  border: 2px solid light-dark(#8a5200, #ffcc80);
+  border-radius: 0.5rem;
+  color: light-dark(#542d00, #fff1d6);
+  background: light-dark(#fff0cc, #472b00);
+  font-weight: 600;
+}
 a {
   color: LinkText;
 }

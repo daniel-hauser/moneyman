@@ -37,7 +37,7 @@ export function transactionView(
     amount,
     cells: [
       Number.isNaN(date.getTime()) ? transaction.date : formatter.format(date),
-      `${amount.toFixed(2)} ${currency}`,
+      `${amount?.toFixed(2) ?? "NaN"} ${currency}`.trim(),
       transaction.description,
       transaction.accountNumber,
       transaction.companyId,
@@ -62,8 +62,8 @@ export function sortTransactions(
         { numeric: true, sensitivity: "base" },
       );
     } else {
-      const a = key === "date" ? left.timestamp : left.amount;
-      const b = key === "date" ? right.timestamp : right.amount;
+      const a = key === "date" ? left.timestamp : (left.amount ?? NaN);
+      const b = key === "date" ? right.timestamp : (right.amount ?? NaN);
       if (Number.isNaN(a) !== Number.isNaN(b)) return Number.isNaN(a) ? 1 : -1;
       comparison = Number.isNaN(a) ? 0 : a - b;
     }
