@@ -7,6 +7,9 @@ import { createRunReport } from "./runReport.js";
 
 jest.mock("./storage/index.js", () => ({ saveResults: jest.fn() }));
 jest.mock("./notifier.js", () => ({}));
+jest.mock("../config.js", () => ({
+  config: { options: { notifications: {} } },
+}));
 jest.mock("../utils/secure-log.js", () => ({
   readReportLogs: jest.fn(),
 }));

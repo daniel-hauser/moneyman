@@ -7,15 +7,20 @@ import { formatUnknownError } from "../utils/utils.js";
 import { createReportPublisher } from "./reportPublisher.js";
 import { createRunReport, type RunReport } from "./runReport.js";
 import { readReportLogs } from "../utils/secure-log.js";
+import { config } from "../config.js";
 
 const logger = createLogger("bot");
 
 export async function runWithStorage(
   runScraper: Runner,
   storages: readonly TransactionStorage[],
+  initialReport: RunReport = createRunReport(),
 ): Promise<RunReport> {
-  const { report, finish } = createReportPublisher(createRunReport(), {
+  const sendReportFile =
+    config.options.notifications.telegram?.sendReportFileToTelegram ?? true;
+  const { report, finish } = createReportPublisher(initialReport, {
     transport: reportTransport,
+    sendReportFile,
     intervalMs: reportUpdateIntervalMs,
   });
 
@@ -61,7 +66,7 @@ export async function runWithStorage(
       },
       async onBeforeStart() {},
       async failureScreenshotsHandler(photos) {
-        if (!reportTransport) return;
+        if (!reportTransport || !sendReportFile) return;
         report.screenshots.push(
           ...(await Promise.all(
             photos.map(async ({ photoPath, caption }) => ({
@@ -76,7 +81,7 @@ export async function runWithStorage(
     logToPublicLog("Scraping ended", logger);
   } finally {
     report.endedAt = new Date();
-    await finish(readReportLogs());
+    await finish(sendReportFile ? readReportLogs() : undefined);
   }
 
   return report;

@@ -1,5 +1,6 @@
 import { existsSync, unlinkSync, truncateSync, readFileSync } from "fs";
 import { config } from "../config.js";
+import { sendTextFile } from "../bot/notifier.js";
 import { logToPublicLog, unsafeStdout, createLogger } from "./logger.js";
 import type { TransactionStorage } from "../types.js";
 import debug from "debug";
@@ -30,6 +31,7 @@ export function readReportLogs(): string | undefined {
     unsafeStdout ||
     !telegram?.chatId ||
     !telegram.sendLogFileToTelegram ||
+    telegram.sendReportFileToTelegram === false ||
     !logFilePath
   ) {
     return;
@@ -68,6 +70,17 @@ export async function sendLogFile(
   }
 
   try {
+    if (
+      telegram?.sendLogFileToTelegram &&
+      telegram.sendReportFileToTelegram === false
+    ) {
+      logToPublicLog("Sending log file", logger);
+      await sendTextFile(logFilePath).catch((error) => {
+        logger("Failed to send logs to Telegram:", error);
+        logToPublicLog("Failed to send logs to Telegram", logger);
+      });
+    }
+
     // Send logs to all storages that support it
     if (logStorages.length > 0) {
       const logContent = readFileSync(logFilePath, "utf-8");

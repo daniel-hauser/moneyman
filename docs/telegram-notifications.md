@@ -40,6 +40,17 @@ options: {
        */
       otpTimeoutSeconds?: number;
       /**
+       * Send the offline HTML report to Telegram.
+       * @default true
+       */
+      sendReportFileToTelegram?: boolean;
+      /**
+       * Send captured logs: inside the report, or as a standalone file if the report is disabled.
+       * Set false to omit logs from Telegram. Requires secure logging.
+       * @default true
+       */
+      sendLogFileToTelegram?: boolean;
+      /**
        * Minimum time in milliseconds between edits of the status message.
        * Values below 250 are raised to 250 to stay within Telegram's rate limits.
        * @default 500
