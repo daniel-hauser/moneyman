@@ -6,8 +6,13 @@ import { transaction } from "../src/utils/tests.js";
 import { initializeTransactions, initializeScreenshots } from "./client.js";
 import { reportClientScript } from "../src/bot/report/assets.generated.js";
 import type { ReportTransaction, SortKey } from "./transactions.js";
+import {
+  renderReportTransactions,
+  renderReportLogs,
+} from "../src/bot/report/components.js";
+import type { AccountScrapeResult } from "../src/types.js";
 
-function browser(bundled = false) {
+function browser(bundled = false, locale = "en-GB") {
   const originals: ReportTransaction[] = [
     {
       ...transaction({
@@ -60,44 +65,70 @@ function browser(bundled = false) {
     },
   ];
   const document = window.document.implementation.createHTMLDocument();
-  document.body.innerHTML = `<template id="transactions-json"></template>
-    <div><input id="search-transactions" type="search"></div>
-    <span id="transaction-count" aria-live="polite"></span>
-    <table><thead><tr>
-      <th aria-sort="none">Date <button data-sort="date"></button></th>
-      <th aria-sort="none">Amount <button data-sort="amount"></button></th>
-      <th aria-sort="none">Account <button data-sort="account"></button></th>
-    </tr></thead><tbody id="transaction-rows"><tr><td>SSR fallback</td></tr></tbody></table>`;
+  document.body.innerHTML = renderReportTransactions(
+    originals.map((row) => ({
+      companyId: row.companyId,
+      result: {
+        success: true,
+        accounts: [
+          {
+            accountNumber: row.accountNumber,
+            txns: [{ ...row, memo: "SECRET_HIDDEN" }],
+          },
+        ],
+      },
+    })) as AccountScrapeResult[],
+  );
   const payload =
     document.querySelector<HTMLTemplateElement>("#transactions-json")!;
-  payload.content.append(
-    document.createTextNode(
-      JSON.stringify(
-        originals.map((row) => ({ ...row, memo: "SECRET_HIDDEN" })),
-      ),
-    ),
-  );
   const body =
     document.querySelector<HTMLTableSectionElement>("#transaction-rows")!;
   const count = document.querySelector<HTMLElement>("#transaction-count")!;
   const keys: SortKey[] = ["date", "amount", "account"];
-  const headers = Array.from(document.querySelectorAll("th"));
+  const headers = Array.from(document.querySelectorAll("th[aria-sort]"));
+  headers.forEach((header, index) => {
+    const label = Array.from(header.childNodes).find(
+      (node) =>
+        node.nodeType === 3 &&
+        node.textContent?.includes(["Date", "Amount", "Account"][index]),
+    );
+    expect(label?.textContent).toMatch(
+      new RegExp(`${["Date", "Amount", "Account"][index]} $`),
+    );
+  });
+  const serverRows = Array.from(body.rows);
+  const serverTimes = Array.from(body.querySelectorAll("time"));
+  const serverSearch = document.querySelector("#search-transactions");
+  const serverButtons = Array.from(document.querySelectorAll("[data-sort]"));
+  expect(body.rows).toHaveLength(originals.length);
+  expect(body.rows[0].cells[2].textContent).toBe("Alpha first");
+  expect(serverTimes[0].textContent).toBe("03/01/2024");
   const highlights = new Map<string, Range[]>([
     ["log-search", [mock<Range>()]],
   ]);
   const highlight = jest.fn((name: string, ranges: Range[]) =>
     highlights.set(name, ranges),
   );
-  const formatter = new Intl.DateTimeFormat("en-GB", {
+  const formatter = new Intl.DateTimeFormat(locale, {
     dateStyle: "short",
     timeZone: "UTC",
   });
-  jest.spyOn(Intl, "DateTimeFormat").mockImplementation(() => formatter);
+  const DateTimeFormat = Intl.DateTimeFormat;
+  jest
+    .spyOn(Intl, "DateTimeFormat")
+    .mockImplementation((language, options) =>
+      language === undefined
+        ? formatter
+        : new DateTimeFormat(language, options),
+    );
   const fetch = jest.fn();
   const XMLHttpRequest = jest.fn();
   if (bundled) {
     runInNewContext(reportClientScript, {
       document,
+      NodeFilter: window.NodeFilter,
+      ShadowRoot: window.ShadowRoot,
+      btoa: window.btoa,
       Intl,
       fetch,
       XMLHttpRequest,
@@ -120,6 +151,14 @@ function browser(bundled = false) {
   const buttons = Array.from(
     document.querySelectorAll<HTMLButtonElement>("[data-sort]"),
   );
+  Array.from(body.rows).forEach((row, index) =>
+    expect(row).toBe(serverRows[index]),
+  );
+  Array.from(body.querySelectorAll("time")).forEach((time, index) =>
+    expect(time).toBe(serverTimes[index]),
+  );
+  expect(search).toBe(serverSearch);
+  buttons.forEach((button, index) => expect(button).toBe(serverButtons[index]));
   const times = Array.from(body.querySelectorAll("time")).map(
     (time) => time.cloneNode(true) as HTMLTimeElement,
   );
@@ -154,6 +193,69 @@ function browser(bundled = false) {
 }
 
 afterEach(() => jest.restoreAllMocks());
+
+it.each([false, true])(
+  "hydrates the server's en-GB dates, then localizes in the same rows and time nodes (bundled=%s)",
+  (bundled) => {
+    const page = browser(bundled, "en-US");
+    expect(page.body.rows[0].cells[0].textContent).toBe("1/3/24");
+    expect(page.body.rows[1].cells[0].textContent).toBe("1/1/24");
+    page.search("1/3/24");
+    expect(page.body.rows).toHaveLength(1);
+    expect(page.matchedText()).toEqual(["1/3/24"]);
+  },
+);
+
+it("hydrates escaped marker-like input and exact CRLF logs without changing server nodes", () => {
+  const hostile =
+    '<!--lit-part fake--><!--lit-node 0--><!--/lit-part--></template></script><img onerror="evil()">\r\n😀';
+  const logs = `\r\n${hostile}\r\nlast\rlone\n`;
+  const document = window.document.implementation.createHTMLDocument();
+  document.body.innerHTML =
+    renderReportTransactions([
+      {
+        companyId: "max",
+        result: {
+          success: true,
+          accounts: [
+            {
+              accountNumber: "123",
+              txns: [transaction({ description: hostile })],
+            },
+          ],
+        },
+      },
+    ] as AccountScrapeResult[]) + renderReportLogs(logs);
+  const cell = document
+    .querySelector("#transaction-rows")!
+    .querySelectorAll("td")[2];
+  const code = document.querySelector("#run-logs code")!;
+  const text = Array.from(code.childNodes).find((node) => node.nodeType === 3)!;
+  const payload =
+    document.querySelector<HTMLTemplateElement>("#transactions-json")!;
+  const originalJSON = payload.content.textContent;
+  expect(cell.textContent).toBe(hostile);
+  expect(code.textContent).toBe(logs);
+  expect(document.querySelectorAll("img, script")).toHaveLength(0);
+  const nodes = Array.from(
+    document.querySelectorAll("tr, td, time, input, button, code"),
+  );
+  runInNewContext(reportClientScript, {
+    document,
+    NodeFilter: window.NodeFilter,
+    ShadowRoot: window.ShadowRoot,
+    btoa: window.btoa,
+    Highlight: Set,
+    CSS: { highlights: new Map() },
+  });
+  Array.from(
+    document.querySelectorAll("tr, td, time, input, button, code"),
+  ).forEach((node, index) => expect(node).toBe(nodes[index]));
+  expect(code.contains(text)).toBe(true);
+  expect(code.textContent).toBe(logs);
+  expect(cell.textContent).toBe(hostile);
+  expect(payload.content.textContent).toBe(originalJSON);
+});
 
 it("opens the native screenshot dialog using the selected preview image and caption", () => {
   const dialog = mock<HTMLDialogElement>();

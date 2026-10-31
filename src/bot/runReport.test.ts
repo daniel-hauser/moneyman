@@ -319,7 +319,7 @@ describe("renderHTMLReport", () => {
     ];
     expect(
       [
-        ...renderHTMLReport(report, "Example logs").matchAll(
+        ...reportMarkup(renderHTMLReport(report, "Example logs")).matchAll(
           /<h2>([\s\S]*?)<\/h2>/gi,
         ),
       ].map(([, heading]) => heading),
@@ -481,9 +481,10 @@ describe("renderHTMLReport", () => {
     const document = window.document.implementation.createHTMLDocument();
     document.body.innerHTML = report;
     const code = document.querySelector<HTMLElement>("#run-logs code")!;
-    // HTML parsing normalizes newlines; exercise the download contract with
-    // the exact original text, including CRLF and lone CR.
-    code.textContent = logs;
+    expect(code.textContent).toBe(logs);
+    const serverText = Array.from(code.childNodes).find(
+      (node) => node.nodeType === 3,
+    );
     let link: HTMLAnchorElement;
     const click = jest
       .spyOn(window.HTMLAnchorElement.prototype, "click")
@@ -498,6 +499,9 @@ describe("renderHTMLReport", () => {
 
     const context = {
       document,
+      NodeFilter: window.NodeFilter,
+      ShadowRoot: window.ShadowRoot,
+      btoa: window.btoa,
       addEventListener: jest.fn(),
       Highlight: Set,
       CSS: { highlights },
@@ -508,6 +512,7 @@ describe("renderHTMLReport", () => {
     for (const script of report.matchAll(/<script>([\s\S]*?)<\/script>/gi)) {
       runInNewContext(script[1], context);
     }
+    if (serverText) expect(Array.from(code.childNodes)).toContain(serverText);
 
     return {
       code,
@@ -694,6 +699,9 @@ describe("renderHTMLReport", () => {
     const scripts = [...output.matchAll(/<script>([\s\S]*?)<\/script>/gi)];
     runInNewContext(scripts.at(-1)![1], {
       document,
+      NodeFilter: window.NodeFilter,
+      ShadowRoot: window.ShadowRoot,
+      btoa: window.btoa,
       Highlight: Set,
       CSS: { highlights: new Map() },
       Blob,

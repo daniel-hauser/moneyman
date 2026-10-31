@@ -242,16 +242,34 @@ exports[`renderHTMLReport embeds screenshots and errors in an offline report wit
     </dialog>
   </div>
   </section>
-        <section>
+        <template id="transactions-json">
+      [
+  {
+    &quot;type&quot;: &quot;normal&quot;,
+    &quot;date&quot;: &quot;2026-01-30T00:00:00.000Z&quot;,
+    &quot;processedDate&quot;: &quot;2026-01-30T00:00:00.000Z&quot;,
+    &quot;description&quot;: &quot;Shop&quot;,
+    &quot;originalAmount&quot;: 10,
+    &quot;originalCurrency&quot;: &quot;ILS&quot;,
+    &quot;chargedCurrency&quot;: &quot;ILS&quot;,
+    &quot;chargedAmount&quot;: 10,
+    &quot;status&quot;: &quot;completed&quot;,
+    &quot;companyId&quot;: &quot;max&quot;,
+    &quot;accountNumber&quot;: &quot;1234&quot;
+  }
+]
+    </template>
+    <div id="transactions-ui">
+      <!--lit-part f5LhJwB52BM=--><section>
     <div class="section-heading">
       <h2>
         Transactions
         <span id="transaction-count" aria-live="polite"
-          >(1)</span
+          ><!--lit-part-->(1)<!--/lit-part--></span
         >
       </h2>
       <div class="heading-actions">
-        <input
+        <!--lit-part NCMQUwBCEWs=--><!--lit-node 0--><input
     id="search-transactions"
     class="report-search interactive"
     type="search"
@@ -259,8 +277,9 @@ exports[`renderHTMLReport embeds screenshots and errors in an offline report wit
     aria-controls="transaction-rows"
     placeholder="Filter: * any text, ? one character"
     title="Case-insensitive: * any text, ? one character; ~* literal *, ~? literal ?, ~~ literal ~."
-  />
-        <button
+    
+  /><!--/lit-part-->
+        <!--lit-part rqoui9d/J3k=--><!--lit-node 0--><button
     id="download-transactions"
     class="download-button interactive"
     type="button"
@@ -284,26 +303,9 @@ exports[`renderHTMLReport embeds screenshots and errors in an offline report wit
     >
       <use href="#download-icon" />
     </svg>
-  </button>
+  </button><!--/lit-part-->
       </div>
     </div>
-    <template id="transactions-json">
-      [
-  {
-    &quot;type&quot;: &quot;normal&quot;,
-    &quot;date&quot;: &quot;2026-01-30T00:00:00.000Z&quot;,
-    &quot;processedDate&quot;: &quot;2026-01-30T00:00:00.000Z&quot;,
-    &quot;description&quot;: &quot;Shop&quot;,
-    &quot;originalAmount&quot;: 10,
-    &quot;originalCurrency&quot;: &quot;ILS&quot;,
-    &quot;chargedCurrency&quot;: &quot;ILS&quot;,
-    &quot;chargedAmount&quot;: 10,
-    &quot;status&quot;: &quot;completed&quot;,
-    &quot;companyId&quot;: &quot;max&quot;,
-    &quot;accountNumber&quot;: &quot;1234&quot;
-  }
-]
-    </template>
     <div
       class="table-wrapper transactions-wrapper"
       tabindex="0"
@@ -316,13 +318,14 @@ exports[`renderHTMLReport embeds screenshots and errors in an offline report wit
         </caption>
         <thead>
           <tr>
-            <th scope="col" aria-sort="none">
-              Date <button
+            <!--lit-node 13--><th scope="col" aria-sort="none">
+              Date <!--lit-part K3QhSVZjO/g=--><!--lit-node 0--><button
     type="button"
     class="sort-button interactive"
     data-sort="date"
     aria-label="Sort date ascending"
     title="Sort date ascending"
+    
   >
     <svg
       width="14"
@@ -336,15 +339,16 @@ exports[`renderHTMLReport embeds screenshots and errors in an offline report wit
     >
       <use href="#sort-icon" />
     </svg>
-  </button>
+  </button><!--/lit-part-->
             </th>
-            <th scope="col" aria-sort="none">
-              Amount <button
+            <!--lit-node 15--><th scope="col" aria-sort="none">
+              Amount <!--lit-part K3QhSVZjO/g=--><!--lit-node 0--><button
     type="button"
     class="sort-button interactive"
     data-sort="amount"
     aria-label="Sort amount ascending"
     title="Sort amount ascending"
+    
   >
     <svg
       width="14"
@@ -358,16 +362,17 @@ exports[`renderHTMLReport embeds screenshots and errors in an offline report wit
     >
       <use href="#sort-icon" />
     </svg>
-  </button>
+  </button><!--/lit-part-->
             </th>
             <th scope="col">Description</th>
-            <th scope="col" aria-sort="none">
-              Account <button
+            <!--lit-node 18--><th scope="col" aria-sort="none">
+              Account <!--lit-part K3QhSVZjO/g=--><!--lit-node 0--><button
     type="button"
     class="sort-button interactive"
     data-sort="account"
     aria-label="Sort account ascending"
     title="Sort account ascending"
+    
   >
     <svg
       width="14"
@@ -381,37 +386,26 @@ exports[`renderHTMLReport embeds screenshots and errors in an offline report wit
     >
       <use href="#sort-icon" />
     </svg>
-  </button>
+  </button><!--/lit-part-->
             </th>
             <th scope="col">Company</th>
             <th scope="col">Status</th>
           </tr>
         </thead>
         <tbody id="transaction-rows">
-          <tr>
-                <td>
-                        <time
-                                class="transaction-date"
-                                datetime="2026-01-30T00:00:00.000Z"
-                                title="2026-01-30T00:00:00.000Z"
-                                >30/01/2026</time
-                              >
-                      </td><td>
-                        10.00 ILS
-                      </td><td>
-                        Shop
-                      </td><td>
-                        1234
-                      </td><td>
-                        max
-                      </td><td>
-                        completed
-                      </td>
-              </tr>
+          <!--lit-part--><!--lit-part tvr2VBmPrY4=--><tr>
+                <!--lit-part--><!--lit-part i444B+SZdHw=--><td><!--lit-part /Dbja3aOil4=--><!--lit-node 0--><time
+                          class="transaction-date"
+                          datetime="2026-01-30T00:00:00.000Z"
+                          title="2026-01-30T00:00:00.000Z"
+                          ><!--lit-part-->30/01/2026<!--/lit-part--></time
+                        ><!--/lit-part--></td><!--/lit-part--><!--lit-part i444B+SZdHw=--><td><!--lit-part-->10.00 ILS<!--/lit-part--></td><!--/lit-part--><!--lit-part i444B+SZdHw=--><td><!--lit-part-->Shop<!--/lit-part--></td><!--/lit-part--><!--lit-part i444B+SZdHw=--><td><!--lit-part-->1234<!--/lit-part--></td><!--/lit-part--><!--lit-part i444B+SZdHw=--><td><!--lit-part-->max<!--/lit-part--></td><!--/lit-part--><!--lit-part i444B+SZdHw=--><td><!--lit-part-->completed<!--/lit-part--></td><!--/lit-part--><!--/lit-part-->
+              </tr><!--/lit-part--><!--/lit-part-->
         </tbody>
       </table>
     </div>
-  </section>
+  </section><!--/lit-part-->
+    </div>
         <section>
     <h2>Storages</h2>
     <div class="table-wrapper">
@@ -815,11 +809,15 @@ exports[`renderHTMLReport places timings after storages and before errors and lo
 `;
 
 exports[`renderHTMLReport renders logs with whitespace and escaped markup 1`] = `
-"<section>
+"<template id="logs-json"
+      >&quot;\\n  unique-log &lt;&amp;&gt; \\&quot;&lt;/pre&gt;&lt;script&gt;alert(1)&lt;/script&gt;\\&quot;\\r\\nfirst\\rsecond\\r\\n\\tend&quot;</template
+    >
+    <div id="logs-ui">
+      <!--lit-part lHJBu7zXbIY=--><section>
     <div class="logs-heading section-heading">
       <h2>Logs</h2>
       <div class="heading-actions">
-        <input
+        <!--lit-part NCMQUwBCEWs=--><!--lit-node 0--><input
     id="search-logs"
     class="report-search interactive"
     type="search"
@@ -827,14 +825,15 @@ exports[`renderHTMLReport renders logs with whitespace and escaped markup 1`] = 
     aria-controls="run-logs"
     placeholder="Filter: * any text, ? one character"
     title="Case-insensitive: * any text, ? one character; ~* literal *, ~? literal ?, ~~ literal ~."
-  />
-        <button
+    
+  /><!--/lit-part-->
+        <!--lit-part rqoui9d/J3k=--><!--lit-node 0--><button
     id="download-logs"
     class="download-button interactive"
     type="button"
     aria-label="Download logs"
     title="Download logs"
-    data-download="run-logs"
+    data-download="logs-json"
     data-filename="logs.txt"
     data-type="text/plain;charset=utf-8"
   >
@@ -852,14 +851,15 @@ exports[`renderHTMLReport renders logs with whitespace and escaped markup 1`] = 
     >
       <use href="#download-icon" />
     </svg>
-  </button>
+  </button><!--/lit-part-->
       </div>
     </div>
-    <pre id="run-logs" class="run-logs"><code>
+    <pre id="run-logs" class="run-logs"><code><!--lit-part-->
   unique-log &lt;&amp;&gt; &quot;&lt;/pre&gt;&lt;script&gt;alert(1)&lt;/script&gt;&quot;&#13;
 first&#13;second&#13;
-	end</code></pre>
-  </section>"
+	end<!--/lit-part--></code></pre>
+  </section><!--/lit-part-->
+    </div>"
 `;
 
 exports[`renderHTMLReport treats question marks as Unicode code points and highlights UTF-16 ranges 1`] = `

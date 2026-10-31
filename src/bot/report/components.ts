@@ -1,8 +1,11 @@
 import { escapers } from "@telegraf/entity";
+import { render } from "@lit-labs/ssr";
+import { collectResultSync } from "@lit-labs/ssr/lib/render-result.js";
 import type { AccountScrapeResult, RunTiming } from "../../types.js";
 import type { StorageRow } from "../runReport.js";
 import { html } from "./html.js";
 import { transactionView } from "./transactions.js";
+import { transactionsTemplate, logsTemplate } from "./interactive.js";
 
 const escaped = (value: string | number) =>
   escapers.HTML(String(value)).replaceAll('"', "&quot;");
@@ -13,75 +16,6 @@ function renderErrorDetails(summary: string, message: string) {
     <summary>${escaped(summary)}</summary>
     <pre class="error-message">${escapedMessage}</pre>
   </details>`;
-}
-
-function renderDownloadButton(
-  id: string,
-  label: string,
-  target: string,
-  filename: string,
-  type: string,
-) {
-  return html`<button
-    id="${escaped(id)}"
-    class="download-button interactive"
-    type="button"
-    aria-label="${escaped(label)}"
-    title="${escaped(label)}"
-    data-download="${escaped(target)}"
-    data-filename="${escaped(filename)}"
-    data-type="${escaped(type)}"
-  >
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <use href="#download-icon" />
-    </svg>
-  </button>`;
-}
-
-function renderSearch(id: string, label: string, controls: string) {
-  return html`<input
-    id="${escaped(id)}"
-    class="report-search interactive"
-    type="search"
-    aria-label="${escaped(label)}"
-    aria-controls="${escaped(controls)}"
-    placeholder="Filter: * any text, ? one character"
-    title="Case-insensitive: * any text, ? one character; ~* literal *, ~? literal ?, ~~ literal ~."
-  />`;
-}
-
-function renderSortButton(key: string) {
-  return html`<button
-    type="button"
-    class="sort-button interactive"
-    data-sort="${escaped(key)}"
-    aria-label="Sort ${escaped(key)} ascending"
-    title="Sort ${escaped(key)} ascending"
-  >
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <use href="#sort-icon" />
-    </svg>
-  </button>`;
 }
 
 export function renderReportRunDetails({
@@ -410,77 +344,19 @@ export function renderReportTransactions(results: Array<AccountScrapeResult>) {
     timeZone: "UTC",
   });
 
-  return html`<section>
-    <div class="section-heading">
-      <h2>
-        Transactions
-        <span id="transaction-count" aria-live="polite"
-          >(${escaped(transactions.length)})</span
-        >
-      </h2>
-      <div class="heading-actions">
-        ${renderSearch("search-transactions", "Filter transactions", "transaction-rows")}
-        ${renderDownloadButton("download-transactions", "Download transactions as JSON", "transactions-json", "transactions.json", "application/json;charset=utf-8")}
-      </div>
-    </div>
-    <template id="transactions-json">
+  const views = transactions.map((transaction, index) =>
+    transactionView(transaction, index, formatter),
+  );
+  // Template contents aren't traversed by hydration; keep downloads outside it.
+  return html`<template id="transactions-json">
       ${escaped(JSON.stringify(transactions, null, 2))}
     </template>
-    <div
-      class="table-wrapper transactions-wrapper"
-      tabindex="0"
-      role="region"
-      aria-label="Transactions"
-    >
-      <table class="transactions-table">
-        <caption class="visually-hidden">
-          Scraped transactions
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col" aria-sort="none">
-              Date ${renderSortButton("date")}
-            </th>
-            <th scope="col" aria-sort="none">
-              Amount ${renderSortButton("amount")}
-            </th>
-            <th scope="col">Description</th>
-            <th scope="col" aria-sort="none">
-              Account ${renderSortButton("account")}
-            </th>
-            <th scope="col">Company</th>
-            <th scope="col">Status</th>
-          </tr>
-        </thead>
-        <tbody id="transaction-rows">
-          ${transactions
-            .map((transaction, index) => {
-              const { cells } = transactionView(transaction, index, formatter);
-              return html`<tr>
-                ${cells
-                  .map(
-                    (value, column) =>
-                      html`<td>
-                        ${
-                          column === 0
-                            ? html`<time
-                                class="transaction-date"
-                                datetime="${escaped(transaction.date)}"
-                                title="${escaped(transaction.date)}"
-                                >${escaped(value)}</time
-                              >`
-                            : escaped(value)
-                        }
-                      </td>`,
-                  )
-                  .join("")}
-              </tr>`;
-            })
-            .join("")}
-        </tbody>
-      </table>
-    </div>
-  </section>`;
+    <div id="transactions-ui">
+      ${collectResultSync(render(transactionsTemplate(views))).replaceAll(
+        "\r",
+        "&#13;",
+      )}
+    </div>`;
 }
 
 export function renderReportErrors(
@@ -549,15 +425,11 @@ export function renderReportScreenshots(
 }
 
 export function renderReportLogs(logs: string) {
-  const escapedLogs = escaped(logs).replaceAll("\r", "&#13;");
-  return html`<section>
-    <div class="logs-heading section-heading">
-      <h2>Logs</h2>
-      <div class="heading-actions">
-        ${renderSearch("search-logs", "Filter logs", "run-logs")}
-        ${renderDownloadButton("download-logs", "Download logs", "run-logs", "logs.txt", "text/plain;charset=utf-8")}
-      </div>
-    </div>
-    <pre id="run-logs" class="run-logs"><code>${escapedLogs}</code></pre>
-  </section>`;
+  // Character references preserve CR through HTML parsing, unlike literal CR.
+  return html`<template id="logs-json"
+      >${escaped(JSON.stringify(logs))}</template
+    >
+    <div id="logs-ui">
+      ${collectResultSync(render(logsTemplate(logs))).replaceAll("\r", "&#13;")}
+    </div>`;
 }

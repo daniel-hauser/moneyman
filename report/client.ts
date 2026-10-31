@@ -1,4 +1,10 @@
-import { html, render, type TemplateResult } from "lit-html";
+import { render } from "lit-html";
+import { hydrate } from "@lit-labs/ssr-client";
+import {
+  transactionsTemplate,
+  logsTemplate,
+  type Sorting,
+} from "../src/bot/report/interactive.js";
 import { compilePattern, matchPattern, type Span } from "./wildcard.js";
 import {
   transactionView,
@@ -25,57 +31,6 @@ function rangesFor(document: Document, node: Text, spans: Span[]) {
   });
 }
 
-function replaceControl(element: Element) {
-  // Separate Lit roots preserve the surrounding server-rendered shell.
-  const anchor = element.ownerDocument.createComment("");
-  const parent = element.parentElement!;
-  element.replaceWith(anchor);
-  return (template: TemplateResult) =>
-    render(template, parent, { renderBefore: anchor });
-}
-
-function searchControl(
-  id: string,
-  label: string,
-  controls: string,
-  onInput: (event: Event) => void,
-) {
-  return html`<input
-    id=${id}
-    class="report-search interactive"
-    type="search"
-    aria-label=${label}
-    aria-controls=${controls}
-    placeholder="Filter: * any text, ? one character"
-    title="Case-insensitive: * any text, ? one character; ~* literal *, ~? literal ?, ~~ literal ~."
-    @input=${onInput}
-  />`;
-}
-
-function sortControl(key: SortKey, label: string, onClick: () => void) {
-  return html`<button
-    type="button"
-    class="sort-button interactive"
-    data-sort=${key}
-    aria-label=${label}
-    title=${label}
-    @click=${onClick}
-  >
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <use href="#sort-icon" />
-    </svg>
-  </button>`;
-}
-
 function textNode(element: Element) {
   return Array.from(element.childNodes).find(
     (node): node is Text => node.nodeType === 3,
@@ -100,40 +55,26 @@ export function initializeTransactions(
 ) {
   const payload =
     document.querySelector<HTMLTemplateElement>("#transactions-json");
+  const root = document.querySelector<HTMLElement>("#transactions-ui");
   const body =
     document.querySelector<HTMLTableSectionElement>("#transaction-rows");
   const search = document.querySelector<HTMLInputElement>(
     "#search-transactions",
   );
   const count = document.querySelector<HTMLElement>("#transaction-count");
-  if (!payload || !body || !search || !count) return;
+  if (!payload || !root || !body || !search || !count) return;
   const transactions: ReportTransaction[] = JSON.parse(
     payload.content.textContent ?? "[]",
   );
-  const formatter = new Intl.DateTimeFormat(undefined, {
+  const serverFormatter = new Intl.DateTimeFormat("en-GB", {
     dateStyle: "short",
     timeZone: "UTC",
   });
-  const views = transactions.map((transaction, index) =>
-    transactionView(transaction, index, formatter),
+  let views = transactions.map((transaction, index) =>
+    transactionView(transaction, index, serverFormatter),
   );
-  const controls = Array.from(
-    document.querySelectorAll<HTMLButtonElement>("[data-sort]"),
-  ).flatMap((button) => {
-    const key = button.dataset.sort;
-    if (key !== "date" && key !== "amount" && key !== "account") return [];
-    return [
-      {
-        key: key as SortKey,
-        header: button.closest("th"),
-        update: replaceControl(button),
-      },
-    ];
-  });
-  let sorting: { key: SortKey; direction: Direction } | undefined;
-  let term = search.value;
-  body.replaceChildren();
-  count.replaceChildren();
+  let sorting: Sorting | undefined;
+  let term = "";
 
   const update = () => {
     const tokens = compilePattern(term);
@@ -155,26 +96,7 @@ export function initializeTransactions(
     const matchesByIndex = new Map(
       matches.map(({ view, match }) => [view.index, match.spans]),
     );
-    render(
-      ordered.map(
-        (view) =>
-          html`<tr>
-            ${view.cells.map((value, index) => {
-              const content =
-                index === 0
-                  ? html`<time
-                      class="transaction-date"
-                      datetime=${view.transaction.date}
-                      title=${view.transaction.date}
-                      >${value}</time
-                    >`
-                  : value;
-              return html`<td>${content}</td>`;
-            })}
-          </tr>`,
-      ),
-      body,
-    );
+    render(template(ordered), root);
     const ranges: Range[] = [];
     for (const [rowIndex, view] of ordered.entries()) {
       const row = body.rows[rowIndex];
@@ -192,34 +114,32 @@ export function initializeTransactions(
         offset += value.length + 1;
       }
     }
-    render(
-      term ? `(${ordered.length} of ${views.length})` : `(${views.length})`,
-      count,
-    );
     highlight("transactions-search", ranges);
-    controls.forEach(({ key, header, update: updateControl }) => {
-      const direction = sorting?.key === key ? sorting.direction : "none";
-      header?.setAttribute("aria-sort", direction);
-      const next = direction === "ascending" ? "descending" : "ascending";
-      updateControl(
-        sortControl(key, `Sort ${key} ${next}`, () => {
-          sorting = { key, direction: next };
-          update();
-        }),
-      );
-    });
   };
 
-  replaceControl(search)(
-    searchControl(
-      "search-transactions",
-      "Filter transactions",
-      "transaction-rows",
+  const template = (ordered: typeof views) =>
+    transactionsTemplate(
+      ordered,
+      views.length,
+      term,
+      sorting,
       (event) => {
         term = (event.currentTarget as HTMLInputElement).value;
         update();
       },
-    ),
+      (key: SortKey, direction: Direction) => {
+        sorting = { key, direction };
+        update();
+      },
+    );
+  // Hydrate with the server's exact display values before localizing dates.
+  hydrate(template(views), root);
+  const formatter = new Intl.DateTimeFormat(undefined, {
+    dateStyle: "short",
+    timeZone: "UTC",
+  });
+  views = transactions.map((transaction, index) =>
+    transactionView(transaction, index, formatter),
   );
   update();
 }
@@ -229,34 +149,32 @@ export function initializeLogs(
   highlight: Highlighter = setHighlights,
 ) {
   const code = document.querySelector<HTMLElement>("#run-logs code");
-  const search = document.querySelector<HTMLInputElement>("#search-logs");
-  if (!code || !search) return;
-  const logs = code.textContent ?? "";
+  const root = document.querySelector<HTMLElement>("#logs-ui");
+  const payload = document.querySelector<HTMLTemplateElement>("#logs-json");
+  if (!code || !root || !payload) return;
+  const logs: string = JSON.parse(payload.content.textContent ?? '""');
   const lines = logs.match(/[^\r\n]*(?:\r\n|\r|\n|$)/g) ?? [];
-  code.replaceChildren();
-  render(logs, code);
-  replaceControl(search)(
-    searchControl("search-logs", "Filter logs", "run-logs", (event) => {
-      const term = (event.currentTarget as HTMLInputElement).value;
-      const parts: string[] = [];
-      const spans: Span[] = [];
-      let length = 0;
-      if (term) {
-        const tokens = compilePattern(term);
-        for (const line of lines) {
-          const match = matchPattern(line.replace(/[\r\n]+$/, ""), tokens);
-          if (!match.matched) continue;
-          parts.push(line);
-          for (const [start, end] of match.spans)
-            spans.push([length + start, length + end]);
-          length += line.length;
-        }
+  const onInput = (event: Event) => {
+    const term = (event.currentTarget as HTMLInputElement).value;
+    const parts: string[] = [];
+    const spans: Span[] = [];
+    let length = 0;
+    if (term) {
+      const tokens = compilePattern(term);
+      for (const line of lines) {
+        const match = matchPattern(line.replace(/[\r\n]+$/, ""), tokens);
+        if (!match.matched) continue;
+        parts.push(line);
+        for (const [start, end] of match.spans)
+          spans.push([length + start, length + end]);
+        length += line.length;
       }
-      render(term ? parts.join("") : logs, code);
-      const node = textNode(code);
-      highlight("log-search", node ? rangesFor(document, node, spans) : []);
-    }),
-  );
+    }
+    render(logsTemplate(term ? parts.join("") : logs, onInput), root);
+    const node = textNode(code);
+    highlight("log-search", node ? rangesFor(document, node, spans) : []);
+  };
+  hydrate(logsTemplate(logs, onInput), root);
 }
 
 export function initializeScreenshots(document: Document) {
@@ -307,7 +225,9 @@ export function initializeDownloads(document: Document) {
 }
 
 function downloadContent(source: HTMLElement | HTMLTemplateElement) {
-  return "content" in source ? source.content.textContent : source.textContent;
+  const content =
+    "content" in source ? source.content.textContent : source.textContent;
+  return source.id === "logs-json" ? JSON.parse(content ?? '""') : content;
 }
 
 export function initializeReport(document: Document) {

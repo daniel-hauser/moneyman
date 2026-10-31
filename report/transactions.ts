@@ -4,8 +4,8 @@ export {
   type ReportTransaction,
   type TransactionView,
 } from "../src/bot/report/transactions.js";
-export type SortKey = "date" | "amount" | "account";
-export type Direction = "ascending" | "descending";
+import type { SortKey, Direction } from "../src/bot/report/interactive.js";
+export type { SortKey, Direction } from "../src/bot/report/interactive.js";
 
 export function sortTransactions(
   rows: TransactionView[],
