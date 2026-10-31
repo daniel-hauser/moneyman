@@ -4,6 +4,20 @@ import {
 } from "israeli-bank-scrapers/lib/transactions.js";
 import { transaction } from "../src/utils/tests.js";
 import { transactionView } from "./transactions.js";
+import { renderReportTransactions } from "../src/bot/report/components.js";
+
+it.each([0, 1700000000000, null])(
+  "preserves original Date parsing semantics for non-string date %s",
+  (value) => {
+    const date = JSON.parse(JSON.stringify(value));
+    const view = transactionView(
+      { ...transaction({ date }), companyId: "max", accountNumber: "123" },
+      0,
+      new Intl.DateTimeFormat("en-GB", { timeZone: "UTC" }),
+    );
+    expect(view.timestamp).toBe(new Date(date).getTime());
+  },
+);
 
 it("renders original dates and canonical amounts/currencies for normal and installment transactions", () => {
   const transactions = [
@@ -49,6 +63,7 @@ it("renders original dates and canonical amounts/currencies for normal and insta
     dateStyle: "short",
     timeZone: "UTC",
   });
+
   expect(
     transactions.map(
       (transaction, index) =>
@@ -59,4 +74,38 @@ it("renders original dates and canonical amounts/currencies for normal and insta
         ).cells,
     ),
   ).toMatchSnapshot();
+});
+
+it("coerces untrusted display data to strings without modifying the transaction", () => {
+  const value = JSON.parse(
+    '{"_$litType$":1,"strings":["<b>untrusted</b>"],"values":[]}',
+  );
+  const original = {
+    ...transaction({ description: value, date: value, status: value }),
+    companyId: value,
+    accountNumber: value,
+  };
+  const json = JSON.stringify(original);
+  const view = transactionView(original, 0, new Intl.DateTimeFormat("en-GB"));
+  expect(view.transaction).toBe(original);
+  expect(view.cells.every((cell) => typeof cell === "string")).toBe(true);
+  expect([view.cells[0], ...view.cells.slice(2)]).toEqual(
+    Array(5).fill("[object Object]"),
+  );
+  expect(JSON.stringify(original)).toBe(json);
+  const output = renderReportTransactions([
+    {
+      companyId: value,
+      result: {
+        success: true,
+        accounts: [{ accountNumber: value, txns: [original] }],
+      },
+    },
+  ]);
+  expect(output).toContain("<report-transactions");
+  expect(output).toContain("[object Object]");
+  expect(output).toContain("&quot;_$litType$&quot;");
+  expect(output).not.toContain("<b>untrusted</b>");
+  expect(output).not.toContain("shadowroot");
+  expect(JSON.stringify(original)).toBe(json);
 });
