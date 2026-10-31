@@ -151,6 +151,11 @@ export const NotificationOptionsSchema = z.object({
        */
       sendLogFileToTelegram: z.boolean().optional().default(true),
       /**
+       * Whether to send the self-contained report.html at the end of each run.
+       * @default true
+       */
+      sendReportFileToTelegram: z.boolean().optional().default(true),
+      /**
        * Minimum time in milliseconds between edits of the status message.
        * Values below 250 are raised to 250 to stay within Telegram's rate limits.
        * @default 500

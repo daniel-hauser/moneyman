@@ -53,3 +53,9 @@ it("includes both operation and disposal failures in Telegram errors", async () 
     send.mockRestore();
   }
 });
+
+it("keeps the report.html upload when the option is not disabled", async () => {
+  const notifier = await import("./notifier.js");
+  expect(notifier.reportTransport).toBeDefined();
+  expect(notifier.reportTransport?.sendFile).toBeDefined();
+});

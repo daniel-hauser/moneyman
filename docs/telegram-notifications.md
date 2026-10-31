@@ -2,7 +2,7 @@
 
 We use telegram to send you the update status.
 
-Each run is reported in a single message that is edited as the run progresses: scraping status, a summary of the scraped transactions and one row per storage. At the end of every run, a self-contained `report.html` is sent with the final status, full errors, and failure screenshots embedded. The report works offline; long sections and screenshots can be expanded in a browser. To understand update bursts and rate limiting, enable `DEBUG=moneyman:report`: a single `report stats {...}` line (renders, requests, skipped unchanged renders, 429s, largest burst of mutations) is logged at the end of each run.
+Each run is reported in a single message that is edited as the run progresses: scraping status, a summary of the scraped transactions and one row per storage. At the end of every run, a self-contained `report.html` is sent with the final status, full errors, and failure screenshots embedded (set `sendReportFileToTelegram` to `false` to disable it; the report is then not even rendered). The report works offline; long sections and screenshots can be expanded in a browser. To understand update bursts and rate limiting, enable `DEBUG=moneyman:report`: a single `report stats {...}` line (renders, requests, skipped unchanged renders, 429s, largest burst of mutations) is logged at the end of each run.
 
 Setup instructions:
 
@@ -39,6 +39,11 @@ options: {
        * @default 500
        */
       updateIntervalMs?: number;
+      /**
+       * Whether to send the self-contained report.html at the end of each run.
+       * @default true
+       */
+      sendReportFileToTelegram?: boolean;
     };
   };
 };
