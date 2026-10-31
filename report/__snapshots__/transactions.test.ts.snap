@@ -1,0 +1,54 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`renders original dates and canonical amounts/currencies for normal and installment transactions 1`] = `
+[
+  [
+    "02/01/2024",
+    "12.34 USD",
+    "description1",
+    "1234",
+    "max",
+    "pending",
+  ],
+  [
+    "30/01/2026",
+    "50.00 ILS",
+    "description1",
+    "1234",
+    "max",
+    "pending",
+  ],
+  [
+    "30/01/2026",
+    "77.00 EUR",
+    "<script> & "original"",
+    "1234",
+    "max",
+    "completed",
+  ],
+  [
+    "30/01/2026",
+    "66.00 ILS",
+    "description1",
+    "1234",
+    "max",
+    "completed",
+  ],
+  [
+    "30/01/2026",
+    "11.00 GBP",
+    "description1",
+    "1234",
+    "max",
+    "pending",
+  ],
+  [
+    "invalid" onmouseover="alert(1)",
+    "7.00 EUR",
+    "description1",
+    "1234",
+    "max",
+    "completed",
+  ],
+]
+`;

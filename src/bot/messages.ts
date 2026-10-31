@@ -179,7 +179,7 @@ function getDuplicateUniqueIdSummary(
   );
 }
 
-function transactionAmount(t: Transaction): number {
+function transactionAmount(t: Transaction): number | null {
   switch (t.type) {
     case TransactionTypes.Normal:
       switch (t.status) {
@@ -207,7 +207,8 @@ function transactionCurrency(t: Transaction): string | undefined {
   );
 }
 
-function signedAmount(amount: number): string {
+function signedAmount(amount: number | null): string {
+  if (amount === null) return "NaN";
   const absoluteAmount = Math.abs(amount).toFixed(2);
   if (amount < 0) {
     return `-${absoluteAmount}`;
@@ -216,7 +217,7 @@ function signedAmount(amount: number): string {
   return `+${absoluteAmount}`;
 }
 
-function amountWithCurrency(amount: number, currency?: string): string {
+function amountWithCurrency(amount: number | null, currency?: string): string {
   const formattedAmount = signedAmount(amount);
   if (!currency || currency === "ILS") {
     return formattedAmount;

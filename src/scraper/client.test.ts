@@ -2,7 +2,11 @@ import { EventEmitter, getEventListeners } from "node:events";
 import { Worker, type MessagePort } from "node:worker_threads";
 import { finalizer, releaseProxy, wrap, type Remote } from "comlink";
 import { mock } from "jest-mock-extended";
-import type { AccountScrapeResult, ScraperConfig } from "../types.js";
+import type {
+  AccountScrapeResult,
+  RunTiming,
+  ScraperConfig,
+} from "../types.js";
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { scrapeAccounts } from "./client.js";
 import { requestOtpCode } from "../bot/notifier.js";
@@ -263,6 +267,60 @@ describe("Comlink scraper client", () => {
     expect(result.domains).toEqual({
       oneZero: { allowed: ["GET bank.test"] },
     });
+  });
+
+  it("relays epoch timing updates unchanged and keeps timing hooks optional", async () => {
+    const timing: RunTiming = {
+      id: "scraper-1",
+      kind: "scraper",
+      name: "oneZero",
+      startedAt: 1_000,
+    };
+    const onTiming = jest.fn();
+    const scrape = async () => {
+      await callbacks().timing(timing);
+      await callbacks().timing({ ...timing, endedAt: 1_100, failed: false });
+      callbacks()[finalizer]();
+      return { results, domains: {} };
+    };
+    api.scrape.mockImplementationOnce(scrape).mockImplementationOnce(scrape);
+    await scrapeAccounts(scraping, undefined, undefined, undefined, onTiming);
+    expect(onTiming.mock.calls.map(([update]) => update)).toEqual([
+      timing,
+      { ...timing, endedAt: 1_100, failed: false },
+    ]);
+    await expect(scrapeAccounts(scraping)).resolves.toEqual({
+      results,
+      domains: {},
+    });
+  });
+
+  it("closes unfinished intervals after worker failure without losing its error", async () => {
+    const timing: RunTiming = {
+      id: "scraper-1",
+      kind: "scraper",
+      name: "oneZero",
+      startedAt: 1_000,
+    };
+    const onTiming = jest.fn();
+    api.scrape.mockImplementationOnce(async () => {
+      await callbacks().timing(timing);
+      callbacks()[finalizer]();
+      throw new Error("worker scrape failed");
+    });
+    const now = jest.spyOn(Date, "now").mockReturnValue(1_200);
+    try {
+      await expect(
+        scrapeAccounts(scraping, undefined, undefined, undefined, onTiming),
+      ).rejects.toThrow("worker scrape failed");
+      expect(onTiming.mock.calls.map(([update]) => update)).toEqual([
+        timing,
+        { ...timing, endedAt: 1_200, failed: true },
+      ]);
+      expect(worker.terminate).toHaveBeenCalledTimes(1);
+    } finally {
+      now.mockRestore();
+    }
   });
 
   it("uses explicit fresh bank, scraper and firewall inputs for each worker", async () => {

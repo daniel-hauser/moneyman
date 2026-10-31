@@ -24,9 +24,30 @@ export function enableDebugLoggingIfNeeded() {
   }
 }
 
+export function readReportLogs(): string | undefined {
+  const telegram = config.options.notifications?.telegram;
+  const logFilePath = process.env.MONEYMAN_LOG_FILE_PATH;
+  if (
+    unsafeStdout ||
+    !telegram?.chatId ||
+    !telegram.sendLogFileToTelegram ||
+    telegram.sendReportFileToTelegram === false ||
+    !logFilePath
+  ) {
+    return;
+  }
+
+  try {
+    return readFileSync(logFilePath, "utf-8");
+  } catch (error) {
+    logger("Failed to read logs for report:", error);
+  }
+}
+
 export async function sendLogFile(
   deleteFile: boolean,
   storages: readonly TransactionStorage[] = [],
+  logsSent = false,
 ) {
   if (unsafeStdout) return;
 
@@ -50,8 +71,8 @@ export async function sendLogFile(
   }
 
   try {
-    if (telegram?.sendLogFileToTelegram) {
-      logToPublicLog(`Sending log file`, logger);
+    if (telegram?.sendLogFileToTelegram && !logsSent) {
+      logToPublicLog("Sending log file", logger);
       await sendTextFile(logFilePath).catch((error) => {
         logger("Failed to send logs to Telegram:", error);
         logToPublicLog("Failed to send logs to Telegram", logger);

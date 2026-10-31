@@ -7,9 +7,17 @@ import {
   sendConfigToTelegramIfRequested,
 } from "./config.js";
 import { BooleanEnvVarSchema } from "./config.schema.js";
-import { sendError } from "./bot/notifier.js";
+import {
+  sendError,
+  reportTransport,
+  reportUpdateIntervalMs,
+} from "./bot/notifier.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
-import { sendLogFile, enableDebugLoggingIfNeeded } from "./utils/secure-log.js";
+import {
+  sendLogFile,
+  enableDebugLoggingIfNeeded,
+  readReportLogs,
+} from "./utils/secure-log.js";
 import { RunHandle, RunnerHooks, RunStatus, RunTrigger } from "./types.js";
 import { runWithStorage } from "./bot/index.js";
 import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
@@ -24,6 +32,9 @@ import {
 } from "./configRefresh.js";
 import { createStorages } from "./bot/storage/index.js";
 import type { MoneymanConfig } from "./config.js";
+import { createRunReport } from "./bot/runReport.js";
+import { createReportPublisher } from "./bot/reportPublisher.js";
+import { formatUnknownError } from "./utils/utils.js";
 
 const logger = createLogger("main");
 const SCRAPE_LOCK = "moneyman-scrape";
@@ -154,6 +165,7 @@ async function runScraper(
         return hooks.onError(e, caller);
       },
       signal,
+      hooks.onTiming,
     );
     logger("Scraping ended");
     await Promise.all([
@@ -187,21 +199,32 @@ async function prepareRun() {
 }
 
 async function run(signal?: AbortSignal) {
-  const prepared = await prepareRun();
+  let publication: Awaited<ReturnType<typeof runWithStorage>> = {
+    report: createRunReport(),
+    reportSent: false,
+  };
+  let report = publication.report;
+  let prepared: Awaited<ReturnType<typeof prepareRun>>;
   try {
-    if (!prepared) return true;
+    prepared = await prepareRun();
+    if (!prepared) {
+      report.failed = true;
+      report.errors.push({ caller: "Setup", message: "Run setup failed" });
+      return true;
+    }
     const { snapshot, storages } = prepared;
     const domainTracker = createDomainTracker({
       domainTracking: snapshot.options.scraping.domainTracking,
       ...snapshot.options.security,
     });
-    let report;
     try {
       logger("Running with storage");
-      report = await runWithStorage(
+      publication = await runWithStorage(
         (hooks) => runScraper(hooks, snapshot, domainTracker, signal),
         storages,
+        publication,
       );
+      report = publication.report;
     } finally {
       domainTracker.dispose();
     }
@@ -214,8 +237,29 @@ async function run(signal?: AbortSignal) {
     return report.failed || failedStorages.length > 0;
   } catch (error) {
     logger(error);
+    report.failed = true;
+    report.errors.push({ caller: "Run", message: formatUnknownError(error) });
     return true;
   } finally {
-    await sendLogFile(!longRunning, prepared?.storages ?? []);
+    try {
+      if (!report.endedAt) {
+        report.endedAt = new Date();
+        const logs = readReportLogs();
+        publication.reportSent = await createReportPublisher(report, {
+          transport: reportTransport,
+          sendReportFile:
+            config.options.notifications.telegram?.sendReportFileToTelegram ??
+            true,
+          intervalMs: reportUpdateIntervalMs,
+        }).finish(logs);
+        publication.logsSent = publication.reportSent && logs !== undefined;
+      }
+    } finally {
+      await sendLogFile(
+        !longRunning,
+        prepared?.storages ?? [],
+        publication.logsSent,
+      );
+    }
   }
 }

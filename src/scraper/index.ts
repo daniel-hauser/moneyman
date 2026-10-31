@@ -11,6 +11,8 @@ import { parallelLimit } from "async";
 import type { OtpRequest } from "./otp.js";
 import type { DomainTracker } from "../security/domains.js";
 import { aborted } from "node:util";
+import { randomUUID } from "node:crypto";
+import type { RunTiming, RunnerHooks } from "../types.js";
 
 const logger = createLogger("scraper");
 
@@ -44,6 +46,7 @@ export async function scrapeAccounts(
     executablePath?: string;
     requestOtpCode?: OtpRequest;
     signal?: AbortSignal;
+    onTiming?: RunnerHooks["onTiming"];
   } = {},
 ) {
   const start = performance.now();
@@ -69,33 +72,51 @@ export async function scrapeAccounts(
       accounts.map((account, i) => async () => {
         runtime.signal?.throwIfAborted();
         const { companyId } = account;
-        return loggerContextStore.run(
-          { prefix: `[#${i} ${companyId}]` },
-          async () =>
-            scrapeAccount(
-              account,
-              {
-                // Safe to remove when israeli-bank-scrapers upgrades to puppeteer 25+
-                browserContext: (await createSecureBrowserContext(
-                  browser,
+        const timing: RunTiming = {
+          id: `scraper-${randomUUID()}`,
+          kind: "scraper",
+          name: companyId,
+          startedAt: Date.now(),
+        };
+        try {
+          await runtime.onTiming?.({ ...timing });
+          const result = await loggerContextStore.run(
+            { prefix: `[#${i} ${companyId}]` },
+            async () =>
+              scrapeAccount(
+                account,
+                {
+                  // Safe to remove when israeli-bank-scrapers upgrades to puppeteer 25+
+                  browserContext: (await createSecureBrowserContext(
+                    browser,
+                    companyId,
+                    initDomainTracking,
+                  )) as any,
+                  startDate,
                   companyId,
-                  initDomainTracking,
-                )) as any,
-                startDate,
-                companyId,
-                futureMonthsToScrape: futureMonths,
-                storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
-                additionalTransactionInformation,
-                includeRawTransaction,
-                ...scraperOptions,
-              },
-              async (message, append = false) => {
-                status[i] = append ? `${status[i]} ${message}` : message;
-                return scrapeStatusChanged?.(status);
-              },
-              runtime.requestOtpCode,
-            ),
-        );
+                  futureMonthsToScrape: futureMonths,
+                  storeFailureScreenShotPath:
+                    getFailureScreenShotPath(companyId),
+                  additionalTransactionInformation,
+                  includeRawTransaction,
+                  ...scraperOptions,
+                },
+                async (message, append = false) => {
+                  status[i] = append ? `${status[i]} ${message}` : message;
+                  return scrapeStatusChanged?.(status);
+                },
+                runtime.requestOtpCode,
+              ),
+          );
+          timing.failed = !result.result.success;
+          return result;
+        } catch (error) {
+          timing.failed = true;
+          throw error;
+        } finally {
+          timing.endedAt = Date.now();
+          await runtime.onTiming?.({ ...timing });
+        }
       }),
       Number(parallelScrapers),
     );

@@ -1,20 +1,30 @@
 import { escapers } from "@telegraf/entity";
-import type { AccountScrapeResult } from "../types.js";
+import type { AccountScrapeResult, RunTiming } from "../types.js";
 import { blockquote, getSummaryMessages } from "./messages.js";
-import { html } from "./report/html.js";
+import { hashInlineContent, html } from "./report/html.js";
 import {
   renderReportAccounts,
   renderReportErrors,
   renderReportScreenshots,
   renderReportRunDetails,
+  renderReportTimings,
   renderReportStorages,
   renderReportTransactions,
+  renderReportLogs,
 } from "./report/components.js";
-import { reportStyles } from "./report/styles.js";
+import { reportClientScript, reportStyles } from "./report/assets.generated.js";
 import { statsDetailsLines, type SaveStats } from "./saveStats.js";
 import { truncateError } from "./truncateError.js";
 
 export const TELEGRAM_MESSAGE_LIMIT = 4096;
+
+const reportErrorScript = `addEventListener("error", (event) => {
+  const message = document.createElement("p");
+  message.setAttribute("role", "alert");
+  message.textContent = "Report error: " + (event.error?.name ?? "Error");
+  document.body.prepend(message);
+  event.preventDefault();
+});`;
 
 export interface Step {
   name: string;
@@ -34,6 +44,8 @@ export type StorageRow =
 
 export interface RunReport {
   startedAt: Date;
+  endedAt?: Date;
+  timings?: RunTiming[];
   failed: boolean;
   scrape: { status: Array<string>; totalTimeSec?: number };
   summary?: { results: Array<AccountScrapeResult> };
@@ -48,6 +60,7 @@ export interface RunReport {
 export function createRunReport(startedAt = new Date()): RunReport {
   return {
     startedAt,
+    timings: [],
     failed: false,
     scrape: { status: ["Starting..."] },
     errors: [],
@@ -183,36 +196,80 @@ export function renderFullReport(report: RunReport): string {
   return render(report, { details: true, full: true });
 }
 
-export function renderHTMLReport(report: RunReport): string {
-  const failed =
-    report.failed ||
-    Object.values(report.storages).some((row) => row.state === "error") ||
-    Boolean(report.summary?.results.some(({ result }) => !result.success));
+export function renderHTMLReport(report: RunReport, logs?: string): string {
+  const transactions = report.summary
+    ? renderReportTransactions(report.summary.results)
+    : "";
+  const screenshots = renderReportScreenshots(report.screenshots);
+  // Approve only static application code, never rendered report or log data.
+  const policy = [
+    "default-src 'none'",
+    `script-src ${hashInlineContent(reportErrorScript)} ${hashInlineContent(reportClientScript)}`,
+    "script-src-attr 'none'",
+    `style-src ${hashInlineContent(reportStyles)}`,
+    "style-src-attr 'none'",
+    "img-src data:",
+    "connect-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+    "object-src 'none'",
+  ].join("; ");
 
   return html`<!doctype html>
     <html lang="en">
       <head>
         <meta charset="utf-8" />
+        <meta http-equiv="Content-Security-Policy" content="${policy}" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Moneyman run report</title>
-        <style>
-          ${reportStyles}
-        </style>
+        ${`<style>${reportStyles}</style>`}
       </head>
       <body>
+        ${`<script>${reportErrorScript}</script>`}
+        <svg
+          class="report-icons"
+          width="0"
+          height="0"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <symbol id="download-icon" viewBox="0 0 24 24">
+            <path d="M12 3v12m-5-5 5 5 5-5M5 16v5h14v-5" />
+          </symbol>
+          <symbol id="sort-icon" viewBox="0 0 24 24">
+            <path d="m8 3-4 4m4-4 4 4M8 3v18m8 0-4-4m4 4 4-4m-4 4V3" />
+          </symbol>
+        </svg>
         <h1>Moneyman run report</h1>
+        <noscript>
+          <p class="javascript-warning" role="alert">
+            JavaScript disabled; interactive parts are off.
+          </p>
+        </noscript>
         ${renderReportRunDetails({
           startedAt: report.startedAt,
-          failed,
           ...report.scrape,
         })}
-        ${report.summary ? renderReportAccounts(report.summary.results) : ""}
-        ${
-          report.summary ? renderReportTransactions(report.summary.results) : ""
-        }
-        ${renderReportStorages(report.storages)}
-        ${renderReportErrors(report.errors)}
-        ${renderReportScreenshots(report.screenshots)}
+        ${renderReportAccounts(report.summary?.results ?? [], screenshots)}
+        ${transactions}
+        ${renderReportStorages(report.storages)}${renderReportTimings(report.timings, report.startedAt, report.endedAt)}
+        ${renderReportErrors(report.errors)}${logs === undefined ? "" : renderReportLogs(logs)}
+        <footer class="report-footer">
+          <a
+            href="https://github.com/daniel-hauser/moneyman"
+            target="_blank"
+            rel="noopener noreferrer"
+            >daniel-hauser/moneyman</a
+          >
+          <span aria-hidden="true">&middot;</span>
+          <a
+            href="https://moneyman.co.il/"
+            target="_blank"
+            rel="noopener noreferrer"
+            >moneyman.co.il</a
+          >
+        </footer>
+        ${`<script>${reportClientScript}</script>`}
       </body>
     </html>`;
 }

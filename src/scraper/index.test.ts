@@ -4,7 +4,7 @@ import { CompanyTypes } from "israeli-bank-scrapers";
 import { scrapeAccounts } from "./index.js";
 import { createBrowser, createSecureBrowserContext } from "./browser.js";
 import { getAccountTransactions } from "./scrape.js";
-import type { ScraperConfig } from "../types.js";
+import type { RunTiming, ScraperConfig } from "../types.js";
 
 jest.mock("./browser.js", () => ({
   createBrowser: jest.fn(),
@@ -45,6 +45,105 @@ describe("scraper runtime browser lifecycle", () => {
   });
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  it("records overlapping duplicate-company accounts only when a parallel slot starts", async () => {
+    let now = 1_000;
+    jest.spyOn(Date, "now").mockImplementation(() => now);
+    const gates = Array.from({ length: 3 }, () =>
+      Promise.withResolvers<{ success: boolean }>(),
+    );
+    let next = 0;
+    jest
+      .mocked(getAccountTransactions)
+      .mockImplementation(() => gates[next++].promise);
+    const updates: RunTiming[] = [];
+    const run = scrapeAccounts(
+      {
+        ...config,
+        accounts: Array(3).fill(config.accounts[0]),
+        parallelScrapers: 2,
+      },
+      initDomainTracking,
+      undefined,
+      undefined,
+      {
+        onTiming: (timing) => {
+          updates.push(timing);
+        },
+      },
+    );
+    const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
+    await tick();
+    expect(updates).toHaveLength(2);
+    expect(updates.every((timing) => timing.startedAt === 1_000)).toBe(true);
+
+    now = 1_100;
+    gates[0].resolve({ success: true });
+    await tick();
+    expect(
+      updates.filter((timing) => timing.endedAt === undefined),
+    ).toHaveLength(3);
+    now = 1_200;
+    gates[1].resolve({ success: false });
+    await tick();
+    now = 1_300;
+    gates[2].resolve({ success: true });
+    await run;
+
+    const completed = updates.filter((timing) => timing.endedAt !== undefined);
+    expect(new Set(completed.map(({ id }) => id)).size).toBe(3);
+    expect(
+      completed.map(({ startedAt, endedAt, failed }) => ({
+        startedAt,
+        endedAt,
+        failed,
+      })),
+    ).toEqual([
+      { startedAt: 1_000, endedAt: 1_100, failed: false },
+      { startedAt: 1_000, endedAt: 1_200, failed: true },
+      { startedAt: 1_100, endedAt: 1_300, failed: false },
+    ]);
+    expect(
+      completed.every(
+        ({ kind, name }) => kind === "scraper" && name === "hapoalim",
+      ),
+    ).toBe(true);
+  });
+
+  it("closes failed context setup intervals and never times cancelled queued accounts", async () => {
+    const onTiming = jest.fn();
+    jest
+      .mocked(createSecureBrowserContext)
+      .mockRejectedValueOnce(new Error("context failed"));
+    await expect(
+      scrapeAccounts(config, initDomainTracking, undefined, undefined, {
+        onTiming,
+      }),
+    ).rejects.toThrow("context failed");
+    expect(onTiming).toHaveBeenCalledTimes(2);
+    expect(onTiming.mock.calls[1][0]).toMatchObject({
+      id: onTiming.mock.calls[0][0].id,
+      endedAt: expect.any(Number),
+      failed: true,
+    });
+
+    onTiming.mockClear();
+    const abort = new AbortController();
+    jest.mocked(getAccountTransactions).mockImplementationOnce(async () => {
+      abort.abort(new Error("cancelled"));
+      return { success: false };
+    });
+    await expect(
+      scrapeAccounts(
+        { ...config, accounts: [...config.accounts, ...config.accounts] },
+        initDomainTracking,
+        undefined,
+        undefined,
+        { onTiming, signal: abort.signal },
+      ),
+    ).rejects.toThrow("cancelled");
+    expect(onTiming).toHaveBeenCalledTimes(2);
   });
 
   it("passes narrow browser/OTP settings and closes the browser before returning results", async () => {

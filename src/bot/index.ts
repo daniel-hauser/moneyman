@@ -6,26 +6,43 @@ import { reportTransport, reportUpdateIntervalMs } from "./notifier.js";
 import { formatUnknownError } from "../utils/utils.js";
 import { createReportPublisher } from "./reportPublisher.js";
 import { createRunReport, type RunReport } from "./runReport.js";
+import { readReportLogs } from "../utils/secure-log.js";
+import { config } from "../config.js";
 
 const logger = createLogger("bot");
 
 export async function runWithStorage(
   runScraper: Runner,
   storages: readonly TransactionStorage[],
-): Promise<RunReport> {
-  const { report, finish } = createReportPublisher(createRunReport(), {
+  publication: {
+    report: RunReport;
+    reportSent: boolean;
+    logsSent?: boolean;
+  } = { report: createRunReport(), reportSent: false },
+): Promise<typeof publication> {
+  const sendReportFile =
+    config.options.notifications.telegram?.sendReportFileToTelegram ?? true;
+  const { report, finish } = createReportPublisher(publication.report, {
     transport: reportTransport,
+    sendReportFile,
     intervalMs: reportUpdateIntervalMs,
   });
+  publication.report = report;
 
   try {
     if (!storages.length) {
       logger("No storages found, aborting");
       report.notices.push("No storages found, aborting");
-      return report;
+      return publication;
     }
 
     await runScraper({
+      onTiming(timing) {
+        const timings = (report.timings ??= []);
+        const index = timings.findIndex(({ id }) => id === timing.id);
+        if (index === -1) timings.push({ ...timing });
+        else timings[index] = { ...timing };
+      },
       async onStatusChanged(status: Array<string>, totalTime?: number) {
         logger(`scrape status: ${status.join(" | ")}`);
         report.scrape = { status, totalTimeSec: totalTime };
@@ -54,7 +71,7 @@ export async function runWithStorage(
       },
       async onBeforeStart() {},
       async failureScreenshotsHandler(photos) {
-        if (!reportTransport) return;
+        if (!reportTransport || !sendReportFile) return;
         report.screenshots.push(
           ...(await Promise.all(
             photos.map(async ({ photoPath, caption }) => ({
@@ -68,8 +85,11 @@ export async function runWithStorage(
 
     logToPublicLog("Scraping ended", logger);
   } finally {
-    await finish();
+    report.endedAt = new Date();
+    const logs = sendReportFile ? readReportLogs() : undefined;
+    publication.reportSent = await finish(logs);
+    publication.logsSent = publication.reportSent && logs !== undefined;
   }
 
-  return report;
+  return publication;
 }

@@ -151,9 +151,23 @@ describe("createReportPublisher", () => {
     expect(transport.sendFile.mock.calls[0][1]).toContain("❌ Failed");
   });
 
+  it("includes logs only in the final HTML attachment, not the text summary", async () => {
+    const { transport, finish } = setup();
+    const done = finish("captured <log>");
+    await tick(500);
+    await done;
+
+    expect(transport.sendFile).toHaveBeenCalledTimes(1);
+    expect(transport.sendFile.mock.calls[0][1]).toContain(
+      "captured &lt;log&gt;",
+    );
+    expect(transport.send.mock.calls[0][0]).not.toContain("captured");
+    expect(transport.edit).not.toHaveBeenCalled();
+  });
+
   it("does nothing without a transport", async () => {
     const { report, finish } = createReportPublisher(createRunReport());
     report.scrape.status = ["a"];
-    await expect(finish()).resolves.toBeUndefined();
+    await expect(finish()).resolves.toBe(false);
   });
 });
