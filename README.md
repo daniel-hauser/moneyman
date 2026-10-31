@@ -52,10 +52,6 @@ Since logs are public for public repos, most logs are off by default and the pro
 4. Provide your configuration via `MONEYMAN_CONFIG` (inline JSON) or point `MONEYMAN_CONFIG_PATH` to a JSON/JSONC file
 5. Run `npm start`
 
-The browser UI, CSS, and client tests live in `report/`. `npm run build` type-checks both the application and the report; `npm test` discovers tests in both directories. Both commands automatically bundle the report client and CSS into `dst/bot/report/assets.generated.js`. No implementation files are generated in source directories, and production needs neither source files nor the bundler. When developing the report with `tsc --watch`, also run `npm run build:report-assets -- --watch` in another terminal to rebuild when the client TypeScript or CSS changes. Use `tsc -p report/tsconfig.json --watch` for browser type-checking.
-
-The offline HTML report includes a compact timing waterfall after storage results, with durations beneath activity names and a shared elapsed-time axis for each scraper, storage, and storage progress step. Bars show actual execution intervals, including parallel activity and failures; hover over a bar for its start offset and duration. Older reports without timing records omit the waterfall.
-
 </details>
 
 <details>
