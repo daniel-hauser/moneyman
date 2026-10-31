@@ -14,7 +14,6 @@
     "prepare": "husky",
     "postinstall": "patch-package",
     "build:report-assets": "node report/build.mjs",
-    "report:preview": "node report/preview.mjs",
     "build": "npm run build:report-assets && tsc && tsc -p report/tsconfig.json",
     "lint": "prettier --check .",
     "lint:fix": "prettier --write .",

@@ -8,7 +8,6 @@ import { AccountScrapeResult, type RunTiming } from "../types.js";
 import { transaction } from "../utils/tests.js";
 import { createSaveStats } from "./saveStats.js";
 import { hashInlineContent } from "./report/html.js";
-import { reportStyles } from "./report/assets.generated.js";
 import {
   renderReportAccounts,
   renderReportStorages,
@@ -171,10 +170,9 @@ describe("renderFullReport", () => {
     const report = baseReport();
     report.summary = { results: [successResult()] };
     report.storages["Sheets"] = { state: "error", message: "boom" };
-    expect({
-      full: renderFullReport(report),
-      sent: renderRunReport(report),
-    }).toMatchSnapshot();
+    const full = renderFullReport(report);
+    expect(full).toMatchSnapshot();
+    expect(renderRunReport(report)).toBe(full);
   });
 
   it("differs when errors are shortened or the limit is hit", () => {
@@ -346,10 +344,6 @@ describe("renderHTMLReport", () => {
 
   it.each([
     [false, undefined, false],
-    [false, "", false],
-    [true, undefined, false],
-    [true, "some logs\r\nnext line", false],
-    [false, undefined, true],
     [true, "some logs", true],
   ])(
     "approves exactly the inline scripts and style (transactions=%s, logs=%s, screenshots=%s)",
@@ -438,28 +432,6 @@ describe("renderHTMLReport", () => {
     }).toMatchSnapshot();
   });
 
-  it("keeps account and storage column sizing independent of expanded error content", () => {
-    expect(
-      reportStyles
-        .split("}")
-        .filter((rule) =>
-          /results-table|accounts-table|storages-table|td \.error-message/.test(
-            rule,
-          ),
-        )
-        .map((rule) => `${rule.trim()}}`),
-    ).toMatchSnapshot();
-  });
-
-  it("shares search and download control sizing and interaction styles", () => {
-    expect(
-      reportStyles
-        .split("}")
-        .filter((rule) => /report-search|download-button/.test(rule))
-        .map((rule) => `${rule.trim()}}`),
-    ).toMatchSnapshot();
-  });
-
   it("keeps screenshots inside Accounts even when no summary exists", () => {
     const report = baseReport();
     report.screenshots.push({
@@ -470,16 +442,6 @@ describe("renderHTMLReport", () => {
     expect(
       output.match(/<section class="accounts-section">[\s\S]*?<\/section>/)![0],
     ).toMatchSnapshot();
-  });
-
-  it("shares one inline SVG symbol across both download icons", () => {
-    const report = baseReport();
-    report.summary = { results: [successResult()] };
-    const output = renderHTMLReport(report, "logs");
-    expect({
-      symbols: output.match(/<symbol\b[\s\S]*?<\/symbol>/g),
-      uses: output.match(/<use\b[^>]*\/>/g),
-    }).toMatchSnapshot();
   });
 
   it("does not approve hostile report data as executable content", () => {

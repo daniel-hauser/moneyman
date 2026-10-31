@@ -52,7 +52,10 @@ export function initializeTransactions(
   const transactions: ReportTransaction[] = JSON.parse(
     payload.content.textContent ?? "[]",
   );
-  const formatter = new Intl.DateTimeFormat(undefined, { dateStyle: "short" });
+  const formatter = new Intl.DateTimeFormat(undefined, {
+    dateStyle: "short",
+    timeZone: "UTC",
+  });
   const views = transactions.map((transaction, index) =>
     transactionView(transaction, index, formatter),
   );
