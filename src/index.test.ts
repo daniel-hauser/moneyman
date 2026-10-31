@@ -3,6 +3,15 @@ import type { ServerRunner } from "./server.js";
 import { createRunReport } from "./bot/runReport.js";
 import { mock } from "jest-mock-extended";
 import { CompanyTypes } from "israeli-bank-scrapers";
+import type { ReportTransport } from "./bot/reportPublisher.js";
+
+jest.mock("./bot/runReport.js", () => {
+  const actual =
+    jest.requireActual<typeof import("./bot/runReport.js")>(
+      "./bot/runReport.js",
+    );
+  return { ...actual, renderHTMLReport: jest.fn(actual.renderHTMLReport) };
+});
 
 jest.mock("./config.js", () => ({
   config: jest
@@ -33,8 +42,10 @@ jest.mock("./configRefresh.js", () => ({
     "Secret refresh failed. No scrape started. Check the private logs and provider access, then retry.",
 }));
 jest.mock("./bot/notifier.js", () => ({
+  __esModule: true,
   sendError: jest.fn().mockResolvedValue(undefined),
   sendPhotos: jest.fn().mockResolvedValue(undefined),
+  reportTransport: undefined,
 }));
 jest.mock("./server.js", () => ({ startServer: jest.fn() }));
 jest.mock("./utils/secure-log.js", () => ({
@@ -321,6 +332,82 @@ describe("index", () => {
       expect(await runner.isRunning()).toBe(false);
       expect(await runOnce("manual")).toMatchObject({ failed: false });
     });
+
+    it.each(["default", "disabled", "unconfigured", "uninitialized"])(
+      "honors %s Telegram reports on early setup failure",
+      async (setting) => {
+        const { config } = await import("./config.js");
+        const { NotificationOptionsSchema } =
+          await import("./config.schema.js");
+        const notifier = await import("./bot/notifier.js");
+        const { readReportLogs } = await import("./utils/secure-log.js");
+        const { renderHTMLReport } = await import("./bot/runReport.js");
+        const { loadRunConfig } = await import("./configRefresh.js");
+        const transport = mock<ReportTransport>();
+        transport.send.mockResolvedValue(1);
+        transport.sendFile.mockResolvedValue(undefined);
+        config.options.notifications = NotificationOptionsSchema.parse(
+          setting === "unconfigured"
+            ? {}
+            : {
+                telegram: {
+                  apiKey: "test-token",
+                  chatId: "1",
+                  ...(setting === "disabled"
+                    ? { sendReportFileToTelegram: false }
+                    : {}),
+                },
+              },
+        );
+        jest.replaceProperty(
+          notifier,
+          "reportTransport",
+          setting === "unconfigured" || setting === "uninitialized"
+            ? undefined
+            : transport,
+        );
+        if (setting === "uninitialized") {
+          expect(
+            config.options.notifications.telegram?.sendReportFileToTelegram,
+          ).toBe(true);
+        }
+        jest.mocked(readReportLogs).mockReturnValue("invented early-run logs");
+        jest
+          .mocked(loadRunConfig)
+          .mockRejectedValueOnce(new Error("setup failed"));
+
+        expect(await runOnce("manual")).toMatchObject({ failed: true });
+
+        expect(mocks.runWithStorageMock).not.toHaveBeenCalled();
+        if (setting === "default") {
+          expect(readReportLogs).toHaveBeenCalledTimes(1);
+          expect(renderHTMLReport).toHaveBeenCalledWith(
+            expect.objectContaining({ failed: true }),
+            "invented early-run logs",
+          );
+          expect(transport.sendFile).toHaveBeenCalledWith(
+            "report.html",
+            expect.stringContaining("invented early-run logs"),
+          );
+        } else {
+          expect(readReportLogs).not.toHaveBeenCalled();
+          expect(renderHTMLReport).not.toHaveBeenCalled();
+          expect(transport.sendFile).not.toHaveBeenCalled();
+        }
+        if (setting === "unconfigured" || setting === "uninitialized") {
+          expect(transport.send).not.toHaveBeenCalled();
+        } else {
+          expect(transport.send).toHaveBeenCalledWith(
+            expect.stringContaining("Starting..."),
+          );
+        }
+        expect(mocks.sendLogFileMock).toHaveBeenCalledWith(
+          false,
+          [],
+          setting === "default",
+        );
+      },
+    );
 
     it("does not expose refresh when no provider is configured", async () => {
       const unconfigured = await loadEntrypoint(true, false);
