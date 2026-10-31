@@ -244,12 +244,14 @@ async function run(signal?: AbortSignal) {
     try {
       if (!report.endedAt) {
         report.endedAt = new Date();
-        const logs = readReportLogs();
+        const sendReportFile =
+          Boolean(reportTransport) &&
+          (config.options.notifications.telegram?.sendReportFileToTelegram ??
+            false);
+        const logs = sendReportFile ? readReportLogs() : undefined;
         publication.reportSent = await createReportPublisher(report, {
           transport: reportTransport,
-          sendReportFile:
-            config.options.notifications.telegram?.sendReportFileToTelegram ??
-            true,
+          sendReportFile,
           intervalMs: reportUpdateIntervalMs,
         }).finish(logs);
         publication.logsSent = publication.reportSent && logs !== undefined;

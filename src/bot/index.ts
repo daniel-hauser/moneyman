@@ -21,7 +21,8 @@ export async function runWithStorage(
   } = { report: createRunReport(), reportSent: false },
 ): Promise<typeof publication> {
   const sendReportFile =
-    config.options.notifications.telegram?.sendReportFileToTelegram ?? true;
+    Boolean(reportTransport) &&
+    (config.options.notifications.telegram?.sendReportFileToTelegram ?? false);
   const { report, finish } = createReportPublisher(publication.report, {
     transport: reportTransport,
     sendReportFile,

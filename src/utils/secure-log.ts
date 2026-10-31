@@ -31,7 +31,7 @@ export function readReportLogs(): string | undefined {
     unsafeStdout ||
     !telegram?.chatId ||
     !telegram.sendLogFileToTelegram ||
-    telegram.sendReportFileToTelegram === false ||
+    !telegram.sendReportFileToTelegram ||
     !logFilePath
   ) {
     return;
