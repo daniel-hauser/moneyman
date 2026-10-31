@@ -12,7 +12,8 @@ const defaultLog = createLogger("report");
 export interface ReportTransport {
   send(text: string): Promise<number | undefined>;
   edit(messageId: number, text: string): Promise<void>;
-  sendFile(filename: string, content: string): Promise<void>;
+  /** Omit to disable the end-of-run report.html (it is not even rendered). */
+  sendFile?(filename: string, content: string): Promise<void>;
 }
 
 export interface ReportPublisherOptions {
@@ -115,11 +116,13 @@ export function createReportPublisher(
       await running;
     }
 
-    try {
-      log("Sending report.html");
-      await transport.sendFile("report.html", renderHTMLReport(report));
-    } catch (e) {
-      log("Failed to send report.html", e);
+    if (transport.sendFile) {
+      try {
+        log("Sending report.html");
+        await transport.sendFile("report.html", renderHTMLReport(report));
+      } catch (e) {
+        log("Failed to send report.html", e);
+      }
     }
     log(`report stats ${JSON.stringify(stats)}`);
   }

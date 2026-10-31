@@ -11,7 +11,7 @@ function setup(intervalMs = 500) {
     send: jest.fn<ReportTransport["send"]>().mockResolvedValue(7),
     edit: jest.fn<ReportTransport["edit"]>().mockResolvedValue(undefined),
     sendFile: jest
-      .fn<ReportTransport["sendFile"]>()
+      .fn<NonNullable<ReportTransport["sendFile"]>>()
       .mockResolvedValue(undefined),
   };
   const { report, finish } = createReportPublisher(createRunReport(), {

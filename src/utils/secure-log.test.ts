@@ -97,6 +97,7 @@ describe("sendLogFile", () => {
         apiKey: "test-token",
         chatId: "555",
         sendLogFileToTelegram: true,
+        sendReportFileToTelegram: true,
         enableOtp: false,
         otpTimeoutSeconds: 300,
         updateIntervalMs: 500,

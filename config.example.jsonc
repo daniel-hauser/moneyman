@@ -61,7 +61,9 @@
       //   // Maximum time in seconds to wait for OTP response (default: 300)
       //   "otpTimeoutSeconds": 300,
       //   // Minimum milliseconds between edits of the status message (default: 500, minimum: 250)
-      //   "updateIntervalMs": 500
+      //   "updateIntervalMs": 500,
+      //   // Send the self-contained report.html at the end of each run (default: true)
+      //   "sendReportFileToTelegram": true
       // }
     },
   },

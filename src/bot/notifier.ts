@@ -128,35 +128,38 @@ export async function sendTextFile(filePath: string, caption?: string) {
  * Transport for the single run-report message, undefined when Telegram isn't configured.
  * Errors (e.g. 429) are propagated so the publisher can handle them.
  */
-export const reportTransport: ReportTransport | undefined =
-  bot && telegramConfig?.chatId
-    ? {
-        async send(text) {
-          const sent = await bot.telegram.sendMessage(
-            telegramConfig.chatId,
-            text,
-            { parse_mode: "HTML" },
-          );
-          return sent.message_id;
-        },
-        async edit(messageId, text) {
-          await bot.telegram.editMessageText(
-            telegramConfig.chatId,
-            messageId,
-            undefined,
-            text,
-            { parse_mode: "HTML" },
-          );
-        },
-        async sendFile(filename, content) {
-          logger(`Sending file ${filename}`);
-          await bot.telegram.sendDocument(telegramConfig.chatId, {
-            source: Buffer.from(content, "utf-8"),
-            filename,
-          });
-        },
-      }
-    : undefined;
+export const reportTransport: ReportTransport | undefined = (() => {
+  if (!bot || !telegramConfig?.chatId) {
+    return undefined;
+  }
+  const { chatId } = telegramConfig;
+  return {
+    async send(text) {
+      const sent = await bot.telegram.sendMessage(chatId, text, {
+        parse_mode: "HTML",
+      });
+      return sent.message_id;
+    },
+    async edit(messageId, text) {
+      await bot.telegram.editMessageText(chatId, messageId, undefined, text, {
+        parse_mode: "HTML",
+      });
+    },
+    // Omitting sendFile when disabled keeps report.html from being rendered
+    // at all, which matters because it embeds base64 screenshots.
+    ...(telegramConfig.sendReportFileToTelegram !== false
+      ? {
+          async sendFile(filename: string, content: string) {
+            logger(`Sending file ${filename}`);
+            await bot.telegram.sendDocument(chatId, {
+              source: Buffer.from(content, "utf-8"),
+              filename,
+            });
+          },
+        }
+      : {}),
+  };
+})();
 
 export const reportUpdateIntervalMs = telegramConfig?.updateIntervalMs;
 
