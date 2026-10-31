@@ -58,7 +58,7 @@
       //   "chatId": "your-chat-id",
       //   // Send the offline HTML report (default: true)
       //   "sendReportFileToTelegram": true,
-      //   // Send captured logs, with a standalone fallback if the report is disabled or fails (default: true)
+      //   // Send captured logs, preferring the report with a standalone fallback (default: true)
       //   "sendLogFileToTelegram": true,
       //   // Enable OTP (One-Time Password) support for 2FA authentication (default: false)
       //   "enableOtp": false,

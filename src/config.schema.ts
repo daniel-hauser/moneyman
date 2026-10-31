@@ -151,7 +151,7 @@ export const NotificationOptionsSchema = z.object({
       sendReportFileToTelegram: z.boolean().optional().default(true),
       /**
        * Whether to send captured logs to Telegram when using secure logging (MONEYMAN_UNSAFE_STDOUT=false).
-       * Logs are included in the HTML report, with a standalone fallback if the report is disabled or cannot be sent.
+       * Logs are included in the HTML report, with a standalone fallback if they cannot be included or delivered.
        * Only applies when output redirection is enabled.
        * @default true
        */

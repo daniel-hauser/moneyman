@@ -14,8 +14,12 @@ const logger = createLogger("bot");
 export async function runWithStorage(
   runScraper: Runner,
   storages: readonly TransactionStorage[],
-  publication = { report: createRunReport(), reportSent: false },
-): Promise<{ report: RunReport; reportSent: boolean }> {
+  publication: {
+    report: RunReport;
+    reportSent: boolean;
+    logsSent?: boolean;
+  } = { report: createRunReport(), reportSent: false },
+): Promise<typeof publication> {
   const sendReportFile =
     config.options.notifications.telegram?.sendReportFileToTelegram ?? true;
   const { report, finish } = createReportPublisher(publication.report, {
@@ -82,9 +86,9 @@ export async function runWithStorage(
     logToPublicLog("Scraping ended", logger);
   } finally {
     report.endedAt = new Date();
-    publication.reportSent = await finish(
-      sendReportFile ? readReportLogs() : undefined,
-    );
+    const logs = sendReportFile ? readReportLogs() : undefined;
+    publication.reportSent = await finish(logs);
+    publication.logsSent = publication.reportSent && logs !== undefined;
   }
 
   return publication;

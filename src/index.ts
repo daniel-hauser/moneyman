@@ -199,7 +199,10 @@ async function prepareRun() {
 }
 
 async function run(signal?: AbortSignal) {
-  let publication = { report: createRunReport(), reportSent: false };
+  let publication: Awaited<ReturnType<typeof runWithStorage>> = {
+    report: createRunReport(),
+    reportSent: false,
+  };
   let report = publication.report;
   let prepared: Awaited<ReturnType<typeof prepareRun>>;
   try {
@@ -241,19 +244,21 @@ async function run(signal?: AbortSignal) {
     try {
       if (!report.endedAt) {
         report.endedAt = new Date();
+        const logs = readReportLogs();
         publication.reportSent = await createReportPublisher(report, {
           transport: reportTransport,
           sendReportFile:
             config.options.notifications.telegram?.sendReportFileToTelegram ??
             true,
           intervalMs: reportUpdateIntervalMs,
-        }).finish(readReportLogs());
+        }).finish(logs);
+        publication.logsSent = publication.reportSent && logs !== undefined;
       }
     } finally {
       await sendLogFile(
         !longRunning,
         prepared?.storages ?? [],
-        publication.reportSent,
+        publication.logsSent,
       );
     }
   }

@@ -45,7 +45,7 @@ options: {
        */
       sendReportFileToTelegram?: boolean;
       /**
-       * Send captured logs: inside the report, or as a standalone file if the report is disabled or cannot be sent.
+       * Send captured logs: inside the report, with a standalone fallback if they cannot be included or delivered.
        * Set false to omit logs from Telegram. Requires secure logging.
        * @default true
        */
