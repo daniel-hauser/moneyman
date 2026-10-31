@@ -1,3 +1,4 @@
+/** @jest-environment ./report/test-environment.cjs */
 import { mock } from "jest-mock-extended";
 import { runInNewContext } from "node:vm";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
@@ -58,63 +59,29 @@ function browser(bundled = false) {
       accountNumber: "acct1",
     },
   ];
-  const payload = mock<HTMLTemplateElement>({
-    content: {
-      textContent: JSON.stringify(
+  const document = window.document.implementation.createHTMLDocument();
+  document.body.innerHTML = `<template id="transactions-json"></template>
+    <div><input id="search-transactions" type="search"></div>
+    <span id="transaction-count" aria-live="polite"></span>
+    <table><thead><tr>
+      <th aria-sort="none">Date <button data-sort="date"></button></th>
+      <th aria-sort="none">Amount <button data-sort="amount"></button></th>
+      <th aria-sort="none">Account <button data-sort="account"></button></th>
+    </tr></thead><tbody id="transaction-rows"><tr><td>SSR fallback</td></tr></tbody></table>`;
+  const payload =
+    document.querySelector<HTMLTemplateElement>("#transactions-json")!;
+  payload.content.append(
+    document.createTextNode(
+      JSON.stringify(
         originals.map((row) => ({ ...row, memo: "SECRET_HIDDEN" })),
       ),
-    },
-  });
-  const body = mock<HTMLTableSectionElement>();
-  const search = mock<HTMLInputElement>({ value: "" });
-  const count = mock<HTMLElement>();
-  const document = mock<Document>();
-  document.querySelector.mockImplementation((selector) => {
-    if (selector === "#transactions-json") return payload;
-    if (selector === "#transaction-rows") return body;
-    if (selector === "#search-transactions") return search;
-    if (selector === "#transaction-count") return count;
-    return null;
-  });
+    ),
+  );
+  const body =
+    document.querySelector<HTMLTableSectionElement>("#transaction-rows")!;
+  const count = document.querySelector<HTMLElement>("#transaction-count")!;
   const keys: SortKey[] = ["date", "amount", "account"];
-  const headers = keys.map(() => mock<HTMLTableCellElement>());
-  const buttons = keys.map((sort, index) => {
-    const button = mock<HTMLButtonElement>({ dataset: { sort } });
-    button.closest.mockReturnValue(headers[index]);
-    return button;
-  });
-  const list = mock<NodeListOf<HTMLButtonElement>>();
-  list.forEach.mockImplementation((callback) => {
-    buttons.forEach((button, index) => callback(button, index, list));
-  });
-  document.querySelectorAll.mockImplementation((selector) =>
-    selector === "[data-sort]" ? list : mock<NodeListOf<Element>>(),
-  );
-  const times: HTMLTimeElement[] = [];
-  document.createElement.mockImplementation((tag) => {
-    if (tag === "time") {
-      const time = mock<HTMLTimeElement>();
-      times.push(time);
-      return time;
-    }
-    return mock<HTMLElement>();
-  });
-  document.createDocumentFragment.mockImplementation(() =>
-    mock<DocumentFragment>(),
-  );
-  document.createRange.mockImplementation(() => mock<Range>());
-  let pending: string[] = [];
-  let displayed: string[][] = [];
-  document.createTextNode.mockImplementation((textContent) => {
-    pending.push(textContent);
-    return mock<Text>({ textContent });
-  });
-  body.replaceChildren.mockImplementation(() => {
-    displayed = [];
-    for (let index = 0; index < pending.length; index += 6)
-      displayed.push(pending.slice(index, index + 6));
-    pending = [];
-  });
+  const headers = Array.from(document.querySelectorAll("th"));
   const highlights = new Map<string, Range[]>([
     ["log-search", [mock<Range>()]],
   ]);
@@ -126,10 +93,14 @@ function browser(bundled = false) {
     timeZone: "UTC",
   });
   jest.spyOn(Intl, "DateTimeFormat").mockImplementation(() => formatter);
+  const fetch = jest.fn();
+  const XMLHttpRequest = jest.fn();
   if (bundled) {
     runInNewContext(reportClientScript, {
       document,
       Intl,
+      fetch,
+      XMLHttpRequest,
       Highlight: Set,
       CSS: {
         highlights: {
@@ -143,13 +114,19 @@ function browser(bundled = false) {
     initializeTransactions(document, highlight);
   }
 
-  function fire(element: typeof search | (typeof buttons)[number]) {
-    const listener = element.addEventListener.mock.calls[0][1];
-    if (typeof listener !== "function")
-      throw new Error("Missing browser listener");
-    listener.call(element, mock<Event>({ target: element }));
-  }
+  const search = document.querySelector<HTMLInputElement>(
+    "#search-transactions",
+  )!;
+  const buttons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-sort]"),
+  );
+  const times = Array.from(body.querySelectorAll("time")).map(
+    (time) => time.cloneNode(true) as HTMLTimeElement,
+  );
   return {
+    document,
+    fetch,
+    XMLHttpRequest,
     originals,
     payload,
     count,
@@ -158,19 +135,20 @@ function browser(bundled = false) {
     buttons,
     body,
     times,
-    rows: () => displayed,
+    rows: () =>
+      Array.from(body.rows, (row) =>
+        Array.from(row.cells, (cell) => cell.textContent),
+      ),
     matchedText: () =>
-      (highlights.get("transactions-search") ?? []).map((range) => {
-        const [[node, start]] = jest.mocked(range.setStart).mock.calls;
-        const [[, end]] = jest.mocked(range.setEnd).mock.calls;
-        return node.textContent?.slice(start, end);
-      }),
+      (highlights.get("transactions-search") ?? []).map((range) =>
+        range.toString(),
+      ),
     search(term: string) {
       search.value = term;
-      fire(search);
+      search.dispatchEvent(new Event("input", { bubbles: true }));
     },
     sort(key: SortKey) {
-      fire(buttons[keys.indexOf(key)]);
+      buttons[keys.indexOf(key)].click();
     },
   };
 }
@@ -221,20 +199,13 @@ it.each(["date", "amount", "account"] as const)(
     const index = ["date", "amount", "account"].indexOf(key);
     const orders = [page.rows().map((row) => row[2])];
     page.sort(key);
-    expect(page.headers[index].setAttribute).toHaveBeenLastCalledWith(
-      "aria-sort",
-      "ascending",
-    );
+    expect(page.headers[index].getAttribute("aria-sort")).toBe("ascending");
     orders.push(page.rows().map((row) => row[2]));
     page.sort(key);
     orders.push(page.rows().map((row) => row[2]));
     expect(orders).toMatchSnapshot();
-    expect(page.headers[index].setAttribute).toHaveBeenLastCalledWith(
-      "aria-sort",
-      "descending",
-    );
-    expect(page.buttons[index].setAttribute).toHaveBeenLastCalledWith(
-      "aria-label",
+    expect(page.headers[index].getAttribute("aria-sort")).toBe("descending");
+    expect(page.buttons[index].getAttribute("aria-label")).toBe(
       `Sort ${key} ascending`,
     );
   },
@@ -266,7 +237,7 @@ it.each([
 
 it("executes the generated offline bundle with transaction rendering, filtering and sorting", () => {
   const page = browser(true);
-  expect(page.body.replaceChildren).toHaveBeenCalledTimes(1);
+  expect(page.body.rows).toHaveLength(page.originals.length);
   page.search("alpha*");
   page.sort("amount");
   expect({
@@ -278,6 +249,62 @@ it("executes the generated offline bundle with transaction rendering, filtering 
       .map(({ dateTime, title }) => ({ dateTime, title })),
   }).toMatchSnapshot();
   expect(page.highlights.get("log-search")).toHaveLength(1);
+  expect(page.fetch).not.toHaveBeenCalled();
+  expect(page.XMLHttpRequest).not.toHaveBeenCalled();
+  expect(
+    page.document.querySelectorAll("[style], [onclick], [oninput], [onerror]"),
+  ).toHaveLength(0);
+  expect(
+    page.document.documentElement.classList.contains("report-interactive"),
+  ).toBe(true);
+});
+
+it.each([false, true])(
+  "keeps live highlight text attached after filtering and toggling amount sort (bundled=%s)",
+  (bundled) => {
+    const page = browser(bundled);
+    page.search("alpha*");
+    const second = ["Alpha second", "acct2", "max", "completed"];
+    const tie = ["Alpha tie", "acct02", "visaCal", "completed"];
+    const first = ["Alpha first", "acct10", "max", "completed"];
+    for (const expected of [
+      [second, tie, first],
+      [first, second, tie],
+    ]) {
+      page.sort("amount");
+      expect(page.matchedText()).toEqual(expected.flat());
+      for (const range of page.highlights.get("transactions-search")!) {
+        expect(page.body.contains(range.startContainer)).toBe(true);
+        expect(page.body.contains(range.endContainer)).toBe(true);
+      }
+    }
+  },
+);
+
+it("retains accessible declarative controls and escapes hostile cell text across updates", () => {
+  const page = browser();
+  const search = page.document.querySelector("#search-transactions");
+  page.search("Beta ? <script> &");
+  expect(page.body.querySelector("script")).toBeNull();
+  expect(page.body.rows[0].cells[2].textContent).toBe("Beta 😀 <script> &");
+  page.sort("date");
+  page.sort("amount");
+  page.search("");
+  expect(page.document.querySelector("#search-transactions")).toBe(search);
+  expect(search?.getAttribute("aria-controls")).toBe("transaction-rows");
+  expect(search?.getAttribute("aria-label")).toBe("Filter transactions");
+  expect(page.count.getAttribute("aria-live")).toBe("polite");
+  expect(Array.from(page.document.querySelectorAll("[data-sort]"))).toEqual(
+    page.buttons,
+  );
+  expect(
+    page.headers.map((header) => header.getAttribute("aria-sort")),
+  ).toEqual(["none", "ascending", "none"]);
+  expect(page.buttons.map((button) => button.title)).toEqual([
+    "Sort date ascending",
+    "Sort amount descending",
+    "Sort account ascending",
+  ]);
 });
 
 it("composes filters and sorts, clears only transaction highlights, and leaves original JSON untouched", () => {
@@ -294,5 +321,5 @@ it("composes filters and sorts, clears only transaction highlights, and leaves o
   expect(page.highlights.get("transactions-search")).toHaveLength(0);
   expect(page.highlights.get("log-search")).toHaveLength(1);
   expect(page.payload.content.textContent).toBe(json);
-  expect(page.body.replaceChildren).toHaveBeenCalledTimes(4);
+  expect(page.body.rows).toHaveLength(page.originals.length);
 });

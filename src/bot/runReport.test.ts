@@ -1,6 +1,7 @@
+/** @jest-environment ./report/test-environment.cjs */
+import { Blob } from "node:buffer";
 import { createHash } from "node:crypto";
 import { runInNewContext } from "node:vm";
-import { mock } from "jest-mock-extended";
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
@@ -26,6 +27,8 @@ import {
 } from "./runReport.js";
 
 const startedAt = new Date("2024-01-01T10:00:00Z");
+
+afterEach(() => jest.restoreAllMocks());
 
 function step(name: string, duration: number) {
   return { name, durationMs: duration };
@@ -397,16 +400,9 @@ describe("renderHTMLReport", () => {
     const output = renderHTMLReport(baseReport());
     const scripts = [...output.matchAll(/<script>([\s\S]*?)<\/script>/gi)];
     expect(scripts).toHaveLength(2);
-    const time = mock<HTMLTimeElement>({
-      dateTime: startedAt.toISOString(),
-      title: startedAt.toISOString(),
-      textContent: startedAt.toISOString(),
-    });
-    const document = mock<Document>();
-    document.querySelector.mockImplementation((selector) =>
-      selector === "#run-started" ? time : null,
-    );
-    document.querySelectorAll.mockReturnValue(mock<NodeListOf<Element>>());
+    const document = window.document.implementation.createHTMLDocument();
+    document.body.innerHTML = output;
+    const time = document.querySelector<HTMLTimeElement>("#run-started")!;
     const dateTimeFormat = jest.fn(
       () =>
         new Intl.DateTimeFormat("en-GB", {
@@ -420,7 +416,9 @@ describe("renderHTMLReport", () => {
       Intl: { DateTimeFormat: dateTimeFormat },
       Date,
     });
-    expect(document.querySelector).toHaveBeenCalledWith("#run-started");
+    expect(
+      document.documentElement.classList.contains("report-interactive"),
+    ).toBe(true);
     expect(dateTimeFormat).toHaveBeenCalledWith(undefined, {
       dateStyle: "short",
       timeStyle: "short",
@@ -480,64 +478,23 @@ describe("renderHTMLReport", () => {
 
   function runLogScript(logs: string) {
     const report = renderHTMLReport(baseReport(), logs);
-    const code = mock<HTMLElement>({ localName: "pre", textContent: logs });
-    const started = mock<HTMLTimeElement>({
-      dateTime: startedAt.toISOString(),
-    });
-    const search = mock<HTMLInputElement>();
-    const download = mock<HTMLButtonElement>({
-      dataset: {
-        download: "run-logs",
-        filename: "logs.txt",
-        type: "text/plain;charset=utf-8",
-      },
-    });
-    const link = mock<HTMLAnchorElement>();
-    const document = mock<Document>();
-    document.body = mock<HTMLElement>();
-    document.querySelector.mockImplementation((selector) =>
-      selector === "#run-started"
-        ? started
-        : selector === "#search-logs"
-          ? search
-          : selector === "#run-logs code"
-            ? code
-            : null,
-    );
-    document.getElementById.mockImplementation((id) =>
-      id === "run-started"
-        ? started
-        : id === "search-logs"
-          ? search
-          : id === "run-logs"
-            ? code
-            : download,
-    );
-    const buttons = mock<NodeListOf<HTMLButtonElement>>();
-    buttons.forEach.mockImplementation((callback) =>
-      callback(download, 0, buttons),
-    );
-    document.querySelectorAll.mockImplementation((selector) =>
-      selector === "[data-download]" ? buttons : mock<NodeListOf<Element>>(),
-    );
-    document.createTextNode.mockImplementation((text) =>
-      mock<Text>({ textContent: text }),
-    );
-    document.createElement.mockReturnValue(link);
-    code.replaceChildren.mockImplementation((node) => {
-      code.textContent =
-        (typeof node === "string" ? node : node.textContent) ?? "";
-    });
+    const document = window.document.implementation.createHTMLDocument();
+    document.body.innerHTML = report;
+    const code = document.querySelector<HTMLElement>("#run-logs code")!;
+    // HTML parsing normalizes newlines; exercise the download contract with
+    // the exact original text, including CRLF and lone CR.
+    code.textContent = logs;
+    let link: HTMLAnchorElement;
+    const click = jest
+      .spyOn(window.HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        link = this;
+      });
+    const remove = jest.spyOn(window.HTMLAnchorElement.prototype, "remove");
     const highlights = new Map<string, Set<Range>>();
-    const ranges: Range[] = [];
     const createObjectURL = jest.fn((_blob: Blob) => "blob:logs");
     const revokeObjectURL = jest.fn();
     const timers: Array<() => void> = [];
-    document.createRange.mockImplementation(() => {
-      const range = mock<Range>();
-      ranges.push(range);
-      return range;
-    });
 
     const context = {
       document,
@@ -552,26 +509,25 @@ describe("renderHTMLReport", () => {
       runInNewContext(script[1], context);
     }
 
-    function fire(element: typeof search | typeof download) {
-      const listener = element.addEventListener.mock.calls[0][1];
-      if (typeof listener !== "function") throw new Error("Missing listener");
-      listener.call(element, mock<Event>({ target: element }));
-    }
-
     return {
       code,
-      link,
-      ranges,
+      get link() {
+        return link;
+      },
+      click,
+      remove,
       highlights,
       createObjectURL,
       revokeObjectURL,
       timers,
       search(term: string) {
+        const search =
+          document.querySelector<HTMLInputElement>("#search-logs")!;
         search.value = term;
-        fire(search);
+        search.dispatchEvent(new Event("input", { bubbles: true }));
       },
       download() {
-        fire(download);
+        document.querySelector<HTMLButtonElement>("#download-logs")!.click();
       },
     };
   }
@@ -583,13 +539,12 @@ describe("renderHTMLReport", () => {
     browser.search(".+");
     expect(browser.code.textContent).toMatchSnapshot("literal matches");
     expect(browser.highlights.get("log-search")?.size).toBe(3);
-    const node = browser.code.replaceChildren.mock.calls[0][0];
+    const ranges = [...browser.highlights.get("log-search")!];
     for (const [index, offset] of [8, 17, 29].entries()) {
-      expect(browser.ranges[index].setStart).toHaveBeenCalledWith(node, offset);
-      expect(browser.ranges[index].setEnd).toHaveBeenCalledWith(
-        node,
-        offset + 2,
-      );
+      expect(ranges[index].startContainer.parentNode).toBe(browser.code);
+      expect(ranges[index].startOffset).toBe(offset);
+      expect(ranges[index].endOffset).toBe(offset + 2);
+      expect(ranges[index].toString()).toBe(".+");
     }
 
     browser.search("alpha");
@@ -632,9 +587,11 @@ describe("renderHTMLReport", () => {
     browser.search("a?b");
     expect(browser.code.textContent).toMatchSnapshot();
     expect(browser.highlights.get("log-search")?.size).toBe(1);
-    const node = browser.code.replaceChildren.mock.calls[0][0];
-    expect(browser.ranges[0].setStart).toHaveBeenCalledWith(node, 7);
-    expect(browser.ranges[0].setEnd).toHaveBeenCalledWith(node, 11);
+    const [range] = browser.highlights.get("log-search")!;
+    expect(range.startContainer.parentNode).toBe(browser.code);
+    expect(range.startOffset).toBe(7);
+    expect(range.endOffset).toBe(11);
+    expect(range.toString()).toBe("A😀B");
   });
 
   it("bounds wildcard work without regex backtracking and handles empty logs", () => {
@@ -664,8 +621,8 @@ describe("renderHTMLReport", () => {
     expect(blob.type).toBe("text/plain;charset=utf-8");
     expect(browser.link.download).toBe("logs.txt");
     expect(browser.link.href).toBe("blob:logs");
-    expect(browser.link.click).toHaveBeenCalledTimes(1);
-    expect(browser.link.remove).toHaveBeenCalledTimes(1);
+    expect(browser.click).toHaveBeenCalledTimes(1);
+    expect(browser.remove).toHaveBeenCalledTimes(1);
     expect(browser.revokeObjectURL).not.toHaveBeenCalled();
     browser.timers[0]();
     expect(browser.revokeObjectURL).toHaveBeenCalledWith("blob:logs");
@@ -722,49 +679,42 @@ describe("renderHTMLReport", () => {
       { ...second, companyId: CompanyTypes.visaCal, accountNumber: 'other<&"' },
     ];
     expect(JSON.parse(serialized)).toEqual(expected);
-    const button = mock<HTMLButtonElement>({
-      dataset: {
-        download: "transactions-json",
-        filename: "transactions.json",
-        type: "application/json;charset=utf-8",
-      },
-    });
-    const document = mock<Document>();
-    document.body = mock<HTMLElement>();
-    const buttons = mock<NodeListOf<HTMLButtonElement>>();
-    buttons.forEach.mockImplementation((callback) =>
-      callback(button, 0, buttons),
-    );
-    document.querySelectorAll.mockReturnValue(buttons);
-    document.getElementById.mockReturnValue(
-      mock<HTMLTemplateElement>({
-        localName: "template",
-        textContent: "",
-        content: { textContent: serialized },
-      }),
-    );
-    const link = mock<HTMLAnchorElement>();
-    document.createElement.mockReturnValue(link);
+    const document = window.document.implementation.createHTMLDocument();
+    document.body.innerHTML = output;
+    let link: HTMLAnchorElement;
+    const click = jest
+      .spyOn(window.HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        link = this;
+      });
+    const remove = jest.spyOn(window.HTMLAnchorElement.prototype, "remove");
     const createObjectURL = jest.fn((_blob: Blob) => "blob:transactions");
     const revokeObjectURL = jest.fn();
     const timers: Array<() => void> = [];
     const scripts = [...output.matchAll(/<script>([\s\S]*?)<\/script>/gi)];
     runInNewContext(scripts.at(-1)![1], {
       document,
+      Highlight: Set,
+      CSS: { highlights: new Map() },
       Blob,
       URL: { createObjectURL, revokeObjectURL },
       setTimeout: (callback: () => void) => timers.push(callback),
     });
-    const listener = button.addEventListener.mock.calls[0][1];
-    if (typeof listener !== "function")
-      throw new Error("Missing download listener");
-    listener.call(button, mock<Event>({ target: button }));
+    const search = document.querySelector<HTMLInputElement>(
+      "#search-transactions",
+    )!;
+    search.value = "Second account";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    document
+      .querySelector<HTMLButtonElement>("#download-transactions")!
+      .click();
     const blob = createObjectURL.mock.calls[0][0];
     expect(blob.type).toBe("application/json;charset=utf-8");
+    expect(await blob.text()).toBe(serialized);
     expect(JSON.parse(await blob.text())).toEqual(expected);
-    expect(link.download).toBe("transactions.json");
-    expect(link.click).toHaveBeenCalledTimes(1);
-    expect(link.remove).toHaveBeenCalledTimes(1);
+    expect(link!.download).toBe("transactions.json");
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(remove).toHaveBeenCalledTimes(1);
     timers[0]();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:transactions");
   });

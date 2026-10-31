@@ -1,3 +1,4 @@
+import { html, render, type TemplateResult } from "lit-html";
 import { compilePattern, matchPattern, type Span } from "./wildcard.js";
 import {
   transactionView,
@@ -22,6 +23,63 @@ function rangesFor(document: Document, node: Text, spans: Span[]) {
     range.setEnd(node, end);
     return range;
   });
+}
+
+function replaceControl(element: Element) {
+  // Separate Lit roots preserve the surrounding server-rendered shell.
+  const anchor = element.ownerDocument.createComment("");
+  const parent = element.parentElement!;
+  element.replaceWith(anchor);
+  return (template: TemplateResult) =>
+    render(template, parent, { renderBefore: anchor });
+}
+
+function searchControl(
+  id: string,
+  label: string,
+  controls: string,
+  onInput: (event: Event) => void,
+) {
+  return html`<input
+    id=${id}
+    class="report-search interactive"
+    type="search"
+    aria-label=${label}
+    aria-controls=${controls}
+    placeholder="Filter: * any text, ? one character"
+    title="Case-insensitive: * any text, ? one character; ~* literal *, ~? literal ?, ~~ literal ~."
+    @input=${onInput}
+  />`;
+}
+
+function sortControl(key: SortKey, label: string, onClick: () => void) {
+  return html`<button
+    type="button"
+    class="sort-button interactive"
+    data-sort=${key}
+    aria-label=${label}
+    title=${label}
+    @click=${onClick}
+  >
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <use href="#sort-icon" />
+    </svg>
+  </button>`;
+}
+
+function textNode(element: Element) {
+  return Array.from(element.childNodes).find(
+    (node): node is Text => node.nodeType === 3,
+  );
 }
 
 export function initializeStarted(document: Document) {
@@ -59,11 +117,25 @@ export function initializeTransactions(
   const views = transactions.map((transaction, index) =>
     transactionView(transaction, index, formatter),
   );
-  const buttons = document.querySelectorAll<HTMLButtonElement>("[data-sort]");
+  const controls = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-sort]"),
+  ).flatMap((button) => {
+    const key = button.dataset.sort;
+    if (key !== "date" && key !== "amount" && key !== "account") return [];
+    return [
+      {
+        key: key as SortKey,
+        header: button.closest("th"),
+        update: replaceControl(button),
+      },
+    ];
+  });
   let sorting: { key: SortKey; direction: Direction } | undefined;
+  let term = search.value;
+  body.replaceChildren();
+  count.replaceChildren();
 
-  const render = () => {
-    const term = search.value;
+  const update = () => {
     const tokens = compilePattern(term);
     const matches = views
       .map((view) => ({
@@ -83,69 +155,73 @@ export function initializeTransactions(
     const matchesByIndex = new Map(
       matches.map(({ view, match }) => [view.index, match.spans]),
     );
-    const fragment = document.createDocumentFragment();
+    render(
+      ordered.map(
+        (view) =>
+          html`<tr>
+            ${view.cells.map((value, index) => {
+              const content =
+                index === 0
+                  ? html`<time
+                      class="transaction-date"
+                      datetime=${view.transaction.date}
+                      title=${view.transaction.date}
+                      >${value}</time
+                    >`
+                  : value;
+              return html`<td>${content}</td>`;
+            })}
+          </tr>`,
+      ),
+      body,
+    );
     const ranges: Range[] = [];
-    for (const view of ordered) {
-      const row = document.createElement("tr");
+    for (const [rowIndex, view] of ordered.entries()) {
+      const row = body.rows[rowIndex];
       let offset = 0;
       for (const [index, value] of view.cells.entries()) {
-        const cell = document.createElement("td");
-        const node = document.createTextNode(value);
+        const cell = row.cells[index];
+        const node = textNode(cell.querySelector("time") ?? cell);
         const spans = (matchesByIndex.get(view.index) ?? [])
           .map(([start, end]): Span => [
             Math.max(0, start - offset),
             Math.min(value.length, end - offset),
           ])
           .filter(([start, end]) => end > start);
-        if (index === 0) {
-          const time = document.createElement("time");
-          time.className = "transaction-date";
-          time.dateTime = view.transaction.date;
-          time.title = view.transaction.date;
-          time.append(node);
-          cell.append(time);
-        } else {
-          cell.append(node);
-        }
-        for (const range of rangesFor(document, node, spans))
-          ranges.push(range);
-        row.append(cell);
+        if (node) ranges.push(...rangesFor(document, node, spans));
         offset += value.length + 1;
       }
-      fragment.append(row);
     }
-    body.replaceChildren(fragment);
-    count.textContent = term
-      ? `(${ordered.length} of ${views.length})`
-      : `(${views.length})`;
+    render(
+      term ? `(${ordered.length} of ${views.length})` : `(${views.length})`,
+      count,
+    );
     highlight("transactions-search", ranges);
+    controls.forEach(({ key, header, update: updateControl }) => {
+      const direction = sorting?.key === key ? sorting.direction : "none";
+      header?.setAttribute("aria-sort", direction);
+      const next = direction === "ascending" ? "descending" : "ascending";
+      updateControl(
+        sortControl(key, `Sort ${key} ${next}`, () => {
+          sorting = { key, direction: next };
+          update();
+        }),
+      );
+    });
   };
 
-  search.addEventListener("input", render);
-  buttons.forEach((button) => {
-    const key = button.dataset.sort;
-    if (key !== "date" && key !== "amount" && key !== "account") return;
-    button.addEventListener("click", () => {
-      const direction =
-        sorting?.key === key && sorting.direction === "ascending"
-          ? "descending"
-          : "ascending";
-      sorting = { key, direction };
-      buttons.forEach((other) => {
-        const active = other === button;
-        other
-          .closest("th")
-          ?.setAttribute("aria-sort", active ? direction : "none");
-        const next =
-          active && direction === "ascending" ? "descending" : "ascending";
-        const label = `Sort ${other.dataset.sort} ${next}`;
-        other.setAttribute("aria-label", label);
-        other.title = label;
-      });
-      render();
-    });
-  });
-  render();
+  replaceControl(search)(
+    searchControl(
+      "search-transactions",
+      "Filter transactions",
+      "transaction-rows",
+      (event) => {
+        term = (event.currentTarget as HTMLInputElement).value;
+        update();
+      },
+    ),
+  );
+  update();
 }
 
 export function initializeLogs(
@@ -157,26 +233,30 @@ export function initializeLogs(
   if (!code || !search) return;
   const logs = code.textContent ?? "";
   const lines = logs.match(/[^\r\n]*(?:\r\n|\r|\n|$)/g) ?? [];
-  search.addEventListener("input", () => {
-    const term = search.value;
-    const parts: string[] = [];
-    const spans: Span[] = [];
-    let length = 0;
-    if (term) {
-      const tokens = compilePattern(term);
-      for (const line of lines) {
-        const match = matchPattern(line.replace(/[\r\n]+$/, ""), tokens);
-        if (!match.matched) continue;
-        parts.push(line);
-        for (const [start, end] of match.spans)
-          spans.push([length + start, length + end]);
-        length += line.length;
+  code.replaceChildren();
+  render(logs, code);
+  replaceControl(search)(
+    searchControl("search-logs", "Filter logs", "run-logs", (event) => {
+      const term = (event.currentTarget as HTMLInputElement).value;
+      const parts: string[] = [];
+      const spans: Span[] = [];
+      let length = 0;
+      if (term) {
+        const tokens = compilePattern(term);
+        for (const line of lines) {
+          const match = matchPattern(line.replace(/[\r\n]+$/, ""), tokens);
+          if (!match.matched) continue;
+          parts.push(line);
+          for (const [start, end] of match.spans)
+            spans.push([length + start, length + end]);
+          length += line.length;
+        }
       }
-    }
-    const node = document.createTextNode(term ? parts.join("") : logs);
-    code.replaceChildren(node);
-    highlight("log-search", rangesFor(document, node, spans));
-  });
+      render(term ? parts.join("") : logs, code);
+      const node = textNode(code);
+      highlight("log-search", node ? rangesFor(document, node, spans) : []);
+    }),
+  );
 }
 
 export function initializeScreenshots(document: Document) {

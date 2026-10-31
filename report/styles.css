@@ -3,10 +3,12 @@
   --report-border: light-dark(#dadce0, #45474b);
   --report-muted: light-dark(#5f6368, #bdc1c6);
   --report-accent: light-dark(#1a73e8, #8ab4f8);
-  --interactive-display: none;
 }
 .interactive {
-  display: var(--interactive-display);
+  display: none;
+}
+.report-interactive .interactive {
+  display: inline-flex;
 }
 body {
   font:

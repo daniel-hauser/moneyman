@@ -1,6 +1,4 @@
 import { initializeReport } from "./client.js";
 
 initializeReport(document);
-document
-  .querySelector("html")
-  ?.style.setProperty("--interactive-display", "inline-flex");
+document.documentElement.classList.add("report-interactive");
