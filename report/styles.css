@@ -14,8 +14,8 @@ body {
     sans-serif;
   line-height: 1.5;
   max-width: 960px;
-  margin: 2rem auto;
-  padding: 0 1rem;
+  margin: 1rem auto 2rem;
+  padding: 0 0.5rem;
   color: CanvasText;
   background: Canvas;
 }

@@ -243,9 +243,7 @@ export function renderHTMLReport(report: RunReport, logs?: string): string {
         <h1>Moneyman run report</h1>
         <noscript>
           <p class="javascript-warning" role="alert">
-            JavaScript is disabled. The basic transaction table is available;
-            enable JavaScript to sort, filter transactions and logs, and
-            download report data.
+            JavaScript disabled; interactive parts are off.
           </p>
         </noscript>
         ${renderReportRunDetails({
