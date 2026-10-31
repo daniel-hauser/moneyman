@@ -45,7 +45,6 @@ const longRunning = BooleanEnvVarSchema.parse(
 let lastRun: RunStatus | undefined;
 
 console.log("Starting...");
-logger("Build metadata", getBuildMetadata());
 
 process.on("uncaughtException", (err, origin) => {
   console.error("uncaughtException, sending error");
@@ -56,6 +55,7 @@ process.on("uncaughtException", (err, origin) => {
 });
 
 enableDebugLoggingIfNeeded();
+logger("Build metadata", getBuildMetadata());
 getExternalIp().then((ipInfo) => logger("External IP info:", ipInfo));
 main();
 
