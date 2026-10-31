@@ -168,6 +168,6 @@ describe("createReportPublisher", () => {
   it("does nothing without a transport", async () => {
     const { report, finish } = createReportPublisher(createRunReport());
     report.scrape.status = ["a"];
-    await expect(finish()).resolves.toBeUndefined();
+    await expect(finish()).resolves.toBe(false);
   });
 });

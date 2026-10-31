@@ -47,6 +47,7 @@ export function readReportLogs(): string | undefined {
 export async function sendLogFile(
   deleteFile: boolean,
   storages: readonly TransactionStorage[] = [],
+  reportSent = false,
 ) {
   if (unsafeStdout) return;
 
@@ -70,10 +71,7 @@ export async function sendLogFile(
   }
 
   try {
-    if (
-      telegram?.sendLogFileToTelegram &&
-      telegram.sendReportFileToTelegram === false
-    ) {
+    if (telegram?.sendLogFileToTelegram && !reportSent) {
       logToPublicLog("Sending log file", logger);
       await sendTextFile(logFilePath).catch((error) => {
         logger("Failed to send logs to Telegram:", error);

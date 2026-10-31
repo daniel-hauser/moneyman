@@ -106,7 +106,7 @@ describe("secure logs", () => {
       storage.sendLogs.mockResolvedValue(undefined);
       const { sendLogFile } = await import("./secure-log.js");
 
-      await sendLogFile(deleteFile, [storage]);
+      await sendLogFile(deleteFile, [storage], true);
 
       expect(sendTextFile).not.toHaveBeenCalled();
       expect(storage.sendLogs).toHaveBeenCalledWith("the logs of the run");

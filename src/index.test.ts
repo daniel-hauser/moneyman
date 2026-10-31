@@ -155,7 +155,7 @@ describe("index", () => {
     expect(runWithStorageMock).toHaveBeenCalledTimes(1);
     expect(startServerMock).not.toHaveBeenCalled();
     expect(exit).toHaveBeenCalledWith(0);
-    expect(sendLogFileMock).toHaveBeenCalledWith(true, [{}]);
+    expect(sendLogFileMock).toHaveBeenCalledWith(true, [{}], false);
     const { loadRunConfig } = await import("./configRefresh.js");
     expect(loadRunConfig).not.toHaveBeenCalled();
     expect(
@@ -219,7 +219,7 @@ describe("index", () => {
         );
       },
     );
-    const report = await runWithStorageMock.mock.results[0].value;
+    const { report } = await runWithStorageMock.mock.results[0].value;
     expect(report.timings).toEqual([timing]);
     expect(report.endedAt).toBeInstanceOf(Date);
   });
@@ -317,7 +317,7 @@ describe("index", () => {
         "Secrets refresh",
       );
       expect(logToPublicLog).toHaveBeenCalledWith(SECRET_REFRESH_FAILURE);
-      expect(mocks.sendLogFileMock).toHaveBeenCalledWith(false, []);
+      expect(mocks.sendLogFileMock).toHaveBeenCalledWith(false, [], false);
       expect(await runner.isRunning()).toBe(false);
       expect(await runOnce("manual")).toMatchObject({ failed: false });
     });
@@ -387,6 +387,7 @@ describe("index", () => {
       expect(mocks.sendLogFileMock).toHaveBeenCalledWith(
         false,
         jest.mocked(createStorages).mock.results[0].value,
+        false,
       );
       log.resolve();
       await handle.finished;
@@ -479,11 +480,11 @@ describe("index", () => {
       await expect(
         mocks.runWithStorageMock.mock.results[0].value,
       ).resolves.toMatchObject({
-        failed: false,
+        report: { failed: false },
       });
       expect(result).toMatchObject({ trigger: "manual", failed: false });
       expect(runner.getLastRun()).toBe(result);
-      expect(mocks.sendLogFileMock).toHaveBeenCalledWith(false, [{}]);
+      expect(mocks.sendLogFileMock).toHaveBeenCalledWith(false, [{}], false);
       const { logRunMetadata } = await import("./runnerMetadata.js");
       expect(logRunMetadata).toHaveBeenCalledWith(
         { node: { main: ["GET parent.test"] } },
@@ -508,7 +509,7 @@ describe("index", () => {
       report.storages.sql = { state: "error", message: "boom" };
       mocks.runWithStorageMock.mockImplementation(async (runScraper) => {
         await runScraper(hooks());
-        return report;
+        return { report, reportSent: false };
       });
 
       expect(await runOnce("manual")).toMatchObject({ failed: true });
@@ -517,7 +518,7 @@ describe("index", () => {
     it("fails the run when the report records an error", async () => {
       const report = createRunReport();
       report.failed = true;
-      mocks.runWithStorageMock.mockResolvedValue(report);
+      mocks.runWithStorageMock.mockResolvedValue({ report, reportSent: false });
 
       expect(await runOnce("manual")).toMatchObject({ failed: true });
     });
@@ -556,7 +557,7 @@ describe("index", () => {
 
       expect(await runOnce("manual")).toMatchObject({ failed: true });
       expect(mocks.scrapeAccountsMock).not.toHaveBeenCalled();
-      expect(mocks.sendLogFileMock).toHaveBeenCalledWith(false, []);
+      expect(mocks.sendLogFileMock).toHaveBeenCalledWith(false, [], false);
       expect(await runOnce("manual")).toMatchObject({ failed: false });
     });
 
@@ -572,6 +573,7 @@ describe("index", () => {
       expect(mocks.sendLogFileMock).toHaveBeenCalledWith(
         false,
         jest.mocked(createStorages).mock.results[0].value,
+        false,
       );
     });
 
@@ -594,6 +596,7 @@ describe("index", () => {
       expect(mocks.sendLogFileMock).toHaveBeenCalledWith(
         false,
         jest.mocked(createStorages).mock.results[0].value,
+        false,
       );
       expect(dispose.mock.invocationCallOrder[0]).toBeLessThan(
         mocks.sendLogFileMock.mock.invocationCallOrder[0],
@@ -614,7 +617,7 @@ describe("index", () => {
         await new Promise<void>((resolve) => {
           releaseRun = resolve;
         });
-        return createRunReport();
+        return { report: createRunReport(), reportSent: false };
       });
 
       const handle = await runner.startRun("manual");
@@ -634,7 +637,7 @@ describe("index", () => {
       mocks.runWithStorageMock.mockImplementation(async (runScraper) => {
         await runScraper(hooks());
         await runIsHolding;
-        return createRunReport();
+        return { report: createRunReport(), reportSent: false };
       });
 
       const first = runOnce("manual");
@@ -654,7 +657,7 @@ describe("index", () => {
         runIds.push(mocks.runContextStore.getStore()?.runId);
       mocks.runWithStorageMock.mockImplementation(async () => {
         recordRunId();
-        return createRunReport();
+        return { report: createRunReport(), reportSent: false };
       });
       mocks.sendLogFileMock.mockImplementation(async () => {
         recordRunId();

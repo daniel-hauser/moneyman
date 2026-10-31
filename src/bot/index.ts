@@ -14,21 +14,22 @@ const logger = createLogger("bot");
 export async function runWithStorage(
   runScraper: Runner,
   storages: readonly TransactionStorage[],
-  initialReport: RunReport = createRunReport(),
-): Promise<RunReport> {
+  publication = { report: createRunReport(), reportSent: false },
+): Promise<{ report: RunReport; reportSent: boolean }> {
   const sendReportFile =
     config.options.notifications.telegram?.sendReportFileToTelegram ?? true;
-  const { report, finish } = createReportPublisher(initialReport, {
+  const { report, finish } = createReportPublisher(publication.report, {
     transport: reportTransport,
     sendReportFile,
     intervalMs: reportUpdateIntervalMs,
   });
+  publication.report = report;
 
   try {
     if (!storages.length) {
       logger("No storages found, aborting");
       report.notices.push("No storages found, aborting");
-      return report;
+      return publication;
     }
 
     await runScraper({
@@ -81,8 +82,10 @@ export async function runWithStorage(
     logToPublicLog("Scraping ended", logger);
   } finally {
     report.endedAt = new Date();
-    await finish(sendReportFile ? readReportLogs() : undefined);
+    publication.reportSent = await finish(
+      sendReportFile ? readReportLogs() : undefined,
+    );
   }
 
-  return report;
+  return publication;
 }

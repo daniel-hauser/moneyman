@@ -18,7 +18,7 @@ jest.mock("./reportPublisher.js", () => ({
 }));
 
 describe("runWithStorage report logs", () => {
-  const finish = jest.fn().mockResolvedValue(undefined);
+  const finish = jest.fn().mockResolvedValue(false);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -68,8 +68,11 @@ describe("runWithStorage report logs", () => {
       const current = jest.mocked(createReportPublisher).mock.results.at(-1)!
         .value.report;
       expect(current.endedAt).toBeInstanceOf(Date);
+      return false;
     });
-    const result = await runWithStorage(runner, [mock<TransactionStorage>()]);
+    const { report: result } = await runWithStorage(runner, [
+      mock<TransactionStorage>(),
+    ]);
     expect(result.timings).toEqual([
       {
         id: "account-1",

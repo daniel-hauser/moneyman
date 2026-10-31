@@ -110,22 +110,25 @@ export function createReportPublisher(
   }
 
   async function finish(logs?: string) {
-    if (!transport) return;
+    if (!transport) return false;
     dirty = true;
     while (dirty || running) {
       kick();
       await running;
     }
 
+    let reportSent = false;
     if (sendReportFile) {
       try {
         log("Sending report.html");
         await transport.sendFile("report.html", renderHTMLReport(report, logs));
+        reportSent = true;
       } catch (e) {
         log("Failed to send report.html", e);
       }
     }
     log(`report stats ${JSON.stringify(stats)}`);
+    return reportSent;
   }
 
   return { report, finish };

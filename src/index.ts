@@ -199,7 +199,8 @@ async function prepareRun() {
 }
 
 async function run(signal?: AbortSignal) {
-  let report = createRunReport();
+  let publication = { report: createRunReport(), reportSent: false };
+  let report = publication.report;
   let prepared: Awaited<ReturnType<typeof prepareRun>>;
   try {
     prepared = await prepareRun();
@@ -215,11 +216,12 @@ async function run(signal?: AbortSignal) {
     });
     try {
       logger("Running with storage");
-      report = await runWithStorage(
+      publication = await runWithStorage(
         (hooks) => runScraper(hooks, snapshot, domainTracker, signal),
         storages,
-        report,
+        publication,
       );
+      report = publication.report;
     } finally {
       domainTracker.dispose();
     }
@@ -239,7 +241,7 @@ async function run(signal?: AbortSignal) {
     try {
       if (!report.endedAt) {
         report.endedAt = new Date();
-        await createReportPublisher(report, {
+        publication.reportSent = await createReportPublisher(report, {
           transport: reportTransport,
           sendReportFile:
             config.options.notifications.telegram?.sendReportFileToTelegram ??
@@ -248,7 +250,11 @@ async function run(signal?: AbortSignal) {
         }).finish(readReportLogs());
       }
     } finally {
-      await sendLogFile(!longRunning, prepared?.storages ?? []);
+      await sendLogFile(
+        !longRunning,
+        prepared?.storages ?? [],
+        publication.reportSent,
+      );
     }
   }
 }
