@@ -182,12 +182,10 @@ export class ReportTransactions extends ReportLightElement {
         const cell = row.cells[index];
         const node = textNode(cell.querySelector("time") ?? cell);
         const spans = (matches.get(view.index) ?? [])
-          .map(
-            ([start, end]): Span => [
-              Math.max(0, start - offset),
-              Math.min(value.length, end - offset),
-            ],
-          )
+          .map(([start, end]): Span => [
+            Math.max(0, start - offset),
+            Math.min(value.length, end - offset),
+          ])
           .filter(([start, end]) => end > start);
         if (node) ranges.push(...rangesFor(this.ownerDocument, node, spans));
         offset += value.length + 1;

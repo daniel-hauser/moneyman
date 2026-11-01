@@ -40,12 +40,14 @@ export function renderReportRunDetails({
         >
       </dd>
     </div>
-    ${totalTimeSec === undefined
-      ? ""
-      : html`<div>
-          <dt>Scraper time</dt>
-          <dd>${totalTimeSec.toFixed(1)} seconds</dd>
-        </div>`}
+    ${
+      totalTimeSec === undefined
+        ? ""
+        : html`<div>
+            <dt>Scraper time</dt>
+            <dd>${totalTimeSec.toFixed(1)} seconds</dd>
+          </div>`
+    }
   </dl>`;
 }
 
@@ -117,11 +119,9 @@ export function renderReportTimings(
                       html`<text
                         x="${String(tick * 25)}%"
                         y="17"
-                        text-anchor="${tick === 0
-                          ? "start"
-                          : tick === 4
-                            ? "end"
-                            : "middle"}"
+                        text-anchor="${
+                          tick === 0 ? "start" : tick === 4 ? "end" : "middle"
+                        }"
                       >
                         ${duration((tick * totalMs) / 4)}
                       </text>`,
@@ -158,20 +158,16 @@ export function renderReportTimings(
                   ${escaped(timing.name)}
                   <small class="timing-kind"
                     >${kind} &middot;
-                    ${duration(durationMs)}${state === "Completed"
-                      ? ""
-                      : ` &middot; ${state}`}</small
+                    ${duration(durationMs)}${
+                      state === "Completed" ? "" : ` &middot; ${state}`
+                    }</small
                   >
                 </th>
                 <td>
                   <svg
-                    class="timing-chart timing-${escaped(
-                      timing.kind,
-                    )}${timing.failed
-                      ? " timing-failed"
-                      : ""}${timing.endedAt === undefined
-                      ? " timing-running"
-                      : ""}"
+                    class="timing-chart timing-${escaped(timing.kind)}${
+                      timing.failed ? " timing-failed" : ""
+                    }${timing.endedAt === undefined ? " timing-running" : ""}"
                     viewBox="0 0 1000 24"
                     preserveAspectRatio="none"
                     role="img"
@@ -235,9 +231,11 @@ export function renderReportAccounts(
                   return html`<tr>
                     <td>${escaped(companyId)}</td>
                     <td>
-                      ${result.errorMessage
-                        ? renderErrorDetails(failure, result.errorMessage)
-                        : escaped(failure)}
+                      ${
+                        result.errorMessage
+                          ? renderErrorDetails(failure, result.errorMessage)
+                          : escaped(failure)
+                      }
                     </td>
                     <td>—</td>
                     <td>—</td>
@@ -305,36 +303,44 @@ export function renderReportStorages(storages: Record<string, StorageRow>) {
                   : "⏳ Saving";
               return html`<tr class="storage-row">
                   <td>
-                    ${escaped(name)}${row.state === "done" && row.stats.table
-                      ? html`<small class="storage-table"
-                          >${escaped(row.stats.table)}</small
-                        >`
-                      : ""}
+                    ${escaped(name)}${
+                      row.state === "done" && row.stats.table
+                        ? html`<small class="storage-table"
+                            >${escaped(row.stats.table)}</small
+                          >`
+                        : ""
+                    }
                   </td>
                   <td>
-                    ${row.state === "error"
-                      ? renderErrorDetails("❌ Failed", row.message)
-                      : escaped(summary)}
+                    ${
+                      row.state === "error"
+                        ? renderErrorDetails("❌ Failed", row.message)
+                        : escaped(summary)
+                    }
                   </td>
                 </tr>
-                ${row.state !== "error" && row.steps.length
-                  ? html`<tr class="storage-detail-row">
-                      <td colspan="2">
-                        <ol class="storage-steps" aria-label="Storage steps">
-                          ${row.steps
-                            .map(
-                              ({ name: stepName, durationMs }) =>
-                                html`<li>
-                                  ${escaped(stepName)}${durationMs === undefined
-                                    ? ""
-                                    : ` (${(durationMs / 1000).toFixed(2)}s)`}
-                                </li>`,
-                            )
-                            .join("")}
-                        </ol>
-                      </td>
-                    </tr>`
-                  : ""}`.trimEnd();
+                ${
+                  row.state !== "error" && row.steps.length
+                    ? html`<tr class="storage-detail-row">
+                        <td colspan="2">
+                          <ol class="storage-steps" aria-label="Storage steps">
+                            ${row.steps
+                              .map(
+                                ({ name: stepName, durationMs }) =>
+                                  html`<li>
+                                    ${escaped(stepName)}${
+                                      durationMs === undefined
+                                        ? ""
+                                        : ` (${(durationMs / 1000).toFixed(2)}s)`
+                                    }
+                                  </li>`,
+                              )
+                              .join("")}
+                          </ol>
+                        </td>
+                      </tr>`
+                    : ""
+                }`.trimEnd();
             })
             .join("")}
         </tbody>

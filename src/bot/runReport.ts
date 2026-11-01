@@ -257,9 +257,9 @@ export function renderHTMLReport(report: RunReport, logs?: string): string {
           report.startedAt,
           report.endedAt,
         )}
-        ${renderReportErrors(report.errors)}${logs === undefined
-          ? ""
-          : renderReportLogs(logs)}
+        ${renderReportErrors(report.errors)}${
+          logs === undefined ? "" : renderReportLogs(logs)
+        }
         <footer class="report-footer">
           <a
             href="https://github.com/daniel-hauser/moneyman"

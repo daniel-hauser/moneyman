@@ -11,8 +11,7 @@ export type DeprecationMessageId = keyof typeof deprecationMessages;
 const pendingDeprecations = new Set<DeprecationMessageId>();
 const sentDeprecationMessages = new Set<string>();
 let deprecationHandler:
-  | ((messageId: DeprecationMessageId, message: string) => void)
-  | null = null;
+  ((messageId: DeprecationMessageId, message: string) => void) | null = null;
 
 function deprecationMessage(messageId: DeprecationMessageId) {
   return `⚠️ Deprecation warning:

@@ -1,7 +1,5 @@
 type Token =
-  | { type: "star" }
-  | { type: "any" }
-  | { type: "literal"; value: string };
+  { type: "star" } | { type: "any" } | { type: "literal"; value: string };
 
 export type Span = [start: number, end: number];
 
@@ -50,7 +48,7 @@ export function matchPattern(text: string, tokens: Token[]) {
   }
   const spans: Span[] = [];
   let matched = false;
-  for (let index = 0; index < ends.length; ) {
+  for (let index = 0; index < ends.length;) {
     const end = ends[index];
     if (end >= index) matched = true;
     if (end > index) {
