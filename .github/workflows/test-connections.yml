@@ -30,6 +30,8 @@ jobs:
           context: .
           push: false
           load: true
+          build-args: |
+            MONEYMAN_BUILD_SHA=${{ github.sha }}
           tags: moneyman:test
           cache-from: type=gha
           cache-to: type=gha,mode=max

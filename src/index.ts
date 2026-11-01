@@ -32,6 +32,7 @@ import {
 } from "./configRefresh.js";
 import { createStorages } from "./bot/storage/index.js";
 import type { MoneymanConfig } from "./config.js";
+import { getBuildMetadata } from "./buildMetadata.js";
 import { createRunReport } from "./bot/runReport.js";
 import { createReportPublisher } from "./bot/reportPublisher.js";
 import { formatUnknownError } from "./utils/utils.js";
@@ -54,6 +55,7 @@ process.on("uncaughtException", (err, origin) => {
 });
 
 enableDebugLoggingIfNeeded();
+logger("Build metadata", getBuildMetadata());
 getExternalIp().then((ipInfo) => logger("External IP info:", ipInfo));
 main();
 
