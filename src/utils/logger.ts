@@ -2,6 +2,7 @@ import debug from "debug";
 import { writeFileSync, existsSync, writeSync } from "fs";
 import { BooleanEnvVarSchema, IntEnvVarSchema } from "../config.schema.js";
 import { loggerContextStore } from "./asyncContext.js";
+import { isMainThread, threadId } from "node:worker_threads";
 
 export const logger = debug("moneyman");
 
@@ -9,12 +10,11 @@ export const logger = debug("moneyman");
 const originalLog = debug.log;
 debug.log = function (...args: unknown[]) {
   const context = loggerContextStore.getStore();
-  if (context) {
-    if (typeof args[0] === "string") {
-      args[0] = `${context.prefix} ${args[0]}`;
-    } else {
-      args.unshift(context.prefix);
-    }
+  const prefix = `[${isMainThread ? "main" : `worker ${threadId}`}]${context ? ` ${context.prefix}` : ""}`;
+  if (typeof args[0] === "string") {
+    args[0] = `${prefix} ${args[0]}`;
+  } else {
+    args.unshift(prefix);
   }
   return originalLog.apply(this, args);
 };

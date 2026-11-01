@@ -1,0 +1,1470 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`renderFullReport differs when errors are shortened or the limit is hit 1`] = `
+{
+  "full": "max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done
+
+📝 Sheets ❌ Failed
+<blockquote expandable>	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</blockquote>",
+  "sent": "max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done
+
+📝 Sheets ❌ Failed
+<blockquote expandable>	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…</blockquote>",
+}
+`;
+
+exports[`renderFullReport differs when errors are shortened or the limit is hit 2`] = `
+{
+  "fullEnd": "📝 Storage 397 ⏳ Saving...
+📝 Storage 398 ⏳ Saving...
+📝 Storage 399 ⏳ Saving...",
+  "fullLength": 10734,
+  "sentEnd": " Storage 149 ⏳ Saving...
+📝 Storage 150 ⏳ Saving...
+📝 Storage 151 ⏳ Saving...
+…",
+  "sentLength": 4040,
+}
+`;
+
+exports[`renderFullReport equals the sent message when nothing is shortened 1`] = `
+"1 transactions scraped from 1 account.
+(0 pending, 1 completed)
+
+<blockquote expandable>Accounts updated
+	✔️ [max] 1234: 1</blockquote>
+
+<blockquote expandable>Status
+max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done</blockquote>
+
+📝 Sheets ❌ Failed
+<blockquote expandable>	boom</blockquote>"
+`;
+
+exports[`renderHTMLReport bounds wildcard work without regex backtracking and handles empty logs: empty pattern  1`] = `""`;
+
+exports[`renderHTMLReport bounds wildcard work without regex backtracking and handles empty logs: empty pattern * 1`] = `""`;
+
+exports[`renderHTMLReport bounds wildcard work without regex backtracking and handles empty logs: empty pattern ? 1`] = `""`;
+
+exports[`renderHTMLReport bounds wildcard work without regex backtracking and handles empty logs: no pathological match 1`] = `""`;
+
+exports[`renderHTMLReport does not approve hostile report data as executable content 1`] = `
+"
+      [
+  {
+    &quot;type&quot;: &quot;normal&quot;,
+    &quot;date&quot;: &quot;&lt;/ScRiPt&gt;&lt;ScRiPt&gt;fetch(\\&quot;https://example.invalid\\&quot;)&lt;/ScRiPt&gt;&lt;StYlE&gt;body{display:none}&lt;/StYlE&gt;&lt;img src=\\&quot;https://example.invalid\\&quot; onerror=\\&quot;alert(1)\\&quot;&gt;&quot;,
+    &quot;processedDate&quot;: &quot;2026-01-30T00:00:00.000Z&quot;,
+    &quot;description&quot;: &quot;&lt;/ScRiPt&gt;&lt;ScRiPt&gt;fetch(\\&quot;https://example.invalid\\&quot;)&lt;/ScRiPt&gt;&lt;StYlE&gt;body{display:none}&lt;/StYlE&gt;&lt;img src=\\&quot;https://example.invalid\\&quot; onerror=\\&quot;alert(1)\\&quot;&gt;&quot;,
+    &quot;originalAmount&quot;: 10,
+    &quot;originalCurrency&quot;: &quot;ILS&quot;,
+    &quot;chargedCurrency&quot;: &quot;ILS&quot;,
+    &quot;chargedAmount&quot;: 10,
+    &quot;status&quot;: &quot;completed&quot;,
+    &quot;companyId&quot;: &quot;max&quot;,
+    &quot;accountNumber&quot;: &quot;&lt;/ScRiPt&gt;&lt;ScRiPt&gt;fetch(\\&quot;https://example.invalid\\&quot;)&lt;/ScRiPt&gt;&lt;StYlE&gt;body{display:none}&lt;/StYlE&gt;&lt;img src=\\&quot;https://example.invalid\\&quot; onerror=\\&quot;alert(1)\\&quot;&gt;&quot;
+  }
+]
+    "
+`;
+
+exports[`renderHTMLReport downloads full original transactions and account identifiers from inert escaped JSON: inert transaction payload 1`] = `
+"
+      [
+  {
+    &quot;type&quot;: &quot;normal&quot;,
+    &quot;date&quot;: &quot;2026-01-30T00:00:00.000Z&quot;,
+    &quot;processedDate&quot;: &quot;2026-01-30T00:00:00.000Z&quot;,
+    &quot;description&quot;: &quot;&lt;/script&gt;&amp; \\&quot;quotes\\&quot;  &quot;,
+    &quot;originalAmount&quot;: 10,
+    &quot;originalCurrency&quot;: &quot;ILS&quot;,
+    &quot;chargedCurrency&quot;: &quot;ILS&quot;,
+    &quot;chargedAmount&quot;: 10,
+    &quot;status&quot;: &quot;completed&quot;,
+    &quot;identifier&quot;: &quot;bank-id&quot;,
+    &quot;memo&quot;: &quot;&lt;/script&gt;&amp; \\&quot;quotes\\&quot;  &quot;,
+    &quot;extra&quot;: {
+      &quot;values&quot;: [
+        &quot;&lt;&amp;&gt;&quot;,
+        42
+      ]
+    },
+    &quot;companyId&quot;: &quot;max&quot;,
+    &quot;accountNumber&quot;: &quot;1234&quot;
+  },
+  {
+    &quot;type&quot;: &quot;normal&quot;,
+    &quot;date&quot;: &quot;2026-01-30T00:00:00.000Z&quot;,
+    &quot;processedDate&quot;: &quot;2026-01-30T00:00:00.000Z&quot;,
+    &quot;description&quot;: &quot;Second account&quot;,
+    &quot;originalAmount&quot;: 10,
+    &quot;originalCurrency&quot;: &quot;ILS&quot;,
+    &quot;chargedCurrency&quot;: &quot;ILS&quot;,
+    &quot;chargedAmount&quot;: 10,
+    &quot;status&quot;: &quot;completed&quot;,
+    &quot;companyId&quot;: &quot;visaCal&quot;,
+    &quot;accountNumber&quot;: &quot;other&lt;&amp;\\&quot;&quot;
+  }
+]
+    "
+`;
+
+exports[`renderHTMLReport embeds screenshots and errors in an offline report without a final-status block 1`] = `
+"<!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-[approved static asset]' 'sha256-[approved static asset]'; script-src-attr 'none'; style-src 'sha256-[approved static asset]'; style-src-attr 'none'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Moneyman run report</title>
+        <style>:root{color-scheme:light dark;--report-border: light-dark(#dadce0, #45474b);--report-muted: light-dark(#5f6368, #bdc1c6);--report-accent: light-dark(#1a73e8, #8ab4f8)}.interactive{display:none}.report-interactive .interactive{display:inline-flex}body{font:16px system-ui,sans-serif;line-height:1.5;max-width:960px;margin:1rem auto 2rem;padding:0 .5rem;color:CanvasText;background:Canvas}.javascript-warning{padding:1rem;border:2px solid light-dark(#8a5200,#ffcc80);border-radius:.5rem;color:light-dark(#542d00,#fff1d6);background:light-dark(#fff0cc,#472b00);font-weight:600}a{color:LinkText}a:visited{color:VisitedText}h1,h2{line-height:1.2}.report-icons,.visually-hidden{position:absolute;overflow:hidden}.report-icons{pointer-events:none}.visually-hidden{width:1px;height:1px;padding:0;clip-path:inset(50%);white-space:nowrap}summary,.run-details dt{font-weight:600}section{margin:2rem 0}details,.screenshot,.screenshot-dialog{border:1px solid var(--report-border);border-radius:.5rem}details{margin:.75rem 0;padding:.75rem}summary,button{cursor:pointer}button,input,.report-footer a{font:inherit}.run-details,.run-details>div,.storage-steps,.section-heading,.report-footer{display:flex;flex-wrap:wrap}.run-details{gap:.5rem 1.5rem;margin:0 0 2rem}.run-details>div{gap:0 .375rem;min-width:0;overflow-wrap:anywhere}.run-details>div,.report-footer{align-items:baseline}.run-details dd,.screenshot-dialog figure,.section-heading h2{margin:0}.run-details dt:after{content:":"}.report-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:.75rem}td details,.screenshots-details,.screenshot-open{margin:0;padding:0;border:0}.storage-row:has(+.storage-detail-row)>td{padding-bottom:.125rem;border-bottom:0}.storage-detail-row>td{padding-top:0}.storage-steps{gap:.25rem .5rem;margin:0;padding:0;list-style:none;color:var(--report-muted)}.storage-steps li+li:before{content:"> "}.table-wrapper,.error-message{max-width:100%;overflow-x:auto}table{width:100%;border-collapse:collapse;white-space:nowrap}th,td{padding:.5rem .75rem;border-bottom:1px solid var(--report-border);text-align:left}.transactions-table td:nth-child(3){white-space:normal;min-width:12rem}.results-table{table-layout:fixed;min-width:40rem}.results-table col:first-child{width:16%}.accounts-table col:nth-child(2){width:40%}.accounts-table col:nth-child(3){width:24%}.storages-table,.timings-table{min-width:0}.storages-table col:first-child,.timings-table col:first-child{width:28%}.storage-table,.timing-kind{display:block;margin-top:.125rem;color:var(--report-muted);font-size:.875em}.results-table td,.results-table th{white-space:normal;overflow-wrap:anywhere;vertical-align:top}td .error-message{white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}.transactions-wrapper,.timings-wrapper{max-height:28rem;overflow:auto}.transactions-table th,.timings-table thead th{position:sticky;top:0;z-index:1;background:Canvas}.timings-table{table-layout:fixed}.timings-table th,.timings-table td{padding:.25rem .5rem;line-height:1.25;vertical-align:middle}.timing-kind{margin-top:0;font-weight:400}.timings-table th[scope=row]{white-space:normal;overflow-wrap:anywhere}.timings-table .timing-step th{padding-inline-start:1.75rem;font-weight:400}.timing-chart{display:block;width:100%;height:24px}.timing-axis{fill:var(--report-muted);font-size:12px}.timing-grid{stroke:var(--report-border);vector-effect:non-scaling-stroke}.timing-bar{fill:var(--report-accent)}.timing-storage .timing-bar{fill:light-dark(#137333,#81c995)}.timing-step .timing-bar{fill:light-dark(#7794b7,#aecbfa)}.timing-failed .timing-bar{fill:light-dark(#a50e0e,#f28b82)}.timing-running .timing-bar{opacity:.5}@media(max-width:40rem){.timings-table col:first-child{width:40%}.timing-axis text:nth-child(2n){display:none}}.account-screenshots,.screenshots{margin-top:.75rem}.screenshots{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,200px),200px));gap:.75rem}.screenshot{min-width:0;margin:0;overflow:hidden}.screenshot-open{display:block;width:100%;cursor:zoom-in}.screenshot img,.screenshot-dialog img{display:block;height:auto;object-fit:contain}.screenshot img{width:100%;max-height:140px}.screenshot figcaption{padding:.5rem .75rem}figcaption{overflow-wrap:anywhere}.screenshot-dialog{box-sizing:border-box;max-width:min(94vw,1400px);max-height:94dvh;padding:1rem;overflow:auto}.screenshot-dialog::backdrop{background:light-dark(#000a,#000c)}.screenshot-dialog img{max-width:100%;max-height:calc(90dvh - 7rem);margin:auto}.screenshot-dialog figcaption{margin-top:.5rem}.screenshot-close{display:flex;width:2.75rem;min-height:2.75rem;padding:.5rem;margin:0 0 .75rem auto}.screenshot-close svg{width:1.5rem;height:1.5rem;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}.screenshot-size{display:inline-block;margin-inline-start:.375rem;color:var(--report-muted);white-space:nowrap}.report-footer{gap:0 .25rem;margin-top:2rem;padding-top:1rem;border-top:1px solid var(--report-border);font-size:.875rem}.run-logs,.error-message{white-space:pre}.section-heading,.heading-actions{align-items:center;gap:.5rem}.heading-actions{display:flex;margin-inline-start:auto;min-width:0;max-width:100%}.report-search,.download-button,.screenshot-close{box-sizing:border-box;appearance:none;height:2.25rem;border:1px solid var(--report-border);border-radius:.375rem;background:Field;color:FieldText;line-height:1.25}.report-search{min-width:0;width:20rem;max-width:100%;padding:.375rem .5rem}.report-search::placeholder{color:var(--report-muted);opacity:1}::highlight(log-search),::highlight(transactions-search){background:light-dark(#fff09a,#675300);color:CanvasText}.screenshot-open,.sort-button{background:transparent}.download-button,.sort-button,.screenshot-close{align-items:center;justify-content:center}.download-button{flex-shrink:0;width:2.25rem;padding:.375rem}.report-search:hover,.download-button:hover,.sort-button:hover,.screenshot-close:hover{background:light-dark(#f1f3f4,#303134);color:CanvasText}.sort-button{min-width:1.75rem;min-height:1.75rem;padding:.125rem;border:0;border-radius:.25rem;color:inherit;vertical-align:middle}.report-search:focus-visible,.download-button:focus-visible,.sort-button:focus-visible,.screenshot-close:focus-visible{outline:2px solid var(--report-accent);outline-offset:-2px}.run-logs{height:24rem;overflow:auto;content-visibility:auto;contain-intrinsic-size:auto 24rem}report-transactions,report-logs{display:block}
+</style>
+      </head>
+      <body>
+        <script>[bundled report client]</script>
+        <svg
+          class="report-icons"
+          width="0"
+          height="0"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <symbol id="download-icon" viewBox="0 0 24 24">
+            <path d="M12 3v12m-5-5 5 5 5-5M5 16v5h14v-5" />
+          </symbol>
+          <symbol id="sort-icon" viewBox="0 0 24 24">
+            <path d="m8 3-4 4m4-4 4 4M8 3v18m8 0-4-4m4 4 4-4m-4 4V3" />
+          </symbol>
+        </svg>
+        <h1>Moneyman run report</h1>
+        <noscript>
+          <p class="javascript-warning" role="alert">
+            JavaScript disabled; interactive parts are off.
+          </p>
+        </noscript>
+        <dl class="run-details">
+    <div>
+      <dt>Started</dt>
+      <dd>
+        <time
+          id="run-started"
+          datetime="2024-01-01T10:00:00.000Z"
+          title="2024-01-01T10:00:00.000Z"
+          >2024-01-01T10:00:00.000Z</time
+        >
+      </dd>
+    </div>
+    <div>
+            <dt>Scraper time</dt>
+            <dd>12.3 seconds</dd>
+          </div>
+  </dl>
+        <section class="accounts-section">
+    <h2>Accounts</h2>
+    <div class="table-wrapper">
+        <table class="accounts-table results-table">
+          <caption class="visually-hidden">
+            Account scrape results
+          </caption>
+          <colgroup>
+            <col />
+            <col />
+            <col />
+            <col />
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col">Company</th>
+              <th scope="col">Status</th>
+              <th scope="col">Account</th>
+              <th scope="col">Transactions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+                            <td>max</td>
+                            <td>✅ Succeeded</td>
+                            <td>1234</td>
+                            <td>1</td>
+                          </tr><tr>
+                    <td>max</td>
+                    <td>
+                      <details>
+    <summary>❌ Failed: GENERIC</summary>
+    <pre class="error-message">Scraping failed
+    at scraper (bank.js:1:1)</pre>
+  </details>
+                    </td>
+                    <td>—</td>
+                    <td>—</td>
+                  </tr>
+          </tbody>
+        </table>
+      </div><div class="account-screenshots">
+    <details class="screenshots-details">
+      <summary>Screenshots (1)</summary>
+      <div class="screenshots">
+        <figure class="screenshot">
+              <button
+                type="button"
+                class="screenshot-open"
+                aria-label="Enlarge screenshot: Failure &lt;image&gt;"
+                data-size="&lt;0.01 MB"
+              >
+                <img src="data:image/png;base64,aGVsbG8=" alt="Failure &lt;image&gt;" />
+              </button>
+              <figcaption>
+                Failure &lt;image&gt;
+                <small class="screenshot-size">&lt;0.01 MB</small>
+              </figcaption>
+            </figure>
+      </div>
+    </details>
+    <dialog
+      id="screenshot-dialog"
+      class="screenshot-dialog"
+      aria-labelledby="screenshot-full-caption"
+      closedby="any"
+    >
+      <button
+        type="button"
+        class="screenshot-close"
+        commandfor="screenshot-dialog"
+        command="close"
+        aria-label="Close screenshot"
+        title="Close screenshot"
+        autofocus
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="m6 6 12 12M6 18 18 6" />
+        </svg>
+      </button>
+      <figure>
+        <img id="screenshot-full" alt="" />
+        <figcaption>
+          <span id="screenshot-full-caption"></span>
+          <small id="screenshot-full-size" class="screenshot-size"></small>
+        </figcaption>
+      </figure>
+    </dialog>
+  </div>
+  </section>
+        <template id="transactions-json">
+      [
+  {
+    &quot;type&quot;: &quot;normal&quot;,
+    &quot;date&quot;: &quot;2026-01-30T00:00:00.000Z&quot;,
+    &quot;processedDate&quot;: &quot;2026-01-30T00:00:00.000Z&quot;,
+    &quot;description&quot;: &quot;Shop&quot;,
+    &quot;originalAmount&quot;: 10,
+    &quot;originalCurrency&quot;: &quot;ILS&quot;,
+    &quot;chargedCurrency&quot;: &quot;ILS&quot;,
+    &quot;chargedAmount&quot;: 10,
+    &quot;status&quot;: &quot;completed&quot;,
+    &quot;companyId&quot;: &quot;max&quot;,
+    &quot;accountNumber&quot;: &quot;1234&quot;
+  }
+]
+    </template>
+    <!--lit-part OhKsG0ggNew=--><!--lit-node 0--><report-transactions    id="transactions-ui" data-ssr><!--lit-part PwN0aiA4Jbk=--><section>
+      <div class="section-heading">
+        <h2>
+          Transactions
+          <span id="transaction-count" aria-live="polite"
+            ><!--lit-part-->(1)<!--/lit-part--></span
+          >
+        </h2>
+        <div class="heading-actions">
+          <!--lit-part NCMQUwBCEWs=--><!--lit-node 0--><input
+    id="search-transactions"
+    class="report-search interactive"
+    type="search"
+    aria-label="Filter transactions"
+    aria-controls="transaction-rows"
+    placeholder="Filter: * any text, ? one character"
+    title="Case-insensitive: * any text, ? one character; ~* literal *, ~? literal ?, ~~ literal ~."
+    
+  /><!--/lit-part-->
+          <!--lit-part rqoui9d/J3k=--><!--lit-node 0--><button
+    id="download-transactions"
+    class="download-button interactive"
+    type="button"
+    aria-label="Download transactions as JSON"
+    title="Download transactions as JSON"
+    data-download="transactions-json"
+    data-filename="transactions.json"
+    data-type="application/json;charset=utf-8"
+  >
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <use href="#download-icon" />
+    </svg>
+  </button><!--/lit-part-->
+        </div>
+      </div>
+      <div
+        class="table-wrapper transactions-wrapper"
+        tabindex="0"
+        role="region"
+        aria-label="Transactions"
+      >
+        <table class="transactions-table">
+          <caption class="visually-hidden">
+            Scraped transactions
+          </caption>
+          <thead>
+            <tr>
+              <!--lit-node 13--><th scope="col" aria-sort="none">
+                Date <!--lit-part K3QhSVZjO/g=--><!--lit-node 0--><button
+    type="button"
+    class="sort-button interactive"
+    data-sort="date"
+    aria-label="Sort date ascending"
+    title="Sort date ascending"
+    
+  >
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <use href="#sort-icon" />
+    </svg>
+  </button><!--/lit-part-->
+              </th>
+              <!--lit-node 15--><th scope="col" aria-sort="none">
+                Amount <!--lit-part K3QhSVZjO/g=--><!--lit-node 0--><button
+    type="button"
+    class="sort-button interactive"
+    data-sort="amount"
+    aria-label="Sort amount ascending"
+    title="Sort amount ascending"
+    
+  >
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <use href="#sort-icon" />
+    </svg>
+  </button><!--/lit-part-->
+              </th>
+              <th scope="col">Description</th>
+              <!--lit-node 18--><th scope="col" aria-sort="none">
+                Account <!--lit-part K3QhSVZjO/g=--><!--lit-node 0--><button
+    type="button"
+    class="sort-button interactive"
+    data-sort="account"
+    aria-label="Sort account ascending"
+    title="Sort account ascending"
+    
+  >
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <use href="#sort-icon" />
+    </svg>
+  </button><!--/lit-part-->
+              </th>
+              <th scope="col">Company</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody id="transaction-rows">
+            <!--lit-part--><!--lit-part NsjDhJma6O8=--><tr>
+                  <!--lit-part--><!--lit-part i444B+SZdHw=--><td><!--lit-part HCL7iPb/3XM=--><!--lit-node 0--><time
+                            class="transaction-date"
+                            datetime="2026-01-30T00:00:00.000Z"
+                            title="2026-01-30T00:00:00.000Z"
+                            ><!--lit-part-->30/01/2026<!--/lit-part--></time
+                          ><!--/lit-part--></td><!--/lit-part--><!--lit-part i444B+SZdHw=--><td><!--lit-part-->10.00 ILS<!--/lit-part--></td><!--/lit-part--><!--lit-part i444B+SZdHw=--><td><!--lit-part-->Shop<!--/lit-part--></td><!--/lit-part--><!--lit-part i444B+SZdHw=--><td><!--lit-part-->1234<!--/lit-part--></td><!--/lit-part--><!--lit-part i444B+SZdHw=--><td><!--lit-part-->max<!--/lit-part--></td><!--/lit-part--><!--lit-part i444B+SZdHw=--><td><!--lit-part-->completed<!--/lit-part--></td><!--/lit-part--><!--/lit-part-->
+                </tr><!--/lit-part--><!--/lit-part-->
+          </tbody>
+        </table>
+      </div>
+    </section><!--/lit-part--></report-transactions><!--/lit-part-->
+        <section>
+    <h2>Storages</h2>
+    <div class="table-wrapper">
+      <table class="storages-table results-table">
+        <caption class="visually-hidden">
+          Storage save results
+        </caption>
+        <colgroup>
+          <col />
+          <col />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Summary</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="storage-row">
+                  <td>
+                    Sheets<small class="storage-table">TheTable</small>
+                  </td>
+                  <td>
+                    1 total · 1 added · 0 existing · 0 pending · 0 other skipped · 1.20s
+                  </td>
+                </tr>
+                <tr class="storage-detail-row">
+                        <td colspan="2">
+                          <ol class="storage-steps" aria-label="Storage steps">
+                            <li>
+                                    Upload transactions (0.80s)
+                                  </li>
+                          </ol>
+                        </td>
+                      </tr><tr class="storage-row">
+                  <td>
+                    Web
+                  </td>
+                  <td>
+                    <details>
+    <summary>❌ Failed</summary>
+    <pre class="error-message">Storage failed
+    at save (storage.js:1:1)</pre>
+  </details>
+                  </td>
+                </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+        <section>
+    <h2>Errors</h2>
+    <div class="report-grid">
+      <details>
+    <summary>scraper</summary>
+    <pre class="error-message">&lt;failed&gt;</pre>
+  </details>
+    </div>
+  </section>
+        <footer class="report-footer">
+          <a
+            href="https://github.com/daniel-hauser/moneyman"
+            target="_blank"
+            rel="noopener noreferrer"
+            >daniel-hauser/moneyman</a
+          >
+          <span aria-hidden="true">&middot;</span>
+          <a
+            href="https://moneyman.co.il/"
+            target="_blank"
+            rel="noopener noreferrer"
+            >moneyman.co.il</a
+          >
+        </footer>
+        <script>[bundled report client]</script>
+      </body>
+    </html>"
+`;
+
+exports[`renderHTMLReport filters literal log matches case-insensitively and highlights every occurrence: case-insensitive matches 1`] = `
+"  Alpha .+ ALPHA .+
+"
+`;
+
+exports[`renderHTMLReport filters literal log matches case-insensitively and highlights every occurrence: literal matches 1`] = `
+"  Alpha .+ ALPHA .+
+<script>.+</script>
+"
+`;
+
+exports[`renderHTMLReport filters literal log matches case-insensitively and highlights every occurrence: no matches 1`] = `""`;
+
+exports[`renderHTMLReport filters literal log matches case-insensitively and highlights every occurrence: restored original 1`] = `
+"
+  Alpha .+ ALPHA .+
+unrelated
+<script>.+</script>
+	end"
+`;
+
+exports[`renderHTMLReport formats the run start with short date and time even without other report data 1`] = `
+{
+  "dateTime": "2024-01-01T10:00:00.000Z",
+  "textContent": "01/01/2024, 10:00",
+  "title": "2024-01-01T10:00:00.000Z",
+}
+`;
+
+exports[`renderHTMLReport keeps all account results and storage states in accessible tables 1`] = `
+{
+  "accounts": "<section class="accounts-section">
+    <h2>Accounts</h2>
+    <div class="table-wrapper">
+        <table class="accounts-table results-table">
+          <caption class="visually-hidden">
+            Account scrape results
+          </caption>
+          <colgroup>
+            <col />
+            <col />
+            <col />
+            <col />
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col">Company</th>
+              <th scope="col">Status</th>
+              <th scope="col">Account</th>
+              <th scope="col">Transactions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+                            <td>max</td>
+                            <td>✅ Succeeded</td>
+                            <td>1234</td>
+                            <td>1</td>
+                          </tr><tr>
+                      <td>visaCal</td>
+                      <td>✅ Succeeded</td>
+                      <td>No accounts returned</td>
+                      <td>0</td>
+                    </tr><tr>
+                    <td>leumi</td>
+                    <td>
+                      <details>
+    <summary>❌ Failed: INVALID_PASSWORD</summary>
+    <pre class="error-message">&lt;full failure&gt;</pre>
+  </details>
+                    </td>
+                    <td>—</td>
+                    <td>—</td>
+                  </tr><tr>
+                    <td>max</td>
+                    <td>
+                      ❌ Failed: Unknown error
+                    </td>
+                    <td>—</td>
+                    <td>—</td>
+                  </tr>
+          </tbody>
+        </table>
+      </div>
+  </section>",
+  "storages": "<section>
+    <h2>Storages</h2>
+    <div class="table-wrapper">
+      <table class="storages-table results-table">
+        <caption class="visually-hidden">
+          Storage save results
+        </caption>
+        <colgroup>
+          <col />
+          <col />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Summary</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="storage-row">
+                  <td>
+                    Saving &lt;storage&gt;
+                  </td>
+                  <td>
+                    ⏳ Saving
+                  </td>
+                </tr>
+                <tr class="storage-detail-row">
+                        <td colspan="2">
+                          <ol class="storage-steps" aria-label="Storage steps">
+                            <li>
+                                    Loading &lt;data&gt;
+                                  </li><li>
+                                    Loaded (0.10s)
+                                  </li>
+                          </ol>
+                        </td>
+                      </tr><tr class="storage-row">
+                  <td>
+                    Failed
+                  </td>
+                  <td>
+                    <details>
+    <summary>❌ Failed</summary>
+    <pre class="error-message">&lt;full error&gt;</pre>
+  </details>
+                  </td>
+                </tr><tr class="storage-row">
+                  <td>
+                    Saved<small class="storage-table">Budget &lt;table&gt;</small>
+                  </td>
+                  <td>
+                    14 total · 2 added · 3 existing · 4 pending · 5 other skipped · 1.25s
+                  </td>
+                </tr><tr class="storage-row">
+                  <td>
+                    Waiting
+                  </td>
+                  <td>
+                    ⏳ Saving
+                  </td>
+                </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>",
+}
+`;
+
+exports[`renderHTMLReport keeps screenshots inside Accounts even when no summary exists 1`] = `
+"<section class="accounts-section">
+    <h2>Accounts</h2>
+    <div class="account-screenshots">
+    <details class="screenshots-details">
+      <summary>Screenshots (1)</summary>
+      <div class="screenshots">
+        <figure class="screenshot">
+              <button
+                type="button"
+                class="screenshot-open"
+                aria-label="Enlarge screenshot: Failure"
+                data-size="&lt;0.01 MB"
+              >
+                <img src="data:image/png;base64,aGVsbG8=" alt="Failure" />
+              </button>
+              <figcaption>
+                Failure
+                <small class="screenshot-size">&lt;0.01 MB</small>
+              </figcaption>
+            </figure>
+      </div>
+    </details>
+    <dialog
+      id="screenshot-dialog"
+      class="screenshot-dialog"
+      aria-labelledby="screenshot-full-caption"
+      closedby="any"
+    >
+      <button
+        type="button"
+        class="screenshot-close"
+        commandfor="screenshot-dialog"
+        command="close"
+        aria-label="Close screenshot"
+        title="Close screenshot"
+        autofocus
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="m6 6 12 12M6 18 18 6" />
+        </svg>
+      </button>
+      <figure>
+        <img id="screenshot-full" alt="" />
+        <figcaption>
+          <span id="screenshot-full-caption"></span>
+          <small id="screenshot-full-size" class="screenshot-size"></small>
+        </figcaption>
+      </figure>
+    </dialog>
+  </div>
+  </section>"
+`;
+
+exports[`renderHTMLReport matches Excel-style log pattern ***alpha****beta*** 1`] = `
+"Alpha beta
+ALPHA zz BETA
+"
+`;
+
+exports[`renderHTMLReport matches Excel-style log pattern <script>& " 1`] = `
+"special <script>& "quotes"
+"
+`;
+
+exports[`renderHTMLReport matches Excel-style log pattern [.~*] 1`] = `
+"literal symbols: * ? ~ [.*]
+"
+`;
+
+exports[`renderHTMLReport matches Excel-style log pattern ~* ~? ~~ 1`] = `
+"literal symbols: * ? ~ [.*]
+"
+`;
+
+exports[`renderHTMLReport matches Excel-style log pattern ~* 1`] = `
+"literal symbols: * ? ~ [.*]
+"
+`;
+
+exports[`renderHTMLReport matches Excel-style log pattern ~**~? 1`] = `
+"literal symbols: * ? ~ [.*]
+"
+`;
+
+exports[`renderHTMLReport matches Excel-style log pattern ~? 1`] = `
+"literal symbols: * ? ~ [.*]
+"
+`;
+
+exports[`renderHTMLReport matches Excel-style log pattern ~~ 1`] = `
+"literal symbols: * ? ~ [.*]
+"
+`;
+
+exports[`renderHTMLReport matches Excel-style log pattern ALPHA?beta 1`] = `
+"Alpha beta
+"
+`;
+
+exports[`renderHTMLReport matches Excel-style log pattern alpha*beta 1`] = `
+"Alpha beta
+ALPHA zz BETA
+"
+`;
+
+exports[`renderHTMLReport matches Excel-style log pattern alpha????beta 1`] = `
+"ALPHA zz BETA
+"
+`;
+
+exports[`renderHTMLReport matches Excel-style log pattern missing*value 1`] = `""`;
+
+exports[`renderHTMLReport omits empty transaction downloads and screenshot sections without usable images 1`] = `
+{
+  "emptyAccounts": "",
+  "emptyScreenshots": "",
+  "emptyTransactions": "",
+  "failedTransactions": "",
+  "noScreenshots": "",
+}
+`;
+
+exports[`renderHTMLReport omits empty transaction downloads and screenshot sections without usable images: two usable screenshot previews 1`] = `
+"<div class="account-screenshots">
+    <details class="screenshots-details">
+      <summary>Screenshots (2)</summary>
+      <div class="screenshots">
+        <figure class="screenshot">
+              <button
+                type="button"
+                class="screenshot-open"
+                aria-label="Enlarge screenshot: Real &lt;image&gt; &quot;one&quot;"
+                data-size="&lt;0.01 MB"
+              >
+                <img src="data:image/png;base64,aGVsbG8=" alt="Real &lt;image&gt; &quot;one&quot;" />
+              </button>
+              <figcaption>
+                Real &lt;image&gt; &quot;one&quot;
+                <small class="screenshot-size">&lt;0.01 MB</small>
+              </figcaption>
+            </figure><figure class="screenshot">
+              <button
+                type="button"
+                class="screenshot-open"
+                aria-label="Enlarge screenshot: Second"
+                data-size="&lt;0.01 MB"
+              >
+                <img src="data:image/png;base64,dHdv" alt="Second" />
+              </button>
+              <figcaption>
+                Second
+                <small class="screenshot-size">&lt;0.01 MB</small>
+              </figcaption>
+            </figure>
+      </div>
+    </details>
+    <dialog
+      id="screenshot-dialog"
+      class="screenshot-dialog"
+      aria-labelledby="screenshot-full-caption"
+      closedby="any"
+    >
+      <button
+        type="button"
+        class="screenshot-close"
+        commandfor="screenshot-dialog"
+        command="close"
+        aria-label="Close screenshot"
+        title="Close screenshot"
+        autofocus
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="m6 6 12 12M6 18 18 6" />
+        </svg>
+      </button>
+      <figure>
+        <img id="screenshot-full" alt="" />
+        <figcaption>
+          <span id="screenshot-full-caption"></span>
+          <small id="screenshot-full-size" class="screenshot-size"></small>
+        </figcaption>
+      </figure>
+    </dialog>
+  </div>"
+`;
+
+exports[`renderHTMLReport places timings after storages and before errors and logs 1`] = `
+[
+  "Storages",
+  "Timings",
+  "Errors",
+  "Logs",
+]
+`;
+
+exports[`renderHTMLReport renders logs with whitespace and escaped markup 1`] = `
+"<template id="logs-json" data-json
+      >&quot;\\n  unique-log &lt;&amp;&gt; \\&quot;&lt;/pre&gt;&lt;script&gt;alert(1)&lt;/script&gt;\\&quot;\\r\\nfirst\\rsecond\\r\\n\\tend&quot;</template
+    >
+    <!--lit-part Ohpm80hBDQU=--><!--lit-node 0--><report-logs    id="logs-ui" data-ssr><!--lit-part j9qTz61jAx0=--><section>
+      <div class="logs-heading section-heading">
+        <h2>Logs</h2>
+        <div class="heading-actions">
+          <!--lit-part NCMQUwBCEWs=--><!--lit-node 0--><input
+    id="search-logs"
+    class="report-search interactive"
+    type="search"
+    aria-label="Filter logs"
+    aria-controls="run-logs"
+    placeholder="Filter: * any text, ? one character"
+    title="Case-insensitive: * any text, ? one character; ~* literal *, ~? literal ?, ~~ literal ~."
+    
+  /><!--/lit-part-->
+          <!--lit-part rqoui9d/J3k=--><!--lit-node 0--><button
+    id="download-logs"
+    class="download-button interactive"
+    type="button"
+    aria-label="Download logs"
+    title="Download logs"
+    data-download="logs-json"
+    data-filename="logs.txt"
+    data-type="text/plain;charset=utf-8"
+  >
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <use href="#download-icon" />
+    </svg>
+  </button><!--/lit-part-->
+        </div>
+      </div>
+      <pre
+        id="run-logs"
+        class="run-logs"
+      ><code><!--lit-part-->
+  unique-log &lt;&amp;&gt; &quot;&lt;/pre&gt;&lt;script&gt;alert(1)&lt;/script&gt;&quot;&#13;
+first&#13;second&#13;
+	end<!--/lit-part--></code></pre>
+    </section><!--/lit-part--></report-logs><!--/lit-part-->"
+`;
+
+exports[`renderHTMLReport treats question marks as Unicode code points and highlights UTF-16 ranges 1`] = `
+"prefix A😀B suffix
+"
+`;
+
+exports[`renderReportTimings keeps zero-duration activities finite and does not fabricate a duration 1`] = `
+"<section class="timings-section">
+    <h2>Timings</h2>
+    <div
+      class="table-wrapper timings-wrapper"
+      tabindex="0"
+      role="region"
+      aria-label="Run timing waterfall"
+    >
+      <table class="timings-table">
+        <caption class="visually-hidden">
+          Scrapers and storages share an elapsed-time axis. Indented rows show
+          storage steps.
+        </caption>
+        <colgroup>
+          <col />
+          <col />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">Activity</th>
+            <th scope="col">
+              <span class="visually-hidden">Elapsed from run start</span>
+              <svg class="timing-chart timing-axis" aria-hidden="true">
+                <text
+                        x="0%"
+                        y="17"
+                        text-anchor="start"
+                      >
+                        0 ms
+                      </text><text
+                        x="25%"
+                        y="17"
+                        text-anchor="middle"
+                      >
+                        0 ms
+                      </text><text
+                        x="50%"
+                        y="17"
+                        text-anchor="middle"
+                      >
+                        0 ms
+                      </text><text
+                        x="75%"
+                        y="17"
+                        text-anchor="middle"
+                      >
+                        0 ms
+                      </text><text
+                        x="100%"
+                        y="17"
+                        text-anchor="end"
+                      >
+                        0 ms
+                      </text>
+              </svg>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+                class="timing-row"
+              >
+                <th scope="row">
+                  Local JSON
+                  <small class="timing-kind"
+                    >Storage &middot;
+                    0 ms</small
+                  >
+                </th>
+                <td>
+                  <svg
+                    class="timing-chart timing-storage"
+                    viewBox="0 0 1000 24"
+                    preserveAspectRatio="none"
+                    role="img"
+                    aria-label="Storage Local JSON: Completed; start 0 ms; duration 0 ms"
+                  >
+                    <title>Storage Local JSON: Completed; start 0 ms; duration 0 ms</title>
+                    <path
+                      class="timing-grid"
+                      d="M0 0V24M250 0V24M500 0V24M750 0V24M1000 0V24"
+                    />
+                    <rect
+                      class="timing-bar"
+                      x="0.000"
+                      y="6"
+                      width="0.000"
+                      height="12"
+                      rx="3"
+                    />
+                  </svg>
+                </td>
+              </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>"
+`;
+
+exports[`renderReportTimings omits a waterfall when no measured timing records exist 1`] = `
+{
+  "emptyRun": "",
+  "olderReport": "",
+}
+`;
+
+exports[`renderReportTimings shows elapsed running time without inventing a completion timestamp 1`] = `
+"<section class="timings-section">
+    <h2>Timings</h2>
+    <div
+      class="table-wrapper timings-wrapper"
+      tabindex="0"
+      role="region"
+      aria-label="Run timing waterfall"
+    >
+      <table class="timings-table">
+        <caption class="visually-hidden">
+          Scrapers and storages share an elapsed-time axis. Indented rows show
+          storage steps.
+        </caption>
+        <colgroup>
+          <col />
+          <col />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">Activity</th>
+            <th scope="col">
+              <span class="visually-hidden">Elapsed from run start</span>
+              <svg class="timing-chart timing-axis" aria-hidden="true">
+                <text
+                        x="0%"
+                        y="17"
+                        text-anchor="start"
+                      >
+                        0 ms
+                      </text><text
+                        x="25%"
+                        y="17"
+                        text-anchor="middle"
+                      >
+                        375 ms
+                      </text><text
+                        x="50%"
+                        y="17"
+                        text-anchor="middle"
+                      >
+                        750 ms
+                      </text><text
+                        x="75%"
+                        y="17"
+                        text-anchor="middle"
+                      >
+                        1.13 s
+                      </text><text
+                        x="100%"
+                        y="17"
+                        text-anchor="end"
+                      >
+                        1.5 s
+                      </text>
+              </svg>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+                class="timing-row"
+              >
+                <th scope="row">
+                  max
+                  <small class="timing-kind"
+                    >Scraper &middot;
+                    1 s &middot; Running</small
+                  >
+                </th>
+                <td>
+                  <svg
+                    class="timing-chart timing-scraper timing-running"
+                    viewBox="0 0 1000 24"
+                    preserveAspectRatio="none"
+                    role="img"
+                    aria-label="Scraper max: Running; start 500 ms; duration 1 s"
+                  >
+                    <title>Scraper max: Running; start 500 ms; duration 1 s</title>
+                    <path
+                      class="timing-grid"
+                      d="M0 0V24M250 0V24M500 0V24M750 0V24M1000 0V24"
+                    />
+                    <rect
+                      class="timing-bar"
+                      x="333.333"
+                      y="6"
+                      width="666.667"
+                      height="12"
+                      rx="3"
+                    />
+                  </svg>
+                </td>
+              </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>"
+`;
+
+exports[`renderReportTimings uses one real-time axis for parallel scrapers, storages, and grouped steps 1`] = `
+"<section class="timings-section">
+    <h2>Timings</h2>
+    <div
+      class="table-wrapper timings-wrapper"
+      tabindex="0"
+      role="region"
+      aria-label="Run timing waterfall"
+    >
+      <table class="timings-table">
+        <caption class="visually-hidden">
+          Scrapers and storages share an elapsed-time axis. Indented rows show
+          storage steps.
+        </caption>
+        <colgroup>
+          <col />
+          <col />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">Activity</th>
+            <th scope="col">
+              <span class="visually-hidden">Elapsed from run start</span>
+              <svg class="timing-chart timing-axis" aria-hidden="true">
+                <text
+                        x="0%"
+                        y="17"
+                        text-anchor="start"
+                      >
+                        0 ms
+                      </text><text
+                        x="25%"
+                        y="17"
+                        text-anchor="middle"
+                      >
+                        2.5 s
+                      </text><text
+                        x="50%"
+                        y="17"
+                        text-anchor="middle"
+                      >
+                        5 s
+                      </text><text
+                        x="75%"
+                        y="17"
+                        text-anchor="middle"
+                      >
+                        7.5 s
+                      </text><text
+                        x="100%"
+                        y="17"
+                        text-anchor="end"
+                      >
+                        10 s
+                      </text>
+              </svg>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+                class="timing-row"
+              >
+                <th scope="row">
+                  max
+                  <small class="timing-kind"
+                    >Scraper &middot;
+                    4 s</small
+                  >
+                </th>
+                <td>
+                  <svg
+                    class="timing-chart timing-scraper"
+                    viewBox="0 0 1000 24"
+                    preserveAspectRatio="none"
+                    role="img"
+                    aria-label="Scraper max: Completed; start 0 ms; duration 4 s"
+                  >
+                    <title>Scraper max: Completed; start 0 ms; duration 4 s</title>
+                    <path
+                      class="timing-grid"
+                      d="M0 0V24M250 0V24M500 0V24M750 0V24M1000 0V24"
+                    />
+                    <rect
+                      class="timing-bar"
+                      x="0.000"
+                      y="6"
+                      width="400.000"
+                      height="12"
+                      rx="3"
+                    />
+                  </svg>
+                </td>
+              </tr><tr
+                class="timing-row"
+              >
+                <th scope="row">
+                  max
+                  <small class="timing-kind"
+                    >Scraper &middot;
+                    2 s &middot; Failed</small
+                  >
+                </th>
+                <td>
+                  <svg
+                    class="timing-chart timing-scraper timing-failed"
+                    viewBox="0 0 1000 24"
+                    preserveAspectRatio="none"
+                    role="img"
+                    aria-label="Scraper max: Failed; start 1 s; duration 2 s"
+                  >
+                    <title>Scraper max: Failed; start 1 s; duration 2 s</title>
+                    <path
+                      class="timing-grid"
+                      d="M0 0V24M250 0V24M500 0V24M750 0V24M1000 0V24"
+                    />
+                    <rect
+                      class="timing-bar"
+                      x="100.000"
+                      y="6"
+                      width="200.000"
+                      height="12"
+                      rx="3"
+                    />
+                  </svg>
+                </td>
+              </tr><tr
+                class="timing-row"
+              >
+                <th scope="row">
+                  Sheets &lt;&amp;&gt; &quot;one&quot;
+                  <small class="timing-kind"
+                    >Storage &middot;
+                    4 s</small
+                  >
+                </th>
+                <td>
+                  <svg
+                    class="timing-chart timing-storage"
+                    viewBox="0 0 1000 24"
+                    preserveAspectRatio="none"
+                    role="img"
+                    aria-label="Storage Sheets &lt;&amp;&gt; &quot;one&quot;: Completed; start 4 s; duration 4 s"
+                  >
+                    <title>Storage Sheets &lt;&amp;&gt; &quot;one&quot;: Completed; start 4 s; duration 4 s</title>
+                    <path
+                      class="timing-grid"
+                      d="M0 0V24M250 0V24M500 0V24M750 0V24M1000 0V24"
+                    />
+                    <rect
+                      class="timing-bar"
+                      x="400.000"
+                      y="6"
+                      width="400.000"
+                      height="12"
+                      rx="3"
+                    />
+                  </svg>
+                </td>
+              </tr><tr
+                class="timing-step"
+              >
+                <th scope="row">
+                  Connect
+                  <small class="timing-kind"
+                    >Step &middot;
+                    1 s</small
+                  >
+                </th>
+                <td>
+                  <svg
+                    class="timing-chart timing-step"
+                    viewBox="0 0 1000 24"
+                    preserveAspectRatio="none"
+                    role="img"
+                    aria-label="Step Connect: Completed; start 4 s; duration 1 s"
+                  >
+                    <title>Step Connect: Completed; start 4 s; duration 1 s</title>
+                    <path
+                      class="timing-grid"
+                      d="M0 0V24M250 0V24M500 0V24M750 0V24M1000 0V24"
+                    />
+                    <rect
+                      class="timing-bar"
+                      x="400.000"
+                      y="6"
+                      width="100.000"
+                      height="12"
+                      rx="3"
+                    />
+                  </svg>
+                </td>
+              </tr><tr
+                class="timing-step"
+              >
+                <th scope="row">
+                  Upload &lt;/svg&gt;&lt;script&gt;alert(1)&lt;/script&gt;
+                  <small class="timing-kind"
+                    >Step &middot;
+                    3 s</small
+                  >
+                </th>
+                <td>
+                  <svg
+                    class="timing-chart timing-step"
+                    viewBox="0 0 1000 24"
+                    preserveAspectRatio="none"
+                    role="img"
+                    aria-label="Step Upload &lt;/svg&gt;&lt;script&gt;alert(1)&lt;/script&gt;: Completed; start 5 s; duration 3 s"
+                  >
+                    <title>Step Upload &lt;/svg&gt;&lt;script&gt;alert(1)&lt;/script&gt;: Completed; start 5 s; duration 3 s</title>
+                    <path
+                      class="timing-grid"
+                      d="M0 0V24M250 0V24M500 0V24M750 0V24M1000 0V24"
+                    />
+                    <rect
+                      class="timing-bar"
+                      x="500.000"
+                      y="6"
+                      width="300.000"
+                      height="12"
+                      rx="3"
+                    />
+                  </svg>
+                </td>
+              </tr><tr
+                class="timing-row"
+              >
+                <th scope="row">
+                  YNAB
+                  <small class="timing-kind"
+                    >Storage &middot;
+                    2 s</small
+                  >
+                </th>
+                <td>
+                  <svg
+                    class="timing-chart timing-storage"
+                    viewBox="0 0 1000 24"
+                    preserveAspectRatio="none"
+                    role="img"
+                    aria-label="Storage YNAB: Completed; start 4 s; duration 2 s"
+                  >
+                    <title>Storage YNAB: Completed; start 4 s; duration 2 s</title>
+                    <path
+                      class="timing-grid"
+                      d="M0 0V24M250 0V24M500 0V24M750 0V24M1000 0V24"
+                    />
+                    <rect
+                      class="timing-bar"
+                      x="400.000"
+                      y="6"
+                      width="200.000"
+                      height="12"
+                      rx="3"
+                    />
+                  </svg>
+                </td>
+              </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>"
+`;
+
+exports[`renderRunReport never exceeds the Telegram limit 1`] = `
+" Saving...
+📝 Storage 141 ⏳ Saving...
+📝 Storage 142 ⏳ Saving...
+📝 Storage 143 ⏳ Saving...
+📝 Storage 144 ⏳ Saving...
+…"
+`;
+
+exports[`renderRunReport renders all failed accounts 1`] = `
+"0 transactions scraped.
+
+<blockquote expandable>Accounts updated
+	❌ [max] GENERIC
+	❌ [max] GENERIC
+	❌ [max] GENERIC
+	❌ [max] GENERIC
+	❌ [max] GENERIC
+	❌ [max] GENERIC
+	❌ [max] GENERIC
+	❌ [max] GENERIC</blockquote>
+
+<blockquote expandable>Status
+max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done</blockquote>"
+`;
+
+exports[`renderRunReport renders notices 1`] = `
+"max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done
+
+No transactions found, skipping save"
+`;
+
+exports[`renderRunReport renders status rows while scraping 1`] = `
+"max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done"
+`;
+
+exports[`renderRunReport renders storages in different states, each with its own quote 1`] = `
+"1 transactions scraped from 1 account.
+(0 pending, 1 completed)
+
+<blockquote expandable>Accounts updated
+	✔️ [max] 1234: 1</blockquote>
+
+<blockquote expandable>Status
+max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done</blockquote>
+
+📝 Sheets (TheTable)
+<blockquote expandable>	Step1, took 0.01s
+	Step2, took 1.00s
+	1 added
+	3 skipped (1 existing, 1 pending, 1 other)
+	took 1.23s
+	-----
+	Group1:
+		description1:	+10.00</blockquote>
+📝 YNAB ⏳ Saving...
+<blockquote expandable>	Loading, took 0.01s</blockquote>
+📝 Web ❌ Failed
+<blockquote expandable>	boom</blockquote>"
+`;
+
+exports[`renderRunReport renders summary first and status in a collapsed quote 1`] = `
+"1 transactions scraped from 1 account.
+(0 pending, 1 completed)
+
+<blockquote expandable>Accounts updated
+	✔️ [max] 1234: 1</blockquote>
+
+<blockquote expandable>Status
+max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done
+
+Total time: 12.3 seconds</blockquote>"
+`;
+
+exports[`renderRunReport truncates long errors before escaping 1`] = `
+"0 transactions scraped.
+
+<blockquote expandable>Accounts updated
+	❌ [max] GENERIC
+		Unexpected token '&lt;', "&lt;!DOCTYPE "... is not valid JSON</blockquote>
+
+<blockquote expandable>Status
+max: scraping
+&lt;b&gt;visa&lt;/b&gt;: done</blockquote>
+
+📝 Sheets ❌ Failed
+<blockquote expandable>	&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;…</blockquote>"
+`;

@@ -20,5 +20,5 @@ else
   # Duplicate stdout to the public log FD so public logs bypass redirection
   eval "exec ${PUBLIC_LOG_FD}>&1"
 
-  exec "$@" > "$MONEYMAN_LOG_FILE_PATH" 2>&1
+  exec "$@" >> "$MONEYMAN_LOG_FILE_PATH" 2>&1
 fi

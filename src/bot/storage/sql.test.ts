@@ -10,7 +10,9 @@ const PoolMock = jest.fn<
 
 jest.mock("pg", () => ({
   __esModule: true,
-  Pool: PoolMock,
+  Pool: function (...args: ConstructorParameters<typeof import("pg").Pool>) {
+    return PoolMock(...args);
+  },
 }));
 
 import { newDb, type IMemoryDb } from "pg-mem";

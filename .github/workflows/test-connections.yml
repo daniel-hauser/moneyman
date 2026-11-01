@@ -19,7 +19,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -30,6 +30,8 @@ jobs:
           context: .
           push: false
           load: true
+          build-args: |
+            MONEYMAN_BUILD_SHA=${{ github.sha }}
           tags: moneyman:test
           cache-from: type=gha
           cache-to: type=gha,mode=max

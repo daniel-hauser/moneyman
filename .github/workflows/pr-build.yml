@@ -12,7 +12,7 @@ jobs:
     outputs:
       build-needed: ${{ steps.check.outputs.build-needed }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -33,6 +33,7 @@ jobs:
           # Check if any build-relevant files were changed
           build_relevant_patterns=(
             "src/"
+            "report/"
             "patches/"
             "package.json"
             "package-lock.json"
@@ -65,15 +66,14 @@ jobs:
     needs: check-changes
     if: needs.check-changes.outputs.build-needed == 'true'
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          # better-sqlite3@12.6.2 currently supports up to Node 25.x.
-          node-version: 25
+          node-version: 26
           cache: "npm"
           cache-dependency-path: package-lock.json
       - name: Cache node_modules
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
@@ -91,19 +91,18 @@ jobs:
 
     strategy:
       matrix:
-        # Keep Node 25 pinned until better-sqlite3 supports Node 26.x prebuilds/API.
-        node-version: [24, 25]
+        node-version: [24, 25, 26]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
           cache-dependency-path: package-lock.json
       - name: Cache node_modules
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: node_modules
           key: ${{ runner.os }}-node-${{ matrix.node-version }}-modules-${{ hashFiles('package-lock.json') }}
@@ -121,8 +120,7 @@ jobs:
     if: always() && needs.check-changes.result == 'success'
     strategy:
       matrix:
-        # Keep Node 25 pinned until better-sqlite3 supports Node 26.x prebuilds/API.
-        node-version: [24, 25]
+        node-version: [24, 25, 26]
 
     steps:
       - name: Skip build - no relevant changes
@@ -131,9 +129,9 @@ jobs:
           echo "✅ Build skipped - no code changes detected"
           echo "This PR only contains non-build files (documentation, etc.)"
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: needs.check-changes.outputs.build-needed == 'true'
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         if: needs.check-changes.outputs.build-needed == 'true'
         with:
           node-version: ${{ matrix.node-version }}
@@ -141,7 +139,7 @@ jobs:
           cache-dependency-path: package-lock.json
       - name: Cache node_modules
         if: needs.check-changes.outputs.build-needed == 'true'
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: node_modules
           key: ${{ runner.os }}-node-${{ matrix.node-version }}-modules-${{ hashFiles('package-lock.json') }}
@@ -238,7 +236,7 @@ jobs:
 
       - name: Checkout repository
         if: needs.prepare.outputs.build_needed == 'true'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Log in to the Container registry
         if: needs.prepare.outputs.build_needed == 'true'
@@ -262,6 +260,8 @@ jobs:
         with:
           context: .
           push: true
+          build-args: |
+            MONEYMAN_BUILD_SHA=${{ github.event.pull_request.head.sha || github.sha }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           provenance: false
@@ -389,7 +389,7 @@ jobs:
 
       - name: Checkout repository
         if: needs.prepare.outputs.build_needed == 'true'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         if: needs.prepare.outputs.build_needed == 'true'
@@ -409,6 +409,8 @@ jobs:
         with:
           context: .
           push: false
+          build-args: |
+            MONEYMAN_BUILD_SHA=${{ github.event.pull_request.head.sha || github.sha }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=docker,dest=/tmp/image.tar

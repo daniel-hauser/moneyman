@@ -1,3 +1,4 @@
+/// <reference lib="esnext.disposable" />
 import { performance } from "perf_hooks";
 import { getAccountTransactions } from "./scrape.js";
 import { AccountConfig, AccountScrapeResult, ScraperConfig } from "../types.js";
@@ -7,6 +8,11 @@ import { createBrowser, createSecureBrowserContext } from "./browser.js";
 import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
 import { ScraperOptions } from "israeli-bank-scrapers";
 import { parallelLimit } from "async";
+import type { OtpRequest } from "./otp.js";
+import type { DomainTracker } from "../security/domains.js";
+import { aborted } from "node:util";
+import { randomUUID } from "node:crypto";
+import type { RunTiming, RunnerHooks } from "../types.js";
 
 const logger = createLogger("scraper");
 
@@ -20,10 +26,6 @@ export const scraperOptions: Partial<ScraperOptions> = {
     "isracard-amex:skipAdditionalTransactionInformation",
   ],
 };
-type ScraperOptionsWithBrowserContext = Extract<
-  ScraperOptions,
-  { browserContext: unknown }
->;
 
 export async function scrapeAccounts(
   {
@@ -34,11 +36,18 @@ export async function scrapeAccounts(
     additionalTransactionInformation,
     includeRawTransaction,
   }: ScraperConfig,
+  initDomainTracking: DomainTracker["initDomainTracking"],
   scrapeStatusChanged?: (
     status: Array<string>,
     totalTime?: number,
   ) => Promise<void>,
-  onError?: (e: unknown, caller: string) => void,
+  onError?: (e: unknown, caller: string) => void | Promise<void>,
+  runtime: {
+    executablePath?: string;
+    requestOtpCode?: OtpRequest;
+    signal?: AbortSignal;
+    onTiming?: RunnerHooks["onTiming"];
+  } = {},
 ) {
   const start = performance.now();
 
@@ -54,53 +63,95 @@ export async function scrapeAccounts(
   const status: Array<string> = [];
 
   logger("Creating a browser");
-  const browser = await createBrowser();
-  logger(`Browser created, starting to scrape ${accounts.length} accounts`);
-
-  const results = await parallelLimit<AccountConfig, AccountScrapeResult[]>(
-    accounts.map((account, i) => async () => {
-      const { companyId } = account;
-      return loggerContextStore.run(
-        { prefix: `[#${i} ${companyId}]` },
-        async () =>
-          scrapeAccount(
-            account,
-            {
-              browserContext: (await createSecureBrowserContext(
-                browser,
-                companyId,
-              )) as unknown as ScraperOptionsWithBrowserContext["browserContext"],
-              startDate,
-              companyId,
-              futureMonthsToScrape: futureMonths,
-              storeFailureScreenShotPath: getFailureScreenShotPath(companyId),
-              additionalTransactionInformation,
-              includeRawTransaction,
-              ...scraperOptions,
-            },
-            async (message, append = false) => {
-              status[i] = append ? `${status[i]} ${message}` : message;
-              return scrapeStatusChanged?.(status);
-            },
-          ),
-      );
-    }),
-    Number(parallelScrapers),
-  );
-  const duration = (performance.now() - start) / 1000;
-  logger(`scraping ended, total duration: ${duration.toFixed(1)}s`);
-  await scrapeStatusChanged?.(status, duration);
-
+  runtime.signal?.throwIfAborted();
+  const browser = await createBrowser(runtime.executablePath, runtime.signal);
   try {
-    logger(`closing browser`);
-    await browser?.close();
-  } catch (e) {
-    onError?.(e, "browser.close");
-    logger(`failed to close browser`, e);
-  }
+    runtime.signal?.throwIfAborted();
+    logger(`Browser created, starting to scrape ${accounts.length} accounts`);
+    const results = await parallelLimit<AccountConfig, AccountScrapeResult[]>(
+      accounts.map((account, i) => async () => {
+        runtime.signal?.throwIfAborted();
+        const { companyId } = account;
+        const timing: RunTiming = {
+          id: `scraper-${randomUUID()}`,
+          kind: "scraper",
+          name: companyId,
+          startedAt: Date.now(),
+        };
+        try {
+          await runtime.onTiming?.({ ...timing });
+          const result = await loggerContextStore.run(
+            { prefix: `[#${i} ${companyId}]` },
+            async () =>
+              scrapeAccount(
+                account,
+                {
+                  // Safe to remove when israeli-bank-scrapers upgrades to puppeteer 25+
+                  browserContext: (await createSecureBrowserContext(
+                    browser,
+                    companyId,
+                    initDomainTracking,
+                  )) as any,
+                  startDate,
+                  companyId,
+                  futureMonthsToScrape: futureMonths,
+                  storeFailureScreenShotPath:
+                    getFailureScreenShotPath(companyId),
+                  additionalTransactionInformation,
+                  includeRawTransaction,
+                  ...scraperOptions,
+                },
+                async (message, append = false) => {
+                  status[i] = append ? `${status[i]} ${message}` : message;
+                  return scrapeStatusChanged?.(status);
+                },
+                runtime.requestOtpCode,
+              ),
+          );
+          timing.failed = !result.result.success;
+          return result;
+        } catch (error) {
+          timing.failed = true;
+          throw error;
+        } finally {
+          timing.endedAt = Date.now();
+          await runtime.onTiming?.({ ...timing });
+        }
+      }),
+      Number(parallelScrapers),
+    );
+    const duration = (performance.now() - start) / 1000;
+    logger(`scraping ended, total duration: ${duration.toFixed(1)}s`);
+    await scrapeStatusChanged?.(status, duration);
+    runtime.signal?.throwIfAborted();
 
-  logger(getStats(results));
-  return results;
+    logger(getStats(results));
+    return results;
+  } finally {
+    logger("closing browser");
+    try {
+      await browser[Symbol.asyncDispose]();
+    } catch (error) {
+      logger("failed to close browser", error);
+      const completed = new AbortController();
+      const warningDeadline = AbortSignal.any([
+        AbortSignal.timeout(3_000),
+        completed.signal,
+      ]);
+      try {
+        await Promise.race([
+          onError?.(error, "browser.close"),
+          aborted(warningDeadline, browser).then(() => {
+            throw warningDeadline.reason;
+          }),
+        ]);
+      } catch (notificationError) {
+        logger("failed to report browser close failure", notificationError);
+      } finally {
+        completed.abort();
+      }
+    }
+  }
 }
 
 function getStats(results: Array<AccountScrapeResult>) {
@@ -126,6 +177,7 @@ async function scrapeAccount(
   account: AccountConfig,
   scraperOptions: ScraperOptions,
   setStatusMessage: (message: string, append?: boolean) => Promise<void>,
+  requestOtpCode?: OtpRequest,
 ) {
   logger(`scraping started`);
 
@@ -134,6 +186,7 @@ async function scrapeAccount(
     account,
     scraperOptions,
     (cid, step) => setStatusMessage(`[${cid}] ${step}`),
+    requestOtpCode,
   );
 
   const duration = (performance.now() - scraperStart) / 1000;

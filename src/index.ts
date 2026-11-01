@@ -1,18 +1,49 @@
-import { scrapeAccounts } from "./scraper/index.js";
-import { scraperConfig, sendConfigToTelegramIfRequested } from "./config.js";
-import { sendError } from "./bot/notifier.js";
-import { createLogger } from "./utils/logger.js";
+import { randomUUID } from "crypto";
+import { locks } from "node:worker_threads";
+import { scrapeAccounts } from "./scraper/client.js";
 import {
-  sendAndDeleteLogFile,
+  config,
+  getScraperConfig,
+  sendConfigToTelegramIfRequested,
+} from "./config.js";
+import { BooleanEnvVarSchema } from "./config.schema.js";
+import {
+  sendError,
+  reportTransport,
+  reportUpdateIntervalMs,
+} from "./bot/notifier.js";
+import { createLogger, logToPublicLog } from "./utils/logger.js";
+import {
+  sendLogFile,
   enableDebugLoggingIfNeeded,
+  readReportLogs,
 } from "./utils/secure-log.js";
-import { RunnerHooks } from "./types.js";
+import { RunHandle, RunnerHooks, RunStatus, RunTrigger } from "./types.js";
 import { runWithStorage } from "./bot/index.js";
 import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
-import { monitorNodeConnections } from "./security/domains.js";
+import { createDomainTracker, type DomainTracker } from "./security/domains.js";
 import { getExternalIp, logRunMetadata } from "./runnerMetadata.js";
+import { runContextStore } from "./utils/asyncContext.js";
+import { startServer, type SecretRefreshResult } from "./server.js";
+import {
+  hasConfigSecretProvider,
+  loadRunConfig,
+  SECRET_REFRESH_FAILURE,
+} from "./configRefresh.js";
+import { createStorages } from "./bot/storage/index.js";
+import type { MoneymanConfig } from "./config.js";
+import { getBuildMetadata } from "./buildMetadata.js";
+import { createRunReport } from "./bot/runReport.js";
+import { createReportPublisher } from "./bot/reportPublisher.js";
+import { formatUnknownError } from "./utils/utils.js";
 
 const logger = createLogger("main");
+const SCRAPE_LOCK = "moneyman-scrape";
+const longRunning = BooleanEnvVarSchema.parse(
+  process.env.MONEYMAN_LONG_RUNNING,
+);
+let lastRun: RunStatus | undefined;
+
 console.log("Starting...");
 
 process.on("uncaughtException", (err, origin) => {
@@ -24,23 +55,109 @@ process.on("uncaughtException", (err, origin) => {
 });
 
 enableDebugLoggingIfNeeded();
-monitorNodeConnections();
+logger("Build metadata", getBuildMetadata());
 getExternalIp().then((ipInfo) => logger("External IP info:", ipInfo));
-await sendConfigToTelegramIfRequested();
-await run();
-await sendAndDeleteLogFile();
+main();
 
-// kill internal browsers if stuck
-process.exit(0);
+async function main() {
+  await sendConfigToTelegramIfRequested();
 
-async function runScraper(hooks: RunnerHooks) {
+  if (longRunning) {
+    await startServer({
+      startRun,
+      refreshSecrets: hasConfigSecretProvider() ? refreshSecrets : undefined,
+      isRunning,
+      getLastRun: () => lastRun,
+    });
+  } else {
+    const abort = new AbortController();
+    const cancel = () => abort.abort(new Error("Scraper worker cancelled"));
+    process.once("SIGINT", cancel);
+    process.once("SIGTERM", cancel);
+    try {
+      await runOnce("startup", abort.signal);
+    } finally {
+      process.removeListener("SIGINT", cancel);
+      process.removeListener("SIGTERM", cancel);
+    }
+
+    // kill internal browsers if stuck
+    process.exit(0);
+  }
+}
+
+async function isRunning() {
+  const { held } = await locks.query();
+  return held.some((lock) => lock.name === SCRAPE_LOCK);
+}
+
+/**
+ * Rejects duplicate scrapes. Resolves once the run starts, without waiting for
+ * it to finish.
+ */
+async function startRun(
+  trigger: RunTrigger,
+  signal?: AbortSignal,
+): Promise<RunHandle> {
+  const { promise: started, resolve: reportStarted } =
+    Promise.withResolvers<boolean>();
+
+  const finished = locks.request(SCRAPE_LOCK, { ifAvailable: true }, (lock) => {
+    if (!lock) {
+      reportStarted(false);
+      return undefined;
+    }
+
+    reportStarted(true);
+    return runContextStore.run({ runId: randomUUID() }, async () => {
+      const startedAt = new Date();
+      const failed = await run(signal);
+
+      lastRun = { trigger, startedAt, endedAt: new Date(), failed };
+      logger("Run finished", lastRun);
+      return lastRun;
+    });
+  });
+
+  return { started: await started, finished };
+}
+
+async function refreshSecrets(): Promise<SecretRefreshResult> {
+  try {
+    await loadRunConfig();
+    return "refreshed";
+  } catch (error) {
+    logger("Manual secret refresh failed", error);
+    return "failed";
+  }
+}
+
+async function runOnce(
+  trigger: RunTrigger,
+  signal?: AbortSignal,
+): Promise<RunStatus> {
+  const status = await (await startRun(trigger, signal)).finished;
+
+  if (!status) {
+    throw new Error("A scrape is already in progress");
+  }
+
+  return status;
+}
+
+async function runScraper(
+  hooks: RunnerHooks,
+  snapshot: MoneymanConfig,
+  domainTracker: DomainTracker,
+  signal?: AbortSignal,
+) {
   try {
     logger("About to start");
     await hooks.onBeforeStart();
 
     logger("Starting to scrape");
-    const results = await scrapeAccounts(
-      scraperConfig,
+    const { results, domains } = await scrapeAccounts(
+      getScraperConfig(snapshot),
       async (status, totalTime) => {
         logger("Status changed", { status, totalTime });
         return hooks.onStatusChanged(status, totalTime);
@@ -49,6 +166,8 @@ async function runScraper(hooks: RunnerHooks) {
         logger("Error while scraping", e);
         return hooks.onError(e, caller);
       },
+      signal,
+      hooks.onTiming,
     );
     logger("Scraping ended");
     await Promise.all([
@@ -56,18 +175,95 @@ async function runScraper(hooks: RunnerHooks) {
       sendFailureScreenShots(hooks.failureScreenshotsHandler),
     ]);
 
-    await logRunMetadata();
+    await logRunMetadata(await domainTracker.getUsedDomains(), domains);
   } catch (e) {
     logger("Error", e);
     await hooks.onError(e);
   }
 }
 
-async function run() {
+async function prepareRun() {
   try {
-    logger("Running with storage");
-    await runWithStorage(runScraper);
+    let snapshot = config;
+    if (longRunning) {
+      try {
+        snapshot = await loadRunConfig();
+      } catch {
+        logToPublicLog(SECRET_REFRESH_FAILURE);
+        await sendError(new Error(SECRET_REFRESH_FAILURE), "Secrets refresh");
+        return;
+      }
+    }
+    return { snapshot, storages: createStorages(snapshot) };
   } catch (error) {
     logger(error);
+  }
+}
+
+async function run(signal?: AbortSignal) {
+  let publication: Awaited<ReturnType<typeof runWithStorage>> = {
+    report: createRunReport(),
+    reportSent: false,
+  };
+  let report = publication.report;
+  let prepared: Awaited<ReturnType<typeof prepareRun>>;
+  try {
+    prepared = await prepareRun();
+    if (!prepared) {
+      report.failed = true;
+      report.errors.push({ caller: "Setup", message: "Run setup failed" });
+      return true;
+    }
+    const { snapshot, storages } = prepared;
+    const domainTracker = createDomainTracker({
+      domainTracking: snapshot.options.scraping.domainTracking,
+      ...snapshot.options.security,
+    });
+    try {
+      logger("Running with storage");
+      publication = await runWithStorage(
+        (hooks) => runScraper(hooks, snapshot, domainTracker, signal),
+        storages,
+        publication,
+      );
+      report = publication.report;
+    } finally {
+      domainTracker.dispose();
+    }
+    const failedStorages = Object.entries(report.storages)
+      .filter(([, row]) => row.state === "error")
+      .map(([name]) => name);
+    if (failedStorages.length) {
+      logger(`Storages that failed: ${failedStorages.join(", ")}`);
+    }
+    return report.failed || failedStorages.length > 0;
+  } catch (error) {
+    logger(error);
+    report.failed = true;
+    report.errors.push({ caller: "Run", message: formatUnknownError(error) });
+    return true;
+  } finally {
+    try {
+      if (!report.endedAt) {
+        report.endedAt = new Date();
+        const sendReportFile =
+          Boolean(reportTransport) &&
+          (config.options.notifications.telegram?.sendReportFileToTelegram ??
+            false);
+        const logs = sendReportFile ? readReportLogs() : undefined;
+        publication.reportSent = await createReportPublisher(report, {
+          transport: reportTransport,
+          sendReportFile,
+          intervalMs: reportUpdateIntervalMs,
+        }).finish(logs);
+        publication.logsSent = publication.reportSent && logs !== undefined;
+      }
+    } finally {
+      await sendLogFile(
+        !longRunning,
+        prepared?.storages ?? [],
+        publication.logsSent,
+      );
+    }
   }
 }

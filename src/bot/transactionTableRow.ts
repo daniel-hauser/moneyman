@@ -1,5 +1,5 @@
 import { format, parseISO } from "date-fns";
-import { systemName, config } from "../config.js";
+import { systemName, type MoneymanConfig } from "../config.js";
 import type { TransactionRow } from "../types.js";
 import { normalizeCurrency } from "../utils/currency.js";
 
@@ -25,13 +25,14 @@ export type TableRow = Omit<
   Record<(typeof TableHeaders)[number], string>,
   "amount" | "raw"
 > & {
-  amount: number;
+  amount: number | null;
   raw?: string;
 };
 
 export function tableRow(
   tx: TransactionRow,
   includeRaw: boolean = false,
+  transactionHashType: MoneymanConfig["options"]["scraping"]["transactionHashType"] = "",
 ): TableRow {
   const baseRow = {
     date: format(parseISO(tx.date), "dd/MM/yyyy", {}),
@@ -40,10 +41,7 @@ export function tableRow(
     memo: tx.memo ?? "",
     category: tx.category ?? "",
     account: tx.account,
-    hash:
-      config.options.scraping.transactionHashType === "moneyman"
-        ? tx.uniqueId
-        : tx.hash,
+    hash: transactionHashType === "moneyman" ? tx.uniqueId : tx.hash,
     comment: "",
     "scraped at": currentDate,
     "scraped by": systemName,

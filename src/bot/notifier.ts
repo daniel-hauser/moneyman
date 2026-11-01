@@ -1,11 +1,11 @@
-import { Context, Telegraf, TelegramError } from "telegraf";
-import { message } from "telegraf/filters";
+import { Telegraf } from "telegraf";
 import { config } from "../config.js";
 import type { ImageWithCaption } from "../types.js";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
-import { waitForAbortSignal } from "../utils/promises.js";
 import { formatUnknownError } from "../utils/utils.js";
 import { assignDeprecationHandler } from "./deprecationManager.js";
+import type { ReportTransport } from "./reportPublisher.js";
+import { createBot } from "./bot.js";
 
 const logger = createLogger("notifier");
 
@@ -24,11 +24,22 @@ if (bot && telegramConfig) {
   logger(`Telegram chat ID: ${telegramConfig.chatId}`);
 
   assignDeprecationHandler((messageId, message) => {
-    if (!config.options.scraping.hiddenDeprecations?.includes(messageId)) {
-      logger(`Sending deprecation message: ${messageId}`);
-      void send(message);
-    }
+    logger(`Sending deprecation message: ${messageId}`);
+    void send(message);
   });
+}
+
+export const {
+  isTelegramBotRunning,
+  launchTelegramBot,
+  stopTelegramBot,
+  shutdownTelegramBot,
+  requestOtpCode,
+} = createBot(bot);
+
+/** The shared Telegram bot, or `null` when Telegram is not configured */
+export function getTelegramBot() {
+  return bot;
 }
 
 export async function send(message: string, parseMode?: "HTML") {
@@ -113,130 +124,48 @@ export async function sendTextFile(filePath: string, caption?: string) {
   );
 }
 
-export async function editMessage(
-  message: number | undefined,
-  newText: string,
-  parseMode?: "HTML",
-) {
-  if (message === undefined || !bot || !telegramConfig?.chatId) {
-    return;
-  }
+/**
+ * Transport for the single run-report message, undefined when Telegram isn't configured.
+ * Errors (e.g. 429) are propagated so the publisher can handle them.
+ */
+export const reportTransport: ReportTransport | undefined =
+  bot && telegramConfig?.chatId
+    ? {
+        async send(text) {
+          const sent = await bot.telegram.sendMessage(
+            telegramConfig.chatId,
+            text,
+            { parse_mode: "HTML" },
+          );
+          return sent.message_id;
+        },
+        async edit(messageId, text) {
+          await bot.telegram.editMessageText(
+            telegramConfig.chatId,
+            messageId,
+            undefined,
+            text,
+            { parse_mode: "HTML" },
+          );
+        },
+        async sendFile(filename, content) {
+          logger(`Sending file ${filename}`);
+          await bot.telegram.sendDocument(telegramConfig.chatId, {
+            source: Buffer.from(content, "utf-8"),
+            filename,
+          });
+        },
+      }
+    : undefined;
 
-  try {
-    /**
-     * Telegram has limit on the number of messages per second.
-     * To avoid getting 429 errors, we wait a bit before sending the edit request.
-     * According to the docs, the limit is 30 messages per second so we should be safe with 250ms.
-     */
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    await bot.telegram.editMessageText(
-      telegramConfig.chatId,
-      message,
-      undefined,
-      newText,
-      {
-        parse_mode: parseMode,
-      },
-    );
-  } catch (e) {
-    if (canIgnoreTelegramError(e)) {
-      logger(`Ignoring error`, e);
-    } else {
-      throw e;
-    }
-  }
-}
-
-function canIgnoreTelegramError(e: unknown) {
-  return (
-    e instanceof TelegramError &&
-    e.response.description.startsWith("Bad Request: message is not modified")
-  );
-}
+export const reportUpdateIntervalMs = telegramConfig?.updateIntervalMs;
 
 export function sendError(message: unknown, caller: string = "") {
   return send(
     `${caller}\n❌ ${String(
       message instanceof Error
-        ? `${message.message}\n${message.stack}`
+        ? `${formatUnknownError(message)}\n${message.stack}`
         : formatUnknownError(message),
     )}`.trim(),
   );
-}
-
-/**
- * Request an OTP code from the user via Telegram and wait for their response
- */
-export async function requestOtpCode(
-  companyId: string,
-  phoneNumber: string,
-): Promise<string> {
-  if (!bot || !telegramConfig?.chatId || !telegramConfig.enableOtp) {
-    throw new Error("Telegram OTP is not enabled or configured");
-  }
-
-  const requestMessage = await send(
-    `🔐 2FA Authentication Required\n\n` +
-      `Account: ${companyId}\n` +
-      `Please enter the OTP code sent to ${phoneNumber}:\n\n` +
-      `Reply to this message with the code.`,
-  );
-
-  if (!requestMessage) {
-    throw new Error("Failed to send OTP request message");
-  }
-
-  logger("Waiting for OTP code from user...");
-
-  const timeoutSeconds = telegramConfig.otpTimeoutSeconds;
-  const timeoutPromise = waitForAbortSignal(
-    AbortSignal.timeout(timeoutSeconds * 1000),
-  ).catch(() => {
-    throw new Error(
-      `OTP timeout: No response received within ${timeoutSeconds} seconds`,
-    );
-  });
-
-  const responsePromise = new Promise<string>((resolve, reject) => {
-    const handler = (ctx: Context) => {
-      if (ctx.chat?.id?.toString() !== telegramConfig.chatId) {
-        return;
-      }
-
-      if (!ctx.message || !("text" in ctx.message)) {
-        return;
-      }
-
-      const text = ctx.message.text?.trim();
-      if (!text) {
-        return;
-      }
-
-      logger(`Received OTP code: ${text}`);
-      void ctx.reply("✅ OTP code received. Continuing authentication...");
-
-      resolve(text);
-    };
-
-    bot.on(message("text"), handler);
-
-    bot
-      .launch(() => {
-        logger("Bot launched for OTP collection");
-      })
-      .catch((error) => {
-        if (!error.message.includes("already running")) {
-          sendError(error, "requestOtpCode");
-          reject(
-            new Error(`Failed to start Telegram bot for OTP: ${error.message}`),
-          );
-        }
-      });
-  });
-
-  try {
-    return await Promise.race([responsePromise, timeoutPromise]);
-  } finally {
-    bot.stop();
-  }
 }

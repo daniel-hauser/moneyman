@@ -1,6 +1,5 @@
 import * as actualApi from "@actual-app/api";
-import type { ImportTransactionEntity } from "@actual-app/core/@types/src/types/models/index.js";
-import { hash } from "hash-it";
+import { stableHash } from "./utils.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import assert from "node:assert";
 import fs from "node:fs/promises";
@@ -13,6 +12,9 @@ import { formatUnknownError } from "../../utils/utils.js";
 import { createSaveStats, SaveStats } from "../saveStats.js";
 
 const logger = createLogger("ActualBudgetStorage");
+type ImportTransactionEntity = Parameters<
+  typeof actualApi.importTransactions
+>[1][number];
 
 export class ActualBudgetStorage implements TransactionStorage {
   private bankToActualAccountMap = new Map<string, string>();
@@ -198,6 +200,10 @@ export class ActualBudgetStorage implements TransactionStorage {
     tx: TransactionRow,
     actualAccountId: string,
   ): ImportTransactionEntity {
+    assert(
+      tx.chargedAmount !== null,
+      "Cannot export a null charged amount to Actual Budget",
+    );
     const amount = actualApi.utils.amountToInteger(tx.chargedAmount);
 
     return {
@@ -206,11 +212,11 @@ export class ActualBudgetStorage implements TransactionStorage {
       amount,
       payee_name: tx.description,
       cleared: tx.status === TransactionStatuses.Completed,
-      imported_id: hash(
+      imported_id: stableHash(
         this.config.options.scraping.transactionHashType === "moneyman"
           ? tx.uniqueId
           : tx.hash,
-      ).toString(),
+      ),
       notes: tx.memo,
     };
   }

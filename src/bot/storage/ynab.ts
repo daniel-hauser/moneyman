@@ -2,7 +2,7 @@ import { TransactionRow, TransactionStorage } from "../../types.js";
 import { createLogger } from "../../utils/logger.js";
 import { format, parseISO } from "date-fns";
 import * as ynab from "ynab";
-import { hash } from "hash-it";
+import { stableHash } from "./utils.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { sendDeprecationMessage } from "../deprecationManager.js";
 import { createSaveStats } from "../saveStats.js";
@@ -95,7 +95,10 @@ export class YNABStorage implements TransactionStorage {
       stats.existing = resp.data.duplicate_import_ids?.length ?? 0;
 
       if (this.config.options.scraping.transactionHashType !== "moneyman") {
-        sendDeprecationMessage("hashFiledChange");
+        sendDeprecationMessage(
+          "hashFiledChange",
+          this.config.options.scraping.hiddenDeprecations,
+        );
       }
     }
 
@@ -119,6 +122,10 @@ export class YNABStorage implements TransactionStorage {
     tx: TransactionRow,
     accountId: string,
   ): ynab.SaveTransactionWithIdOrImportId {
+    assert(
+      tx.chargedAmount !== null,
+      "Cannot export a null charged amount to YNAB",
+    );
     const amount = Math.round(tx.chargedAmount * 1000);
 
     return {
@@ -132,11 +139,11 @@ export class YNABStorage implements TransactionStorage {
           ? ynab.TransactionClearedStatus.Cleared
           : undefined,
       approved: false,
-      import_id: hash(
+      import_id: stableHash(
         this.config.options.scraping.transactionHashType === "moneyman"
           ? tx.uniqueId
           : tx.hash,
-      ).toString(),
+      ),
       memo: tx.memo,
     };
   }

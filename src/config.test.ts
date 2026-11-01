@@ -1,10 +1,21 @@
 import { jest } from "@jest/globals";
 import { mock } from "jest-mock-extended";
+import { subDays } from "date-fns";
 import type { Telegraf } from "telegraf";
-import { BooleanEnvVarSchema, MoneymanConfigSchema } from "./config.schema.js";
+import {
+  BooleanEnvVarSchema,
+  MoneymanConfigSchema,
+  NotificationOptionsSchema,
+  SchedulingOptionsSchema,
+} from "./config.schema.js";
 
 jest.mock("dotenv/config", () => ({}));
 jest.mock("telegraf", () => ({ Telegraf: mock<Telegraf>() }));
+const configLogger = jest.fn();
+jest.mock("./utils/logger.js", () => ({
+  createLogger: () => configLogger,
+  logToPublicLog: jest.fn(),
+}));
 
 describe("config", () => {
   let originalEnv: NodeJS.ProcessEnv;
@@ -12,10 +23,22 @@ describe("config", () => {
   beforeEach(() => {
     originalEnv = process.env;
     jest.resetModules();
+    configLogger.mockClear();
   });
 
   afterEach(() => {
     process.env = originalEnv;
+  });
+
+  it("should default and clamp the telegram updateIntervalMs", () => {
+    const parse = (extra: object) =>
+      NotificationOptionsSchema.parse({
+        telegram: { apiKey: "key", chatId: "1", ...extra },
+      }).telegram?.updateIntervalMs;
+
+    expect(parse({})).toBe(500);
+    expect(parse({ updateIntervalMs: 1000 })).toBe(1000);
+    expect(parse({ updateIntervalMs: 10 })).toBe(250);
   });
 
   it("should parse empty config using defaults", () => {
@@ -26,6 +49,35 @@ describe("config", () => {
     expect(parsed.options.scraping.daysBack).toBe(10);
     expect(parsed.options.scraping.includeRawTransaction).toBe(false);
     expect(parsed.options.logging.getIpInfoUrl).toBe("https://ipinfo.io/json");
+  });
+
+  it.each([
+    [{}, true],
+    [{ sendReportFileToTelegram: true }, true],
+    [{ sendReportFileToTelegram: false }, false],
+  ])("preserves the report attachment setting %j", (extra, expected) => {
+    const parsed = NotificationOptionsSchema.parse({
+      telegram: { apiKey: "test-token", chatId: "1", ...extra },
+    });
+    expect(parsed.telegram?.sendReportFileToTelegram).toBe(expected);
+    expect(parsed.telegram?.sendLogFileToTelegram).toBe(true);
+  });
+
+  it("does not configure Telegram when omitted", () => {
+    expect(NotificationOptionsSchema.parse({}).telegram).toBeUndefined();
+  });
+
+  it("should allow manual-only runs or a valid cron schedule", () => {
+    expect(SchedulingOptionsSchema.parse({})).toEqual({});
+    for (const cron of ["0 9,21 * * *", "*/15 * * * *", "0 30 21 * * 1-5"]) {
+      expect(SchedulingOptionsSchema.parse({ cron })).toEqual({ cron });
+    }
+  });
+
+  it("should reject invalid cron schedules", () => {
+    for (const cron of ["", "09:00", "60 9 * * *", "0 24 * * *", "nope"]) {
+      expect(SchedulingOptionsSchema.safeParse({ cron }).success).toBe(false);
+    }
   });
 
   it("should use MONEYMAN_CONFIG when provided", async () => {
@@ -64,6 +116,75 @@ describe("config", () => {
     expect(config.options.notifications.telegram?.apiKey).toBe("config-key");
     expect(config.options.notifications.telegram?.chatId).toBe(
       "config-chat-id",
+    );
+  });
+
+  it("builds narrow worker inputs from the per-run snapshot while keeping startup OTP infrastructure", async () => {
+    process.env = {
+      ...originalEnv,
+      MONEYMAN_CONFIG: JSON.stringify({
+        options: {
+          notifications: {
+            telegram: {
+              apiKey: "startup-token",
+              chatId: "123",
+              enableOtp: true,
+            },
+          },
+        },
+      }),
+    };
+    const { getScraperConfig } = await import("./config.js");
+    const snapshot = MoneymanConfigSchema.parse({
+      accounts: [
+        { companyId: "hapoalim", password: "fresh-bank" },
+        { companyId: "leumi", password: "excluded-bank" },
+      ],
+      storage: {
+        webPost: {
+          url: "https://storage.test",
+          authorizationToken: "storage-secret",
+        },
+      },
+      options: {
+        scraping: {
+          accountsToScrape: ["hapoalim"],
+          daysBack: 23,
+          futureMonths: 4,
+          maxParallelScrapers: 3,
+          additionalTransactionInfo: true,
+          includeRawTransaction: true,
+          puppeteerExecutablePath: "fresh-browser",
+          domainTracking: true,
+        },
+        security: {
+          blockByDefault: true,
+          firewallSettings: ["hapoalim ALLOW bank.test"],
+        },
+      },
+    });
+    const before = Date.now();
+    const settings = getScraperConfig(snapshot);
+    expect(settings).toMatchObject({
+      accounts: [snapshot.accounts[0]],
+      futureMonthsToScrape: 4,
+      parallelScrapers: 3,
+      additionalTransactionInformation: true,
+      includeRawTransaction: true,
+      executablePath: "fresh-browser",
+      domainTracking: true,
+      firewallSettings: ["hapoalim ALLOW bank.test"],
+      blockByDefault: true,
+      enableOtp: true,
+    });
+    expect(settings.startDate.getTime()).toBeGreaterThanOrEqual(
+      subDays(before, 23).getTime(),
+    );
+    expect(settings.startDate.getTime()).toBeLessThanOrEqual(
+      subDays(Date.now(), 23).getTime(),
+    );
+    expect(JSON.stringify(settings)).not.toMatch(
+      /storage-secret|startup-token|excluded-bank/,
     );
   });
 

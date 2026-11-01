@@ -10,17 +10,21 @@ COPY patches ./patches
 RUN npm ci
 
 COPY src ./src
+COPY report ./report
 
 RUN npm run build && \
     npm prune --omit=dev && \
     npm cache clean --force && \
-    rm -rf src
+    rm -rf src report
 
 FROM node:25-slim AS runner
+
+ARG MONEYMAN_BUILD_SHA=unknown
 
 ENV NODE_ENV=production
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV MONEYMAN_BUILD_SHA=$MONEYMAN_BUILD_SHA
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -36,6 +40,7 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/package-lock.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dst ./dst
+COPY .env.schema ./
 COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/
 
 ENV MONEYMAN_UNSAFE_STDOUT=false

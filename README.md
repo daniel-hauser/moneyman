@@ -32,9 +32,12 @@ Since logs are public for public repos, most logs are off by default and the pro
 #### Setup
 
 1. Fork the [moneyman](https://github.com/daniel-hauser/moneyman) repo to your account
-2. Add the `MONEYMAN_CONFIG` to the [actions secrets](../../settings/secrets/actions) of the forked repo
-   - Use [`config.example.jsonc`](./config.example.jsonc) as a starting point and add configurations for your selected storage
-   - For better logging, add the [Telegram configuration](./docs/telegram-notifications.md) so moneyman can send private logs and errors
+2. Add `MONEYMAN_CONFIG` to the [actions secrets](../../settings/secrets/actions) of the forked repo, or configure a supported secret provider
+
+- Use [`config.example.jsonc`](./config.example.jsonc) as a starting point and add configurations for your selected storage
+- See [Secret providers](./docs/secret-providers.md) for Bitwarden Secrets Manager and the provider integration model
+- For better logging, add the [Telegram configuration](./docs/telegram-notifications.md) so moneyman can send private logs and errors
+
 3. Build and upload the Docker image using the "Run workflow" button in [workflows/build.yml](../../actions/workflows/build.yml)
 4. Wait for the [scrape workflow](../../actions/workflows/scrape.yml) to be triggered by GitHub
 
@@ -83,6 +86,33 @@ By default, the Docker image is configured with `MONEYMAN_UNSAFE_STDOUT=false` t
 
 Logs sent to `logToPublicLog` bypass the redirection and will appear in the Docker logs.
 
+#### Long running mode
+
+By default the container scrapes once and exits, which is meant to be triggered by an external
+scheduler (GitHub Actions, cron, ...). Set `MONEYMAN_LONG_RUNNING=true` to keep the container
+alive instead:
+
+- it runs automatically using [`options.scheduling.cron`](#other-configurations), e.g. `"0 9,21 * * *"` for 09:00 and 21:00 daily (in the `TZ` of the container)
+- it accepts `/scrape` and `/status` commands in your Telegram chat, so you can trigger a run on
+  demand without waiting for the schedule
+- [provider-backed secrets](./docs/secret-providers.md#rotation-and-failure-behavior) refresh before each scrape; `/refresh_secrets` also refreshes them on demand without scraping
+- the Telegram bot stays connected between runs, so no external cron and no `docker start` is needed
+
+```yaml
+services:
+  moneyman:
+    image: ghcr.io/daniel-hauser/moneyman:latest
+    environment:
+      MONEYMAN_LONG_RUNNING: "true"
+      MONEYMAN_CONFIG_PATH: /config/config.json
+      TZ: Asia/Jerusalem
+    volumes:
+      - ./config:/config
+    restart: unless-stopped
+```
+
+See [Telegram Notifications](./docs/telegram-notifications.md#commands) for the available commands.
+
 </details>
 
 ### Debug
@@ -95,10 +125,13 @@ To enable debug output, set the `DEBUG` environment variable to `moneyman:*`.
 
 ### Accounts
 
-Moneyman uses a JSON configuration for all settings. You can provide configuration in two ways:
+Moneyman uses a JSON configuration for all settings. You can provide configuration in three ways:
 
-1. **`MONEYMAN_CONFIG` environment variable**: The JSON configuration as a string
-2. **`MONEYMAN_CONFIG_PATH` environment variable**: Path to a JSON or JSONC configuration file
+1. **`MONEYMAN_CONFIG_SECRET` environment variable**: A provider descriptor used to load the complete config at startup; see [Secret providers](./docs/secret-providers.md)
+2. **`MONEYMAN_CONFIG` environment variable**: The JSON configuration as a string
+3. **`MONEYMAN_CONFIG_PATH` environment variable**: Path to a JSON or JSONC configuration file
+
+The sources are listed in precedence order. Lower-priority sources remain available when `MONEYMAN_CONFIG_SECRET` is not set.
 
 The configuration file approach is recommended for Docker/Kubernetes environments and supports JSON with Comments (JSONC) for better readability.
 
@@ -121,14 +154,16 @@ accounts: Array<{
 
 #### Other configurations
 
-| env variable name        | default               | description                                                                                           |
-| ------------------------ | --------------------- | ----------------------------------------------------------------------------------------------------- |
-| `TZ`                     | `'Asia/Jerusalem'`    | A timezone for the process - used for the formatting of the timestamp                                 |
-| `MONEYMAN_CONFIG`        |                       | The JSON configuration for the process                                                                |
-| `MONEYMAN_CONFIG_PATH`   |                       | Path to a JSON/JSONC configuration file (used if `MONEYMAN_CONFIG` is not set)                        |
-| `SEND_NEW_CONFIG_TO_TG`  | `"false"`             | Set to `"true"` to send the current configuration as `config.txt` via Telegram for debugging purposes |
-| `MONEYMAN_UNSAFE_STDOUT` | `"false"`             | Set to `"true"` to allow sensitive data to be printed to stdout instead of a log file                 |
-| `MONEYMAN_LOG_FILE_PATH` | `"/tmp/moneyman.log"` | The file path where logs are stored when `MONEYMAN_UNSAFE_STDOUT` is set to `"false"`                 |
+| env variable name        | default               | description                                                                                              |
+| ------------------------ | --------------------- | -------------------------------------------------------------------------------------------------------- |
+| `TZ`                     | `'Asia/Jerusalem'`    | A timezone for the process - used for the formatting of the timestamp                                    |
+| `MONEYMAN_CONFIG`        |                       | The JSON configuration for the process                                                                   |
+| `MONEYMAN_CONFIG_PATH`   |                       | Path to a JSON/JSONC configuration file (used if `MONEYMAN_CONFIG` is not set)                           |
+| `MONEYMAN_CONFIG_SECRET` |                       | JSON descriptor for resolving the configuration from a supported secret provider                         |
+| `SEND_NEW_CONFIG_TO_TG`  | `"false"`             | Set to `"true"` to send the current configuration as `config.txt` via Telegram for debugging purposes    |
+| `MONEYMAN_LONG_RUNNING`  | `"false"`             | Set to `"true"` to keep running after the first scrape: runs on a schedule and accepts Telegram commands |
+| `MONEYMAN_UNSAFE_STDOUT` | `"false"`             | Set to `"true"` to allow sensitive data to be printed to stdout instead of a log file                    |
+| `MONEYMAN_LOG_FILE_PATH` | `"/tmp/moneyman.log"` | The file path where logs are stored when `MONEYMAN_UNSAFE_STDOUT` is set to `"false"`                    |
 
 ```typescript
 options: {
@@ -184,6 +219,15 @@ options: {
      * @default "https://ipinfo.io/json"
      */
     getIpInfoUrl?: string;
+  };
+  scheduling: {
+    /**
+     * Cron expression, in the timezone of the process (`TZ`), for long running mode
+     * (`MONEYMAN_LONG_RUNNING=true`). Uses node-cron syntax (five fields, or six
+     * with seconds). For example, "0 9,21 * * *" runs daily at 09:00 and 21:00.
+     * Omit to only run on demand from Telegram.
+     */
+    cron?: string;
   };
 };
 ```
