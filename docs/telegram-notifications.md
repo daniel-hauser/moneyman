@@ -69,13 +69,13 @@ When moneyman runs in [long running mode](../README.md#long-running-mode)
 (`MONEYMAN_LONG_RUNNING=true`) it stays connected to Telegram and listens for commands.
 Only the configured `chatId` can use them — messages from any other chat are ignored.
 
-| Command            | Description                                                                                        |
-| ------------------ | -------------------------------------------------------------------------------------------------- |
-| `/scrape`          | Run a scrape right now (`/fetch` works as an alias)                                                |
-| `/scrape_provider` | Pick one provider/account and scrape only it                                                       |
-| `/refresh_secrets` | Refresh the secret-provider configuration without starting a scrape                                |
-| `/status`          | Report whether a scrape is running, how the last one ended and when the next scheduled run happens |
-| `/help`            | List the available commands                                                                        |
+| Command            | Description                                                                                                                             |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `/scrape`          | Run a scrape right now (`/fetch` works as an alias)                                                                                     |
+| `/scrape_provider` | Pick one provider/account and scrape only it                                                                                            |
+| `/refresh_secrets` | Refresh the secret-provider configuration without starting a scrape                                                                     |
+| `/status`          | Report whether a scrape is running, how the last one ended (naming the accounts that failed it) and when the next scheduled run happens |
+| `/help`            | List the available commands                                                                                                             |
 
 `/scrape` replies immediately, then progress and the summary are sent to the same chat while the
 scrape runs. Errors and screenshots are included in the final HTML report. Automatic runs are configured with

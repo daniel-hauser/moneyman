@@ -39,8 +39,20 @@ export type CommandHandlers = {
   listAccounts?: () => Promise<AccountChoice[]>;
 };
 
+/**
+ * The `/status` reply: what the process is doing, how the last run ended —
+ * naming the accounts that failed it, so a re-scrape of the right one needs no
+ * digging into the report — and when the next scheduled run is due. Labels come
+ * from `listAccounts`, the same ones the picker shows.
+ */
 export async function formatStatus(
-  handlers: Pick<CommandHandlers, "isRunning" | "getLastRun" | "getNextRunAt">,
+  handlers: Pick<
+    CommandHandlers,
+    "isRunning" | "getLastRun" | "getNextRunAt"
+  > & {
+    /** Account labels, when available: without them failures stay unnamed */
+    listAccounts?: CommandHandlers["listAccounts"];
+  },
 ): Promise<string> {
   const lines = [
     (await handlers.isRunning())
@@ -57,6 +69,27 @@ export async function formatStatus(
         (lastRun.endedAt.getTime() - lastRun.startedAt.getTime()) / 1000,
       )}s`,
     );
+
+    const failedIds = lastRun.failedAccountIds ?? [];
+    if (lastRun.failed && failedIds.length) {
+      const choices = await handlers.listAccounts?.();
+      if (!choices) {
+        lines.push(`\tFailed: ${failedIds.length} account(s)`);
+      } else {
+        // An account that failed but is no longer configured has no label left
+        const gone = failedIds.filter(
+          (id) => !choices.some((choice) => choice.id === id),
+        ).length;
+        lines.push(
+          `\tFailed: ${[
+            ...choices
+              .filter(({ failedLastRun }) => failedLastRun)
+              .map(({ label }) => label),
+            ...(gone > 0 ? [`${gone} no longer configured`] : []),
+          ].join(", ")}`,
+        );
+      }
+    }
   } else {
     lines.push("No run finished in this process yet");
   }

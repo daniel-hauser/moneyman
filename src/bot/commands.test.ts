@@ -131,6 +131,7 @@ describe("commands", () => {
         isRunning: async () => false,
         getLastRun: () => undefined,
         getNextRunAt: () => undefined,
+        listAccounts: async () => [],
       });
 
       expect(status).toContain("😴 Idle");
@@ -143,6 +144,7 @@ describe("commands", () => {
         isRunning: async () => true,
         getLastRun: () => undefined,
         getNextRunAt: () => new Date("2026-03-01T21:00:00"),
+        listAccounts: async () => [],
       });
 
       expect(status).toContain("🔄 A scrape is running right now");
@@ -159,10 +161,60 @@ describe("commands", () => {
           failed: true,
         }),
         getNextRunAt: () => undefined,
+        listAccounts: async () => [],
       });
 
       expect(status).toContain("❌ Last run (manual)");
       expect(status).toContain("took 120s");
+    });
+
+    it("names the accounts that failed the last run", async () => {
+      const status = await formatStatus({
+        isRunning: async () => false,
+        getLastRun: () => ({
+          trigger: "manual",
+          startedAt: new Date("2026-03-01T09:00:00"),
+          endedAt: new Date("2026-03-01T09:02:00"),
+          failed: true,
+          failedAccountIds: ["aaa1", "bbb2", "ccc3"],
+        }),
+        getNextRunAt: () => undefined,
+        // Labels are the picker's, so both surfaces name an account alike
+        listAccounts: async () => [
+          {
+            id: "aaa1",
+            label: "isracard · •••111 · n••• #aaa1",
+            failedLastRun: true,
+          },
+          { id: "bbb2", label: "hapoalim · ••••user", failedLastRun: true },
+          { id: "ddd4", label: "max · ••7890", failedLastRun: false },
+        ],
+      });
+
+      expect(status).toContain(
+        "\tFailed: isracard · •••111 · n••• #aaa1, hapoalim · ••••user, 1 no longer configured",
+      );
+      // Nothing that did not fail
+      expect(status).not.toContain("max");
+    });
+
+    it("adds no failure line to a run that succeeded", async () => {
+      const listAccounts = jest.fn().mockResolvedValue([]);
+      const status = await formatStatus({
+        isRunning: async () => false,
+        getLastRun: () => ({
+          trigger: "scheduled",
+          startedAt: new Date("2026-03-01T09:00:00"),
+          endedAt: new Date("2026-03-01T09:02:00"),
+          failed: false,
+        }),
+        getNextRunAt: () => undefined,
+        listAccounts,
+      });
+
+      expect(status).toContain("✅ Last run (scheduled)");
+      expect(status).not.toContain("Failed:");
+      expect(listAccounts).not.toHaveBeenCalled();
     });
   });
 
