@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type { AccountConfig } from "../types.js";
 
 /**
@@ -94,11 +94,67 @@ export function accountLabel(account: AccountConfig): string {
 }
 
 /**
+ * Key for the account id: random per process and never transmitted.
+ *
+ * The id travels in Telegram callback data next to a masked label, and several
+ * identity fields are short and low entropy (a six-digit card prefix, a four
+ * digit code), so an unkeyed digest of them can be enumerated offline to
+ * recover what the label hides. A process-lifetime key keeps the id stable for
+ * as long as it is needed — a keyboard sent earlier in the same process still
+ * resolves after a config reload — without a reusable digest, and it needs no
+ * configuration or key management. After a restart an old keyboard resolves to
+ * nothing and is refused, which starts no run.
+ */
+const ACCOUNT_ID_KEY = randomBytes(32);
+
+/**
+ * Labels for a set of configured accounts, keyed by account id, computed once
+ * so a picker button, a run filtered to one account and a full run all name an
+ * account the same way.
+ *
+ * Labels that read alike — masking is lossy — get a short, id-derived suffix,
+ * and only those. The ids behind them are distinct, which is what makes a
+ * suffix enough; a suffix that would collide with a label already in use falls
+ * back to a longer id prefix.
+ */
+export function accountLabels(
+  accounts: readonly AccountConfig[],
+): Map<string, string> {
+  const base = new Map<string, string>();
+  for (const account of accounts) {
+    const id = accountId(account);
+    if (!base.has(id)) base.set(id, accountLabel(account));
+  }
+
+  const counts = new Map<string, number>();
+  for (const label of base.values()) {
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+
+  const taken = new Set(base.values());
+  const labels = new Map<string, string>();
+  for (const [id, label] of base) {
+    let chosen = label;
+    if ((counts.get(label) ?? 0) > 1) {
+      for (const length of [4, 8, 12] as const) {
+        const candidate = `${label} #${id.slice(0, length)}`;
+        if (!taken.has(candidate)) {
+          chosen = candidate;
+          break;
+        }
+      }
+    }
+    taken.add(chosen);
+    labels.set(id, chosen);
+  }
+  return labels;
+}
+
+/**
  * A stable id for a configured account, derived from its provider and every
  * non-secret login field, so two accounts of one provider that differ in any
- * of them stay distinct. It survives a config reload (long running mode
- * refreshes accounts between runs) and is what a scrape selection carries, so
- * a picker tap cannot be resolved to the wrong account when positions shift.
+ * of them stay distinct. It is what a scrape selection carries, so a picker tap
+ * cannot be resolved to the wrong account when positions shift.
  *
  * Accounts that are identical in every non-secret login field share an id and
  * are therefore selected together — the only thing left to tell them apart is
@@ -109,6 +165,7 @@ export function accountId(account: AccountConfig): string {
     .map(({ field, value }) => `${field}=${value}`)
     .join("\u0000");
   return createHash("sha256")
+    .update(ACCOUNT_ID_KEY)
     .update(`${account.companyId}\u0000${identity}`)
     .digest("hex")
     .slice(0, 12);

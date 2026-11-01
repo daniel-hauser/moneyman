@@ -96,8 +96,15 @@ loaded configuration — accounts that only appear after a secret-provider refre
 moneyman restarts. A tap replaces the keyboard with the run's outcome, so the picker has to be
 re-opened for another account, and selecting an account that is no longer configured starts no run.
 
-The run summary and the HTML report name the account (`❌ [isracard · ••3456] …`) instead of only the
-provider, which is how a single failing account of a multi-account provider can be told apart.
+The run summary and the HTML report name the account (`❌ [isracard · •••111 · n•••] …`) instead of only the
+provider, which is how a single failing account of a multi-account provider can be told apart. Labels are
+built once from the configured accounts, suffixing included, so a button, the run it starts and the report
+all name an account the same way — a filtered run included.
+
+The selection a button carries is an opaque, per-process keyed digest of the account's non-secret login
+fields: stable for as long as the process runs (a config reload included, so a keyboard sent before it still
+resolves), and not derivable from the payload, which a bare digest of a short identifier would be. After a
+restart an older keyboard resolves to nothing and is refused, which starts no run.
 The scrape runs with the same windows as a full run (`options.scraping.daysBack` and
 `options.scraping.futureMonths`), and a selection is narrowed by `options.scraping.accountsToScrape`
 as well.

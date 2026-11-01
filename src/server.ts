@@ -8,7 +8,7 @@ import {
   sendError,
 } from "./bot/notifier.js";
 import { registerCommands, type AccountChoice } from "./bot/commands.js";
-import { accountId, accountLabel } from "./utils/accountLabel.js";
+import { accountId, accountLabels } from "./utils/accountLabel.js";
 import type { RunHandle, RunOptions, RunStatus, RunTrigger } from "./types.js";
 import { aborted } from "node:util";
 
@@ -73,19 +73,12 @@ export async function startServer({
    */
   async function listAccounts(): Promise<Array<AccountChoice>> {
     const failed = new Set(getLastRun()?.failedAccountIds ?? []);
-    const seen = new Set<string>();
-    const choices: Array<AccountChoice> = [];
-    for (const account of getAccounts(config)) {
-      const id = accountId(account);
-      if (seen.has(id)) continue;
-      seen.add(id);
-      choices.push({
-        id,
-        label: accountLabel(account),
-        failedLastRun: failed.has(id),
-      });
-    }
-    return choices;
+    // The same map a run gets, so a button and the run it starts agree
+    return [...accountLabels(getAccounts(config))].map(([id, label]) => ({
+      id,
+      label,
+      failedLastRun: failed.has(id),
+    }));
   }
 
   const configuredAccountIds = new Set(

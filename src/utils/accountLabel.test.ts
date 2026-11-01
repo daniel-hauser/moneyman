@@ -1,5 +1,5 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
-import { accountId, accountLabel } from "./accountLabel.js";
+import { accountId, accountLabel, accountLabels } from "./accountLabel.js";
 import type { AccountConfig } from "../types.js";
 
 const account = (fields: Record<string, unknown>) =>
@@ -72,6 +72,55 @@ describe("accountLabel", () => {
       expect(masked).toContain("•");
     },
   );
+
+  describe("accountLabels", () => {
+    it("keys labels by account id", () => {
+      const first = account({ card6Digits: "111111" });
+      const labels = accountLabels([first, account({ card6Digits: "222222" })]);
+
+      expect(labels.size).toBe(2);
+      expect(labels.get(accountId(first))).toBe("isracard · •••111");
+    });
+
+    it("collapses accounts that are identical in every non-secret field", () => {
+      const labels = accountLabels([
+        account({ card6Digits: "111111" }),
+        account({ card6Digits: "111111", password: "a-different-one" }),
+      ]);
+
+      expect(labels.size).toBe(1);
+    });
+
+    it("suffixes only the labels that read alike", () => {
+      const colliding = account({ card6Digits: "111111" });
+      const sameMask = account({ card6Digits: "222111" });
+      const other = account({ card6Digits: "999999" });
+
+      const labels = accountLabels([colliding, sameMask, other]);
+
+      // The collision is real, and only these two carry a suffix
+      expect(accountLabel(colliding)).toBe(accountLabel(sameMask));
+      expect(labels.get(accountId(other))).toBe("isracard · •••999");
+      for (const one of [colliding, sameMask]) {
+        expect(labels.get(accountId(one))).toBe(
+          `isracard · •••111 #${accountId(one).slice(0, 4)}`,
+        );
+      }
+    });
+
+    it("labels a whole set uniquely whenever the ids are unique", () => {
+      const accounts = [
+        account({ card6Digits: "111111", id: "012345678" }),
+        account({ card6Digits: "222111", id: "012345678" }),
+        account({ card6Digits: "111111", username: "noam" }),
+        account({ username: "noam" }),
+      ];
+      const labels = accountLabels(accounts);
+
+      expect(labels.size).toBe(accounts.length);
+      expect(new Set(labels.values()).size).toBe(accounts.length);
+    });
+  });
 
   it("never exposes the password", () => {
     const label = accountLabel(

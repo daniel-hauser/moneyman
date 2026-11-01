@@ -31,6 +31,7 @@ export const scraperOptions: Partial<ScraperOptions> = {
 export async function scrapeAccounts(
   {
     accounts,
+    accountLabels,
     startDate,
     futureMonthsToScrape,
     parallelScrapers,
@@ -86,6 +87,7 @@ export async function scrapeAccounts(
             async () =>
               scrapeAccount(
                 account,
+                accountLabels?.[accountId(account)],
                 {
                   // Safe to remove when israeli-bank-scrapers upgrades to puppeteer 25+
                   browserContext: (await createSecureBrowserContext(
@@ -176,6 +178,7 @@ function getStats(results: Array<AccountScrapeResult>) {
 
 async function scrapeAccount(
   account: AccountConfig,
+  label: string | undefined,
   scraperOptions: ScraperOptions,
   setStatusMessage: (message: string, append?: boolean) => Promise<void>,
   requestOtpCode?: OtpRequest,
@@ -196,7 +199,7 @@ async function scrapeAccount(
 
   return {
     companyId: account.companyId,
-    accountLabel: accountLabel(account),
+    accountLabel: label ?? accountLabel(account),
     accountId: accountId(account),
     result,
   };

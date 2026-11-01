@@ -1,10 +1,5 @@
 import { Context, Telegram, Telegraf } from "telegraf";
-import {
-  CommandHandlers,
-  disambiguateLabels,
-  formatStatus,
-  registerCommands,
-} from "./commands.js";
+import { CommandHandlers, formatStatus, registerCommands } from "./commands.js";
 import { createBot, isAuthorizedChat } from "./bot.js";
 
 jest.mock("../config.js", () => ({
@@ -394,23 +389,23 @@ describe("commands", () => {
       expect(replies()[0]).not.toContain("/scrape_provider");
     });
 
-    it("suffixes the labels that would read alike, and leaves the others alone", async () => {
-      const colliding = [
+    it("renders the labels it is given, verbatim", async () => {
+      const choices = [
         {
           id: "aaa11111",
-          label: "isracard · ••1111 · n•••",
+          label: "isracard · •••111 · n••• #aaa1",
           failedLastRun: true,
         },
         {
           id: "bbb22222",
-          label: "isracard · ••1111 · n•••",
+          label: "isracard · •••111 · n••• #bbb2",
           failedLastRun: false,
         },
         { id: "ccc33333", label: "max · ••7890", failedLastRun: false },
       ];
       const { send, replyMarkups } = registerBot(
         createHandlers({
-          listAccounts: jest.fn().mockResolvedValue(colliding),
+          listAccounts: jest.fn().mockResolvedValue(choices),
         }),
       );
 
@@ -421,9 +416,8 @@ describe("commands", () => {
           ([button]) => button.text,
         ),
       ).toEqual([
-        "❌ isracard · ••1111 · n••• #aaa1",
-        "▶️ isracard · ••1111 · n••• #bbb2",
-        // Nothing to disambiguate: unchanged
+        "❌ isracard · •••111 · n••• #aaa1",
+        "▶️ isracard · •••111 · n••• #bbb2",
         "▶️ max · ••7890",
       ]);
       expect(
@@ -437,18 +431,18 @@ describe("commands", () => {
       ]);
     });
 
-    it("names the tapped account with the same suffix the button had", async () => {
+    it("names the tapped account exactly as its button did", async () => {
       const { tap, edits } = registerBot(
         createHandlers({
           listAccounts: jest.fn().mockResolvedValue([
             {
               id: "aaa11111",
-              label: "isracard · ••1111 · n•••",
+              label: "isracard · •••111 · n••• #aaa1",
               failedLastRun: false,
             },
             {
               id: "bbb22222",
-              label: "isracard · ••1111 · n•••",
+              label: "isracard · •••111 · n••• #bbb2",
               failedLastRun: false,
             },
           ]),
@@ -458,18 +452,8 @@ describe("commands", () => {
       await tap("scrape_provider:bbb22222");
 
       expect(edits()[0].text).toBe(
-        "▶️ isracard · ••1111 · n••• #bbb2\n🔄 Starting a scrape now...",
+        "▶️ isracard · •••111 · n••• #bbb2\n🔄 Starting a scrape now...",
       );
-    });
-
-    it("keeps a suffix from colliding with a label that already exists", () => {
-      expect(
-        disambiguateLabels([
-          { id: "aaaa0000", label: "isracard", failedLastRun: false },
-          { id: "bbbb0000", label: "isracard", failedLastRun: false },
-          { id: "cccc0000", label: "isracard #aaaa", failedLastRun: false },
-        ]).map(({ label }) => label),
-      ).toEqual(["isracard #aaaa0000", "isracard #bbbb", "isracard #aaaa"]);
     });
 
     it("lists the command in /help when accounts can be listed", async () => {

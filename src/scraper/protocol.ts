@@ -8,6 +8,8 @@ import type {
 import type { UsedDomains } from "../security/domains.js";
 
 export const WorkerConfigSchema = z.strictObject({
+  /** Account id -> label for the configured accounts, for run results */
+  accountLabels: z.record(z.string(), z.string()).optional(),
   accounts: z.array(
     z
       .looseObject({

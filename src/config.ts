@@ -3,7 +3,7 @@ import { subDays } from "date-fns";
 import { Telegraf } from "telegraf";
 import { readFileSync } from "fs";
 import { AccountConfig } from "./types.js";
-import { accountId } from "./utils/accountLabel.js";
+import { accountId, accountLabels } from "./utils/accountLabel.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 import { loadConfigSecretSync } from "./configSecret.js";
 import { parseJsoncConfig } from "./utils/jsonc.js";
@@ -130,6 +130,9 @@ export function getScraperConfig(
       accountIds && accountIds.length
         ? accounts.filter((account) => accountIds.includes(accountId(account)))
         : accounts,
+    // From the whole configured set, so a filtered run names an account the
+    // same way the picker that selected it did
+    accountLabels: Object.fromEntries(accountLabels(accounts)),
     startDate: subDays(Date.now(), snapshot.options.scraping.daysBack),
     parallelScrapers: snapshot.options.scraping.maxParallelScrapers,
     futureMonthsToScrape: snapshot.options.scraping.futureMonths,

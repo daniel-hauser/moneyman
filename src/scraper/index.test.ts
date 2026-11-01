@@ -5,6 +5,7 @@ import { scrapeAccounts } from "./index.js";
 import { createBrowser, createSecureBrowserContext } from "./browser.js";
 import { getAccountTransactions } from "./scrape.js";
 import type { RunTiming, ScraperConfig } from "../types.js";
+import { accountId } from "../utils/accountLabel.js";
 
 jest.mock("./browser.js", () => ({
   createBrowser: jest.fn(),
@@ -210,6 +211,19 @@ describe("scraper runtime browser lifecycle", () => {
       "isracard · •••111 · •••••5678",
       "isracard · •••222 · •••••5678",
     ]);
+  });
+
+  it("publishes the run's label for an account, when the run carries one", async () => {
+    const account0 = config.accounts[0];
+    const labelled = await scrapeAccounts(
+      {
+        ...config,
+        accountLabels: { [accountId(account0)]: "hapoalim · ••er #4f2a" },
+      },
+      initDomainTracking,
+    );
+
+    expect(labelled[0].accountLabel).toBe("hapoalim · ••er #4f2a");
   });
 
   it("closes the browser when context setup fails", async () => {
