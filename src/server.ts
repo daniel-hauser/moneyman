@@ -1,5 +1,5 @@
 import { schedule } from "node-cron";
-import { config } from "./config.js";
+import { config, getAccounts } from "./config.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 import {
   getTelegramBot,
@@ -7,8 +7,9 @@ import {
   shutdownTelegramBot,
   sendError,
 } from "./bot/notifier.js";
-import { registerCommands } from "./bot/commands.js";
-import type { RunHandle, RunStatus, RunTrigger } from "./types.js";
+import { registerCommands, type AccountChoice } from "./bot/commands.js";
+import { accountId, accountLabels } from "./utils/accountLabel.js";
+import type { RunHandle, RunOptions, RunStatus, RunTrigger } from "./types.js";
 import { aborted } from "node:util";
 
 const logger = createLogger("server");
@@ -19,7 +20,7 @@ const SHUTDOWN_DRAIN_TIMEOUT_MS = 30_000;
 export type SecretRefreshResult = "refreshed" | "failed";
 
 export type ServerRunner = {
-  startRun(trigger: RunTrigger): Promise<RunHandle>;
+  startRun(trigger: RunTrigger, options?: RunOptions): Promise<RunHandle>;
   refreshSecrets?: () => Promise<SecretRefreshResult>;
   isRunning(): Promise<boolean>;
   getLastRun(): RunStatus | undefined;
@@ -45,8 +46,14 @@ export async function startServer({
   let activeRun: Promise<unknown> | undefined;
   let shuttingDown = false;
 
-  async function startTrackedRun(trigger: RunTrigger) {
-    const handle = await startRun(trigger);
+  async function startTrackedRun(
+    trigger: RunTrigger,
+    accountIds?: readonly string[],
+  ) {
+    const handle = await startRun(
+      trigger,
+      accountIds?.length ? { accountIds } : {},
+    );
     if (handle.started) {
       activeRun = handle.finished
         .catch((error) => logger(`${trigger} run failed`, error))
@@ -57,6 +64,26 @@ export async function startServer({
 
     return handle;
   }
+
+  /**
+   * The accounts offered by `/scrape_provider`, in configuration order. Read
+   * from the loaded config; a selection that no longer resolves is rejected
+   * when the run starts, so a stale picker entry cannot scrape the wrong
+   * account.
+   */
+  async function listAccounts(): Promise<Array<AccountChoice>> {
+    const failed = new Set(getLastRun()?.failedAccountIds ?? []);
+    // The same map a run gets, so a button and the run it starts agree
+    return [...accountLabels(getAccounts(config))].map(([id, label]) => ({
+      id,
+      label,
+      failedLastRun: failed.has(id),
+    }));
+  }
+
+  const configuredAccountIds = new Set(
+    getAccounts(config).map((account) => accountId(account)),
+  );
 
   const task = cron
     ? schedule(cron, () => {
@@ -114,6 +141,7 @@ export async function startServer({
   }
 
   registerCommands(bot, {
+    listAccounts,
     refreshSecrets: refreshSecrets
       ? async () => {
           if (shuttingDown) return "🛑 Shutting down, no secret refresh";
@@ -125,10 +153,16 @@ export async function startServer({
           }
         }
       : undefined,
-    async scrape() {
+    async scrape(accountIds?: readonly string[]) {
       if (shuttingDown) return "🛑 Shutting down, no new scrapes";
+      if (
+        accountIds?.length &&
+        !accountIds.some((id) => configuredAccountIds.has(id))
+      ) {
+        return "❌ That account is no longer configured, run /scrape_provider again";
+      }
 
-      const { started, finished } = await startTrackedRun("manual");
+      const { started, finished } = await startTrackedRun("manual", accountIds);
       if (!started) return "⏳ A scrape is already in progress";
 
       finished.catch(async (e) => {

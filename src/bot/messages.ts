@@ -30,10 +30,10 @@ function getAccountsSummary(
 ): string {
   const successfulAccounts = results
     .filter(({ result }) => result.success)
-    .flatMap(({ result, companyId }) =>
+    .flatMap(({ result, companyId, accountLabel }) =>
       result.accounts?.map(
         (account) =>
-          `\t✔️ [${companyId}] ${escapers.HTML(account.accountNumber)}: ${account.txns.length}`,
+          `\t✔️ [${escapers.HTML(accountLabel ?? companyId)}] ${escapers.HTML(account.accountNumber)}: ${account.txns.length}`,
       ),
     )
     .filter((account): account is string => account !== undefined);
@@ -44,8 +44,8 @@ function getAccountsSummary(
     return truncateError(message);
   };
   const errorAccounts = failed.map(
-    ({ result, companyId }) =>
-      `\t❌ [${companyId}] ${result.errorType}${
+    ({ result, companyId, accountLabel }) =>
+      `\t❌ [${escapers.HTML(accountLabel ?? companyId)}] ${result.errorType}${
         result.errorMessage
           ? `\n\t\t${escapers.HTML(shortenError(result.errorMessage).replaceAll("\n", "\n\t\t"))}`
           : ""

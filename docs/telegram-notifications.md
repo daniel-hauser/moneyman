@@ -69,16 +69,38 @@ When moneyman runs in [long running mode](../README.md#long-running-mode)
 (`MONEYMAN_LONG_RUNNING=true`) it stays connected to Telegram and listens for commands.
 Only the configured `chatId` can use them — messages from any other chat are ignored.
 
-| Command            | Description                                                                                        |
-| ------------------ | -------------------------------------------------------------------------------------------------- |
-| `/scrape`          | Run a scrape right now (`/fetch` works as an alias)                                                |
-| `/refresh_secrets` | Refresh the secret-provider configuration without starting a scrape                                |
-| `/status`          | Report whether a scrape is running, how the last one ended and when the next scheduled run happens |
-| `/help`            | List the available commands                                                                        |
+| Command            | Description                                                                                                                             |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `/scrape`          | Run a scrape right now (`/fetch` works as an alias)                                                                                     |
+| `/scrape_provider` | Pick one provider/account and scrape only it                                                                                            |
+| `/refresh_secrets` | Refresh the secret-provider configuration without starting a scrape                                                                     |
+| `/status`          | Report whether a scrape is running, how the last one ended (naming the accounts that failed it) and when the next scheduled run happens |
+| `/help`            | List the available commands                                                                                                             |
 
 `/scrape` replies immediately, then progress and the summary are sent to the same chat while the
 scrape runs. Errors and screenshots are included in the final HTML report. Automatic runs are configured with
 [`options.scheduling.cron`](../README.md#other-configurations).
+
+`/scrape_provider` replies with one button per configured account, so a single provider that failed
+can be scraped again without re-running the others. Buttons show a masked label built from the
+account's login fields (for example `isracard · •••111 · •••••5678`), and accounts that failed in the
+last run are marked ❌. No field is shown in full. Accounts whose labels would read alike get a short
+suffix so every button stays unambiguous, and accounts that are identical in every non-secret login
+field share one button.
+
+The picker lists the accounts of the loaded configuration. Accounts that appear only after a
+secret-provider refresh are listed after moneyman restarts. A tap replaces the keyboard with the run's
+outcome, so open the picker again to scrape another account. Selecting an account that is no longer
+configured starts no run.
+
+The run summary and the HTML report use the same account labels (`❌ [isracard · •••111 · n•••] …`),
+and `/status` names the accounts that failed the last run.
+
+After moneyman restarts, a keyboard sent earlier no longer works and starts no run. Open
+`/scrape_provider` again.
+
+A single-account scrape uses the same windows as a full run (`options.scraping.daysBack` and
+`options.scraping.futureMonths`). `options.scraping.accountsToScrape` still applies to the selection.
 
 `/refresh_secrets` is registered and listed only when a [secret provider](./secret-providers.md) is configured. It fetches and validates bank/storage credentials and per-run settings without changing the running Telegram bot or schedule. Manual refreshes can run alongside scraping or other refreshes without changing an active scrape's configuration. Duplicate scrape requests still receive an already-running response.
 

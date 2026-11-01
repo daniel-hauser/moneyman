@@ -2,6 +2,7 @@ import { mock, mockDeep, type DeepMockProxy } from "jest-mock-extended";
 import { Context, Telegraf } from "telegraf";
 import { schedule } from "node-cron";
 import { startServer, type ServerRunner } from "./server.js";
+import { accountId } from "./utils/accountLabel.js";
 import type { RunStatus } from "./types.js";
 import { getEventListeners } from "node:events";
 import { logToPublicLog } from "./utils/logger.js";
@@ -13,9 +14,27 @@ import {
   sendError,
 } from "./bot/notifier.js";
 
-jest.mock("./config.js", () => ({
-  config: { options: { scheduling: { cron: "0 9 * * *" } } },
-}));
+jest.mock("./config.js", () => {
+  const accounts = [
+    { companyId: "isracard", card6Digits: "111111", password: "first-card" },
+    { companyId: "isracard", card6Digits: "222222", password: "second-card" },
+    { companyId: "hapoalim", userCode: "bankuser", password: "bank" },
+    // Same non-secret fields as the first card: selected together, never apart
+    { companyId: "isracard", card6Digits: "111111", password: "third-card" },
+    // Shares the first login field with that card, but differs in another one:
+    // must stay its own button instead of collapsing into it
+    {
+      companyId: "isracard",
+      card6Digits: "111111",
+      username: "noam",
+      password: "fourth-card",
+    },
+  ];
+  return {
+    config: { accounts, options: { scheduling: { cron: "0 9 * * *" } } },
+    getAccounts: jest.fn(() => accounts),
+  };
+});
 jest.mock("node-cron", () => ({ schedule: jest.fn() }));
 jest.mock("./bot/commands.js", () => ({ registerCommands: jest.fn() }));
 jest.mock("./bot/notifier.js", () => ({
@@ -85,7 +104,7 @@ describe("startServer", () => {
     await expect(handlers().scrape()).resolves.toContain(
       "A scrape is already in progress",
     );
-    expect(runner.startRun).toHaveBeenCalledWith("manual");
+    expect(runner.startRun).toHaveBeenCalledWith("manual", {});
     expect(sendError).not.toHaveBeenCalled();
   });
 
@@ -232,7 +251,115 @@ describe("startServer", () => {
     if (typeof callback !== "function")
       throw new Error("Expected cron callback");
     await callback(mock<Parameters<typeof callback>[0]>());
-    expect(runner.startRun).toHaveBeenCalledWith("scheduled");
+    expect(runner.startRun).toHaveBeenCalledWith("scheduled", {});
+  });
+
+  describe("account picker", () => {
+    const firstCard = accountId({
+      companyId: "isracard",
+      card6Digits: "111111",
+    } as never);
+
+    it("offers every configured account, masking the login field", async () => {
+      await startServer(runner);
+
+      const choices = await handlers().listAccounts!();
+
+      expect(choices).toEqual([
+        { id: firstCard, label: "isracard · •••111", failedLastRun: false },
+        {
+          id: accountId({
+            companyId: "isracard",
+            card6Digits: "222222",
+          } as never),
+          label: "isracard · •••222",
+          failedLastRun: false,
+        },
+        {
+          id: accountId({
+            companyId: "hapoalim",
+            userCode: "bankuser",
+          } as never),
+          label: "hapoalim · ••••user",
+          failedLastRun: false,
+        },
+        // Kept apart by the field the first one does not have, and deduped
+        // against the identical fourth-card entry. Its label shows both
+        // fields, so the two buttons do not read alike.
+        {
+          id: accountId({
+            companyId: "isracard",
+            card6Digits: "111111",
+            username: "noam",
+          } as never),
+          label: "isracard · •••111 · n•••",
+          failedLastRun: false,
+        },
+      ]);
+      expect(new Set(choices.map(({ id }) => id)).size).toBe(choices.length);
+      expect(new Set(choices.map(({ label }) => label)).size).toBe(
+        choices.length,
+      );
+    });
+
+    it("scrapes the account that shares the first login field with another one", async () => {
+      // The picker must be able to select it on its own, not scrape both
+      runner.startRun.mockResolvedValue({
+        started: true,
+        finished: Promise.resolve(undefined),
+      });
+      await startServer(runner);
+      const choice = (await handlers().listAccounts!()).at(-1)!;
+
+      await handlers().scrape([choice.id]);
+
+      expect(runner.startRun).toHaveBeenCalledWith("manual", {
+        accountIds: [choice.id],
+      });
+    });
+
+    it("marks the accounts that failed in the last run", async () => {
+      runner.getLastRun.mockReturnValue({
+        trigger: "manual",
+        startedAt: new Date(),
+        endedAt: new Date(),
+        failed: true,
+        failedAccountIds: [firstCard],
+      });
+
+      await startServer(runner);
+
+      const choices = await handlers().listAccounts!();
+      expect(choices.filter(({ failedLastRun }) => failedLastRun)).toEqual([
+        { id: firstCard, label: "isracard · •••111", failedLastRun: true },
+      ]);
+    });
+
+    it("scrapes only the selected account", async () => {
+      runner.startRun.mockResolvedValue({
+        started: true,
+        finished: Promise.resolve(undefined),
+      });
+      await startServer(runner);
+
+      await expect(handlers().scrape([firstCard])).resolves.toContain(
+        "Scrape started",
+      );
+
+      expect(runner.startRun).toHaveBeenCalledWith("manual", {
+        accountIds: [firstCard],
+      });
+    });
+
+    it("starts no run for a selection that is no longer configured", async () => {
+      await startServer(runner);
+
+      await expect(handlers().scrape(["000000000000"])).resolves.toContain(
+        "no longer configured",
+      );
+
+      expect(runner.startRun).not.toHaveBeenCalled();
+    });
   });
 
   it("logs scheduled run failures and clears tracking before shutdown", async () => {

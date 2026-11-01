@@ -20,6 +20,14 @@ export interface TransactionRow extends Transaction {
 
 export interface AccountScrapeResult {
   companyId: CompanyTypes;
+  /**
+   * Masked label of the account that was scraped, e.g. `isracard · ••3456`.
+   * Set for results produced by the scraper; older callers may omit it and
+   * renderers fall back to `companyId`.
+   */
+  accountLabel?: string;
+  /** Stable id of the account's non-secret login fields, for run selections */
+  accountId?: string;
   result: ScraperScrapingResult;
 }
 
@@ -58,6 +66,10 @@ export type ScraperConfig = {
   futureMonthsToScrape: number;
   parallelScrapers: number;
   accounts: Array<AccountConfig>;
+  /** Account ids, index-aligned with `accounts` (see `accountId()`) */
+  accountIds: Array<string>;
+  /** Account id -> label, from the whole configured account set */
+  accountLabels?: Record<string, string>;
   additionalTransactionInformation: boolean;
   includeRawTransaction: boolean;
 };
@@ -90,11 +102,22 @@ export type Runner = (hooks: RunnerHooks) => Promise<void>;
 
 export type RunTrigger = "manual" | "scheduled" | "startup";
 
+export type RunOptions = {
+  signal?: AbortSignal;
+  /**
+   * Scrape only the accounts with these ids (see `accountId()` in
+   * `utils/accountLabel.ts`). All configured accounts when omitted or empty.
+   */
+  accountIds?: readonly string[];
+};
+
 export type RunStatus = {
   trigger: RunTrigger;
   startedAt: Date;
   endedAt: Date;
   failed: boolean;
+  /** Ids of the accounts that failed in this run, for the `/scrape_provider` picker */
+  failedAccountIds?: readonly string[];
 };
 
 export type RunHandle = {
