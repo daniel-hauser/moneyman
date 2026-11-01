@@ -96,11 +96,11 @@ configured starts no run.
 The run summary and the HTML report use the same account labels (`❌ [isracard · •••111 · n•••] …`),
 and `/status` names the accounts that failed the last run.
 
-After moneyman restarts, a keyboard sent earlier no longer works and starts no run. Open `/scrape_provider`
-again.
-The scrape runs with the same windows as a full run (`options.scraping.daysBack` and
-`options.scraping.futureMonths`), and a selection is narrowed by `options.scraping.accountsToScrape`
-as well.
+After moneyman restarts, a keyboard sent earlier no longer works and starts no run. Open
+`/scrape_provider` again.
+
+A single-account scrape uses the same windows as a full run (`options.scraping.daysBack` and
+`options.scraping.futureMonths`). `options.scraping.accountsToScrape` still applies to the selection.
 
 `/refresh_secrets` is registered and listed only when a [secret provider](./secret-providers.md) is configured. It fetches and validates bank/storage credentials and per-run settings without changing the running Telegram bot or schedule. Manual refreshes can run alongside scraping or other refreshes without changing an active scrape's configuration. Duplicate scrape requests still receive an already-running response.
 

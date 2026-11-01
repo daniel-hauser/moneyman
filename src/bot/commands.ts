@@ -148,6 +148,30 @@ export function formatAccountPicker(choices: Array<AccountChoice>): {
 /** Telegram keeps an inline keyboard until it is replaced with an empty one */
 const REMOVE_KEYBOARD = { inline_keyboard: [] as Array<never> };
 
+/**
+ * Pickers that were already tapped, by `chatId:messageId`.
+ *
+ * The keyboard is single use, but the message edit that removes it is best
+ * effort: it can fail, and then a keyboard that still works would start another
+ * scrape. The claim, recorded before anything is awaited, is what actually
+ * makes a picker single use — a second tap on the same message does nothing.
+ * Bounded, so a long running bot cannot pile them up: the oldest claim is
+ * dropped first, which is a picker nobody is going to tap again.
+ */
+const claimedPickers = new Set<string>();
+const MAX_CLAIMED_PICKERS = 100;
+
+function claimPicker(ctx: Context): boolean {
+  const key = `${ctx.chat?.id}:${ctx.callbackQuery?.message?.message_id}`;
+  if (claimedPickers.has(key)) return false;
+  claimedPickers.add(key);
+  if (claimedPickers.size > MAX_CLAIMED_PICKERS) {
+    const oldest = claimedPickers.values().next().value;
+    if (oldest !== undefined) claimedPickers.delete(oldest);
+  }
+  return true;
+}
+
 export function registerCommands(
   bot: Telegraf<Context>,
   handlers: CommandHandlers,
@@ -207,13 +231,18 @@ export function registerCommands(
     });
 
     bot.action(ACCOUNT_CALLBACK_PATTERN, async (ctx) => {
-      // The keyboard is single use: it is replaced by this tap's outcome, so a
-      // second tap on a stale message cannot start another run.
+      // Claimed before the first await: a second tap on the same picker must
+      // not start a second scrape, whether or not the edits below succeed.
+      const claimed = claimPicker(ctx);
       await ctx
         .answerCbQuery()
         .catch((e) =>
           logger("Failed to answer the account picker callback", e),
         );
+      if (!claimed) {
+        logger("Ignoring a second tap on the same account picker");
+        return;
+      }
 
       const id = ctx.match[1];
       // Same labels as the keyboard the tap came from, so the edited message

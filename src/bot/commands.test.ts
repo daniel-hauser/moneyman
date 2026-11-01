@@ -25,6 +25,10 @@ function createHandlers(overrides: Partial<CommandHandlers> = {}) {
   } satisfies CommandHandlers;
 }
 
+// A picker is a message, and a message id is unique, so each tap gets its own.
+// Module scope, because the claimed pickers the command keeps are too.
+let nextPickerMessageId = 7;
+
 function registerBot(handlers: CommandHandlers) {
   const bot = new Telegraf("123:token");
   bot.botInfo = {
@@ -58,7 +62,11 @@ function registerBot(handlers: CommandHandlers) {
     });
   }
 
-  async function tap(data: string, fromChat = chatId) {
+  async function tap(
+    data: string,
+    fromChat = chatId,
+    messageId = nextPickerMessageId++,
+  ) {
     await bot.handleUpdate({
       update_id: 2,
       callback_query: {
@@ -67,7 +75,7 @@ function registerBot(handlers: CommandHandlers) {
         from: { id: fromChat, is_bot: false, first_name: "user" },
         data,
         message: {
-          message_id: 7,
+          message_id: messageId,
           date: 0,
           chat: { id: fromChat, type: "private", first_name: "user" },
           from: { id: 1, is_bot: true, first_name: "moneyman" },
@@ -481,6 +489,33 @@ describe("commands", () => {
         "scrape_provider:bbb22222",
         "scrape_provider:ccc33333",
       ]);
+    });
+
+    it("starts one scrape when the same picker is tapped twice", async () => {
+      const scrape = jest.fn().mockResolvedValue("🔄 Starting a scrape now...");
+      const { tap } = registerBot(
+        createHandlers({
+          scrape,
+          listAccounts: jest.fn().mockResolvedValue([
+            {
+              id: "aaa11111",
+              label: "isracard · •••111",
+              failedLastRun: false,
+            },
+          ]),
+        }),
+      );
+
+      // Same message, twice: the first tap claimed it
+      await tap("scrape_provider:aaa11111", chatId, 21);
+      await tap("scrape_provider:aaa11111", chatId, 21);
+
+      expect(scrape).toHaveBeenCalledTimes(1);
+
+      // A picker sent later is its own message, and still works
+      await tap("scrape_provider:aaa11111", chatId, 22);
+
+      expect(scrape).toHaveBeenCalledTimes(2);
     });
 
     it("names the tapped account exactly as its button did", async () => {

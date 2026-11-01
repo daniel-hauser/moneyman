@@ -461,6 +461,25 @@ describe("messages", () => {
       // No label: the provider is all we know
       expect(summary).toContain("❌ [isracard]");
     });
+
+    it("names a successful account with the same label", () => {
+      const success = (accountLabel?: string): AccountScrapeResult => ({
+        companyId: CompanyTypes.isracard,
+        accountLabel,
+        result: {
+          success: true,
+          accounts: [{ accountNumber: "1234", txns: [] }] as never,
+        },
+      });
+
+      const summary = getSummaryMessages([
+        success("isracard · ••1111"),
+        success(),
+      ]);
+
+      expect(summary).toContain("✔️ [isracard · ••1111] 1234: 0");
+      expect(summary).toContain("✔️ [isracard] 1234: 0");
+    });
   });
 
   describe("getSkippedCount", () => {
