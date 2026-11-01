@@ -67,6 +67,29 @@ describe("accountLabel", () => {
     ).toBe(id);
   });
 
+  it("keeps accounts apart that differ in a field other than the first one", () => {
+    // A second card of the same issuer can share card6Digits and still differ
+    // by another login field: sharing an id would hide it from the picker and
+    // scrape both.
+    const shared = { card6Digits: "123456" };
+    expect(accountId(account({ ...shared, username: "noam" }))).not.toBe(
+      accountId(account({ ...shared, username: "dana" })),
+    );
+    expect(accountId(account({ ...shared, email: "a@b.com" }))).not.toBe(
+      accountId(account({ ...shared, email: "c@d.com" })),
+    );
+    expect(accountId(account({ card6Digits: "123456", id: "111" }))).not.toBe(
+      accountId(account({ card6Digits: "123456", id: "222" })),
+    );
+  });
+
+  it("orders the identity fields the same way whatever the config order", () => {
+    // Object key order must not change an account's identity
+    expect(
+      accountId(account({ card6Digits: "123456", username: "noam" })),
+    ).toBe(accountId(account({ username: "noam", card6Digits: "123456" })));
+  });
+
   it("does not depend on the password, so identical non-secret fields share an id", () => {
     // The password is the only thing left to tell these two apart, and it must
     // not be encoded: they are selected together rather than leaking it.

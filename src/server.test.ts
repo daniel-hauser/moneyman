@@ -21,6 +21,14 @@ jest.mock("./config.js", () => {
     { companyId: "hapoalim", userCode: "bankuser", password: "bank" },
     // Same non-secret fields as the first card: selected together, never apart
     { companyId: "isracard", card6Digits: "111111", password: "third-card" },
+    // Shares the first login field with that card, but differs in another one:
+    // must stay its own button instead of collapsing into it
+    {
+      companyId: "isracard",
+      card6Digits: "111111",
+      username: "noam",
+      password: "fourth-card",
+    },
   ];
   return {
     config: { accounts, options: { scheduling: { cron: "0 9 * * *" } } },
@@ -255,7 +263,9 @@ describe("startServer", () => {
     it("offers every configured account, masking the login field", async () => {
       await startServer(runner);
 
-      await expect(handlers().listAccounts!()).resolves.toEqual([
+      const choices = await handlers().listAccounts!();
+
+      expect(choices).toEqual([
         { id: firstCard, label: "isracard · ••1111", failedLastRun: false },
         {
           id: accountId({
@@ -273,7 +283,35 @@ describe("startServer", () => {
           label: "hapoalim · ••user",
           failedLastRun: false,
         },
+        // Kept apart by the field the first one does not have, and deduped
+        // against the identical fourth-card entry
+        {
+          id: accountId({
+            companyId: "isracard",
+            card6Digits: "111111",
+            username: "noam",
+          } as never),
+          label: "isracard · ••1111",
+          failedLastRun: false,
+        },
       ]);
+      expect(new Set(choices.map(({ id }) => id)).size).toBe(choices.length);
+    });
+
+    it("scrapes the account that shares the first login field with another one", async () => {
+      // The picker must be able to select it on its own, not scrape both
+      runner.startRun.mockResolvedValue({
+        started: true,
+        finished: Promise.resolve(undefined),
+      });
+      await startServer(runner);
+      const choice = (await handlers().listAccounts!()).at(-1)!;
+
+      await handlers().scrape([choice.id]);
+
+      expect(runner.startRun).toHaveBeenCalledWith("manual", {
+        accountIds: [choice.id],
+      });
     });
 
     it("marks the accounts that failed in the last run", async () => {

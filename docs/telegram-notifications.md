@@ -84,8 +84,9 @@ scrape runs. Errors and screenshots are included in the final HTML report. Autom
 `/scrape_provider` replies with one button per configured account, so a single provider that failed
 can be scraped again without re-running the others. Buttons are labelled with the account's masked
 login field (for example `isracard · ••3456`) and the ones that failed in the last run are marked ❌.
-Accounts that share every non-secret login field share a button: they are the same account as far as
-the configuration shows, and the password is never encoded. The picker lists the accounts of the
+Accounts that are identical in every non-secret login field share a button: as far as the
+configuration shows they are the same account, and the password is never encoded. The picker lists
+the accounts of the
 loaded configuration — accounts that only appear after a secret-provider refresh are listed once
 moneyman restarts. A tap replaces the keyboard with the run's outcome, so the picker has to be
 re-opened for another account, and selecting an account that is no longer configured starts no run.

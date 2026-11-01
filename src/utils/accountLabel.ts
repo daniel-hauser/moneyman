@@ -2,9 +2,9 @@ import { createHash } from "node:crypto";
 import type { AccountConfig } from "../types.js";
 
 /**
- * The non-secret login field that identifies an account within a provider,
- * most specific first. `password` is deliberately absent: an account label and
- * an account id both end up in Telegram messages and in the run report, and a
+ * The non-secret login fields that identify an account within a provider, most
+ * specific first. `password` is deliberately absent: an account label and an
+ * account id both end up in Telegram messages and in the run report, and a
  * password must never reach either.
  */
 const IDENTITY_FIELDS = [
@@ -19,17 +19,17 @@ const IDENTITY_FIELDS = [
 
 type IdentityField = (typeof IDENTITY_FIELDS)[number];
 
-function identityField(
+/** Every populated non-secret login field, in a stable order */
+function identityFields(
   account: AccountConfig,
-): { field: IdentityField; value: string } | undefined {
+): Array<{ field: IdentityField; value: string }> {
   const fields = account as Record<string, unknown>;
-  for (const field of IDENTITY_FIELDS) {
+  return IDENTITY_FIELDS.flatMap((field) => {
     const value = fields[field];
-    if (typeof value === "string" && value.trim()) {
-      return { field, value: value.trim() };
-    }
-  }
-  return undefined;
+    return typeof value === "string" && value.trim()
+      ? [{ field, value: value.trim() }]
+      : [];
+  });
 }
 
 function maskAllButFirst(value: string): string {
@@ -65,28 +65,29 @@ function maskValue(field: IdentityField, value: string): string {
  * cannot be told apart.
  */
 export function accountLabel(account: AccountConfig): string {
-  const identity = identityField(account);
+  const [identity] = identityFields(account);
   return identity
     ? `${account.companyId} · ${maskValue(identity.field, identity.value)}`
     : account.companyId;
 }
 
 /**
- * A stable id for a configured account, derived from its provider and
- * non-secret identity field. It survives a config reload (long running mode
+ * A stable id for a configured account, derived from its provider and every
+ * non-secret login field, so two accounts of one provider that differ in any
+ * of them stay distinct. It survives a config reload (long running mode
  * refreshes accounts between runs) and is what a scrape selection carries, so
  * a picker tap cannot be resolved to the wrong account when positions shift.
  *
- * Accounts of the same provider that share every non-secret login field share
- * an id and are therefore selected together — the only thing left to tell them
- * apart is the password, which must not be encoded here.
+ * Accounts that are identical in every non-secret login field share an id and
+ * are therefore selected together — the only thing left to tell them apart is
+ * the password, which must not be encoded here.
  */
 export function accountId(account: AccountConfig): string {
-  const identity = identityField(account);
+  const identity = identityFields(account)
+    .map(({ field, value }) => `${field}=${value}`)
+    .join("\u0000");
   return createHash("sha256")
-    .update(
-      `${account.companyId}\u0000${identity?.field ?? ""}\u0000${identity?.value ?? ""}`,
-    )
+    .update(`${account.companyId}\u0000${identity}`)
     .digest("hex")
     .slice(0, 12);
 }
