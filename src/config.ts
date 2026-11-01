@@ -125,11 +125,15 @@ export function getScraperConfig(
   accountIds?: readonly string[],
 ): ScraperRunConfig {
   const accounts = getAccounts(snapshot);
+  const selectedAccounts =
+    accountIds && accountIds.length
+      ? accounts.filter((account) => accountIds.includes(accountId(account)))
+      : accounts;
   return {
-    accounts:
-      accountIds && accountIds.length
-        ? accounts.filter((account) => accountIds.includes(accountId(account)))
-        : accounts,
+    accounts: selectedAccounts,
+    // Computed here, on the main thread: the key behind an id is random per
+    // process, so the scraper worker cannot derive the same id itself
+    accountIds: selectedAccounts.map((account) => accountId(account)),
     // From the whole configured set, so a filtered run names an account the
     // same way the picker that selected it did
     accountLabels: Object.fromEntries(accountLabels(accounts)),

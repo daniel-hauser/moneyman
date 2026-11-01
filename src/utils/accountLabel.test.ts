@@ -122,6 +122,19 @@ describe("accountLabel", () => {
     });
   });
 
+  it("keys ids per module instance, which is why a run carries them", async () => {
+    // The key is per process, so a second instance — the scraper worker, or a
+    // module registry reset — derives different ids. That is why
+    // `getScraperConfig` computes them once and the run passes them down.
+    const fresh = async () => {
+      jest.resetModules();
+      const { accountId } = await import("./accountLabel.js");
+      return accountId(account({ card6Digits: "111111" }));
+    };
+
+    expect(await fresh()).not.toBe(await fresh());
+  });
+
   it("never exposes the password", () => {
     const label = accountLabel(
       account({ username: "noamokman", password: "super-secret-password" }),

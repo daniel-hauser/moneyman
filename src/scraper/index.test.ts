@@ -16,14 +16,15 @@ jest.mock("../utils/failureScreenshot.js", () => ({
   getFailureScreenShotPath: jest.fn(() => "failure.png"),
 }));
 
+const hapoalim = {
+  companyId: CompanyTypes.hapoalim,
+  userCode: "user",
+  password: "password",
+};
+
 const config: ScraperConfig = {
-  accounts: [
-    {
-      companyId: CompanyTypes.hapoalim,
-      userCode: "user",
-      password: "password",
-    },
-  ],
+  accounts: [hapoalim],
+  accountIds: [accountId(hapoalim)],
   startDate: new Date("2026-01-01T00:00:00Z"),
   futureMonthsToScrape: 1,
   parallelScrapers: 1,
@@ -63,6 +64,7 @@ describe("scraper runtime browser lifecycle", () => {
       {
         ...config,
         accounts: Array(3).fill(config.accounts[0]),
+        accountIds: Array(3).fill(config.accountIds[0]),
         parallelScrapers: 2,
       },
       initDomainTracking,
@@ -213,17 +215,24 @@ describe("scraper runtime browser lifecycle", () => {
     ]);
   });
 
-  it("publishes the run's label for an account, when the run carries one", async () => {
+  it("publishes the id and label the run was given, not ones it derived", async () => {
     const account0 = config.accounts[0];
+    // An id only the caller's key could produce: a worker computing its own
+    // would return something else, and never match what the caller selected,
+    // marked as failed or looked a label up with.
+    const fromTheCaller = "3f9c1d2e4b5a";
     const labelled = await scrapeAccounts(
       {
         ...config,
-        accountLabels: { [accountId(account0)]: "hapoalim · ••er #4f2a" },
+        accountIds: [fromTheCaller],
+        accountLabels: { [fromTheCaller]: "hapoalim · ••er #4f2a" },
       },
       initDomainTracking,
     );
 
+    expect(labelled[0].accountId).toBe(fromTheCaller);
     expect(labelled[0].accountLabel).toBe("hapoalim · ••er #4f2a");
+    expect(labelled[0].accountId).not.toBe(accountId(account0));
   });
 
   it("closes the browser when context setup fails", async () => {

@@ -12,6 +12,7 @@ describe("scraper boundary validation", () => {
   it("keeps Dates cloneable and rejects credential functions instead of proxying them", () => {
     const settings = {
       accounts: [{ companyId: "oneZero", password: "fixture" }],
+      accountIds: ["one-zero"],
       startDate: new Date("2026-01-01T00:00:00Z"),
       futureMonthsToScrape: 1,
       parallelScrapers: 1,

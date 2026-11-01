@@ -66,6 +66,8 @@ export type ScraperConfig = {
   futureMonthsToScrape: number;
   parallelScrapers: number;
   accounts: Array<AccountConfig>;
+  /** Account ids, index-aligned with `accounts` (see `accountId()`) */
+  accountIds: Array<string>;
   /** Account id -> label, from the whole configured account set */
   accountLabels?: Record<string, string>;
   additionalTransactionInformation: boolean;

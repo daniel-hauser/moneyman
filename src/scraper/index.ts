@@ -3,7 +3,7 @@ import { performance } from "perf_hooks";
 import { getAccountTransactions } from "./scrape.js";
 import { AccountConfig, AccountScrapeResult, ScraperConfig } from "../types.js";
 import { createLogger } from "../utils/logger.js";
-import { accountId, accountLabel } from "../utils/accountLabel.js";
+import { accountLabel } from "../utils/accountLabel.js";
 import { loggerContextStore } from "../utils/asyncContext.js";
 import { createBrowser, createSecureBrowserContext } from "./browser.js";
 import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
@@ -31,6 +31,7 @@ export const scraperOptions: Partial<ScraperOptions> = {
 export async function scrapeAccounts(
   {
     accounts,
+    accountIds,
     accountLabels,
     startDate,
     futureMonthsToScrape,
@@ -74,6 +75,7 @@ export async function scrapeAccounts(
       accounts.map((account, i) => async () => {
         runtime.signal?.throwIfAborted();
         const { companyId } = account;
+        const accountId = accountIds[i];
         const timing: RunTiming = {
           id: `scraper-${randomUUID()}`,
           kind: "scraper",
@@ -87,7 +89,7 @@ export async function scrapeAccounts(
             async () =>
               scrapeAccount(
                 account,
-                accountLabels?.[accountId(account)],
+                { id: accountId, label: accountLabels?.[accountId] },
                 {
                   // Safe to remove when israeli-bank-scrapers upgrades to puppeteer 25+
                   browserContext: (await createSecureBrowserContext(
@@ -178,7 +180,7 @@ function getStats(results: Array<AccountScrapeResult>) {
 
 async function scrapeAccount(
   account: AccountConfig,
-  label: string | undefined,
+  identity: { id: string; label?: string },
   scraperOptions: ScraperOptions,
   setStatusMessage: (message: string, append?: boolean) => Promise<void>,
   requestOtpCode?: OtpRequest,
@@ -199,8 +201,8 @@ async function scrapeAccount(
 
   return {
     companyId: account.companyId,
-    accountLabel: label ?? accountLabel(account),
-    accountId: accountId(account),
+    accountLabel: identity.label ?? accountLabel(account),
+    accountId: identity.id,
     result,
   };
 }

@@ -29,6 +29,7 @@ jest.mock("comlink", () => ({
 jest.mock("../bot/notifier.js", () => ({ requestOtpCode: jest.fn() }));
 
 const scraping: ScraperRunConfig = {
+  accountIds: ["one-zero"],
   accounts: [
     {
       companyId: CompanyTypes.oneZero,

@@ -101,10 +101,8 @@ provider, which is how a single failing account of a multi-account provider can 
 built once from the configured accounts, suffixing included, so a button, the run it starts and the report
 all name an account the same way — a filtered run included.
 
-The selection a button carries is an opaque, per-process keyed digest of the account's non-secret login
-fields: stable for as long as the process runs (a config reload included, so a keyboard sent before it still
-resolves), and not derivable from the payload, which a bare digest of a short identifier would be. After a
-restart an older keyboard resolves to nothing and is refused, which starts no run.
+After moneyman restarts, a keyboard sent earlier no longer works and starts no run. Open `/scrape_provider`
+again.
 The scrape runs with the same windows as a full run (`options.scraping.daysBack` and
 `options.scraping.futureMonths`), and a selection is narrowed by `options.scraping.accountsToScrape`
 as well.
