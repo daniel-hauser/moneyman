@@ -61,10 +61,10 @@ function maskValue(field: IdentityField, value: string): string {
  * of only its provider.
  *
  * Every populated non-secret login field is shown, masked, most specific
- * first. That keeps two accounts of one provider distinguishable in a picker
- * button whenever `accountId()` distinguishes them: the label and the id are
- * built from the same fields, so only accounts that are identical in all of
- * them can read alike — and those share an id and one button anyway.
+ * first. Masking is lossy, so two accounts that differ in a masked field can
+ * still produce the same label — the `/scrape_provider` picker disambiguates
+ * those labels (see `disambiguateLabels`), and the run summary and report are
+ * keyed by `accountId()`.
  *
  * Falls back to the bare provider name when the account has no usable
  * identity field.

@@ -39,7 +39,7 @@ describe("accountLabel", () => {
     );
   });
 
-  it("labels accounts apart exactly as the id does", () => {
+  it("labels accounts that differ by any field differently", () => {
     const accounts = [
       account({ card6Digits: "111111", id: "012345678" }),
       account({ card6Digits: "111111", username: "noam" }),
@@ -47,9 +47,18 @@ describe("accountLabel", () => {
       account({ username: "noam" }),
     ];
 
-    const labels = accounts.map(accountLabel);
-    expect(new Set(labels).size).toBe(accounts.length);
+    expect(new Set(accounts.map(accountLabel)).size).toBe(accounts.length);
     expect(new Set(accounts.map(accountId)).size).toBe(accounts.length);
+  });
+
+  it("can mask two different accounts to the same label", () => {
+    // Masking is lossy, so the label alone cannot promise uniqueness: the
+    // picker disambiguates colliding labels with an id-derived suffix.
+    const noam = account({ card6Digits: "111111", username: "noam" });
+    const nora = account({ card6Digits: "111111", username: "nora" });
+
+    expect(accountLabel(noam)).toBe(accountLabel(nora));
+    expect(accountId(noam)).not.toBe(accountId(nora));
   });
 
   it("never exposes the password", () => {

@@ -84,7 +84,9 @@ scrape runs. Errors and screenshots are included in the final HTML report. Autom
 `/scrape_provider` replies with one button per configured account, so a single provider that failed
 can be scraped again without re-running the others. Buttons are labelled with the account's masked
 login fields, most specific first (for example `isracard · ••1111 · ••5678`), and the ones that
-failed in the last run are marked ❌.
+failed in the last run are marked ❌. Masking is lossy, so two accounts whose labels would read
+alike get a short suffix derived from their account id (`isracard · ••1111 · n••• #4f2a`), which
+keeps every button unambiguous.
 Accounts that are identical in every non-secret login field share a button: as far as the
 configuration shows they are the same account, and the password is never encoded. The picker lists
 the accounts of the

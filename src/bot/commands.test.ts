@@ -1,5 +1,10 @@
 import { Context, Telegram, Telegraf } from "telegraf";
-import { CommandHandlers, formatStatus, registerCommands } from "./commands.js";
+import {
+  CommandHandlers,
+  disambiguateLabels,
+  formatStatus,
+  registerCommands,
+} from "./commands.js";
 import { createBot, isAuthorizedChat } from "./bot.js";
 
 jest.mock("../config.js", () => ({
@@ -387,6 +392,84 @@ describe("commands", () => {
       await send("/help");
       expect(replies()).toHaveLength(1);
       expect(replies()[0]).not.toContain("/scrape_provider");
+    });
+
+    it("suffixes the labels that would read alike, and leaves the others alone", async () => {
+      const colliding = [
+        {
+          id: "aaa11111",
+          label: "isracard · ••1111 · n•••",
+          failedLastRun: true,
+        },
+        {
+          id: "bbb22222",
+          label: "isracard · ••1111 · n•••",
+          failedLastRun: false,
+        },
+        { id: "ccc33333", label: "max · ••7890", failedLastRun: false },
+      ];
+      const { send, replyMarkups } = registerBot(
+        createHandlers({
+          listAccounts: jest.fn().mockResolvedValue(colliding),
+        }),
+      );
+
+      await send("/scrape_provider");
+
+      expect(
+        (replyMarkups()[0]?.inline_keyboard ?? []).map(
+          ([button]) => button.text,
+        ),
+      ).toEqual([
+        "❌ isracard · ••1111 · n••• #aaa1",
+        "▶️ isracard · ••1111 · n••• #bbb2",
+        // Nothing to disambiguate: unchanged
+        "▶️ max · ••7890",
+      ]);
+      expect(
+        (replyMarkups()[0]?.inline_keyboard ?? []).map(
+          ([button]) => button.callback_data,
+        ),
+      ).toEqual([
+        "scrape_provider:aaa11111",
+        "scrape_provider:bbb22222",
+        "scrape_provider:ccc33333",
+      ]);
+    });
+
+    it("names the tapped account with the same suffix the button had", async () => {
+      const { tap, edits } = registerBot(
+        createHandlers({
+          listAccounts: jest.fn().mockResolvedValue([
+            {
+              id: "aaa11111",
+              label: "isracard · ••1111 · n•••",
+              failedLastRun: false,
+            },
+            {
+              id: "bbb22222",
+              label: "isracard · ••1111 · n•••",
+              failedLastRun: false,
+            },
+          ]),
+        }),
+      );
+
+      await tap("scrape_provider:bbb22222");
+
+      expect(edits()[0].text).toBe(
+        "▶️ isracard · ••1111 · n••• #bbb2\n🔄 Starting a scrape now...",
+      );
+    });
+
+    it("keeps a suffix from colliding with a label that already exists", () => {
+      expect(
+        disambiguateLabels([
+          { id: "aaaa0000", label: "isracard", failedLastRun: false },
+          { id: "bbbb0000", label: "isracard", failedLastRun: false },
+          { id: "cccc0000", label: "isracard #aaaa", failedLastRun: false },
+        ]).map(({ label }) => label),
+      ).toEqual(["isracard #aaaa0000", "isracard #bbbb", "isracard #aaaa"]);
     });
 
     it("lists the command in /help when accounts can be listed", async () => {

@@ -79,6 +79,38 @@ function formatDate(date: Date): string {
 }
 
 /**
+ * Masks are lossy — `noam` and `nora` both mask to `n•••`, and two accounts of
+ * one provider can also share a card BIN — so two accounts with different ids
+ * can still render the same label. Append a short, id-derived suffix to the
+ * labels that read alike, so every button stays unambiguous; the ids behind
+ * them are already distinct, which is what makes a suffix enough.
+ *
+ * Deterministic: the same accounts always produce the same labels.
+ */
+export function disambiguateLabels(
+  choices: Array<AccountChoice>,
+): Array<AccountChoice> {
+  const counts = new Map<string, number>();
+  for (const { label } of choices) {
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  const taken = new Set(choices.map(({ label }) => label));
+
+  return choices.map((choice) => {
+    if ((counts.get(choice.label) ?? 0) < 2) return choice;
+    for (const length of [4, 8, 12] as const) {
+      const label = `${choice.label} #${choice.id.slice(0, length)}`;
+      // A suffixed label must not collide with an existing or earlier one
+      if (!taken.has(label)) {
+        taken.add(label);
+        return { ...choice, label };
+      }
+    }
+    return choice;
+  });
+}
+
+/**
  * The picker message. ❌ marks the accounts that failed in the last run, which
  * is usually the one the user wants to scrape again.
  */
@@ -100,12 +132,14 @@ export function formatAccountPicker(choices: Array<AccountChoice>): {
   return {
     text: lines.join("\n"),
     reply_markup: {
-      inline_keyboard: choices.map(({ id, label, failedLastRun }) => [
-        {
-          text: `${failedLastRun ? "❌" : "▶️"} ${label}`,
-          callback_data: `${ACCOUNT_CALLBACK_PREFIX}${id}`,
-        },
-      ]),
+      inline_keyboard: disambiguateLabels(choices).map(
+        ({ id, label, failedLastRun }) => [
+          {
+            text: `${failedLastRun ? "❌" : "▶️"} ${label}`,
+            callback_data: `${ACCOUNT_CALLBACK_PREFIX}${id}`,
+          },
+        ],
+      ),
     },
   };
 }
@@ -181,7 +215,11 @@ export function registerCommands(
         );
 
       const id = ctx.match[1];
-      const choice = (await listAccounts()).find((choice) => choice.id === id);
+      // Same labels as the keyboard the tap came from, so the edited message
+      // names the account the button named.
+      const choice = disambiguateLabels(await listAccounts()).find(
+        (choice) => choice.id === id,
+      );
       if (!choice) {
         await ctx
           .editMessageText(
