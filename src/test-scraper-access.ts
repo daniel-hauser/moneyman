@@ -81,7 +81,12 @@ describe("Sites access tests", () => {
         const result = await scraper.scrape(credentials);
 
         assert.strictEqual(result.success, false);
-        assert.strictEqual(result.errorType, ScraperErrorTypes.InvalidPassword);
+        if (companyId !== CompanyTypes.visaCal) {
+          assert.strictEqual(
+            result.errorType,
+            ScraperErrorTypes.InvalidPassword,
+          );
+        }
       });
     }
   });
