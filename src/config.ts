@@ -3,6 +3,7 @@ import { subDays } from "date-fns";
 import { Telegraf } from "telegraf";
 import { readFileSync } from "fs";
 import { AccountConfig } from "./types.js";
+import { accountId } from "./utils/accountLabel.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 import { loadConfigSecretSync } from "./configSecret.js";
 import { parseJsoncConfig } from "./utils/jsonc.js";
@@ -91,9 +92,15 @@ logger("Env", {
 
 logger("config loaded", config.options.scraping);
 
-function getAccounts(config: MoneymanConfig): Array<AccountConfig> {
-  const allAccounts = config.accounts as Array<AccountConfig>;
-  const { accountsToScrape } = config.options.scraping;
+/**
+ * The accounts a run may scrape, in configuration order: every configured
+ * account, narrowed by `options.scraping.accountsToScrape` when set.
+ */
+export function getAccounts(
+  snapshot: MoneymanConfig = config,
+): Array<AccountConfig> {
+  const allAccounts = snapshot.accounts as Array<AccountConfig>;
+  const { accountsToScrape } = snapshot.options.scraping;
 
   return !accountsToScrape || accountsToScrape.length === 0
     ? allAccounts
@@ -108,12 +115,21 @@ function getAccounts(config: MoneymanConfig): Array<AccountConfig> {
  * This MUST be called per run: `startDate` is relative to "now", so a
  * long-running process that reused a single config object would keep scraping
  * from the date the process started and miss everything after `daysBack`.
+ *
+ * `accountIds` narrows the run to specific accounts (see `accountId()` in
+ * `utils/accountLabel.ts`), on top of `options.scraping.accountsToScrape`.
+ * Omitting it keeps the previous behaviour of scraping every account.
  */
 export function getScraperConfig(
   snapshot: MoneymanConfig = config,
+  accountIds?: readonly string[],
 ): ScraperRunConfig {
+  const accounts = getAccounts(snapshot);
   return {
-    accounts: getAccounts(snapshot),
+    accounts:
+      accountIds && accountIds.length
+        ? accounts.filter((account) => accountIds.includes(accountId(account)))
+        : accounts,
     startDate: subDays(Date.now(), snapshot.options.scraping.daysBack),
     parallelScrapers: snapshot.options.scraping.maxParallelScrapers,
     futureMonthsToScrape: snapshot.options.scraping.futureMonths,

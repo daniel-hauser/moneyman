@@ -3,6 +3,7 @@ import { performance } from "perf_hooks";
 import { getAccountTransactions } from "./scrape.js";
 import { AccountConfig, AccountScrapeResult, ScraperConfig } from "../types.js";
 import { createLogger } from "../utils/logger.js";
+import { accountId, accountLabel } from "../utils/accountLabel.js";
 import { loggerContextStore } from "../utils/asyncContext.js";
 import { createBrowser, createSecureBrowserContext } from "./browser.js";
 import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
@@ -195,6 +196,8 @@ async function scrapeAccount(
 
   return {
     companyId: account.companyId,
+    accountLabel: accountLabel(account),
+    accountId: accountId(account),
     result,
   };
 }

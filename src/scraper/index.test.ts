@@ -159,7 +159,12 @@ describe("scraper runtime browser lifecycle", () => {
       },
     );
     expect(results).toEqual([
-      { companyId: "hapoalim", result: { success: true, accounts: [] } },
+      {
+        companyId: "hapoalim",
+        accountLabel: "hapoalim · ••user",
+        accountId: expect.any(String),
+        result: { success: true, accounts: [] },
+      },
     ]);
     expect(createBrowser).toHaveBeenCalledWith("browser", undefined);
     expect(getAccountTransactions).toHaveBeenCalledWith(
@@ -177,6 +182,34 @@ describe("scraper runtime browser lifecycle", () => {
       CompanyTypes.hapoalim,
       initDomainTracking,
     );
+  });
+
+  it("labels each account so two accounts of one provider are told apart", async () => {
+    const results = await scrapeAccounts(
+      {
+        ...config,
+        accounts: [
+          {
+            companyId: CompanyTypes.isracard,
+            id: "012345678",
+            card6Digits: "111111",
+            password: "first-card",
+          },
+          {
+            companyId: CompanyTypes.isracard,
+            id: "012345678",
+            card6Digits: "222222",
+            password: "second-card",
+          },
+        ],
+      },
+      initDomainTracking,
+    );
+
+    expect(results.map(({ accountLabel }) => accountLabel)).toEqual([
+      "isracard · ••1111",
+      "isracard · ••2222",
+    ]);
   });
 
   it("closes the browser when context setup fails", async () => {

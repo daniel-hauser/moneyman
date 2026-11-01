@@ -594,6 +594,72 @@ describe("index", () => {
       expect(await runOnce("manual")).toMatchObject({ failed: true });
     });
 
+    it("hands an account selection to the per-run scraper config, and remembers what failed", async () => {
+      const { config, getScraperConfig } = await import("./config.js");
+      jest.mocked(getScraperConfig).mockReturnValueOnce({
+        accounts: [
+          { companyId: CompanyTypes.isracard, password: "first-card" },
+        ],
+      } as never);
+      mocks.scrapeAccountsMock.mockResolvedValue({
+        results: [
+          {
+            companyId: CompanyTypes.isracard,
+            accountId: "card-a",
+            accountLabel: "isracard · ••1111",
+            result: { success: false },
+          },
+          {
+            companyId: CompanyTypes.isracard,
+            accountId: "card-b",
+            accountLabel: "isracard · ••2222",
+            result: { success: true, accounts: [] },
+          },
+        ],
+        domains: {},
+      });
+
+      const status = await (
+        await runner.startRun("manual", { accountIds: ["card-a"] })
+      ).finished;
+
+      expect(getScraperConfig).toHaveBeenCalledWith(config, ["card-a"]);
+      expect(status).toMatchObject({
+        failed: true,
+        failedAccountIds: ["card-a"],
+      });
+    });
+
+    it("scrapes everything, and remembers no selection, without an account selection", async () => {
+      const { config, getScraperConfig } = await import("./config.js");
+
+      const status = await runOnce("manual");
+
+      expect(getScraperConfig).toHaveBeenCalledWith(config, undefined);
+      expect(status).toMatchObject({ failed: false, failedAccountIds: [] });
+    });
+
+    it("fails a selection that matches no configured account instead of scraping nothing", async () => {
+      const { getScraperConfig } = await import("./config.js");
+      jest
+        .mocked(getScraperConfig)
+        .mockReturnValueOnce({ accounts: [] } as never);
+
+      const status = await (
+        await runner.startRun("manual", { accountIds: ["gone"] })
+      ).finished;
+
+      expect(mocks.scrapeAccountsMock).not.toHaveBeenCalled();
+      expect(status).toMatchObject({ failed: true });
+      const { report } = await mocks.runWithStorageMock.mock.results[0].value;
+      expect(report.errors).toEqual([
+        expect.objectContaining({
+          caller: "scrape selection",
+          message: expect.stringContaining("No configured account matches"),
+        }),
+      ]);
+    });
+
     it("fails the run when a storage reports an error", async () => {
       const report = createRunReport();
       report.storages.sql = { state: "error", message: "boom" };

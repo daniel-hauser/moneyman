@@ -72,6 +72,7 @@ Only the configured `chatId` can use them — messages from any other chat are i
 | Command            | Description                                                                                        |
 | ------------------ | -------------------------------------------------------------------------------------------------- |
 | `/scrape`          | Run a scrape right now (`/fetch` works as an alias)                                                |
+| `/scrape_provider` | Pick one provider/account and scrape only it                                                       |
 | `/refresh_secrets` | Refresh the secret-provider configuration without starting a scrape                                |
 | `/status`          | Report whether a scrape is running, how the last one ended and when the next scheduled run happens |
 | `/help`            | List the available commands                                                                        |
@@ -79,6 +80,21 @@ Only the configured `chatId` can use them — messages from any other chat are i
 `/scrape` replies immediately, then progress and the summary are sent to the same chat while the
 scrape runs. Errors and screenshots are included in the final HTML report. Automatic runs are configured with
 [`options.scheduling.cron`](../README.md#other-configurations).
+
+`/scrape_provider` replies with one button per configured account, so a single provider that failed
+can be scraped again without re-running the others. Buttons are labelled with the account's masked
+login field (for example `isracard · ••3456`) and the ones that failed in the last run are marked ❌.
+Accounts that share every non-secret login field share a button: they are the same account as far as
+the configuration shows, and the password is never encoded. The picker lists the accounts of the
+loaded configuration — accounts that only appear after a secret-provider refresh are listed once
+moneyman restarts. A tap replaces the keyboard with the run's outcome, so the picker has to be
+re-opened for another account, and selecting an account that is no longer configured starts no run.
+
+The run summary and the HTML report name the account (`❌ [isracard · ••3456] …`) instead of only the
+provider, which is how a single failing account of a multi-account provider can be told apart.
+The scrape runs with the same windows as a full run (`options.scraping.daysBack` and
+`options.scraping.futureMonths`), and a selection is narrowed by `options.scraping.accountsToScrape`
+as well.
 
 `/refresh_secrets` is registered and listed only when a [secret provider](./secret-providers.md) is configured. It fetches and validates bank/storage credentials and per-run settings without changing the running Telegram bot or schedule. Manual refreshes can run alongside scraping or other refreshes without changing an active scrape's configuration. Duplicate scrape requests still receive an already-running response.
 

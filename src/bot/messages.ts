@@ -44,8 +44,8 @@ function getAccountsSummary(
     return truncateError(message);
   };
   const errorAccounts = failed.map(
-    ({ result, companyId }) =>
-      `\t❌ [${companyId}] ${result.errorType}${
+    ({ result, companyId, accountLabel }) =>
+      `\t❌ [${escapers.HTML(accountLabel ?? companyId)}] ${result.errorType}${
         result.errorMessage
           ? `\n\t\t${escapers.HTML(shortenError(result.errorMessage).replaceAll("\n", "\n\t\t"))}`
           : ""

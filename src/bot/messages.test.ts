@@ -438,6 +438,29 @@ describe("messages", () => {
       const summary = getSummaryMessages(results);
       expect(summary).toMatchSnapshot();
     });
+
+    it("names the failed account, not only its provider", () => {
+      const failed = (accountLabel?: string): AccountScrapeResult => ({
+        companyId: CompanyTypes.isracard,
+        accountLabel,
+        result: {
+          success: false,
+          errorType: ScraperErrorTypes.Generic,
+          errorMessage: "Connection failed",
+        },
+      });
+
+      const summary = getSummaryMessages([
+        failed("isracard · ••1111"),
+        failed("isracard · ••2222"),
+        failed(),
+      ]);
+
+      expect(summary).toContain("❌ [isracard · ••1111]");
+      expect(summary).toContain("❌ [isracard · ••2222]");
+      // No label: the provider is all we know
+      expect(summary).toContain("❌ [isracard]");
+    });
   });
 
   describe("getSkippedCount", () => {
