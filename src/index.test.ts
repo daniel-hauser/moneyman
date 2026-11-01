@@ -630,6 +630,42 @@ describe("index", () => {
       });
     });
 
+    it("keeps the failed accounts when the run fails after the results", async () => {
+      const { createDomainTracker } = await import("./security/domains.js");
+      jest.mocked(createDomainTracker).mockReturnValueOnce({
+        getUsedDomains: jest.fn(),
+        initDomainTracking: jest.fn(),
+        dispose: jest.fn(() => {
+          throw new Error("cleanup failed");
+        }),
+      } as never);
+      mocks.scrapeAccountsMock.mockResolvedValue({
+        results: [
+          {
+            companyId: CompanyTypes.isracard,
+            accountId: "card-a",
+            accountLabel: "isracard · •••111",
+            result: { success: false },
+          },
+          {
+            companyId: CompanyTypes.isracard,
+            accountId: "card-b",
+            accountLabel: "isracard · •••222",
+            result: { success: true, accounts: [] },
+          },
+        ],
+        domains: {},
+      });
+
+      // The scrape published its results, then the run failed
+      const status = await runOnce("manual");
+
+      expect(status).toMatchObject({
+        failed: true,
+        failedAccountIds: ["card-a"],
+      });
+    });
+
     it("scrapes everything, and remembers no selection, without an account selection", async () => {
       const { config, getScraperConfig } = await import("./config.js");
 

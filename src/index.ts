@@ -283,7 +283,14 @@ async function run(options: RunOptions = {}): Promise<RunOutcome> {
     logger(error);
     report.failed = true;
     report.errors.push({ caller: "Run", message: formatUnknownError(error) });
-    return { failed: true, failedAccountIds: [] };
+    // The scrape may already have published its results before whatever threw
+    // here (a cleanup, a report), and those failures are still the answer to
+    // "what failed last run" — dropping them would leave the picker and
+    // `/status` naming nothing.
+    return {
+      failed: true,
+      failedAccountIds: failedAccountIds(report.summary?.results),
+    };
   } finally {
     try {
       if (!report.endedAt) {

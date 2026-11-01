@@ -82,24 +82,19 @@ scrape runs. Errors and screenshots are included in the final HTML report. Autom
 [`options.scheduling.cron`](../README.md#other-configurations).
 
 `/scrape_provider` replies with one button per configured account, so a single provider that failed
-can be scraped again without re-running the others. Buttons are labelled with the account's masked
-login fields, most specific first (for example `isracard · •••111 · •••••5678`), and the ones that
-failed in the last run are marked ❌. No field is ever shown in full: identifiers keep at most their
-last four characters and never more than half of the value, while usernames and email local parts
-keep their first character. Masking is lossy, so two accounts whose labels would read alike get a
-short suffix derived from their account id (`isracard · •••111 · n••• #4f2a`), which keeps every
-button unambiguous.
-Accounts that are identical in every non-secret login field share a button: as far as the
-configuration shows they are the same account, and the password is never encoded. The picker lists
-the accounts of the
-loaded configuration — accounts that only appear after a secret-provider refresh are listed once
-moneyman restarts. A tap replaces the keyboard with the run's outcome, so the picker has to be
-re-opened for another account, and selecting an account that is no longer configured starts no run.
+can be scraped again without re-running the others. Buttons show a masked label built from the
+account's login fields (for example `isracard · •••111 · •••••5678`), and accounts that failed in the
+last run are marked ❌. No field is shown in full. Accounts whose labels would read alike get a short
+suffix so every button stays unambiguous, and accounts that are identical in every non-secret login
+field share one button.
 
-The run summary and the HTML report name the account (`❌ [isracard · •••111 · n•••] …`) instead of only the
-provider, which is how a single failing account of a multi-account provider can be told apart. Labels are
-built once from the configured accounts, suffixing included, so a button, the run it starts and the report
-all name an account the same way — a filtered run included.
+The picker lists the accounts of the loaded configuration. Accounts that appear only after a
+secret-provider refresh are listed after moneyman restarts. A tap replaces the keyboard with the run's
+outcome, so open the picker again to scrape another account. Selecting an account that is no longer
+configured starts no run.
+
+The run summary and the HTML report use the same account labels (`❌ [isracard · •••111 · n•••] …`),
+and `/status` names the accounts that failed the last run.
 
 After moneyman restarts, a keyboard sent earlier no longer works and starts no run. Open `/scrape_provider`
 again.
