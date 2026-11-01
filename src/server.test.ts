@@ -266,13 +266,13 @@ describe("startServer", () => {
       const choices = await handlers().listAccounts!();
 
       expect(choices).toEqual([
-        { id: firstCard, label: "isracard · ••1111", failedLastRun: false },
+        { id: firstCard, label: "isracard · •••111", failedLastRun: false },
         {
           id: accountId({
             companyId: "isracard",
             card6Digits: "222222",
           } as never),
-          label: "isracard · ••2222",
+          label: "isracard · •••222",
           failedLastRun: false,
         },
         {
@@ -280,7 +280,7 @@ describe("startServer", () => {
             companyId: "hapoalim",
             userCode: "bankuser",
           } as never),
-          label: "hapoalim · ••user",
+          label: "hapoalim · ••••user",
           failedLastRun: false,
         },
         // Kept apart by the field the first one does not have, and deduped
@@ -292,7 +292,7 @@ describe("startServer", () => {
             card6Digits: "111111",
             username: "noam",
           } as never),
-          label: "isracard · ••1111 · n•••",
+          label: "isracard · •••111 · n•••",
           failedLastRun: false,
         },
       ]);
@@ -331,7 +331,7 @@ describe("startServer", () => {
 
       const choices = await handlers().listAccounts!();
       expect(choices.filter(({ failedLastRun }) => failedLastRun)).toEqual([
-        { id: firstCard, label: "isracard · ••1111", failedLastRun: true },
+        { id: firstCard, label: "isracard · •••111", failedLastRun: true },
       ]);
     });
 

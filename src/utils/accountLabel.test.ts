@@ -11,11 +11,11 @@ const account = (fields: Record<string, unknown>) =>
 
 describe("accountLabel", () => {
   it.each([
-    ["card6Digits", "123456", "isracard · ••3456"],
-    ["num", "9876543210", "isracard · ••3210"],
-    ["userCode", "12345", "isracard · ••2345"],
-    ["nationalID", "012345678", "isracard · ••5678"],
-    ["id", "012345678", "isracard · ••5678"],
+    ["card6Digits", "123456", "isracard · •••456"],
+    ["num", "9876543210", "isracard · ••••••3210"],
+    ["userCode", "12345", "isracard · •••45"],
+    ["nationalID", "012345678", "isracard · •••••5678"],
+    ["id", "012345678", "isracard · •••••5678"],
     ["username", "noamokman", "isracard · n••••••••"],
     ["email", "noam@gmail.com", "isracard · n•••@gmail.com"],
   ])("masks %s", (_field, value, expected) => {
@@ -31,11 +31,11 @@ describe("accountLabel", () => {
           username: "someone",
         }),
       ),
-    ).toBe("isracard · ••9888 · ••5678 · s••••••");
+    ).toBe("isracard · •••888 · •••••5678 · s••••••");
 
     // A single field stays a single mask
     expect(accountLabel(account({ card6Digits: "999888" }))).toBe(
-      "isracard · ••9888",
+      "isracard · •••888",
     );
   });
 
@@ -60,6 +60,18 @@ describe("accountLabel", () => {
     expect(accountLabel(noam)).toBe(accountLabel(nora));
     expect(accountId(noam)).not.toBe(accountId(nora));
   });
+
+  it.each([["a"], ["ab"], ["abc"], ["user"], ["1234"], ["12345"]])(
+    "never shows a short identifier in full (%s)",
+    (value) => {
+      const [, masked] = accountLabel(account({ userCode: value })).split(
+        " · ",
+      );
+
+      expect(masked).not.toContain(value);
+      expect(masked).toContain("•");
+    },
+  );
 
   it("never exposes the password", () => {
     const label = accountLabel(

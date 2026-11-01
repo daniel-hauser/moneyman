@@ -32,15 +32,29 @@ function identityFields(
   });
 }
 
+/** Keep the first character, hide the rest — and hide a one-character value too */
 function maskAllButFirst(value: string): string {
+  if (value.length < 2) return "•".repeat(Math.max(2, value.length + 1));
   return `${value.slice(0, 1)}${"•".repeat(Math.max(2, value.length - 1))}`;
 }
 
 /**
+ * Keep the last characters of an identifier, never more than half of it. A
+ * fixed four-character tail would print a four-character code in full
+ * (`userCode: "user"` → `user`), and every field now reaches a Telegram label.
+ */
+function maskIdentifier(value: string): string {
+  const visible = Math.min(4, Math.floor(value.length / 2));
+  return `${"•".repeat(Math.max(2, value.length - visible))}${
+    visible ? value.slice(-visible) : ""
+  }`;
+}
+
+/**
  * Mask a login value, keeping enough of it to tell two accounts of the same
- * provider apart. Card and bank identifiers keep their last 4 digits (the
- * convention for card numbers); usernames and emails keep their first
- * character only.
+ * provider apart: card and bank identifiers keep their last few digits (the
+ * convention for card numbers), while usernames and emails keep their first
+ * character only. No value is ever shown in full.
  */
 function maskValue(field: IdentityField, value: string): string {
   if (field === "username") return maskAllButFirst(value);
@@ -51,12 +65,12 @@ function maskValue(field: IdentityField, value: string): string {
     return `${maskAllButFirst(local)}@${domain}`;
   }
 
-  return `••${value.slice(-4)}`;
+  return maskIdentifier(value);
 }
 
 /**
  * A short, human-readable label for a configured account, e.g.
- * `isracard · ••1111 · ••5678`. Used by the `/scrape_provider` picker, by the
+ * `isracard · •••111 · •••••5678`. Used by the `/scrape_provider` picker, by the
  * run summary and by the HTML report, so a failure names the account instead
  * of only its provider.
  *

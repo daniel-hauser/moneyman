@@ -161,7 +161,7 @@ describe("scraper runtime browser lifecycle", () => {
     expect(results).toEqual([
       {
         companyId: "hapoalim",
-        accountLabel: "hapoalim · ••user",
+        accountLabel: "hapoalim · ••er",
         accountId: expect.any(String),
         result: { success: true, accounts: [] },
       },
@@ -207,8 +207,8 @@ describe("scraper runtime browser lifecycle", () => {
     );
 
     expect(results.map(({ accountLabel }) => accountLabel)).toEqual([
-      "isracard · ••1111 · ••5678",
-      "isracard · ••2222 · ••5678",
+      "isracard · •••111 · •••••5678",
+      "isracard · •••222 · •••••5678",
     ]);
   });
 
