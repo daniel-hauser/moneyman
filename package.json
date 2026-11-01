@@ -34,7 +34,9 @@
   },
   "homepage": "https://github.com/daniel-hauser/moneyman#readme",
   "dependencies": {
-    "@actual-app/api": "^26.7.0",
+    "@lit-labs/ssr": "^4.1.0",
+    "@lit-labs/ssr-client": "^1.1.8",
+    "@actual-app/api": "^26.10.0",
     "@mswjs/interceptors": "^0.45.9",
     "@telegraf/entity": "^0.7.0",
     "@varlock/bitwarden-plugin": "2.0.1",
@@ -46,11 +48,12 @@
     "date-fns": "^4.4.0",
     "debug": "^4.4.3",
     "dotenv": "^18.0.9",
-    "glob": "^13.0.6",
-    "google-auth-library": "^10.9.0",
+    "glob": "^14.0.2",
+    "google-auth-library": "^11.3.1",
     "google-spreadsheet": "^5.3.0",
     "israeli-bank-scrapers": "^6.12.2",
     "jsonc-parser": "^3.3.1",
+    "lit": "^3.3.3",
     "node-cron": "^4.6.0",
     "pg": "^8.23.1",
     "pg-format": "^1.0.4",
@@ -62,6 +65,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@lit-labs/ssr-dom-shim": "^1.6.0",
     "@swc/core": "^1.16.20",
     "@swc/jest": "^0.2.39",
     "@types/async": "^3.2.26",
@@ -73,7 +77,9 @@
     "esbuild": "^0.28.2",
     "husky": "^9.1.7",
     "jest": "^30.5.2",
+    "jest-environment-jsdom": "^30.5.2",
     "jest-mock-extended": "^4.0.2",
+    "jsdom": "^26.1.0",
     "patch-package": "^8.0.1",
     "pg-mem": "^3.0.14",
     "prettier": "^3.9.10",
@@ -81,6 +87,9 @@
     "typescript": "^7.0.2"
   },
   "overrides": {
+    "@lit-labs/ssr": {
+      "@types/node": "$@types/node"
+    },
     "azure-kusto-data": {
       "uuid": "11.1.1"
     },

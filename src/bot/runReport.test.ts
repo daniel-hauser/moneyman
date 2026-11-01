@@ -1,6 +1,7 @@
+/** @jest-environment ./report/test-environment.cjs */
+import { Blob, Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
-import { runInNewContext } from "node:vm";
-import { mock } from "jest-mock-extended";
+import type { ReportLightElement } from "./report/light-element.js";
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
@@ -26,6 +27,24 @@ import {
 } from "./runReport.js";
 
 const startedAt = new Date("2024-01-01T10:00:00Z");
+
+declare function createReportWindow(): Window & typeof globalThis;
+
+async function runScripts(realm: Window & typeof globalThis, output: string) {
+  for (const script of output.matchAll(/<script>([\s\S]*?)<\/script>/gi))
+    realm.eval(script[1]);
+  await Promise.all(
+    Array.from(
+      realm.document.querySelectorAll<ReportLightElement>(
+        "report-transactions, report-logs",
+      ),
+      (element) => element.ready(),
+    ),
+  );
+  await Promise.resolve();
+}
+
+afterEach(() => jest.restoreAllMocks());
 
 function step(name: string, duration: number) {
   return { name, durationMs: duration };
@@ -198,6 +217,91 @@ describe("renderFullReport", () => {
   });
 });
 
+describe("screenshot file sizes", () => {
+  it.each([
+    ["exact decimal MB", Buffer.alloc(1_250_000).toString("base64"), "1.25 MB"],
+    ["two padding bytes", "AA==", "<0.01 MB"],
+    ["one padding byte", "AAA=", "<0.01 MB"],
+    ["no padding", "AAAA", "<0.01 MB"],
+    ["unpadded single byte", "AA", "<0.01 MB"],
+    ["unpadded two bytes", "AAA", "<0.01 MB"],
+    ["ASCII whitespace", " \tA\nA\f=\r= ", "<0.01 MB"],
+    ["percent-encoded alphabet and padding", "%2B%2F8%3D", "<0.01 MB"],
+    ["percent-encoded ASCII whitespace", "%20%09A%0AA%0C%3D%0D%3D", "<0.01 MB"],
+    ["whitespace only", " \t\n\f\r", "0.00 MB"],
+    ["percent-encoded empty", "%20%09%0A%0C%0D", "0.00 MB"],
+    ["empty", "", "0.00 MB"],
+  ])("renders decoded base64 size: %s", (_name, payload, expected) => {
+    const dataUrl = `data:image/png;base64,${payload}`;
+    const caption = 'Failure </figcaption><script>alert("hostile")</script> &';
+    document.body.innerHTML = renderReportScreenshots([{ caption, dataUrl }]);
+    const preview =
+      document.querySelector<HTMLImageElement>(".screenshot img")!;
+    expect(preview.getAttribute("src")).toBe(dataUrl.replace(/\r\n?/g, "\n"));
+    expect(preview.alt).toBe(caption);
+    expect(document.querySelector(".screenshot-size")!.textContent).toBe(
+      expected,
+    );
+    expect(
+      document.querySelector<HTMLButtonElement>(".screenshot-open")!.dataset
+        .size,
+    ).toBe(expected);
+    expect(
+      document.querySelector(".screenshot figcaption")!.textContent,
+    ).toContain(caption);
+    expect(document.querySelector("script")).toBeNull();
+    if (expected === "1.25 MB")
+      expect((Buffer.byteLength(payload) / 1_000_000).toFixed(2)).toBe("1.67");
+  });
+
+  it.each([
+    ["<svg>😀</svg>", "<0.01 MB"],
+    [`<svg>${"😀".repeat(2500)}</svg>`, "0.01 MB"],
+    [`<svg>${"€".repeat(125_000)}</svg>`, "0.38 MB"],
+    ["", "0.00 MB"],
+  ])("counts percent-encoded SVG UTF-8 bytes (%#)", (svg, expected) => {
+    const dataUrl = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+    document.body.innerHTML = renderReportScreenshots([
+      { caption: "SVG", dataUrl },
+    ]);
+    expect(document.querySelector(".screenshot-size")!.textContent).toBe(
+      expected,
+    );
+    expect(document.querySelector("img")!.getAttribute("src")).toBe(dataUrl);
+  });
+
+  it.each([
+    "data:image/png;base64,A",
+    "data:image/png;base64,AAAA=",
+    "data:image/png;base64,===",
+    "data:image/png;base64,invalid!",
+    "data:image/png;base64,%ZZ",
+    "data:image/png;base64,%FF",
+    "data:image/png;base64,AA==\u00a0",
+    "data:image/png;base64,AA==\u000b",
+    "data:image/svg+xml,%ZZ",
+    "https://example.com/image.png",
+  ])(
+    "shows size unavailable for an invalid or non-data source (%s)",
+    (dataUrl) => {
+      document.body.innerHTML = renderReportScreenshots([
+        { caption: "Unknown", dataUrl },
+      ]);
+      expect(
+        document.querySelector(".screenshot .screenshot-size")!.textContent,
+      ).toBe("Size unavailable");
+      expect(
+        document.querySelector<HTMLButtonElement>(".screenshot-open")!.dataset
+          .size,
+      ).toBe("Size unavailable");
+      expect(
+        document.querySelector(".screenshot figcaption")!.textContent,
+      ).toContain("Unknown");
+      expect(document.querySelector("img")!.getAttribute("src")).toBe(dataUrl);
+    },
+  );
+});
+
 describe("renderReportTimings", () => {
   const at = (offset: number) => startedAt.getTime() + offset;
 
@@ -316,7 +420,7 @@ describe("renderHTMLReport", () => {
     ];
     expect(
       [
-        ...renderHTMLReport(report, "Example logs").matchAll(
+        ...reportMarkup(renderHTMLReport(report, "Example logs")).matchAll(
           /<h2>([\s\S]*?)<\/h2>/gi,
         ),
       ].map(([, heading]) => heading),
@@ -393,20 +497,14 @@ describe("renderHTMLReport", () => {
     expect(hashInlineContent(content.trim())).not.toBe(expected);
   });
 
-  it("formats the run start with short date and time even without other report data", () => {
+  it("formats the run start with short date and time even without other report data", async () => {
     const output = renderHTMLReport(baseReport());
     const scripts = [...output.matchAll(/<script>([\s\S]*?)<\/script>/gi)];
     expect(scripts).toHaveLength(2);
-    const time = mock<HTMLTimeElement>({
-      dateTime: startedAt.toISOString(),
-      title: startedAt.toISOString(),
-      textContent: startedAt.toISOString(),
-    });
-    const document = mock<Document>();
-    document.querySelector.mockImplementation((selector) =>
-      selector === "#run-started" ? time : null,
-    );
-    document.querySelectorAll.mockReturnValue(mock<NodeListOf<Element>>());
+    const realm = createReportWindow();
+    const document = realm.document;
+    document.body.innerHTML = output;
+    const time = document.querySelector<HTMLTimeElement>("#run-started")!;
     const dateTimeFormat = jest.fn(
       () =>
         new Intl.DateTimeFormat("en-GB", {
@@ -415,12 +513,12 @@ describe("renderHTMLReport", () => {
           timeZone: "UTC",
         }),
     );
-    runInNewContext(scripts.at(-1)![1], {
-      document,
-      Intl: { DateTimeFormat: dateTimeFormat },
-      Date,
-    });
-    expect(document.querySelector).toHaveBeenCalledWith("#run-started");
+    realm.Intl.DateTimeFormat =
+      dateTimeFormat as unknown as typeof Intl.DateTimeFormat;
+    await runScripts(realm, output);
+    expect(
+      document.documentElement.classList.contains("report-interactive"),
+    ).toBe(true);
     expect(dateTimeFormat).toHaveBeenCalledWith(undefined, {
       dateStyle: "short",
       timeStyle: "short",
@@ -478,129 +576,88 @@ describe("renderHTMLReport", () => {
     ).toMatchSnapshot();
   });
 
-  function runLogScript(logs: string) {
+  async function runLogScript(logs: string) {
     const report = renderHTMLReport(baseReport(), logs);
-    const code = mock<HTMLElement>({ localName: "pre", textContent: logs });
-    const started = mock<HTMLTimeElement>({
-      dateTime: startedAt.toISOString(),
-    });
-    const search = mock<HTMLInputElement>();
-    const download = mock<HTMLButtonElement>({
-      dataset: {
-        download: "run-logs",
-        filename: "logs.txt",
-        type: "text/plain;charset=utf-8",
-      },
-    });
-    const link = mock<HTMLAnchorElement>();
-    const document = mock<Document>();
-    document.body = mock<HTMLElement>();
-    document.querySelector.mockImplementation((selector) =>
-      selector === "#run-started"
-        ? started
-        : selector === "#search-logs"
-          ? search
-          : selector === "#run-logs code"
-            ? code
-            : null,
+    const realm = createReportWindow();
+    const document = realm.document;
+    document.body.innerHTML = report;
+    const code = document.querySelector<HTMLElement>("#run-logs code")!;
+    expect(code.textContent).toBe(logs);
+    const serverText = Array.from(code.childNodes).find(
+      (node) => node.nodeType === 3,
     );
-    document.getElementById.mockImplementation((id) =>
-      id === "run-started"
-        ? started
-        : id === "search-logs"
-          ? search
-          : id === "run-logs"
-            ? code
-            : download,
-    );
-    const buttons = mock<NodeListOf<HTMLButtonElement>>();
-    buttons.forEach.mockImplementation((callback) =>
-      callback(download, 0, buttons),
-    );
-    document.querySelectorAll.mockImplementation((selector) =>
-      selector === "[data-download]" ? buttons : mock<NodeListOf<Element>>(),
-    );
-    document.createTextNode.mockImplementation((text) =>
-      mock<Text>({ textContent: text }),
-    );
-    document.createElement.mockReturnValue(link);
-    code.replaceChildren.mockImplementation((node) => {
-      code.textContent =
-        (typeof node === "string" ? node : node.textContent) ?? "";
-    });
+    let link: HTMLAnchorElement;
+    const click = jest
+      .spyOn(realm.HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        link = this;
+      });
+    const remove = jest.spyOn(realm.HTMLAnchorElement.prototype, "remove");
     const highlights = new Map<string, Set<Range>>();
-    const ranges: Range[] = [];
     const createObjectURL = jest.fn((_blob: Blob) => "blob:logs");
     const revokeObjectURL = jest.fn();
     const timers: Array<() => void> = [];
-    document.createRange.mockImplementation(() => {
-      const range = mock<Range>();
-      ranges.push(range);
-      return range;
-    });
 
-    const context = {
-      document,
-      addEventListener: jest.fn(),
+    Object.assign(realm, {
       Highlight: Set,
       CSS: { highlights },
       Blob,
       URL: { createObjectURL, revokeObjectURL },
       setTimeout: (callback: () => void) => timers.push(callback),
-    };
-    for (const script of report.matchAll(/<script>([\s\S]*?)<\/script>/gi)) {
-      runInNewContext(script[1], context);
-    }
-
-    function fire(element: typeof search | typeof download) {
-      const listener = element.addEventListener.mock.calls[0][1];
-      if (typeof listener !== "function") throw new Error("Missing listener");
-      listener.call(element, mock<Event>({ target: element }));
-    }
+    });
+    await runScripts(realm, report);
+    if (serverText) expect(Array.from(code.childNodes)).toContain(serverText);
 
     return {
       code,
-      link,
-      ranges,
+      get link() {
+        return link;
+      },
+      click,
+      remove,
       highlights,
       createObjectURL,
       revokeObjectURL,
       timers,
-      search(term: string) {
+      async search(term: string) {
+        const search =
+          document.querySelector<HTMLInputElement>("#search-logs")!;
         search.value = term;
-        fire(search);
+        search.dispatchEvent(new realm.Event("input", { bubbles: true }));
+        await document
+          .querySelector<ReportLightElement>("report-logs")!
+          .ready();
       },
       download() {
-        fire(download);
+        document.querySelector<HTMLButtonElement>("#download-logs")!.click();
       },
     };
   }
 
-  it("filters literal log matches case-insensitively and highlights every occurrence", () => {
+  it("filters literal log matches case-insensitively and highlights every occurrence", async () => {
     const logs =
       "\n  Alpha .+ ALPHA .+\r\nunrelated\r<script>.+</script>\n\tend";
-    const browser = runLogScript(logs);
-    browser.search(".+");
+    const browser = await runLogScript(logs);
+    await browser.search(".+");
     expect(browser.code.textContent).toMatchSnapshot("literal matches");
     expect(browser.highlights.get("log-search")?.size).toBe(3);
-    const node = browser.code.replaceChildren.mock.calls[0][0];
+    const ranges = [...browser.highlights.get("log-search")!];
     for (const [index, offset] of [8, 17, 29].entries()) {
-      expect(browser.ranges[index].setStart).toHaveBeenCalledWith(node, offset);
-      expect(browser.ranges[index].setEnd).toHaveBeenCalledWith(
-        node,
-        offset + 2,
-      );
+      expect(ranges[index].startContainer.parentNode).toBe(browser.code);
+      expect(ranges[index].startOffset).toBe(offset);
+      expect(ranges[index].endOffset).toBe(offset + 2);
+      expect(ranges[index].toString()).toBe(".+");
     }
 
-    browser.search("alpha");
+    await browser.search("alpha");
     expect(browser.code.textContent).toMatchSnapshot(
       "case-insensitive matches",
     );
     expect(browser.highlights.get("log-search")?.size).toBe(2);
-    browser.search("[no matches]");
+    await browser.search("[no matches]");
     expect(browser.code.textContent).toMatchSnapshot("no matches");
     expect(browser.highlights.get("log-search")?.size).toBe(0);
-    browser.search("");
+    await browser.search("");
     expect(browser.code.textContent).toMatchSnapshot("restored original");
     expect(browser.highlights.get("log-search")?.size).toBe(0);
   });
@@ -618,36 +675,38 @@ describe("renderHTMLReport", () => {
     ["[.~*]", 1],
     ['<script>& "', 1],
     ["missing*value", 0],
-  ])("matches Excel-style log pattern %s", (term, count) => {
+  ])("matches Excel-style log pattern %s", async (term, count) => {
     const logs =
       'Alpha beta\nALPHA zz BETA\nliteral symbols: * ? ~ [.*]\nspecial <script>& "quotes"\n';
-    const browser = runLogScript(logs);
-    browser.search(term);
+    const browser = await runLogScript(logs);
+    await browser.search(term);
     expect(browser.code.textContent).toMatchSnapshot();
     expect(browser.highlights.get("log-search")?.size).toBe(count);
   });
 
-  it("treats question marks as Unicode code points and highlights UTF-16 ranges", () => {
-    const browser = runLogScript("prefix A😀B suffix\r\nAxxB\r\n");
-    browser.search("a?b");
+  it("treats question marks as Unicode code points and highlights UTF-16 ranges", async () => {
+    const browser = await runLogScript("prefix A😀B suffix\r\nAxxB\r\n");
+    await browser.search("a?b");
     expect(browser.code.textContent).toMatchSnapshot();
     expect(browser.highlights.get("log-search")?.size).toBe(1);
-    const node = browser.code.replaceChildren.mock.calls[0][0];
-    expect(browser.ranges[0].setStart).toHaveBeenCalledWith(node, 7);
-    expect(browser.ranges[0].setEnd).toHaveBeenCalledWith(node, 11);
+    const [range] = browser.highlights.get("log-search")!;
+    expect(range.startContainer.parentNode).toBe(browser.code);
+    expect(range.startOffset).toBe(7);
+    expect(range.endOffset).toBe(11);
+    expect(range.toString()).toBe("A😀B");
   });
 
-  it("bounds wildcard work without regex backtracking and handles empty logs", () => {
-    const browser = runLogScript(`${"a".repeat(2000)}\n`);
-    browser.search(`${"*a".repeat(80)}*z`);
+  it("bounds wildcard work without regex backtracking and handles empty logs", async () => {
+    const browser = await runLogScript(`${"a".repeat(2000)}\n`);
+    await browser.search(`${"*a".repeat(80)}*z`);
     expect(browser.code.textContent).toMatchSnapshot("no pathological match");
     expect(browser.highlights.get("log-search")?.size).toBe(0);
-    browser.search("*".repeat(1000));
+    await browser.search("*".repeat(1000));
     expect(browser.code.textContent).toHaveLength(2001);
     expect(browser.highlights.get("log-search")?.size).toBe(1);
-    const empty = runLogScript("");
+    const empty = await runLogScript("");
     for (const term of ["", "*", "?"]) {
-      empty.search(term);
+      await empty.search(term);
       expect(empty.code.textContent).toMatchSnapshot(`empty pattern ${term}`);
       expect(empty.highlights.get("log-search")?.size).toBe(0);
     }
@@ -655,8 +714,8 @@ describe("renderHTMLReport", () => {
 
   it("downloads original log whitespace and line endings after filtering", async () => {
     const logs = '\n  <script>" &\r\nfirst\rsecond\r\n\tend  ';
-    const browser = runLogScript(logs);
-    browser.search("f*st");
+    const browser = await runLogScript(logs);
+    await browser.search("f*st");
     browser.download();
 
     const blob = browser.createObjectURL.mock.calls[0][0];
@@ -664,8 +723,8 @@ describe("renderHTMLReport", () => {
     expect(blob.type).toBe("text/plain;charset=utf-8");
     expect(browser.link.download).toBe("logs.txt");
     expect(browser.link.href).toBe("blob:logs");
-    expect(browser.link.click).toHaveBeenCalledTimes(1);
-    expect(browser.link.remove).toHaveBeenCalledTimes(1);
+    expect(browser.click).toHaveBeenCalledTimes(1);
+    expect(browser.remove).toHaveBeenCalledTimes(1);
     expect(browser.revokeObjectURL).not.toHaveBeenCalled();
     browser.timers[0]();
     expect(browser.revokeObjectURL).toHaveBeenCalledWith("blob:logs");
@@ -722,49 +781,45 @@ describe("renderHTMLReport", () => {
       { ...second, companyId: CompanyTypes.visaCal, accountNumber: 'other<&"' },
     ];
     expect(JSON.parse(serialized)).toEqual(expected);
-    const button = mock<HTMLButtonElement>({
-      dataset: {
-        download: "transactions-json",
-        filename: "transactions.json",
-        type: "application/json;charset=utf-8",
-      },
-    });
-    const document = mock<Document>();
-    document.body = mock<HTMLElement>();
-    const buttons = mock<NodeListOf<HTMLButtonElement>>();
-    buttons.forEach.mockImplementation((callback) =>
-      callback(button, 0, buttons),
-    );
-    document.querySelectorAll.mockReturnValue(buttons);
-    document.getElementById.mockReturnValue(
-      mock<HTMLTemplateElement>({
-        localName: "template",
-        textContent: "",
-        content: { textContent: serialized },
-      }),
-    );
-    const link = mock<HTMLAnchorElement>();
-    document.createElement.mockReturnValue(link);
+    const realm = createReportWindow();
+    const document = realm.document;
+    document.body.innerHTML = output;
+    let link: HTMLAnchorElement;
+    const click = jest
+      .spyOn(realm.HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        link = this;
+      });
+    const remove = jest.spyOn(realm.HTMLAnchorElement.prototype, "remove");
     const createObjectURL = jest.fn((_blob: Blob) => "blob:transactions");
     const revokeObjectURL = jest.fn();
     const timers: Array<() => void> = [];
-    const scripts = [...output.matchAll(/<script>([\s\S]*?)<\/script>/gi)];
-    runInNewContext(scripts.at(-1)![1], {
-      document,
+    Object.assign(realm, {
+      Highlight: Set,
+      CSS: { highlights: new Map() },
       Blob,
       URL: { createObjectURL, revokeObjectURL },
       setTimeout: (callback: () => void) => timers.push(callback),
     });
-    const listener = button.addEventListener.mock.calls[0][1];
-    if (typeof listener !== "function")
-      throw new Error("Missing download listener");
-    listener.call(button, mock<Event>({ target: button }));
+    await runScripts(realm, output);
+    const search = document.querySelector<HTMLInputElement>(
+      "#search-transactions",
+    )!;
+    search.value = "Second account";
+    search.dispatchEvent(new realm.Event("input", { bubbles: true }));
+    await document
+      .querySelector<ReportLightElement>("report-transactions")!
+      .ready();
+    document
+      .querySelector<HTMLButtonElement>("#download-transactions")!
+      .click();
     const blob = createObjectURL.mock.calls[0][0];
     expect(blob.type).toBe("application/json;charset=utf-8");
+    expect(await blob.text()).toBe(serialized);
     expect(JSON.parse(await blob.text())).toEqual(expected);
-    expect(link.download).toBe("transactions.json");
-    expect(link.click).toHaveBeenCalledTimes(1);
-    expect(link.remove).toHaveBeenCalledTimes(1);
+    expect(link!.download).toBe("transactions.json");
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(remove).toHaveBeenCalledTimes(1);
     timers[0]();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:transactions");
   });
