@@ -22,7 +22,7 @@ describe("accountLabel", () => {
     expect(accountLabel(account({ [_field as string]: value }))).toBe(expected);
   });
 
-  it("prefers the most specific identity field", () => {
+  it("shows every populated identity field, most specific first", () => {
     expect(
       accountLabel(
         account({
@@ -31,7 +31,25 @@ describe("accountLabel", () => {
           username: "someone",
         }),
       ),
-    ).toBe("isracard · ••9888");
+    ).toBe("isracard · ••9888 · ••5678 · s••••••");
+
+    // A single field stays a single mask
+    expect(accountLabel(account({ card6Digits: "999888" }))).toBe(
+      "isracard · ••9888",
+    );
+  });
+
+  it("labels accounts apart exactly as the id does", () => {
+    const accounts = [
+      account({ card6Digits: "111111", id: "012345678" }),
+      account({ card6Digits: "111111", username: "noam" }),
+      account({ card6Digits: "222222", id: "012345678" }),
+      account({ username: "noam" }),
+    ];
+
+    const labels = accounts.map(accountLabel);
+    expect(new Set(labels).size).toBe(accounts.length);
+    expect(new Set(accounts.map(accountId)).size).toBe(accounts.length);
   });
 
   it("never exposes the password", () => {

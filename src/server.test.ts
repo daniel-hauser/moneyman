@@ -284,18 +284,22 @@ describe("startServer", () => {
           failedLastRun: false,
         },
         // Kept apart by the field the first one does not have, and deduped
-        // against the identical fourth-card entry
+        // against the identical fourth-card entry. Its label shows both
+        // fields, so the two buttons do not read alike.
         {
           id: accountId({
             companyId: "isracard",
             card6Digits: "111111",
             username: "noam",
           } as never),
-          label: "isracard · ••1111",
+          label: "isracard · ••1111 · n•••",
           failedLastRun: false,
         },
       ]);
       expect(new Set(choices.map(({ id }) => id)).size).toBe(choices.length);
+      expect(new Set(choices.map(({ label }) => label)).size).toBe(
+        choices.length,
+      );
     });
 
     it("scrapes the account that shares the first login field with another one", async () => {

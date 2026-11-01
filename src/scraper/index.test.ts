@@ -207,8 +207,8 @@ describe("scraper runtime browser lifecycle", () => {
     );
 
     expect(results.map(({ accountLabel }) => accountLabel)).toEqual([
-      "isracard · ••1111",
-      "isracard · ••2222",
+      "isracard · ••1111 · ••5678",
+      "isracard · ••2222 · ••5678",
     ]);
   });
 

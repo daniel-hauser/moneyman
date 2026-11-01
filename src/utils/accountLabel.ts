@@ -56,18 +56,26 @@ function maskValue(field: IdentityField, value: string): string {
 
 /**
  * A short, human-readable label for a configured account, e.g.
- * `isracard · ••3456`. Used by the `/scrape_provider` picker, by the run
- * summary and by the HTML report, so a failure names the account instead of
- * only its provider.
+ * `isracard · ••1111 · ••5678`. Used by the `/scrape_provider` picker, by the
+ * run summary and by the HTML report, so a failure names the account instead
+ * of only its provider.
+ *
+ * Every populated non-secret login field is shown, masked, most specific
+ * first. That keeps two accounts of one provider distinguishable in a picker
+ * button whenever `accountId()` distinguishes them: the label and the id are
+ * built from the same fields, so only accounts that are identical in all of
+ * them can read alike — and those share an id and one button anyway.
  *
  * Falls back to the bare provider name when the account has no usable
- * identity field, which also means two such accounts of the same provider
- * cannot be told apart.
+ * identity field.
  */
 export function accountLabel(account: AccountConfig): string {
-  const [identity] = identityFields(account);
-  return identity
-    ? `${account.companyId} · ${maskValue(identity.field, identity.value)}`
+  const identity = identityFields(account);
+  return identity.length
+    ? [
+        account.companyId,
+        ...identity.map(({ field, value }) => maskValue(field, value)),
+      ].join(" · ")
     : account.companyId;
 }
 
