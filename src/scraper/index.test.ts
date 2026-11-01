@@ -188,27 +188,32 @@ describe("scraper runtime browser lifecycle", () => {
   });
 
   it("labels each account so two accounts of one provider are told apart", async () => {
+    const first = {
+      companyId: CompanyTypes.isracard,
+      id: "012345678",
+      card6Digits: "111111",
+      password: "first-card",
+    };
+    const second = {
+      companyId: CompanyTypes.isracard,
+      id: "012345678",
+      card6Digits: "222222",
+      password: "second-card",
+    };
+    // Literal ids: the assertion is the index alignment, not a restated input
     const results = await scrapeAccounts(
       {
         ...config,
-        accounts: [
-          {
-            companyId: CompanyTypes.isracard,
-            id: "012345678",
-            card6Digits: "111111",
-            password: "first-card",
-          },
-          {
-            companyId: CompanyTypes.isracard,
-            id: "012345678",
-            card6Digits: "222222",
-            password: "second-card",
-          },
-        ],
+        accounts: [first, second],
+        accountIds: ["id-of-first", "id-of-second"],
       },
       initDomainTracking,
     );
 
+    expect(results.map(({ accountId }) => accountId)).toEqual([
+      "id-of-first",
+      "id-of-second",
+    ]);
     expect(results.map(({ accountLabel }) => accountLabel)).toEqual([
       "isracard · •••111 · •••••5678",
       "isracard · •••222 · •••••5678",
