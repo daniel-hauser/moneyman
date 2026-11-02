@@ -1,4 +1,209 @@
+diff --git a/node_modules/israeli-bank-scrapers/lib/helpers/browser.d.ts b/node_modules/israeli-bank-scrapers/lib/helpers/browser.d.ts
+index bfc7bcb..3f0b140 100644
+--- a/node_modules/israeli-bank-scrapers/lib/helpers/browser.d.ts
++++ b/node_modules/israeli-bank-scrapers/lib/helpers/browser.d.ts
+@@ -1,5 +1,5 @@
+ import { type Page } from 'puppeteer';
+-export declare function maskHeadlessUserAgent(page: Page): Promise<void>;
++export declare function maskBrowserAutomation(page: Page): Promise<void>;
+ /**
+  * Priorities for request interception. The higher the number, the higher the priority.
+  * We want to let others to have the ability to override our interception logic therefore we hardcode them.
+diff --git a/node_modules/israeli-bank-scrapers/lib/helpers/browser.js b/node_modules/israeli-bank-scrapers/lib/helpers/browser.js
+index e8163e9..ba61139 100644
+--- a/node_modules/israeli-bank-scrapers/lib/helpers/browser.js
++++ b/node_modules/israeli-bank-scrapers/lib/helpers/browser.js
+@@ -4,10 +4,25 @@ Object.defineProperty(exports, "__esModule", {
+   value: true
+ });
+ exports.interceptionPriorities = void 0;
+-exports.maskHeadlessUserAgent = maskHeadlessUserAgent;
+-async function maskHeadlessUserAgent(page) {
+-  const userAgent = await page.evaluate(() => navigator.userAgent);
+-  await page.setUserAgent(userAgent.replace('HeadlessChrome/', 'Chrome/'));
++exports.maskBrowserAutomation = maskBrowserAutomation;
++const FALLBACK_CHROME_MAJOR_VERSION = '127';
++async function maskBrowserAutomation(page) {
++  const browserVersion = await page.browser().version();
++  const chromeMajorVersion = browserVersion.match(/Chrome\/(\d+)/)?.[1] ?? FALLBACK_CHROME_MAJOR_VERSION;
++  const userAgent =
++    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
++    `(KHTML, like Gecko) Chrome/${chromeMajorVersion}.0.0.0 Safari/537.36`;
++  await page.setUserAgent(userAgent);
++  await page.setExtraHTTPHeaders({
++    'sec-ch-ua':
++      `"Chromium";v="${chromeMajorVersion}", "Not)A;Brand";v="99", ` + `"Google Chrome";v="${chromeMajorVersion}"`,
++    'sec-ch-ua-mobile': '?0',
++    'sec-ch-ua-platform': '"Windows"',
++    'accept-language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7'
++  });
++  await page.evaluateOnNewDocument(() => {
++    Object.defineProperty(navigator, 'webdriver', { get: () => false });
++  });
+ }
+ 
+ /**
+diff --git a/node_modules/israeli-bank-scrapers/lib/helpers/fetch.js b/node_modules/israeli-bank-scrapers/lib/helpers/fetch.js
+index 618bf63..d8476f9 100644
+--- a/node_modules/israeli-bank-scrapers/lib/helpers/fetch.js
++++ b/node_modules/israeli-bank-scrapers/lib/helpers/fetch.js
+@@ -16,7 +16,7 @@ function getJsonHeaders() {
+   };
+ }
+ function assertAutomationNotBlocked(status, responseText, url) {
+-  if (status === 429 || responseText && /block automation|bot detection/i.test(responseText)) {
++  if (status === 429 || responseText && /block automation|bot detection|sorry, you have been blocked|cloudflare/i.test(responseText)) {
+     throw new Error(`Automation detected and blocked by server. Status: ${status}, URL: ${url}. The site is actively blocking automated access. Consider: 1) Using showBrowser:true, 2) Adding longer delays, 3) Using residential proxies, 4) Running at different times of day`);
+   }
+ }
+@@ -45,7 +45,13 @@ async function fetchPost(url, data, extraHeaders = {}) {
+     body: JSON.stringify(data)
+   };
+   const result = await fetch(url, request);
+-  return result.json();
++  const responseText = await result.text();
++  assertAutomationNotBlocked(result.status, responseText, url);
++  try {
++    return JSON.parse(responseText);
++  } catch (e) {
++    throw new Error(`fetchPost parse error: ${e instanceof Error ? e.message : String(e)}, url: ${url}, status: ${result.status}, dataFields: ${JSON.stringify(Object.keys(data ?? {}))}, extraHeaderFields: ${JSON.stringify(Object.keys(extraHeaders ?? {}))}, result: ${responseText}`);
++  }
+ }
+ async function fetchGraphql(url, query, variables = {}, extraHeaders = {}) {
+   const result = await fetchPost(url, {
+@@ -111,7 +117,7 @@ async function fetchPostWithinPage(page, url, data, extraHeaders = {}, ignoreErr
+     }
+   } catch (e) {
+     if (!ignoreErrors) {
+-      throw new Error(`fetchPostWithinPage parse error: ${e instanceof Error ? `${e.message}\n${e.stack}` : String(e)}, url: ${url}, data: ${JSON.stringify(data)}, extraHeaders: ${JSON.stringify(extraHeaders)}, result: ${resultText}`);
++      throw new Error(`fetchPostWithinPage parse error: ${e instanceof Error ? `${e.message}\n${e.stack}` : String(e)}, url: ${url}, dataFields: ${JSON.stringify(Object.keys(data ?? {}))}, extraHeaderFields: ${JSON.stringify(Object.keys(extraHeaders ?? {}))}, result: ${resultText}`);
+     }
+   }
+   return null;
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
+index 17393ab..dafe183 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/base-isracard-amex.js
+@@ -339,7 +339,7 @@ class IsracardAmexBaseScraper extends _baseScraperWithBrowser.BaseScraperWithBro
+         void request.continue(undefined, _browser.interceptionPriorities.continue);
+       }
+     });
+-    await (0, _browser.maskHeadlessUserAgent)(this.page);
++    await (0, _browser.maskBrowserAutomation)(this.page);
+     await this.navigateTo(`${this.baseUrl}/personalarea/Login`);
+     this.emitProgress(_definitions.ScraperProgressTypes.LoggingIn);
+     const validateUrl = `${this.servicesUrl}?reqName=ValidateIdData`;
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.d.ts b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.d.ts
+index 62884bf..ab8081d 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.d.ts
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.d.ts
+@@ -7,6 +7,10 @@ type ScraperSpecificCredentials = {
+ declare class VisaCalScraper extends BaseScraperWithBrowser<ScraperSpecificCredentials> {
+     private authorization;
+     private authRequestPromise;
++    private userAgent;
++    private chromeMajorVersion;
++    initialize(): Promise<void>;
++    private getApiHeaders;
+     openLoginPopup: () => Promise<never>;
+     getCards(): Promise<{
+         cardUniqueId: string;
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
+index 1e38c90..ed937bb 100644
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.js
+@@ -5,6 +5,7 @@ Object.defineProperty(exports, "__esModule", {
+ });
+ exports.default = void 0;
+ var _moment = _interopRequireDefault(require("moment"));
++var _browser = require("../helpers/browser");
+ var _debug = require("../helpers/debug");
+ var _elementsInteractions = require("../helpers/elements-interactions");
+ var _fetch = require("../helpers/fetch");
+@@ -15,8 +16,7 @@ var _waiting = require("../helpers/waiting");
+ var _transactions2 = require("../transactions");
+ var _baseScraperWithBrowser = require("./base-scraper-with-browser");
+ function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+-const apiHeaders = {
+-  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
++const staticApiHeaders = {
+   Origin: 'https://digital-web.cal-online.co.il',
+   Referer: 'https://digital-web.cal-online.co.il',
+   'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
+@@ -24,6 +24,7 @@ const apiHeaders = {
+   'Sec-Fetch-Mode': 'cors',
+   'Sec-Fetch-Dest': 'empty'
+ };
++const FALLBACK_CHROME_MAJOR_VERSION = '127';
+ const LOGIN_URL = 'https://www.cal-online.co.il/';
+ const TRANSACTIONS_REQUEST_ENDPOINT = 'https://api.cal-online.co.il/Transactions/api/transactionsDetails/getCardTransactionsDetails';
+ const FRAMES_REQUEST_ENDPOINT = 'https://api.cal-online.co.il/Frames/api/Frames/GetFrameStatus';
+@@ -207,6 +208,27 @@ function convertParsedDataToTransactions(data, pendingData, options) {
+ }
+ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+   authorization = undefined;
++  userAgent = '';
++  chromeMajorVersion = FALLBACK_CHROME_MAJOR_VERSION;
++  async initialize() {
++    await super.initialize();
++    debug('mask automation fingerprint before navigating to the login page');
++    await (0, _browser.maskBrowserAutomation)(this.page);
++    this.userAgent = await this.page.evaluate(() => navigator.userAgent);
++    const browserVersion = await this.page.browser().version();
++    this.chromeMajorVersion = browserVersion.match(/Chrome\/(\d+)/)?.[1] ?? FALLBACK_CHROME_MAJOR_VERSION;
++  }
++  getApiHeaders() {
++    return {
++      'User-Agent': this.userAgent,
++      'sec-ch-ua':
++        `"Chromium";v="${this.chromeMajorVersion}", "Not)A;Brand";v="99", ` +
++        `"Google Chrome";v="${this.chromeMajorVersion}"`,
++      'sec-ch-ua-mobile': '?0',
++      'sec-ch-ua-platform': '"Windows"',
++      ...staticApiHeaders
++    };
++  }
+   openLoginPopup = async () => {
+     debug('open login popup, wait until login button available');
+     await (0, _elementsInteractions.waitUntilElementFound)(this.page, '#ccLoginDesktopBtn', true);
+@@ -289,7 +311,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+           throw e;
+         }
+       },
+-      userAgent: apiHeaders['User-Agent']
++      userAgent: this.userAgent
+     };
+   }
+   async fetchCardData(card, startMoment, startDate, futureMonthsToScrape, Authorization, xSiteId) {
+@@ -302,7 +324,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+       Authorization,
+       'X-Site-Id': xSiteId,
+       'Content-Type': 'application/json',
+-      ...apiHeaders
++      ...this.getApiHeaders()
+     });
+     debug('frames response for card %s: %O', card.cardUniqueId, frames);
+ 
+@@ -342,7 +364,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+       Authorization,
+       'X-Site-Id': xSiteId,
+       'Content-Type': 'application/json',
+-      ...apiHeaders
++      ...this.getApiHeaders()
+     });
+     debug(`fetch completed transactions for card ${card.cardUniqueId}`);
+     for (let i = 0; i <= months; i++) {
+@@ -355,7 +377,7 @@ class VisaCalScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+         Authorization,
+         'X-Site-Id': xSiteId,
+         'Content-Type': 'application/json',
+-        ...apiHeaders
++        ...this.getApiHeaders()
+       });
+       if (monthData?.statusCode !== 1) throw new Error(`failed to fetch transactions for card ${card.last4Digits}. Message: ${monthData?.title || ''}`);
+       if (!isCardTransactionDetails(monthData)) {
 diff --git a/node_modules/israeli-bank-scrapers/lib/transactions.d.ts b/node_modules/israeli-bank-scrapers/lib/transactions.d.ts
+index 26409c5..01a640d 100644
 --- a/node_modules/israeli-bank-scrapers/lib/transactions.d.ts
 +++ b/node_modules/israeli-bank-scrapers/lib/transactions.d.ts
 @@ -44,9 +44,9 @@ export interface Transaction {
