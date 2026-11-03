@@ -8,10 +8,11 @@ import {
   shutdownTelegramBot,
   sendError,
 } from "./bot/notifier.js";
-import { registerCommands } from "./bot/commands.js";
+import { registerCommands, type CommandAvailability } from "./bot/commands.js";
 import type { RunHandle, RunStatus, RunTrigger } from "./types.js";
 import { aborted } from "node:util";
 import type { ProcessHandlers } from "./utils/processErrors.js";
+import { type ScrapeSelection } from "./selection.js";
 
 const logger = createLogger("server");
 
@@ -21,14 +22,24 @@ const SHUTDOWN_DRAIN_TIMEOUT_MS = 30_000;
 export type SecretRefreshResult = "refreshed" | "failed";
 
 export type ServerRunner = {
-  startRun(trigger: RunTrigger): Promise<RunHandle>;
+  startRun(
+    trigger: RunTrigger,
+    selection?: ScrapeSelection,
+  ): Promise<RunHandle>;
+  getCommandAvailability?: () => Promise<CommandAvailability>;
   refreshSecrets?: () => Promise<SecretRefreshResult>;
   isRunning(): Promise<boolean>;
   getLastRun(): RunStatus | undefined;
 };
 
 export async function startServer(
-  { startRun, refreshSecrets, isRunning, getLastRun }: ServerRunner,
+  {
+    startRun,
+    refreshSecrets,
+    isRunning,
+    getLastRun,
+    getCommandAvailability,
+  }: ServerRunner,
   processHandlers: ProcessHandlers,
 ) {
   const cron = config.options.scheduling.cron;
@@ -44,15 +55,26 @@ export async function startServer(
   /** The run in progress, mirrored so a shutdown can wait for it. */
   let activeRun: Promise<unknown> | undefined;
   let shuttingDown = false;
+  const stateChanges = new EventTarget();
+  const commandLifetime = new AbortController();
 
-  async function startTrackedRun(trigger: RunTrigger) {
-    const handle = await startRun(trigger);
+  async function startTrackedRun(
+    trigger: RunTrigger,
+    selection?: ScrapeSelection,
+  ) {
+    const handle = await startRun(trigger, selection).catch((error) => {
+      stateChanges.dispatchEvent(new Event("stateChanged"));
+      throw error;
+    });
     if (handle.started) {
       activeRun = handle.finished
         .catch((error) => logger(`${trigger} run failed`, error))
         .finally(() => {
           activeRun = undefined;
+          stateChanges.dispatchEvent(new Event("stateChanged"));
         });
+    } else if (handle.error) {
+      stateChanges.dispatchEvent(new Event("stateChanged"));
     }
 
     return handle;
@@ -78,6 +100,7 @@ export async function startServer(
   async function shutdown(signal: string) {
     if (shuttingDown) return;
     shuttingDown = true;
+    commandLifetime.abort();
 
     logger(`Received ${signal}, shutting down`);
     task?.stop();
@@ -143,36 +166,49 @@ export async function startServer(
     return;
   }
 
-  registerCommands(bot, {
-    refreshSecrets: refreshSecrets
-      ? async () => {
-          if (shuttingDown) return "🛑 Shutting down, no secret refresh";
-          switch (await refreshSecrets()) {
-            case "refreshed":
-              return "✅ Secrets fetched and validated. No scrape started; the next scrape will refresh again. Telegram and scheduling changes require a restart.";
-            case "failed":
-              return "❌ Secret refresh failed. No scrape started. Check the private logs and provider access, then retry.";
+  registerCommands(
+    bot,
+    {
+      getCommandAvailability,
+      refreshSecrets: refreshSecrets
+        ? async () => {
+            if (shuttingDown) return "🛑 Shutting down, no secret refresh";
+            const result = await refreshSecrets();
+            switch (result) {
+              case "refreshed":
+                return "✅ Secrets fetched and validated. No scrape started; the next scrape will refresh again. Telegram and scheduling changes require a restart.";
+              case "failed":
+                return "❌ Secret refresh failed. No scrape started. Check the private logs and provider access, then retry.";
+            }
           }
-        }
-      : undefined,
-    async scrape() {
-      if (shuttingDown) return "🛑 Shutting down, no new scrapes";
+        : undefined,
+      async scrape(selection) {
+        if (shuttingDown) return "🛑 Shutting down, no new scrapes";
 
-      const { started, finished } = await startTrackedRun("manual");
-      if (!started) return "⏳ A scrape is already in progress";
-
-      finished.catch(async (e) => {
-        await sendError(e, "Manual scrape").catch((notificationError) =>
-          logger("Failed to send manual scrape error", notificationError),
+        const { started, finished, error } = await startTrackedRun(
+          "manual",
+          selection,
         );
-      });
+        if (!started) return error ?? "⏳ A scrape is already in progress";
 
-      return "🔄 Scrape started";
+        finished.catch(async (e) => {
+          await sendError(e, "Manual scrape").catch((notificationError) =>
+            logger("Failed to send manual scrape error", notificationError),
+          );
+        });
+
+        return "🔄 Scrape started";
+      },
+      isRunning,
+      getLastRun,
+      getNextRunAt: () => task?.getNextRun() ?? undefined,
     },
-    isRunning,
-    getLastRun,
-    getNextRunAt: () => task?.getNextRun() ?? undefined,
-  });
+    {
+      stateChanges,
+      signal: commandLifetime.signal,
+      chatId: config.options.notifications?.telegram?.chatId,
+    },
+  );
 
   await launchTelegramBot()
     .then(() => logToPublicLog("Listening for Telegram commands"))

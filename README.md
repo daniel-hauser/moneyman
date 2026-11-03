@@ -145,6 +145,7 @@ A JSON array of accounts following [this](https://github.com/eshaham/israeli-ban
 ```typescript
 accounts: Array<{
   companyId: string;
+  scrapeId?: string;
   password: string;
   /**
    * And any other fields required by the specific scraper
@@ -173,6 +174,9 @@ options: {
      * @default all accounts
      */
     accountsToScrape?: string[];
+    filter?: {
+      scrapeIds?: string[];
+    };
     /**
      * The amount of days back to scrape
      * @default 10

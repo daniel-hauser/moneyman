@@ -514,35 +514,38 @@ describe("config", () => {
       expect(config.storage.localJson?.enabled).toBe(true);
     });
 
-    it("should handle invalid JSON in config file", async () => {
-      const invalidJsonc = '{ "accounts": [ invalid json }';
+    it.each([
+      '{ "accounts": [ invalid json }',
+      JSON.stringify({
+        accounts: [{ companyId: "hapoalim", password: "invented" }],
+        options: { scraping: { filter: { scrapeIds: "invalid" } } },
+      }),
+    ])(
+      "falls back to defaults for invalid config files: %s",
+      async (content) => {
+        const { writeFileSync, unlinkSync } = await import("fs");
+        const { randomUUID } = await import("node:crypto");
+        const configPath = `config-invalid-${randomUUID()}.json`;
+        writeFileSync(configPath, content);
 
-      // Create a temporary config file with invalid JSON
-      const { mkdtempSync, writeFileSync } = await import("fs");
-      const { join } = await import("path");
-      const { tmpdir } = await import("os");
-      const tempDir = mkdtempSync(join(tmpdir(), "moneyman-test-"));
-      const configPath = join(tempDir, "config.json");
-      writeFileSync(configPath, invalidJsonc);
-
-      process.env = {
-        ...originalEnv,
-        MONEYMAN_CONFIG: undefined,
-        MONEYMAN_CONFIG_PATH: configPath,
-      };
-
-      // The config module should fall back to default config when parsing fails
-      const { config } = await import("./config.js");
-
-      // Should return default config with empty accounts
-      expect(config.accounts).toEqual([]);
-      expect(config.storage.localJson?.enabled).toBe(true);
-
-      // Cleanup
-      const { unlinkSync, rmdirSync } = await import("fs");
-      unlinkSync(configPath);
-      rmdirSync(tempDir);
-    });
+        try {
+          process.env = {
+            ...originalEnv,
+            MONEYMAN_CONFIG: undefined,
+            MONEYMAN_CONFIG_PATH: configPath,
+          };
+          const { config } = await import("./config.js");
+          expect(config.accounts).toEqual([]);
+          expect(config.storage.localJson?.enabled).toBe(true);
+          expect(configLogger).toHaveBeenCalledWith(
+            "Failed to parse config file from MONEYMAN_CONFIG_PATH. Unable to continue with invalid configuration",
+            expect.any(Error),
+          );
+        } finally {
+          unlinkSync(configPath);
+        }
+      },
+    );
 
     it("should handle missing required fields in account config", async () => {
       const configWithMissingFields = {

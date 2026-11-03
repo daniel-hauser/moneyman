@@ -8,6 +8,7 @@
     // Example:
     // {
     //   "companyId": "hapoalim",
+    //   "scrapeId": "household-bank", // Optional nonsecret label; duplicates select all matches
     //   "password": "your-password",
     //   "userCode": "your-user-code"
     // }
@@ -27,6 +28,9 @@
   },
   "options": {
     "scraping": {
+      // Optional selection by scrapeId labels; omit the list, not empty.
+      // "filter": { "scrapeIds": ["household-bank"] },
+      // Legacy accountsToScrape (company IDs, empty means all) cannot coexist with filter.
       // Number of days back to scrape transactions (default: 10)
       // "daysBack": 10,
       // Number of future months to scrape (default: 1)

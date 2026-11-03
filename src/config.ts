@@ -39,8 +39,7 @@ function createConfig() {
     logger("Using MONEYMAN_CONFIG");
     try {
       const parsedConfig = parseJsoncConfig(MONEYMAN_CONFIG);
-      const validatedConfig = MoneymanConfigSchema.parse(parsedConfig);
-      return validatedConfig;
+      return MoneymanConfigSchema.parse(parsedConfig);
     } catch (error) {
       logger(
         "Failed to parse MONEYMAN_CONFIG. Unable to continue with invalid configuration",
@@ -91,15 +90,46 @@ logger("Env", {
 
 logger("config loaded", config.options.scraping);
 
-function getAccounts(config: MoneymanConfig): Array<AccountConfig> {
-  const allAccounts = config.accounts as Array<AccountConfig>;
-  const { accountsToScrape } = config.options.scraping;
-
-  return !accountsToScrape || accountsToScrape.length === 0
-    ? allAccounts
-    : allAccounts.filter((account) =>
-        accountsToScrape.includes(account.companyId),
-      );
+export function getAccounts(
+  snapshot: MoneymanConfig,
+  choices?: string[],
+): Array<AccountConfig> {
+  const allAccounts = snapshot.accounts as Array<AccountConfig>;
+  const { accountsToScrape, filter } = snapshot.options.scraping;
+  if (filter && accountsToScrape !== undefined)
+    throw new Error("Use either filter or legacy accountsToScrape, not both");
+  const scrapeIds = filter?.scrapeIds;
+  if (
+    scrapeIds &&
+    (!scrapeIds.length ||
+      scrapeIds.some(
+        (id) => !allAccounts.some((account) => account.scrapeId === id),
+      ))
+  )
+    throw new Error("Unknown or empty scrapeId selection in filter");
+  const allowed = scrapeIds
+    ? allAccounts.filter(
+        (account) =>
+          account.scrapeId !== undefined &&
+          scrapeIds.includes(account.scrapeId),
+      )
+    : !accountsToScrape?.length
+      ? allAccounts
+      : allAccounts.filter((account) =>
+          accountsToScrape.includes(account.companyId),
+        );
+  if (!choices) return allowed;
+  if (
+    !choices.length ||
+    choices.some(
+      (choice) => !allowed.some((account) => account.scrapeId === choice),
+    )
+  )
+    return [];
+  return allowed.filter(
+    (account) =>
+      account.scrapeId !== undefined && choices.includes(account.scrapeId),
+  );
 }
 
 /**
@@ -111,9 +141,10 @@ function getAccounts(config: MoneymanConfig): Array<AccountConfig> {
  */
 export function getScraperConfig(
   snapshot: MoneymanConfig = config,
+  choices?: string[],
 ): ScraperRunConfig {
   return {
-    accounts: getAccounts(snapshot),
+    accounts: getAccounts(snapshot, choices),
     startDate: subDays(Date.now(), snapshot.options.scraping.daysBack),
     parallelScrapers: snapshot.options.scraping.maxParallelScrapers,
     futureMonthsToScrape: snapshot.options.scraping.futureMonths,

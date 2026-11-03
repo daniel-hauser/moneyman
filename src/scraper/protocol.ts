@@ -13,6 +13,7 @@ export const WorkerConfigSchema = z.strictObject({
       .looseObject({
         companyId: z.string().min(1),
         password: z.string().min(1),
+        scrapeId: z.string().min(1).optional(),
       })
       .catchall(z.json()) as unknown as z.ZodType<AccountConfig>,
   ),

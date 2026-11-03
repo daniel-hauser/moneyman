@@ -6,6 +6,7 @@ import { validate } from "node-cron";
 const AccountSchema = z.looseObject({
   companyId: z.string().min(1, { error: "Company ID is required" }),
   password: z.string().min(1, { error: "Password is required" }),
+  scrapeId: z.string().min(1).optional(),
 });
 
 // Storage provider schemas
@@ -114,6 +115,9 @@ export const StorageSchema = z
 // Options schemas
 export const ScrapingOptionsSchema = z.object({
   accountsToScrape: z.array(z.string()).optional(),
+  filter: z
+    .strictObject({ scrapeIds: z.array(z.string()).optional() })
+    .optional(),
   daysBack: z.number().min(1).max(365).default(10),
   futureMonths: z.number().min(0).max(12).default(1),
   transactionHashType: z.enum(["", "moneyman"]).default(""),

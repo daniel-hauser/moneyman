@@ -90,6 +90,7 @@ export function createBot(bot: Telegraf<Context> | null) {
   }
 
   async function shutdownWithDeadline(): Promise<void> {
+    const chatId = config.options.notifications?.telegram?.chatId;
     const completed = new AbortController();
     const signal = AbortSignal.any([
       AbortSignal.timeout(3_000),
@@ -98,9 +99,11 @@ export function createBot(bot: Telegraf<Context> | null) {
     try {
       const [stopResult, clearResult] = await Promise.allSettled([
         stopTelegramBot(signal),
-        bot
+        bot && chatId
           ? Promise.race([
-              bot.telegram.deleteMyCommands(),
+              bot.telegram.deleteMyCommands({
+                scope: { type: "chat", chat_id: chatId },
+              }),
               aborted(signal, bot).then(() => signal.throwIfAborted()),
             ])
           : Promise.resolve(),
