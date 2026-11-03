@@ -6,6 +6,9 @@ on:
     types: [opened, synchronize, reopened, edited]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   commitlint:
     runs-on: ubuntu-latest
