@@ -15,7 +15,9 @@
     "postinstall": "patch-package",
     "build:report-assets": "node report/build.mjs",
     "build": "npm run build:report-assets && tsc && tsc -p report/tsconfig.json",
-    "lint": "prettier --check .",
+    "lint": "npm run lint:format && npm run lint:commit",
+    "lint:format": "prettier --check .",
+    "lint:commit": "commitlint --last",
     "lint:fix": "prettier --write .",
     "pretest": "npm run build:report-assets",
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
@@ -65,6 +67,8 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
     "@lit-labs/ssr-dom-shim": "^1.6.0",
     "@swc/core": "^1.16.20",
     "@swc/jest": "^0.2.39",
