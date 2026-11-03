@@ -71,7 +71,7 @@
     "@commitlint/cli": "^21.2.4",
     "@commitlint/config-conventional": "^21.2.4",
     "@lit-labs/ssr-dom-shim": "^1.6.0",
-    "@swc/core": "^1.16.20",
+    "@swc/core": "^1.16.21",
     "@swc/jest": "^0.2.39",
     "@types/async": "^3.2.26",
     "@types/debug": "^4.1.13",
