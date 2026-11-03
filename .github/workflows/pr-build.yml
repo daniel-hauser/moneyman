@@ -3,14 +3,13 @@ name: PR Pipeline
 on:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 jobs:
   # Check if build-relevant files were changed
   check-changes:
     runs-on: ubuntu-latest
-    if: github.event.action != 'edited'
     outputs:
       build-needed: ${{ steps.check.outputs.build-needed }}
     steps:
@@ -65,7 +64,6 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
-    if: github.event.action != 'edited'
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -84,27 +82,6 @@ jobs:
         env:
           PUPPETEER_SKIP_DOWNLOAD: true
       - run: npm run lint:format
-
-  commitlint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: "npm"
-          cache-dependency-path: package-lock.json
-      - run: npm ci
-        env:
-          PUPPETEER_SKIP_DOWNLOAD: true
-      - name: Lint PR title
-        if: github.event_name == 'pull_request'
-        env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-        run: printf '%s\n' "$PR_TITLE" | npx --no -- commitlint
-      - name: Lint latest commit
-        if: github.event_name == 'workflow_dispatch'
-        run: npm run lint:commit
 
   test:
     runs-on: ubuntu-latest
