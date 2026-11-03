@@ -1468,3 +1468,67 @@ max: scraping
 📝 Sheets ❌ Failed
 <blockquote expandable>	&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;&gt;&lt;&amp;…</blockquote>"
 `;
+
+exports[`screenshot file sizes renders lossless WebP screenshots alongside original PNGs 1`] = `
+"<div class="account-screenshots">
+    <details class="screenshots-details">
+      <summary>Screenshots (2)</summary>
+      <div class="screenshots">
+        <figure class="screenshot">
+              <button
+                type="button"
+                class="screenshot-open"
+                aria-label="Enlarge screenshot: Synthetic white pixel"
+                data-size="&lt;0.01 MB"
+              >
+                <img src="data:image/webp;base64,UklGRh4AAABXRUJQVlA4TBEAAAAvAAAAAAfQ//73v/+BiOh/AAA=" alt="Synthetic white pixel" />
+              </button>
+              <figcaption>
+                Synthetic white pixel
+                <small class="screenshot-size">&lt;0.01 MB</small>
+              </figcaption>
+            </figure><figure class="screenshot">
+              <button
+                type="button"
+                class="screenshot-open"
+                aria-label="Enlarge screenshot: Original PNG"
+                data-size="&lt;0.01 MB"
+              >
+                <img src="data:image/png;base64,AA==" alt="Original PNG" />
+              </button>
+              <figcaption>
+                Original PNG
+                <small class="screenshot-size">&lt;0.01 MB</small>
+              </figcaption>
+            </figure>
+      </div>
+    </details>
+    <dialog
+      id="screenshot-dialog"
+      class="screenshot-dialog"
+      aria-labelledby="screenshot-full-caption"
+      closedby="any"
+    >
+      <button
+        type="button"
+        class="screenshot-close"
+        commandfor="screenshot-dialog"
+        command="close"
+        aria-label="Close screenshot"
+        title="Close screenshot"
+        autofocus
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="m6 6 12 12M6 18 18 6" />
+        </svg>
+      </button>
+      <figure>
+        <img id="screenshot-full" alt="" />
+        <figcaption>
+          <span id="screenshot-full-caption"></span>
+          <small id="screenshot-full-size" class="screenshot-size"></small>
+        </figcaption>
+      </figure>
+    </dialog>
+  </div>"
+`;

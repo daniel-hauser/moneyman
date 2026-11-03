@@ -218,6 +218,29 @@ describe("renderFullReport", () => {
 });
 
 describe("screenshot file sizes", () => {
+  it("renders lossless WebP screenshots alongside original PNGs", () => {
+    const screenshots = [
+      {
+        caption: "Synthetic white pixel",
+        dataUrl:
+          "data:image/webp;base64,UklGRh4AAABXRUJQVlA4TBEAAAAvAAAAAAfQ//73v/+BiOh/AAA=",
+      },
+      {
+        caption: "Original PNG",
+        dataUrl: "data:image/png;base64,AA==",
+      },
+    ];
+    const report = baseReport();
+    report.screenshots = screenshots;
+    document.body.innerHTML = renderHTMLReport(report);
+    expect(
+      Array.from(document.querySelectorAll(".screenshot img"), (image) =>
+        image.getAttribute("src"),
+      ),
+    ).toEqual(screenshots.map(({ dataUrl }) => dataUrl));
+    expect(renderReportScreenshots(screenshots)).toMatchSnapshot();
+  });
+
   it.each([
     ["exact decimal MB", Buffer.alloc(1_250_000).toString("base64"), "1.25 MB"],
     ["two padding bytes", "AA==", "<0.01 MB"],
