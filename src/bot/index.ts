@@ -1,7 +1,6 @@
 import { saveResults } from "./storage/index.js";
 import { AccountScrapeResult, Runner, TransactionStorage } from "../types.js";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
-import { readFile } from "node:fs/promises";
 import { reportTransport, reportUpdateIntervalMs } from "./notifier.js";
 import { formatUnknownError } from "../utils/utils.js";
 import { createReportPublisher } from "./reportPublisher.js";
@@ -78,7 +77,7 @@ export async function runWithStorage(
           ...(await Promise.all(
             photos.map(async ({ photoPath, caption }) => ({
               caption,
-              dataUrl: await createScreenshotDataUrl(await readFile(photoPath)),
+              dataUrl: await createScreenshotDataUrl(photoPath),
             })),
           )),
         );

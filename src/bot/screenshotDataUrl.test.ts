@@ -1,7 +1,12 @@
+import { readFile } from "node:fs/promises";
 import sharp from "sharp";
 import { createScreenshotDataUrl } from "./screenshotDataUrl.js";
 
+jest.mock("node:fs/promises", () => ({ readFile: jest.fn() }));
+
 describe("createScreenshotDataUrl", () => {
+  beforeEach(() => jest.resetAllMocks());
+
   it("reduces a synthetic text/UI screenshot without changing dimensions or pixels", async () => {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700">
       <rect width="1000" height="700" fill="#f3f5f8"/>
@@ -18,7 +23,9 @@ describe("createScreenshotDataUrl", () => {
     </svg>`;
     const png = await sharp(Buffer.from(svg)).png().toBuffer();
 
-    const dataUrl = await createScreenshotDataUrl(png);
+    jest.mocked(readFile).mockResolvedValue(png);
+    const dataUrl = await createScreenshotDataUrl("invented-screenshot.png");
+    expect(readFile).toHaveBeenCalledWith("invented-screenshot.png");
     const webp = Buffer.from(dataUrl.split(",")[1], "base64");
 
     expect(dataUrl).toMatch(/^data:image\/webp;base64,/);
@@ -50,7 +57,8 @@ describe("createScreenshotDataUrl", () => {
       .png()
       .toBuffer();
 
-    const dataUrl = await createScreenshotDataUrl(png);
+    jest.mocked(readFile).mockResolvedValue(png);
+    const dataUrl = await createScreenshotDataUrl("invented-screenshot.png");
     const webp = Buffer.from(dataUrl.split(",")[1], "base64");
 
     expect(dataUrl).toMatch(/^data:image\/webp;base64,/);
@@ -79,14 +87,25 @@ describe("createScreenshotDataUrl", () => {
       .toBuffer();
     expect(webp.length).toBeGreaterThan(png.length);
 
-    expect(await createScreenshotDataUrl(png)).toBe(
+    jest.mocked(readFile).mockResolvedValue(png);
+    expect(await createScreenshotDataUrl("invented-screenshot.png")).toBe(
       `data:image/png;base64,${png.toString("base64")}`,
     );
   });
 
   it("propagates encoding errors rather than silently embedding the original", async () => {
+    jest.mocked(readFile).mockResolvedValue(Buffer.from("not an image"));
     await expect(
-      createScreenshotDataUrl(Buffer.from("not an image")),
+      createScreenshotDataUrl("invented-screenshot.png"),
     ).rejects.toThrow();
+  });
+
+  it("propagates screenshot read errors", async () => {
+    const error = new Error("Unable to read screenshot");
+    jest.mocked(readFile).mockRejectedValue(error);
+
+    await expect(
+      createScreenshotDataUrl("invented-screenshot.png"),
+    ).rejects.toBe(error);
   });
 });
