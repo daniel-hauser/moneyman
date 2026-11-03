@@ -59,7 +59,7 @@
     "node-cron": "^4.6.0",
     "pg": "^8.23.1",
     "pg-format": "^1.0.4",
-    "puppeteer": "25.11.0",
+    "puppeteer": "25.16.0",
     "telegraf": "^4.16.3",
     "valtio": "^2.3.2",
     "varlock": "1.24.0",
