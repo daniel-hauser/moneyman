@@ -8,6 +8,7 @@ import { createReportPublisher } from "./reportPublisher.js";
 import { createRunReport, type RunReport } from "./runReport.js";
 import { readReportLogs } from "../utils/secure-log.js";
 import { config } from "../config.js";
+import { createScreenshotDataUrl } from "./screenshotDataUrl.js";
 
 const logger = createLogger("bot");
 
@@ -77,7 +78,7 @@ export async function runWithStorage(
           ...(await Promise.all(
             photos.map(async ({ photoPath, caption }) => ({
               caption,
-              dataUrl: `data:image/png;base64,${(await readFile(photoPath)).toString("base64")}`,
+              dataUrl: await createScreenshotDataUrl(await readFile(photoPath)),
             })),
           )),
         );
