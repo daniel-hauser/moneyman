@@ -10,6 +10,7 @@ jobs:
   # Check if build-relevant files were changed
   check-changes:
     runs-on: ubuntu-latest
+    if: github.event.action != 'edited'
     outputs:
       build-needed: ${{ steps.check.outputs.build-needed }}
     steps:
@@ -64,6 +65,7 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    if: github.event.action != 'edited'
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
