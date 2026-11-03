@@ -778,7 +778,7 @@ describe("index", () => {
               },
               { companyId: "leumi", password: "invented-b", scrapeId: "other" },
             ],
-            options: { scraping: { filter: { scrapeIds: ["home"] } } },
+            options: { scraping: { accountsToScrape: ["home"] } },
           }),
         );
         await expect(
@@ -802,18 +802,21 @@ describe("index", () => {
         accounts: [
           { companyId: "hapoalim", password: "invented-a", scrapeId: "home" },
         ],
-        options: { scraping: { filter: { scrapeIds: ["home"] } } },
+        options: { scraping: { accountsToScrape: ["home"] } },
       });
       jest.mocked(loadRunConfig).mockResolvedValue(fresh);
       expect((await runner.getCommandAvailability()).scrapeIds).toEqual([
         "home",
       ]);
-      fresh.options.scraping.filter = { scrapeIds: ["removed"] };
+      fresh.options.scraping.accountsToScrape = ["removed"];
       await expect(
         runner.startRun("manual", {
           choices: ["home"],
         }),
-      ).rejects.toThrow("Unknown or empty scrapeId selection in filter");
+      ).resolves.toMatchObject({
+        started: false,
+        error: "No selected accounts available.",
+      });
       expect(runner.getLastRun()).toBeUndefined();
       expect(createStorages).not.toHaveBeenCalled();
       expect(mocks.scrapeAccountsMock).not.toHaveBeenCalled();
@@ -828,14 +831,14 @@ describe("index", () => {
           { companyId: "hapoalim", password: "invented-a", scrapeId: "home" },
           { companyId: "leumi", password: "invented-b", scrapeId: "other" },
         ],
-        options: { scraping: { filter: { scrapeIds: ["home", "other"] } } },
+        options: { scraping: { accountsToScrape: ["home", "other"] } },
       });
       jest.mocked(loadRunConfig).mockResolvedValue(fresh);
       expect((await runner.getCommandAvailability()).scrapeIds).toEqual([
         "home",
         "other",
       ]);
-      fresh.options.scraping.filter = { scrapeIds: ["home"] };
+      fresh.options.scraping.accountsToScrape = ["home"];
       const handle = await runner.startRun("manual", {
         choices: ["home"],
       });

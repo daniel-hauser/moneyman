@@ -170,13 +170,12 @@ accounts: Array<{
 options: {
   scraping: {
     /**
-     * A comma separated list of providers to take from `accounts`. if empty, all accounts will be used
+     * Select accounts by scrapeId (all matching logins). Omitted or empty means all accounts.
+     * Legacy company IDs select all company accounts with a deprecation warning only when
+     * no scrapeId anywhere in the configuration matches that value. Unknown values select nothing.
      * @default all accounts
      */
     accountsToScrape?: string[];
-    filter?: {
-      scrapeIds?: string[];
-    };
     /**
      * The amount of days back to scrape
      * @default 10

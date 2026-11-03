@@ -7,6 +7,7 @@ import { createLogger, logToPublicLog } from "./utils/logger.js";
 import { loadConfigSecretSync } from "./configSecret.js";
 import { parseJsoncConfig } from "./utils/jsonc.js";
 import type { ScraperRunConfig } from "./scraper/protocol.js";
+import { sendDeprecationMessage } from "./bot/deprecationManager.js";
 import {
   MoneymanConfigSchema,
   type MoneymanConfig,
@@ -95,29 +96,24 @@ export function getAccounts(
   choices?: string[],
 ): Array<AccountConfig> {
   const allAccounts = snapshot.accounts as Array<AccountConfig>;
-  const { accountsToScrape, filter } = snapshot.options.scraping;
-  if (filter && accountsToScrape !== undefined)
-    throw new Error("Use either filter or legacy accountsToScrape, not both");
-  const scrapeIds = filter?.scrapeIds;
-  if (
-    scrapeIds &&
-    (!scrapeIds.length ||
-      scrapeIds.some(
-        (id) => !allAccounts.some((account) => account.scrapeId === id),
-      ))
-  )
-    throw new Error("Unknown or empty scrapeId selection in filter");
-  const allowed = scrapeIds
-    ? allAccounts.filter(
+  const { accountsToScrape, hiddenDeprecations } = snapshot.options.scraping;
+  const scrapeIds = new Set(allAccounts.map((account) => account.scrapeId));
+  const legacyCompanies =
+    accountsToScrape?.filter(
+      (value) =>
+        !scrapeIds.has(value) &&
+        allAccounts.some((account) => account.companyId === value),
+    ) ?? [];
+  if (legacyCompanies.length)
+    sendDeprecationMessage("accountsToScrapeCompanyId", hiddenDeprecations);
+  const allowed = !accountsToScrape?.length
+    ? allAccounts
+    : allAccounts.filter(
         (account) =>
-          account.scrapeId !== undefined &&
-          scrapeIds.includes(account.scrapeId),
-      )
-    : !accountsToScrape?.length
-      ? allAccounts
-      : allAccounts.filter((account) =>
-          accountsToScrape.includes(account.companyId),
-        );
+          (account.scrapeId !== undefined &&
+            accountsToScrape.includes(account.scrapeId)) ||
+          legacyCompanies.includes(account.companyId),
+      );
   if (!choices) return allowed;
   if (
     !choices.length ||

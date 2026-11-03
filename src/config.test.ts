@@ -518,7 +518,7 @@ describe("config", () => {
       '{ "accounts": [ invalid json }',
       JSON.stringify({
         accounts: [{ companyId: "hapoalim", password: "invented" }],
-        options: { scraping: { filter: { scrapeIds: "invalid" } } },
+        options: { scraping: { accountsToScrape: "invalid" } },
       }),
     ])(
       "falls back to defaults for invalid config files: %s",
