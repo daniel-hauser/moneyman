@@ -44,7 +44,9 @@ export async function createSecureBrowserContext(
 ): Promise<BrowserContext> {
   // PR #993 runner experiment: keep access tests and full scrapes identical.
   const skipCloudflareSkipping =
-    companyId === CompanyTypes.amex || companyId === CompanyTypes.isracard;
+    companyId === CompanyTypes.amex ||
+    companyId === CompanyTypes.isracard ||
+    companyId === CompanyTypes.visaCal;
   const skipDomainTracking = companyId === CompanyTypes.visaCal;
   logger("Effective browser policy", {
     companyId,
