@@ -37,6 +37,7 @@ export interface WorkerResult {
 }
 
 export interface WorkerCallbacks {
+  networkTrace(trace: string): Promise<void>;
   timing(timing: RunTiming): Promise<void>;
   status(status: string[], totalTime?: number): Promise<void>;
   warning(error: unknown, caller: string): Promise<void>;

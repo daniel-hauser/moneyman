@@ -60,6 +60,7 @@ function createScraperSession(): ScraperWorkerApi {
             {
               executablePath: scraping.executablePath,
               signal: abort.signal,
+              onNetworkTrace: (trace) => callbacks.networkTrace(trace),
               onTiming: (timing) =>
                 locks
                   .request(progressLock, async () => {

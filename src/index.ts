@@ -17,6 +17,7 @@ import {
   sendLogFile,
   enableDebugLoggingIfNeeded,
   readReportLogs,
+  appendPrivateDiagnostic,
 } from "./utils/secure-log.js";
 import { RunHandle, RunnerHooks, RunStatus, RunTrigger } from "./types.js";
 import { runWithStorage } from "./bot/index.js";
@@ -155,9 +156,14 @@ async function runScraper(
     logger("About to start");
     await hooks.onBeforeStart();
 
+    // PR #993 experiment: select before worker creation so results and metadata agree.
+    const scraping = getScraperConfig(snapshot);
+    scraping.accounts = scraping.accounts.filter(
+      ({ companyId }) => companyId === "visaCal",
+    );
     logger("Starting to scrape");
     const { results, domains } = await scrapeAccounts(
-      getScraperConfig(snapshot),
+      scraping,
       async (status, totalTime) => {
         logger("Status changed", { status, totalTime });
         return hooks.onStatusChanged(status, totalTime);
@@ -168,6 +174,9 @@ async function runScraper(
       },
       signal,
       hooks.onTiming,
+      async (trace) => {
+        appendPrivateDiagnostic("VisaCal browser network trace", trace);
+      },
     );
     logger("Scraping ended");
     await Promise.all([

@@ -21,6 +21,7 @@ export async function scrapeAccounts(
   onError?: (error: unknown, caller: string) => void | Promise<void>,
   signal?: AbortSignal,
   onTiming?: RunnerHooks["onTiming"],
+  onNetworkTrace?: (trace: string) => Promise<void>,
 ): Promise<WorkerResult> {
   signal?.throwIfAborted();
   const debugFilter = debug.disable();
@@ -89,6 +90,9 @@ export async function scrapeAccounts(
     const scrapingResult = api.scrape(
       settings,
       proxy({
+        networkTrace: async (trace: string) => {
+          await onNetworkTrace?.(trace);
+        },
         timing: async (timing: RunTiming) => {
           if (timing.endedAt === undefined)
             activeTimings.set(timing.id, timing);

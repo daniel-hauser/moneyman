@@ -13,6 +13,7 @@ import type { DomainTracker } from "../security/domains.js";
 import { aborted } from "node:util";
 import { randomUUID } from "node:crypto";
 import type { RunTiming, RunnerHooks } from "../types.js";
+import { recordBrowserNetwork } from "./networkTrace.js";
 
 const logger = createLogger("scraper");
 
@@ -47,6 +48,7 @@ export async function scrapeAccounts(
     requestOtpCode?: OtpRequest;
     signal?: AbortSignal;
     onTiming?: RunnerHooks["onTiming"];
+    onNetworkTrace?: (trace: string) => Promise<void>;
   } = {},
 ) {
   const start = performance.now();
@@ -65,7 +67,14 @@ export async function scrapeAccounts(
   logger("Creating a browser");
   runtime.signal?.throwIfAborted();
   const browser = await createBrowser(runtime.executablePath, runtime.signal);
+  let recording: Awaited<ReturnType<typeof recordBrowserNetwork>> | undefined;
   try {
+    if (
+      runtime.onNetworkTrace &&
+      accounts.some(({ companyId }) => companyId === "visaCal")
+    ) {
+      recording = await recordBrowserNetwork(browser);
+    }
     runtime.signal?.throwIfAborted();
     logger(`Browser created, starting to scrape ${accounts.length} accounts`);
     const results = await parallelLimit<AccountConfig, AccountScrapeResult[]>(
@@ -128,6 +137,13 @@ export async function scrapeAccounts(
     logger(getStats(results));
     return results;
   } finally {
+    if (recording) {
+      try {
+        await runtime.onNetworkTrace?.(await recording.close());
+      } catch {
+        logger("Failed to deliver private browser network diagnostics");
+      }
+    }
     logger("closing browser");
     try {
       await browser[Symbol.asyncDispose]();

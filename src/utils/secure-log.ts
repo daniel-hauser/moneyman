@@ -1,4 +1,10 @@
-import { existsSync, unlinkSync, truncateSync, readFileSync } from "fs";
+import {
+  existsSync,
+  unlinkSync,
+  truncateSync,
+  readFileSync,
+  appendFileSync,
+} from "fs";
 import { config } from "../config.js";
 import { sendTextFile } from "../bot/notifier.js";
 import { logToPublicLog, unsafeStdout, createLogger } from "./logger.js";
@@ -6,6 +12,26 @@ import type { TransactionStorage } from "../types.js";
 import debug from "debug";
 
 const logger = createLogger("secure-log");
+
+export function appendPrivateDiagnostic(label: string, content: string) {
+  const path = process.env.MONEYMAN_LOG_FILE_PATH;
+  if (unsafeStdout || !path) {
+    logger(
+      "Browser diagnostics unavailable: private file logging is required.",
+    );
+    return;
+  }
+  try {
+    // Bypass debug filters and never fall back to stdout, even on write failure.
+    appendFileSync(
+      path,
+      `\n--- ${label} ---\n${content}\n--- End ${label} ---\n`,
+      { mode: 0o600 },
+    );
+  } catch {
+    logger("Failed to save private browser diagnostics.");
+  }
+}
 
 /**
  * Enable debug logging if configured.
