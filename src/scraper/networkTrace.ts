@@ -1,4 +1,6 @@
 import type { Browser, CDPSession, Protocol } from "puppeteer";
+import { aborted } from "node:util";
+import { loggerContextStore } from "../utils/asyncContext.js";
 
 const maxEntries = 5_000;
 const maxBodyBytes = 64 * 1024;
@@ -17,7 +19,7 @@ function redactUrl(value: string, base?: string) {
     if (url.password) url.password = "[redacted]";
     for (const key of [...url.searchParams.keys()]) {
       if (
-        /token|secret|password|credential|auth|session|api[-_]?key|code/i.test(
+        /token|secret|password|credential|auth|session|api[-_]?key|code|card/i.test(
           key,
         )
       )
@@ -30,24 +32,245 @@ function redactUrl(value: string, base?: string) {
   }
 }
 
+function headerMetadata(headers: Record<string, string>, url: string) {
+  const authorization = Object.entries(headers).find(([name]) =>
+    /^authorization$/i.test(name),
+  )?.[1];
+  return {
+    headers: Object.fromEntries(
+      Object.entries(headers).map(([name, value]) => [
+        name,
+        /authorization|cookie|token|secret|password|credential|api[-_]?key|card/i.test(
+          name,
+        )
+          ? "[redacted]"
+          : /^(location|content-location|referer)$/i.test(name)
+            ? redactUrl(value, url)
+            : value,
+      ]),
+    ),
+    authorizationPresent: authorization !== undefined,
+    authorizationScheme: authorization?.match(/^(\S+)\s+\S/)?.[1],
+  };
+}
+
 function responseMetadata(response: Protocol.Network.Response) {
   return {
     status: response.status,
     statusText: response.statusText,
     mimeType: response.mimeType,
-    headers: Object.fromEntries(
-      Object.entries(response.headers).map(([name, value]) => [
-        name,
-        /authorization|cookie|token|secret|api[-_]?key/i.test(name)
-          ? "[redacted]"
-          : /^(location|content-location)$/i.test(name)
-            ? redactUrl(String(value), response.url)
-            : value,
-      ]),
-    ),
+    ...headerMetadata(response.headers, response.url),
     timing: response.timing,
     fromDiskCache: response.fromDiskCache,
     fromServiceWorker: response.fromServiceWorker,
+  };
+}
+
+function payloadShape(value: unknown, depth = 0): unknown {
+  if (value === null) return "null";
+  if (depth >= 5) return { type: typeof value, reason: "Shape depth limit" };
+  if (Array.isArray(value))
+    return {
+      type: "array",
+      count: value.length,
+      firstItem: value.length ? payloadShape(value[0], depth + 1) : undefined,
+    };
+  if (typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value)
+        .slice(0, 40)
+        .map(([key, item]) => [key, payloadShape(item, depth + 1)]),
+    );
+  return typeof value;
+}
+
+function requestBodyMetadata(body: RequestInit["body"]) {
+  if (body == null) return { type: "none" };
+  if (typeof body === "string" && Buffer.byteLength(body) <= maxBodyBytes) {
+    try {
+      return { type: "json", shape: payloadShape(JSON.parse(body)) };
+    } catch {
+      return { type: "text", bytes: Buffer.byteLength(body) };
+    }
+  }
+  if (body instanceof URLSearchParams)
+    return { type: "urlencoded", fields: [...new Set(body.keys())] };
+  return { type: "omitted", reason: "Non-JSON, large or streaming body" };
+}
+
+interface NodeEntry {
+  id: number;
+  context?: string;
+  startedAt: string;
+  url?: string;
+  method?: string;
+  request?: ReturnType<typeof headerMetadata> & {
+    body: ReturnType<typeof requestBodyMetadata>;
+  };
+  response?: ReturnType<typeof headerMetadata> & {
+    status: number;
+    statusText: string;
+    url: string;
+    redirected: boolean;
+    type: ResponseType;
+  };
+  responseTimeMs?: number;
+  durationMs?: number;
+  outcome: string;
+  failure?: string;
+  body?: Entry["body"];
+}
+
+/** Scoped to one isolated scraper worker; never log this trace publicly. */
+export function recordNodeFetch() {
+  const originalFetch = globalThis.fetch;
+  const entries: NodeEntry[] = [];
+  const errors: string[] = [];
+  const pending = new Set<Promise<void>>();
+  let bodyBytes = 0;
+  let droppedEntries = 0;
+
+  async function captureBody(
+    response: Response,
+    entry: NodeEntry,
+    start: number,
+  ) {
+    const chunks: Buffer[] = [];
+    let bytes = 0;
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    try {
+      reader = response.clone().body?.getReader();
+      if (!reader) {
+        entry.body = { text: "", truncated: false };
+        return;
+      }
+      const deadline = AbortSignal.timeout(3_000);
+      const timeout = aborted(deadline, reader).then(() => {
+        throw deadline.reason;
+      });
+      while (true) {
+        const { done, value } = await Promise.race([reader.read(), timeout]);
+        if (done) {
+          entry.body = {
+            text: Buffer.concat(chunks).toString("utf8"),
+            truncated: false,
+          };
+          break;
+        }
+        const limit = Math.min(
+          maxBodyBytes - bytes,
+          maxTotalBodyBytes - bodyBytes,
+        );
+        const chunk = Buffer.from(value.subarray(0, limit));
+        chunks.push(chunk);
+        bytes += chunk.length;
+        bodyBytes += chunk.length;
+        if (value.length >= limit) {
+          entry.body = {
+            text: Buffer.concat(chunks).toString("utf8"),
+            truncated: true,
+            reason: "Node body byte limit",
+          };
+          break;
+        }
+      }
+    } catch (error) {
+      entry.body = {
+        text: Buffer.concat(chunks).toString("utf8"),
+        truncated: true,
+        reason: String(error),
+      };
+    } finally {
+      entry.durationMs = performance.now() - start;
+      void reader
+        ?.cancel()
+        .catch((error) => errors.push(`Node body cancel: ${error}`));
+    }
+  }
+
+  globalThis.fetch = async (input, init) => {
+    if (entries.length >= maxEntries) {
+      droppedEntries++;
+      return originalFetch(input, init);
+    }
+    const start = performance.now();
+    const entry: NodeEntry = {
+      id: entries.length + 1,
+      context: loggerContextStore.getStore()?.prefix,
+      startedAt: new Date().toISOString(),
+      outcome: "pending",
+    };
+    entries.push(entry);
+    const completion = Promise.withResolvers<void>();
+    pending.add(completion.promise);
+    const finish = () => {
+      pending.delete(completion.promise);
+      completion.resolve();
+    };
+    try {
+      const request = input instanceof Request ? input : undefined;
+      const url = request?.url ?? String(input);
+      entry.url = redactUrl(url);
+      entry.method = init?.method ?? request?.method ?? "GET";
+      entry.request = {
+        ...headerMetadata(
+          Object.fromEntries(new Headers(init?.headers ?? request?.headers)),
+          url,
+        ),
+        body:
+          init?.body === undefined && request?.body
+            ? { type: "omitted", reason: "Request stream not consumed" }
+            : requestBodyMetadata(init?.body),
+      };
+    } catch (error) {
+      errors.push(`Node request ${entry.id} metadata: ${error}`);
+    }
+    let response: Response;
+    try {
+      response = await originalFetch(input, init);
+    } catch (error) {
+      entry.durationMs = performance.now() - start;
+      entry.outcome = "failed";
+      entry.failure = `${error}${error instanceof Error && error.cause ? `; cause: ${error.cause}` : ""}`;
+      finish();
+      throw error;
+    }
+    entry.responseTimeMs = performance.now() - start;
+    entry.outcome = response.ok ? "finished" : "http-error";
+    try {
+      entry.response = {
+        status: response.status,
+        statusText: response.statusText,
+        url: redactUrl(response.url),
+        redirected: response.redirected,
+        type: response.type,
+        ...headerMetadata(Object.fromEntries(response.headers), response.url),
+      };
+    } catch (error) {
+      errors.push(`Node response ${entry.id} metadata: ${error}`);
+    }
+    void captureBody(response, entry, start).finally(finish);
+    return response;
+  };
+  return {
+    async close() {
+      globalThis.fetch = originalFetch;
+      const completed = await Promise.race([
+        Promise.allSettled([...pending]).then(() => true),
+        aborted(AbortSignal.timeout(3_500), pending).then(() => false),
+      ]);
+      if (!completed) errors.push("Node fetch shutdown deadline exceeded");
+      for (const entry of entries) {
+        if (entry.outcome === "pending") entry.outcome = "unfinished-at-stop";
+        entry.body ??= {
+          truncated: true,
+          reason: entry.response
+            ? "Node body unfinished at shutdown"
+            : `No response body: ${entry.outcome}`,
+        };
+      }
+      return { entries, errors, droppedEntries, bodyBytes };
+    },
   };
 }
 
@@ -60,6 +283,7 @@ interface Entry {
   redirectedFrom?: number;
   url: string;
   method: string;
+  request: ReturnType<typeof headerMetadata>;
   type?: Protocol.Network.ResourceType;
   startedAt: string;
   timestamp: number;
@@ -159,6 +383,7 @@ export async function recordBrowserNetwork(browser: Browser) {
             redirectedFrom: event.redirectResponse ? previous?.id : undefined,
             url: redactUrl(event.request.url),
             method: event.request.method,
+            request: headerMetadata(event.request.headers, event.request.url),
             type: event.type,
             startedAt: new Date(event.wallTime * 1000).toISOString(),
             timestamp: event.timestamp,
@@ -267,11 +492,13 @@ export async function recordBrowserNetwork(browser: Browser) {
     await cleanup(root, true);
     throw error;
   }
+  const nodeRecording = recordNodeFetch();
   let closing: Promise<string> | undefined;
   return {
     close() {
       return (closing ??= (async () => {
         stopping = true;
+        const nodeTrace = nodeRecording.close();
         try {
           await root.send(
             "Target.setAutoAttach",
@@ -296,22 +523,25 @@ export async function recordBrowserNetwork(browser: Browser) {
           };
         }
         return JSON.stringify({
-          format: "moneyman-browser-network-v2",
+          format: "moneyman-network-v3",
           companyId: "visaCal",
           scope:
-            "Browser Network events only; excludes Node fetch and WebSocket frames.",
+            "Browser Network events and worker Node fetch; excludes WebSocket frames. Node request headers are supplied fetch headers, not automatically generated transport headers.",
           privacy:
-            "PRIVATE: raw response text may contain personal data. No request headers/bodies. Sensitive response headers and credential/token URL query values redacted; fragments omitted.",
+            "PRIVATE: raw response text may contain personal data. Sensitive headers and URL query values redacted; fragments omitted. Request payloads contain field names, types and array counts only.",
           limits: {
             maxEntries,
             maxBodyBytes,
             maxTotalBodyBytes,
             concurrentBodyReads: 4,
             cdpResourceBufferBytes: 1024 * 1024,
+            nodeMaxTotalBodyBytes: maxTotalBodyBytes,
+            nodeBodyTimeoutMs: 3_000,
           },
           droppedEntries,
           errors,
           entries,
+          nodeFetch: await nodeTrace,
         });
       })());
     },
