@@ -47,16 +47,19 @@ diff --git a/node_modules/israeli-bank-scrapers/lib/helpers/fetch.js b/node_modu
 index 618bf63..d8476f9 100644
 --- a/node_modules/israeli-bank-scrapers/lib/helpers/fetch.js
 +++ b/node_modules/israeli-bank-scrapers/lib/helpers/fetch.js
-@@ -16,7 +16,7 @@ function getJsonHeaders() {
+@@ -16,7 +16,10 @@ function getJsonHeaders() {
    };
  }
  function assertAutomationNotBlocked(status, responseText, url) {
++  if (responseText && /<title>\s*Request Rejected\s*<\/title>|The requested URL was rejected/i.test(responseText)) {
++    throw new Error(`Request rejected by server. Status: ${status}, URL: ${url}. The server returned a request rejection page instead of API data.`);
++  }
 -  if (status === 429 || responseText && /block automation|bot detection/i.test(responseText)) {
 +  if (status === 429 || responseText && /block automation|bot detection|sorry, you have been blocked|cloudflare/i.test(responseText)) {
      throw new Error(`Automation detected and blocked by server. Status: ${status}, URL: ${url}. The site is actively blocking automated access. Consider: 1) Using showBrowser:true, 2) Adding longer delays, 3) Using residential proxies, 4) Running at different times of day`);
    }
  }
-@@ -45,7 +45,13 @@ async function fetchPost(url, data, extraHeaders = {}) {
+@@ -45,7 +48,13 @@ async function fetchPost(url, data, extraHeaders = {}) {
      body: JSON.stringify(data)
    };
    const result = await fetch(url, request);
@@ -71,7 +74,7 @@ index 618bf63..d8476f9 100644
  }
  async function fetchGraphql(url, query, variables = {}, extraHeaders = {}) {
    const result = await fetchPost(url, {
-@@ -111,7 +117,7 @@ async function fetchPostWithinPage(page, url, data, extraHeaders = {}, ignoreErr
+@@ -111,7 +120,7 @@ async function fetchPostWithinPage(page, url, data, extraHeaders = {}, ignoreErr
      }
    } catch (e) {
      if (!ignoreErrors) {
@@ -93,6 +96,35 @@ index 17393ab..dafe183 100644
      await this.navigateTo(`${this.baseUrl}/personalarea/Login`);
      this.emitProgress(_definitions.ScraperProgressTypes.LoggingIn);
      const validateUrl = `${this.servicesUrl}?reqName=ValidateIdData`;
+diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js b/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
+--- a/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
++++ b/node_modules/israeli-bank-scrapers/lib/scrapers/mizrahi.js
+@@ -238,11 +238,20 @@ class MizrahiScraper extends _baseScraperWithBrowser.BaseScraperWithBrowser {
+       throw new Error('Account number not found');
+     }
+     const [response, apiHeaders] = await Promise.any(TRANSACTIONS_REQUEST_URLS.map(async url => {
+-      const request = await this.page.waitForRequest(url);
+-      const data = createDataFromRequest(request, this.options.startDate);
+-      const headers = createHeadersFromRequest(request);
+-      return [await (0, _fetch.fetchPostWithinPage)(this.page, url, data, headers), headers];
+-    }));
++      try {
++        const request = await this.page.waitForRequest(url);
++        const data = createDataFromRequest(request, this.options.startDate);
++        const headers = createHeadersFromRequest(request);
++        return [await (0, _fetch.fetchPostWithinPage)(this.page, url, data, headers), headers];
++      } catch (e) {
++        throw new Error(`Transaction endpoint ${url}: ${e instanceof Error ? e.message : String(e)}`);
++      }
++    })).catch(e => {
++      if (e instanceof AggregateError) {
++        throw new Error(`${e.message}: ${e.errors.map(error => error instanceof Error ? error.message : String(error)).join('; ')}`);
++      }
++      throw e;
++    });
+     if (!response || response.header.success === false) {
+       throw new Error(`Error fetching transaction. Response message: ${response ? response.header.messages[0].text : ''}`);
+     }
 diff --git a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.d.ts b/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.d.ts
 index 62884bf..ab8081d 100644
 --- a/node_modules/israeli-bank-scrapers/lib/scrapers/visa-cal.d.ts

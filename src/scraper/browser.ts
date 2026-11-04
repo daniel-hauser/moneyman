@@ -1,4 +1,4 @@
-import type { CompanyTypes } from "israeli-bank-scrapers";
+import { CompanyTypes } from "israeli-bank-scrapers";
 import puppeteer, {
   TargetType,
   type Browser,
@@ -41,18 +41,27 @@ export async function createSecureBrowserContext(
   browser: Browser,
   companyId: CompanyTypes,
   initDomainTracking: DomainTracker["initDomainTracking"],
-  { skipCloudflareSolver = false }: { skipCloudflareSolver?: boolean } = {},
 ): Promise<BrowserContext> {
+  // PR #993 runner experiment: keep access tests and full scrapes identical.
+  const skipCloudflareSkipping =
+    companyId === CompanyTypes.amex || companyId === CompanyTypes.isracard;
+  const skipDomainTracking = companyId === CompanyTypes.visaCal;
+  logger("Effective browser policy", {
+    companyId,
+    cloudflareSkipping: skipCloudflareSkipping ? "bypassed" : "enabled",
+    domainTrackingAndSecurity: skipDomainTracking ? "bypassed" : "configured",
+  });
   const context = await browser.createBrowserContext();
-  await initDomainTracking(context, companyId);
-  await initCloudflareSkipping(context, skipCloudflareSolver);
+  if (!skipDomainTracking) {
+    await initDomainTracking(context, companyId);
+  }
+  if (!skipCloudflareSkipping) {
+    await initCloudflareSkipping(context);
+  }
   return context;
 }
 
-async function initCloudflareSkipping(
-  browserContext: BrowserContext,
-  skipCloudflareSolver: boolean,
-) {
+async function initCloudflareSkipping(browserContext: BrowserContext) {
   const activeContext = loggerContextStore.getStore();
 
   const cfParam = "__cf_chl_rt_tk";
@@ -98,16 +107,14 @@ async function initCloudflareSkipping(
             });
             if (url.includes(cfParam)) {
               logger("Cloudflare challenge detected");
-              if (!skipCloudflareSolver) {
-                solveTurnstile(page).then(
-                  (res) => {
-                    logger(`Cloudflare challenge ended with ${res} for ${url}`);
-                  },
-                  (error) => {
-                    logger(`Cloudflare challenge failed for ${url}`, error);
-                  },
-                );
-              }
+              solveTurnstile(page).then(
+                (res) => {
+                  logger(`Cloudflare challenge ended with ${res} for ${url}`);
+                },
+                (error) => {
+                  logger(`Cloudflare challenge failed for ${url}`, error);
+                },
+              );
             }
           }, activeContext),
         );
