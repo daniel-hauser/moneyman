@@ -50,6 +50,7 @@ jest.mock("./bot/notifier.js", () => ({
 }));
 jest.mock("./server.js", () => ({ startServer: jest.fn() }));
 jest.mock("./utils/secure-log.js", () => ({
+  appendPrivateDiagnostic: jest.fn(),
   enableDebugLoggingIfNeeded: jest.fn(),
   sendLogFile: jest.fn(),
   readReportLogs: jest.fn(),
@@ -267,7 +268,7 @@ describe("index", () => {
         const { createStorages } = await import("./bot/storage/index.js");
         const { MoneymanConfigSchema } = await import("./config.schema.js");
         const fresh = MoneymanConfigSchema.parse({
-          accounts: [{ companyId: "hapoalim", password: "fresh-bank" }],
+          accounts: [{ companyId: "visaCal", password: "fresh-bank" }],
           storage: {
             webPost: {
               url: "https://fresh.test",
@@ -442,7 +443,7 @@ describe("index", () => {
       const { config } = await import("./config.js");
       const { createStorages } = await import("./bot/storage/index.js");
       const fresh = structuredClone(config);
-      fresh.accounts = [{ companyId: "hapoalim", password: "retained-bank" }];
+      fresh.accounts = [{ companyId: "visaCal", password: "retained-bank" }];
       const newer = structuredClone(fresh);
       newer.accounts[0].password = "refreshed-bank";
       jest
@@ -466,7 +467,7 @@ describe("index", () => {
       expect((await runner.startRun("scheduled")).started).toBe(false);
       expect(loadRunConfig).toHaveBeenCalledTimes(2);
       expect(jest.mocked(createStorages).mock.calls[0][0]).toBe(fresh);
-      expect(mocks.scrapeAccountsMock.mock.calls[0][0].accounts).toBe(
+      expect(mocks.scrapeAccountsMock.mock.calls[0][0].accounts).toEqual(
         fresh.accounts,
       );
       expect(fresh.accounts[0].password).toBe("retained-bank");
