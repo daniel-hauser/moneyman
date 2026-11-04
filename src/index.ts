@@ -158,9 +158,10 @@ async function runScraper(
 
     // PR #993 experiment: select before worker creation so results and metadata agree.
     const scraping = getScraperConfig(snapshot);
-    scraping.accounts = scraping.accounts
-      .filter(({ companyId }) => companyId === "visaCal")
-      .slice(0, 1);
+    scraping.accounts = scraping.accounts.filter(
+      ({ companyId }) => companyId === "visaCal",
+    );
+    scraping.parallelScrapers = 1;
     logger("Starting to scrape");
     const { results, domains } = await scrapeAccounts(
       scraping,
