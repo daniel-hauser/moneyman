@@ -73,7 +73,14 @@ describe("Sites access tests", () => {
           browserContext: (await createSecureBrowserContext(
             browser,
             companyId,
-            domainTracker.initDomainTracking,
+            companyId === CompanyTypes.visaCal
+              ? async () => {}
+              : domainTracker.initDomainTracking,
+            {
+              skipCloudflareSolver:
+                companyId === CompanyTypes.amex ||
+                companyId === CompanyTypes.isracard,
+            },
           )) as any,
           ...scraperOptions,
         });

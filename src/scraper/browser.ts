@@ -41,14 +41,18 @@ export async function createSecureBrowserContext(
   browser: Browser,
   companyId: CompanyTypes,
   initDomainTracking: DomainTracker["initDomainTracking"],
+  { skipCloudflareSolver = false }: { skipCloudflareSolver?: boolean } = {},
 ): Promise<BrowserContext> {
   const context = await browser.createBrowserContext();
   await initDomainTracking(context, companyId);
-  await initCloudflareSkipping(context);
+  await initCloudflareSkipping(context, skipCloudflareSolver);
   return context;
 }
 
-async function initCloudflareSkipping(browserContext: BrowserContext) {
+async function initCloudflareSkipping(
+  browserContext: BrowserContext,
+  skipCloudflareSolver: boolean,
+) {
   const activeContext = loggerContextStore.getStore();
 
   const cfParam = "__cf_chl_rt_tk";
@@ -94,14 +98,16 @@ async function initCloudflareSkipping(browserContext: BrowserContext) {
             });
             if (url.includes(cfParam)) {
               logger("Cloudflare challenge detected");
-              solveTurnstile(page).then(
-                (res) => {
-                  logger(`Cloudflare challenge ended with ${res} for ${url}`);
-                },
-                (error) => {
-                  logger(`Cloudflare challenge failed for ${url}`, error);
-                },
-              );
+              if (!skipCloudflareSolver) {
+                solveTurnstile(page).then(
+                  (res) => {
+                    logger(`Cloudflare challenge ended with ${res} for ${url}`);
+                  },
+                  (error) => {
+                    logger(`Cloudflare challenge failed for ${url}`, error);
+                  },
+                );
+              }
             }
           }, activeContext),
         );
