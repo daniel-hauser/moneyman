@@ -3,6 +3,7 @@ import { createLogger } from "./utils/logger.js";
 import { config } from "./config.js";
 
 const logger = createLogger("runner-metadata");
+const EXTERNAL_IP_TIMEOUT_MS = 10_000;
 
 export async function getExternalIp(): Promise<{ ip: string }> {
   const ipInfoUrl = config.options.logging.getIpInfoUrl;
@@ -12,8 +13,10 @@ export async function getExternalIp(): Promise<{ ip: string }> {
   }
 
   try {
-    const res = await fetch(ipInfoUrl);
-    return res.json();
+    const res = await fetch(ipInfoUrl, {
+      signal: AbortSignal.timeout(EXTERNAL_IP_TIMEOUT_MS),
+    });
+    return await res.json();
   } catch (e) {
     logger("Failed to get external IP", e);
     return { ip: "unknown" };
