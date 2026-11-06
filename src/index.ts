@@ -36,6 +36,14 @@ import { getBuildMetadata } from "./buildMetadata.js";
 import { createRunReport } from "./bot/runReport.js";
 import { createReportPublisher } from "./bot/reportPublisher.js";
 import { formatUnknownError } from "./utils/utils.js";
+import {
+  spanEvent,
+  flushTelemetry,
+  shutdownTelemetry,
+  TELEMETRY_EXPORT_FAILURE,
+  withDeliveryTelemetry,
+} from "./utils/telemetry.js";
+import { ROOT_CONTEXT, SpanStatusCode, trace } from "@opentelemetry/api";
 
 const logger = createLogger("main");
 const SCRAPE_LOCK = "moneyman-scrape";
@@ -79,10 +87,13 @@ async function main() {
     } finally {
       process.removeListener("SIGINT", cancel);
       process.removeListener("SIGTERM", cancel);
+      await shutdownTelemetry().catch(() => {
+        process.exitCode = 1;
+      });
     }
 
     // kill internal browsers if stuck
-    process.exit(0);
+    process.exit(process.exitCode ?? 0);
   }
 }
 
@@ -109,12 +120,11 @@ async function startRun(
     }
 
     reportStarted(true);
-    return runContextStore.run({ runId: randomUUID() }, async () => {
+    const runId = randomUUID();
+    return runContextStore.run({ runId }, async () => {
       const startedAt = new Date();
-      const failed = await run(signal);
-
+      const failed = await run(trigger, runId, signal);
       lastRun = { trigger, startedAt, endedAt: new Date(), failed };
-      logger("Run finished", lastRun);
       return lastRun;
     });
   });
@@ -152,14 +162,12 @@ async function runScraper(
   signal?: AbortSignal,
 ) {
   try {
-    logger("About to start");
     await hooks.onBeforeStart();
 
-    logger("Starting to scrape");
+    spanEvent("scraper.starting");
     const { results, domains } = await scrapeAccounts(
       getScraperConfig(snapshot),
       async (status, totalTime) => {
-        logger("Status changed", { status, totalTime });
         return hooks.onStatusChanged(status, totalTime);
       },
       async (e, caller) => {
@@ -169,7 +177,7 @@ async function runScraper(
       signal,
       hooks.onTiming,
     );
-    logger("Scraping ended");
+    spanEvent("scraper.results_ready", { "account.count": results.length });
     await Promise.all([
       hooks.onResultsReady(results),
       sendFailureScreenShots(hooks.failureScreenshotsHandler),
@@ -200,70 +208,124 @@ async function prepareRun() {
   }
 }
 
-async function run(signal?: AbortSignal) {
+async function run(trigger: RunTrigger, runId: string, signal?: AbortSignal) {
   let publication: Awaited<ReturnType<typeof runWithStorage>> = {
     report: createRunReport(),
     reportSent: false,
   };
   let report = publication.report;
   let prepared: Awaited<ReturnType<typeof prepareRun>>;
-  try {
-    prepared = await prepareRun();
-    if (!prepared) {
-      report.failed = true;
-      report.errors.push({ caller: "Setup", message: "Run setup failed" });
-      return true;
-    }
-    const { snapshot, storages } = prepared;
-    const domainTracker = createDomainTracker({
-      domainTracking: snapshot.options.scraping.domainTracking,
-      ...snapshot.options.security,
-    });
-    try {
-      logger("Running with storage");
-      publication = await runWithStorage(
-        (hooks) => runScraper(hooks, snapshot, domainTracker, signal),
-        storages,
-        publication,
-      );
-      report = publication.report;
-    } finally {
-      domainTracker.dispose();
-    }
-    const failedStorages = Object.entries(report.storages)
-      .filter(([, row]) => row.state === "error")
-      .map(([name]) => name);
-    if (failedStorages.length) {
-      logger(`Storages that failed: ${failedStorages.join(", ")}`);
-    }
-    return report.failed || failedStorages.length > 0;
-  } catch (error) {
-    logger(error);
-    report.failed = true;
-    report.errors.push({ caller: "Run", message: formatUnknownError(error) });
-    return true;
-  } finally {
-    try {
-      if (!report.endedAt) {
-        report.endedAt = new Date();
-        const sendReportFile =
-          Boolean(reportTransport) &&
-          (config.options.notifications.telegram?.sendReportFileToTelegram ??
-            false);
-        const logs = sendReportFile ? readReportLogs() : undefined;
-        publication.reportSent = await createReportPublisher(report, {
-          transport: reportTransport,
-          sendReportFile,
-          intervalMs: reportUpdateIntervalMs,
-        }).finish(logs);
-        publication.logsSent = publication.reportSent && logs !== undefined;
+  const failed = await logger.span(
+    {
+      name: "run",
+      attributes: { "run.trigger": trigger, "run.id": runId },
+      parent: ROOT_CONTEXT,
+    },
+    async (span) => {
+      try {
+        prepared = await prepareRun();
+        if (!prepared) {
+          report.failed = true;
+          report.errors.push({ caller: "Setup", message: "Run setup failed" });
+          return true;
+        }
+        const { snapshot, storages } = prepared;
+        const domainTracker = createDomainTracker({
+          domainTracking: snapshot.options.scraping.domainTracking,
+          ...snapshot.options.security,
+        });
+        try {
+          publication = await runWithStorage(
+            (hooks) => runScraper(hooks, snapshot, domainTracker, signal),
+            storages,
+            publication,
+          );
+          report = publication.report;
+        } finally {
+          domainTracker.dispose();
+        }
+        const failedStorages = Object.entries(report.storages)
+          .filter(([, row]) => row.state === "error")
+          .map(([name]) => name);
+        if (failedStorages.length) {
+          logger(`Storages that failed: ${failedStorages.join(", ")}`);
+        }
+        return report.failed || failedStorages.length > 0;
+      } catch (error) {
+        logger(error);
+        trace
+          .getActiveSpan()
+          ?.recordException(error instanceof Error ? error : String(error));
+        report.failed = true;
+        report.errors.push({
+          caller: "Run",
+          message: formatUnknownError(error),
+        });
+        return true;
+      } finally {
+        if (
+          report.failed ||
+          signal?.aborted ||
+          Object.values(report.storages).some((row) => row.state === "error")
+        ) {
+          span.setStatus({ code: SpanStatusCode.ERROR });
+        }
       }
-    } finally {
-      await sendLogFile(
-        !longRunning,
-        prepared?.storages ?? [],
-        publication.logsSent,
-      );
-    }
+    },
+  );
+  try {
+    await flushTelemetry();
+  } catch {
+    report.failed = true;
+    report.errors.push({
+      caller: "Telemetry",
+      message: TELEMETRY_EXPORT_FAILURE,
+    });
   }
+  let deliveryFailed = false;
+  try {
+    await withDeliveryTelemetry(() =>
+      logger.span(
+        {
+          name: "delivery",
+          attributes: { "run.id": runId },
+          parent: ROOT_CONTEXT,
+        },
+        async () => {
+          try {
+            if (publication.finish) {
+              await publication.finish();
+            } else {
+              report.endedAt = new Date();
+              const sendReportFile =
+                Boolean(reportTransport) &&
+                (config.options.notifications.telegram
+                  ?.sendReportFileToTelegram ??
+                  false);
+              const logs = sendReportFile ? readReportLogs() : undefined;
+              publication.reportSent = await createReportPublisher(report, {
+                transport: reportTransport,
+                sendReportFile,
+                intervalMs: reportUpdateIntervalMs,
+                log: (...args) => withDeliveryTelemetry(() => logger(...args)),
+              }).finish(logs);
+              publication.logsSent =
+                publication.reportSent && logs !== undefined;
+            }
+          } finally {
+            await sendLogFile(
+              !longRunning,
+              prepared?.storages ?? [],
+              publication.logsSent,
+            );
+          }
+        },
+      ),
+    );
+  } finally {
+    await flushTelemetry().catch(() => {
+      deliveryFailed = true;
+    });
+  }
+  return failed || report.failed || deliveryFailed;
 }

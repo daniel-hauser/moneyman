@@ -1,10 +1,8 @@
 import { sendJSON } from "../notifier.js";
-import { createLogger } from "../../utils/logger.js";
 import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { createSaveStats } from "../saveStats.js";
 import { systemName, type MoneymanConfig } from "../../config.js";
-
-const logger = createLogger("TelegramStorage");
+import { spanEvent } from "../../utils/telemetry.js";
 
 export class TelegramStorage implements TransactionStorage {
   constructor(private config: MoneymanConfig) {}
@@ -31,9 +29,9 @@ export class TelegramStorage implements TransactionStorage {
     transactions: Array<TransactionRow>,
     onProgress: (status: string) => Promise<void>,
   ) {
-    logger("saveTransactions");
     await onProgress("Preparing JSON data");
     const stats = createSaveStats("TelegramStorage", undefined, transactions);
+    spanEvent("storage.send");
     await sendJSON(
       {
         metadata: {

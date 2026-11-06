@@ -22,6 +22,7 @@ describe("scraper boundary validation", () => {
       blockByDefault: false,
       enableOtp: true,
       debugFilter: "",
+      traceCarrier: {},
     };
     expect(WorkerConfigSchema.parse(settings).startDate).toEqual(
       settings.startDate,

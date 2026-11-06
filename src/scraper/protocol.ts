@@ -7,6 +7,15 @@ import type {
 } from "../types.js";
 import type { UsedDomains } from "../security/domains.js";
 
+export const TraceCarrierSchema = z.strictObject({
+  traceparent: z
+    .string()
+    .regex(/^00-(?!0{32}-)[0-9a-f]{32}-(?!0{16}-)[0-9a-f]{16}-[0-9a-f]{2}$/)
+    .optional(),
+  tracestate: z.string().max(512).optional(),
+});
+export type TraceCarrier = z.infer<typeof TraceCarrierSchema>;
+
 export const WorkerConfigSchema = z.strictObject({
   accounts: z.array(
     z
@@ -27,20 +36,25 @@ export const WorkerConfigSchema = z.strictObject({
   blockByDefault: z.boolean(),
   enableOtp: z.boolean(),
   debugFilter: z.string(),
+  traceCarrier: TraceCarrierSchema,
 });
 export type WorkerConfig = z.infer<typeof WorkerConfigSchema>;
-export type ScraperRunConfig = Omit<WorkerConfig, "debugFilter">;
+export type ScraperRunConfig = Omit<
+  WorkerConfig,
+  "debugFilter" | "traceCarrier"
+>;
 
 export interface WorkerResult {
   results: AccountScrapeResult[];
   domains: UsedDomains;
+  telemetryFailed?: boolean;
 }
 
 export interface WorkerCallbacks {
   timing(timing: RunTiming): Promise<void>;
   status(status: string[], totalTime?: number): Promise<void>;
-  warning(error: unknown, caller: string): Promise<void>;
-  otp(accountIndex: number): Promise<string>;
+  warning(error: unknown, caller: string, carrier: TraceCarrier): Promise<void>;
+  otp(accountIndex: number, carrier: TraceCarrier): Promise<string>;
 }
 
 export interface ScraperWorkerApi {

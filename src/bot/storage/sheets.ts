@@ -1,4 +1,6 @@
 import assert from "node:assert";
+import { trace, SpanStatusCode } from "@opentelemetry/api";
+import { spanEvent } from "../../utils/telemetry.js";
 import { createLogger } from "../../utils/logger.js";
 import {
   GoogleSpreadsheet,
@@ -30,15 +32,18 @@ export class GoogleSheetsStorage implements TransactionStorage {
     txns: Array<TransactionRow>,
     onProgress: (status: string) => Promise<void>,
   ) {
-    const [doc] = await Promise.all([this.getDoc(), onProgress("Getting doc")]);
+    const [, doc] = await Promise.all([
+      onProgress("Getting doc"),
+      this.getDoc(),
+    ]);
 
     await onProgress(`Getting sheet ${this.worksheetName}`);
     const sheet = doc.sheetsByTitle[this.worksheetName];
     assert(sheet, `Sheet ${this.worksheetName} not found`);
 
-    const [headerRowResult] = await Promise.allSettled([
-      sheet.loadHeaderRow(),
+    const [, headerRowResult] = await Promise.allSettled([
       onProgress(`Loading header row`),
+      sheet.loadHeaderRow(),
     ]);
 
     if (headerRowResult.status === "rejected") {
@@ -93,11 +98,11 @@ export class GoogleSheetsStorage implements TransactionStorage {
     if (rows.length) {
       stats.highlightedTransactions.Added.push(...newTxns);
       stats.added = rows.length;
-      const [addRowsResult] = await Promise.allSettled([
+      const [, addRowsResult] = await Promise.allSettled([
+        onProgress(`Saving ${rows.length} rows`),
         sheet.addRows(
           rows.map((row) => ({ ...row, amount: row.amount ?? "" })),
         ),
-        onProgress(`Saving ${rows.length} rows`),
       ]);
       if (this.config.options.scraping.transactionHashType !== "moneyman") {
         sendDeprecationMessage(
@@ -107,6 +112,14 @@ export class GoogleSheetsStorage implements TransactionStorage {
       }
 
       if (addRowsResult.status === "rejected") {
+        trace.getActiveSpan()?.setStatus({ code: SpanStatusCode.ERROR });
+        trace
+          .getActiveSpan()
+          ?.recordException(
+            addRowsResult.reason instanceof Error
+              ? addRowsResult.reason
+              : String(addRowsResult.reason),
+          );
         logger("Error saving rows", addRowsResult.reason);
         sendError(
           addRowsResult.reason,
@@ -134,6 +147,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
   }
 
   private async getDoc() {
+    spanEvent("storage.authenticate");
     const googleSheetsConfig = this.config.storage.googleSheets;
     assert(googleSheetsConfig, "Google Sheets configuration not found");
 
@@ -143,6 +157,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
     const doc = new GoogleSpreadsheet(googleSheetsConfig.sheetId, authClient);
+    spanEvent("storage.load_document");
     await doc.loadInfo();
     return doc;
   }
@@ -161,11 +176,11 @@ export class GoogleSheetsStorage implements TransactionStorage {
     const columnLetter = String.fromCharCode(65 + column);
     const range = `${columnLetter}2:${columnLetter}`;
 
-    const [columns] = await Promise.allSettled([
+    const [, columns] = await Promise.allSettled([
+      onProgress(`Loading hashes (${range})`),
       sheet.getCellsInRange(range, {
         majorDimension: "COLUMNS",
       }) as Promise<string[][]>,
-      onProgress(`Loading hashes (${range})`),
     ]);
 
     if (columns.status === "rejected") {

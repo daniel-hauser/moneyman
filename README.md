@@ -86,6 +86,18 @@ By default, the Docker image is configured with `MONEYMAN_UNSAFE_STDOUT=false` t
 
 Logs sent to `logToPublicLog` bypass the redirection and will appear in the Docker logs.
 
+Logs and traces are saved privately and included in configured log deliveries;
+no external observability service is required. Add `israeli-bank-scrapers:*` or
+`puppeteer:*` to `DEBUG` or `options.logging.debugFilter` for additional diagnostics.
+The default `moneyman:*` filter includes application logs and traces.
+
+Set `MONEYMAN_TELEMETRY_FILE_PATH` to change the structured log file location.
+It defaults to `${MONEYMAN_LOG_FILE_PATH}.otel.jsonl`, or
+`moneyman.log.otel.jsonl` when no log path is set. Structured logs stay private
+even when `MONEYMAN_UNSAFE_STDOUT=true`.
+Report and log delivery diagnostics are retained locally in the sibling
+`*.delivery.otel.jsonl` file, limited to 1 MiB and replaced when full.
+
 #### Long running mode
 
 By default the container scrapes once and exits, which is meant to be triggered by an external

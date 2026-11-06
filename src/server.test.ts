@@ -12,6 +12,12 @@ import {
   shutdownTelegramBot,
   sendError,
 } from "./bot/notifier.js";
+import { shutdownTelemetry } from "./utils/telemetry.js";
+import { config } from "./config.js";
+
+jest.mock("./utils/telemetry.js", () => ({
+  shutdownTelemetry: jest.fn().mockResolvedValue(undefined),
+}));
 
 jest.mock("./config.js", () => ({
   config: { options: { scheduling: { cron: "0 9 * * *" } } },
@@ -62,6 +68,7 @@ describe("startServer", () => {
     bot.telegram.deleteMyCommands.mockResolvedValue(true);
     jest.mocked(getTelegramBot).mockReturnValue(bot);
     jest.mocked(launchTelegramBot).mockResolvedValue(undefined);
+    config.options.scheduling.cron = "0 9 * * *";
   });
 
   afterEach(() => {
@@ -147,6 +154,7 @@ describe("startServer", () => {
       releaseRun();
       await flush();
       expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
+      expect(shutdownTelemetry).toHaveBeenCalledTimes(1);
       expect(exit).toHaveBeenCalledWith(0);
       expect(exit).toHaveBeenCalledTimes(1);
       expect(
@@ -258,4 +266,40 @@ describe("startServer", () => {
     expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
     expect(exit).toHaveBeenCalledWith(0);
   });
+
+  it.each(["signal", "no work", "startup failure"] as const)(
+    "awaits failed telemetry shutdown and exits safely on %s",
+    async (path) => {
+      const shutdown = Promise.withResolvers<void>();
+      jest.mocked(shutdownTelemetry).mockReturnValueOnce(shutdown.promise);
+      if (path !== "signal") config.options.scheduling.cron = undefined;
+      if (path === "no work") {
+        jest.mocked(getTelegramBot).mockReturnValue(null);
+      } else if (path === "startup failure") {
+        jest
+          .mocked(launchTelegramBot)
+          .mockRejectedValueOnce(new Error("invented startup failure"));
+      }
+      const stdout = jest.spyOn(process.stdout, "write").mockReturnValue(true);
+      const stderr = jest.spyOn(process.stderr, "write").mockReturnValue(true);
+      const started = startServer(runner);
+      if (path === "signal") {
+        await started;
+        process.emit("SIGTERM");
+      }
+      await flush();
+      expect(shutdownTelemetry).toHaveBeenCalledTimes(1);
+      expect(exit).not.toHaveBeenCalled();
+      shutdown.reject(new Error("invented private sink failure"));
+      await started;
+      await flush();
+      expect(exit).toHaveBeenCalledTimes(1);
+      expect(exit).toHaveBeenCalledWith(1);
+      expect(stdout).not.toHaveBeenCalled();
+      expect(stderr).not.toHaveBeenCalled();
+      expect(mockLogger).not.toHaveBeenCalledWith(
+        expect.objectContaining({ message: "invented private sink failure" }),
+      );
+    },
+  );
 });

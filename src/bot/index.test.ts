@@ -1,7 +1,10 @@
 import { mock } from "jest-mock-extended";
 import type { Runner, TransactionStorage } from "../types.js";
 import { readReportLogs } from "../utils/secure-log.js";
-import { runWithStorage } from "./index.js";
+import {
+  runWithStorage as scrapeWithStorage,
+  type RunPublication,
+} from "./index.js";
 import { createReportPublisher } from "./reportPublisher.js";
 import { createRunReport } from "./runReport.js";
 import { config } from "../config.js";
@@ -10,6 +13,21 @@ import { readFile } from "node:fs/promises";
 import type { ReportTransport } from "./reportPublisher.js";
 import * as notifier from "./notifier.js";
 import sharp from "sharp";
+
+async function runWithStorage(
+  runner: Runner,
+  storages: readonly TransactionStorage[],
+) {
+  const publication: RunPublication = {
+    report: createRunReport(),
+    reportSent: false,
+  };
+  try {
+    return await scrapeWithStorage(runner, storages, publication);
+  } finally {
+    await publication.finish?.();
+  }
+}
 
 jest.mock("./storage/index.js", () => ({ saveResults: jest.fn() }));
 jest.mock("./notifier.js", () => ({

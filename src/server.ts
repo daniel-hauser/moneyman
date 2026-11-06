@@ -10,6 +10,7 @@ import {
 import { registerCommands } from "./bot/commands.js";
 import type { RunHandle, RunStatus, RunTrigger } from "./types.js";
 import { aborted } from "node:util";
+import { shutdownTelemetry } from "./utils/telemetry.js";
 
 const logger = createLogger("server");
 
@@ -37,6 +38,7 @@ export async function startServer({
     logToPublicLog(
       "Nothing to do: no Telegram configuration and no options.scheduling.cron. Exiting.",
     );
+    await shutdownTelemetry().catch(() => {});
     process.exit(1);
     return;
   }
@@ -99,8 +101,11 @@ export async function startServer({
     }
 
     await shutdownTelegramBot();
-
-    process.exit(0);
+    const telemetryFailed = await shutdownTelemetry().then(
+      () => false,
+      () => true,
+    );
+    process.exit(telemetryFailed ? 1 : 0);
   }
 
   process.once("SIGINT", () => shutdown("SIGINT"));
@@ -146,13 +151,16 @@ export async function startServer({
 
   await launchTelegramBot()
     .then(() => logToPublicLog("Listening for Telegram commands"))
-    .catch((e) => {
+    .catch(async (e) => {
       // Telegram fetch errors can contain the bot token; keep details out of public logs.
       logToPublicLog(
         "❌ Failed to start the Telegram bot, see the logs for details",
       );
       logger(e);
 
-      if (!cron) process.exit(1);
+      if (!cron) {
+        await shutdownTelemetry().catch(() => {});
+        process.exit(1);
+      }
     });
 }

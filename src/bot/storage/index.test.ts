@@ -9,6 +9,12 @@ import type { MoneymanConfig } from "../../config.schema.js";
 import { runContextStore } from "../../utils/asyncContext.js";
 import type { TransactionStorage } from "../../types.js";
 import { createSaveStats } from "../saveStats.js";
+import { privateSpanExporter } from "../../utils/telemetry.js";
+import { ExportResultCode } from "@opentelemetry/core";
+import { SpanStatusCode } from "@opentelemetry/api";
+import type { ReadableSpan } from "@opentelemetry/sdk-trace-base";
+import fs from "node:fs/promises";
+import { LocalJsonStorage } from "./json.js";
 
 jest.mock("../../config.js", () => ({ systemName: "moneyman" }));
 jest.mock("../notifier.js", () => ({
@@ -39,6 +45,13 @@ describe("storage waterfall timings", () => {
   afterEach(() => jest.restoreAllMocks());
 
   it("captures parallel storage execution and sequential progress steps, including failures", async () => {
+    const spans: ReadableSpan[] = [];
+    jest
+      .spyOn(privateSpanExporter, "export")
+      .mockImplementation((batch, done) => {
+        spans.push(...batch);
+        done({ code: ExportResultCode.SUCCESS });
+      });
     let now = 1_000;
     jest.spyOn(Date, "now").mockImplementation(() => now);
     const first = Promise.withResolvers<void>();
@@ -120,6 +133,37 @@ describe("storage waterfall timings", () => {
       state: "error",
       message: "storage failed",
     });
+    expect(spans.map((span) => span.name)).toEqual([
+      "storage.save",
+      "storage.save",
+    ]);
+    for (const span of spans) {
+      expect(span.ended).toBe(true);
+      expect(span.attributes).toMatchObject({
+        "storage.name": "TimedStorage",
+        "transaction.count": 1,
+      });
+      expect(
+        span.events
+          .filter(({ name }) => name === "storage.progress")
+          .map(({ attributes }) => attributes?.step),
+      ).toEqual(["connect", "write"]);
+    }
+    expect(spans[0].attributes["transaction.added"]).toBe(1);
+    expect(spans[1].status.code).toBe(SpanStatusCode.ERROR);
+    expect(spans[1].events).toContainEqual(
+      expect.objectContaining({
+        name: "exception",
+        attributes: expect.objectContaining({
+          "exception.message": "storage failed",
+        }),
+      }),
+    );
+    expect(spans[1].events.map(({ name }) => name)).toEqual([
+      "storage.progress",
+      "storage.progress",
+      "exception",
+    ]);
   });
 
   it("retains storage stats and monotonic step durations and initializes legacy reports lazily", async () => {
@@ -156,6 +200,59 @@ describe("storage waterfall timings", () => {
       true,
     );
   });
+});
+
+describe("storage failure breadcrumbs", () => {
+  afterEach(() => jest.restoreAllMocks());
+  it.each(["initialize", "write"] as const)(
+    "retains chronological milestones when %s fails, even without progress callbacks",
+    async (stage) => {
+      const spans: ReadableSpan[] = [];
+      jest
+        .spyOn(privateSpanExporter, "export")
+        .mockImplementation((batch, done) => {
+          spans.push(...batch);
+          done({ code: ExportResultCode.SUCCESS });
+        });
+      const failure = new Error(`invented ${stage} failure`);
+      const mkdir = jest.spyOn(fs, "mkdir").mockResolvedValue(undefined);
+      const write = jest.spyOn(fs, "appendFile").mockResolvedValue(undefined);
+      if (stage === "initialize") mkdir.mockRejectedValue(failure);
+      else write.mockRejectedValue(failure);
+      const report = createRunReport();
+      await saveResults(
+        [
+          {
+            companyId: CompanyTypes.hapoalim,
+            result: {
+              success: true,
+              accounts: [
+                { accountNumber: "invented-account", txns: [transaction({})] },
+              ],
+            },
+          },
+        ],
+        report,
+        [new LocalJsonStorage(config())],
+      );
+      expect(spans).toHaveLength(1);
+      expect(spans[0].name).toBe("storage.save");
+      expect(spans[0].status.code).toBe(SpanStatusCode.ERROR);
+      expect(spans[0].events.map(({ name }) => name)).toEqual(
+        stage === "initialize"
+          ? ["storage.initialize", "exception"]
+          : ["storage.initialize", "storage.write", "exception"],
+      );
+      expect(spans[0].events.at(-1)?.attributes).toMatchObject({
+        "exception.message": failure.message,
+      });
+      expect(report.storages.LocalJsonStorage).toEqual({
+        state: "error",
+        message: failure.message,
+      });
+      if (stage === "initialize") expect(write).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("per-run storage ownership", () => {

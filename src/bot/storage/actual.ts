@@ -10,6 +10,8 @@ import { TransactionRow, TransactionStorage } from "../../types.js";
 import { createLogger } from "../../utils/logger.js";
 import { formatUnknownError } from "../../utils/utils.js";
 import { createSaveStats, SaveStats } from "../saveStats.js";
+import { trace, SpanStatusCode } from "@opentelemetry/api";
+import { spanEvent } from "../../utils/telemetry.js";
 
 const logger = createLogger("ActualBudgetStorage");
 type ImportTransactionEntity = Parameters<
@@ -85,10 +87,6 @@ export class ActualBudgetStorage implements TransactionStorage {
     stats: SaveStats,
     onProgress: (status: string) => Promise<void>,
   ) {
-    logger(
-      `sending to Actual budget: "${this.config.storage.actual?.budgetId}"`,
-    );
-
     try {
       for (const [
         actualAccountId,
@@ -96,13 +94,20 @@ export class ActualBudgetStorage implements TransactionStorage {
       ] of transactionsByActualAccountId) {
         const accountName =
           this.accountIdToNameMap.get(actualAccountId) || actualAccountId;
-        logger(
-          `Processing ${transactions.length} transactions for account "${accountName}"`,
-        );
-        const [importResponse] = await Promise.all([
+        spanEvent("storage.import", {
+          "account.name": accountName,
+          "transaction.count": transactions.length,
+        });
+        const [, importResponse] = await Promise.all([
+          onProgress(`Sending transactions for account "${accountName}"`),
           actualApi
             .importTransactions(actualAccountId, transactions)
             .catch((error) => {
+              trace
+                .getActiveSpan()
+                ?.recordException(
+                  error instanceof Error ? error : String(error),
+                );
               logger(
                 `Error importing transactions for account "${accountName}": ${error.message}`,
               );
@@ -112,24 +117,24 @@ export class ActualBudgetStorage implements TransactionStorage {
                 updated: [],
               };
             }),
-          onProgress(`Sending transactions for account "${accountName}"`),
         ]);
 
         if (importResponse.errors?.length) {
+          trace.getActiveSpan()?.setStatus({ code: SpanStatusCode.ERROR });
           logger(
             `Errors importing transactions: ${JSON.stringify(importResponse.errors)}`,
           );
           continue;
         }
 
-        logger(
-          `Imported ${importResponse.added?.length || 0} transactions for account "${accountName}"`,
-        );
+        trace.getActiveSpan()?.addEvent("storage.imported", {
+          "account.name": accountName,
+          "transaction.added": importResponse.added?.length || 0,
+          "transaction.updated": importResponse.updated?.length || 0,
+        });
         stats.added += importResponse.added?.length || 0;
         stats.existing += importResponse.updated?.length || 0;
       }
-
-      logger("transactions sent to Actual successfully!");
 
       if (this.config.options.scraping.transactionHashType !== "moneyman") {
         logger("Warning: transactionHashType should be set to 'moneyman'");
@@ -141,9 +146,12 @@ export class ActualBudgetStorage implements TransactionStorage {
   }
 
   private async init() {
-    logger("init");
+    spanEvent("storage.initialize");
     const actualConfig = this.config.storage.actual;
     assert(actualConfig, "Actual storage is not configured");
+    trace
+      .getActiveSpan()
+      ?.setAttribute("storage.budget_id", actualConfig.budgetId);
 
     try {
       const tempDir = path.join(os.tmpdir(), "moneyman-actual-data");
@@ -152,14 +160,17 @@ export class ActualBudgetStorage implements TransactionStorage {
         await fs.mkdir(tempDir, { recursive: true });
       }
 
+      spanEvent("storage.connect");
       await actualApi.init({
         dataDir: tempDir,
         serverURL: actualConfig.serverUrl,
         password: actualConfig.password,
       });
 
+      spanEvent("storage.load_budget");
       await actualApi.downloadBudget(actualConfig.budgetId);
 
+      spanEvent("storage.load_accounts");
       const actualAccounts = await actualApi.getAccounts();
       const validActualAccountIds = new Set(actualAccounts.map((a) => a.id));
       this.accountIdToNameMap = new Map(

@@ -12,6 +12,16 @@ import { aborted } from "node:util";
 import { createDomainTracker } from "../security/domains.js";
 import { formatUnknownError } from "../utils/utils.js";
 import { WorkerConfigSchema, type ScraperWorkerApi } from "./protocol.js";
+import {
+  parentContext,
+  flushTelemetry,
+  shutdownTelemetry,
+  traceCarrier,
+} from "../utils/telemetry.js";
+import { SpanStatusCode } from "@opentelemetry/api";
+import { createLogger } from "../utils/logger.js";
+
+const logger = createLogger("scraper");
 
 function createScraperSession(): ScraperWorkerApi {
   const abort = new AbortController();
@@ -20,112 +30,143 @@ function createScraperSession(): ScraperWorkerApi {
 
   return {
     scrape(settings, callbacks) {
-      return locks.request(sessionLock, { ifAvailable: true }, async (lock) => {
-        const resources = new AsyncDisposableStack();
-        resources.defer(() => callbacks[releaseProxy]());
-        try {
-          if (!lock) {
-            abort.signal.throwIfAborted();
-            throw new Error("Scraper worker already has a run in progress");
-          }
-          abort.signal.throwIfAborted();
-          const scraping = WorkerConfigSchema.parse(settings);
-          debug.enable(scraping.debugFilter);
-          const domainTracker = createDomainTracker({
-            domainTracking: scraping.domainTracking,
-            firewallSettings: scraping.firewallSettings,
-            blockByDefault: scraping.blockByDefault,
-          });
-          resources.defer(() => domainTracker.dispose());
-          resources.defer(() => locks.request(progressLock, () => {}));
-          const results = await scrapeAccounts(
-            scraping,
-            domainTracker.initDomainTracking,
-            (status, totalTime) => {
-              const rows = Array.from(status, (row) => row ?? "");
-              return locks
-                .request(progressLock, async () => {
-                  try {
-                    await callbacks.status(rows, totalTime);
-                  } catch (error) {
-                    // Fail before releasing the lock to a pending drain.
-                    abort.abort(error);
-                  }
-                })
-                .catch((error) => {
-                  abort.abort(error);
-                });
-            },
-            (error, caller) => callbacks.warning(error, caller),
+      return locks.request(sessionLock, { ifAvailable: true }, (lock) =>
+        logger
+          .span(
             {
-              executablePath: scraping.executablePath,
-              signal: abort.signal,
-              onTiming: (timing) =>
-                locks
-                  .request(progressLock, async () => {
-                    try {
-                      await callbacks.timing(timing);
-                    } catch (error) {
-                      abort.abort(error);
-                    }
-                  })
-                  .catch((error) => {
-                    abort.abort(error);
-                  }),
-              requestOtpCode: scraping.enableOtp
-                ? async (companyId, phoneNumber) => {
-                    abort.signal.throwIfAborted();
-                    const completed = new AbortController();
-                    const signal = AbortSignal.any([
-                      abort.signal,
-                      completed.signal,
-                    ]);
-                    try {
-                      const response = await Promise.race([
-                        callbacks.otp(
-                          scraping.accounts.findIndex(
-                            (account) =>
-                              account.companyId === companyId &&
-                              !("otpLongTermToken" in account) &&
-                              "phoneNumber" in account &&
-                              account.phoneNumber === phoneNumber,
-                          ),
-                        ),
-                        aborted(signal, callbacks),
-                      ]);
-                      if (typeof response === "string") return response;
-                      throw signal.reason;
-                    } finally {
-                      completed.abort();
-                    }
-                  }
-                : undefined,
+              name: "worker",
+              parent: parentContext(settings?.traceCarrier ?? {}),
             },
-          );
-          abort.signal.throwIfAborted();
-          const domains = await domainTracker.getUsedDomains();
-          await resources.disposeAsync();
-          abort.signal.throwIfAborted();
-          return { results, domains };
-        } catch (error) {
-          await resources.disposeAsync().catch((cleanup: unknown) => {
-            throw new SuppressedError(
-              cleanup,
-              error,
-              `${formatUnknownError(error)}; cleanup failed: ${formatUnknownError(cleanup)}`,
-            );
-          });
-          if (error instanceof SuppressedError) {
-            // Comlink transfers Error metadata, not nested suppression details.
-            error.message = formatUnknownError(error);
-          }
-          throw error;
-        }
-      });
+            async (span) => {
+              const resources = new AsyncDisposableStack();
+              resources.defer(() => callbacks[releaseProxy]());
+              try {
+                if (!lock) {
+                  abort.signal.throwIfAborted();
+                  throw new Error(
+                    "Scraper worker already has a run in progress",
+                  );
+                }
+                abort.signal.throwIfAborted();
+                const scraping = WorkerConfigSchema.parse(settings);
+                debug.enable(scraping.debugFilter);
+                const domainTracker = createDomainTracker({
+                  domainTracking: scraping.domainTracking,
+                  firewallSettings: scraping.firewallSettings,
+                  blockByDefault: scraping.blockByDefault,
+                });
+                resources.defer(() => domainTracker.dispose());
+                resources.defer(() => locks.request(progressLock, () => {}));
+                const results = await scrapeAccounts(
+                  scraping,
+                  domainTracker.initDomainTracking,
+                  (status, totalTime) => {
+                    const rows = Array.from(status, (row) => row ?? "");
+                    return locks
+                      .request(progressLock, async () => {
+                        try {
+                          await callbacks.status(rows, totalTime);
+                        } catch (error) {
+                          // Fail before releasing the lock to a pending drain.
+                          abort.abort(error);
+                        }
+                      })
+                      .catch((error) => {
+                        abort.abort(error);
+                      });
+                  },
+                  (error, caller) =>
+                    callbacks.warning(error, caller, traceCarrier()),
+                  {
+                    executablePath: scraping.executablePath,
+                    signal: abort.signal,
+                    onTiming: (timing) =>
+                      locks
+                        .request(progressLock, async () => {
+                          try {
+                            await callbacks.timing(timing);
+                          } catch (error) {
+                            abort.abort(error);
+                          }
+                        })
+                        .catch((error) => {
+                          abort.abort(error);
+                        }),
+                    requestOtpCode: scraping.enableOtp
+                      ? async (companyId, phoneNumber) => {
+                          abort.signal.throwIfAborted();
+                          const completed = new AbortController();
+                          const signal = AbortSignal.any([
+                            abort.signal,
+                            completed.signal,
+                          ]);
+                          try {
+                            const response = await Promise.race([
+                              callbacks.otp(
+                                scraping.accounts.findIndex(
+                                  (account) =>
+                                    account.companyId === companyId &&
+                                    !("otpLongTermToken" in account) &&
+                                    "phoneNumber" in account &&
+                                    account.phoneNumber === phoneNumber,
+                                ),
+                                traceCarrier(),
+                              ),
+                              aborted(signal, callbacks),
+                            ]);
+                            if (typeof response === "string") return response;
+                            throw signal.reason;
+                          } finally {
+                            completed.abort();
+                          }
+                        }
+                      : undefined,
+                  },
+                );
+                abort.signal.throwIfAborted();
+                const domains = await domainTracker.getUsedDomains();
+                if (results.some(({ result }) => !result.success)) {
+                  span.setStatus({ code: SpanStatusCode.ERROR });
+                }
+                await resources.disposeAsync();
+                abort.signal.throwIfAborted();
+                return { results, domains };
+              } catch (error) {
+                await resources.disposeAsync().catch((cleanup: unknown) => {
+                  throw new SuppressedError(
+                    cleanup,
+                    error,
+                    `${formatUnknownError(error)}; cleanup failed: ${formatUnknownError(cleanup)}`,
+                  );
+                });
+                if (error instanceof SuppressedError) {
+                  // Comlink transfers Error metadata, not nested suppression details.
+                  error.message = formatUnknownError(error);
+                }
+                throw error;
+              }
+            },
+          )
+          .then(
+            async (result) => {
+              try {
+                await flushTelemetry();
+                return result;
+              } catch {
+                return { ...result, telemetryFailed: true };
+              }
+            },
+            async (error: unknown) => {
+              await flushTelemetry().catch(() => {});
+              throw error;
+            },
+          ),
+      );
     },
     async cancel() {
       abort.abort(new Error("Scraper worker cancelled"));
       await locks.request(sessionLock, () => {});
+      await shutdownTelemetry();
     },
   };
 }
@@ -133,6 +174,8 @@ function createScraperSession(): ScraperWorkerApi {
 const session = createScraperSession();
 const endpoint = workerData as MessagePort;
 endpoint.once("close", () => {
-  void session.cancel();
+  void session.cancel().catch(() => {
+    process.exitCode = 1;
+  });
 });
 expose(session, endpoint);

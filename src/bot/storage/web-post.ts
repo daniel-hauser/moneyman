@@ -19,8 +19,6 @@ export class WebPostStorage implements TransactionStorage {
     txns: Array<TransactionRow>,
     onProgress: (status: string) => Promise<void>,
   ) {
-    logger("saveTransactions");
-
     const webPostConfig = this.config.storage.webPost;
     assert(webPostConfig, "Web Post configuration not found");
 
@@ -32,7 +30,8 @@ export class WebPostStorage implements TransactionStorage {
       `Posting ${nonPendingTxns.length} transactions to ${webPostConfig.url}`,
     );
 
-    const [response] = await Promise.all([
+    const [, response] = await Promise.all([
+      onProgress("Sending"),
       fetch(webPostConfig.url, {
         method: "POST",
         headers: {
@@ -49,7 +48,6 @@ export class WebPostStorage implements TransactionStorage {
           ),
         ),
       }),
-      onProgress("Sending"),
     ]);
 
     if (!response.ok) {

@@ -1,6 +1,8 @@
 const mockLoggerState = { unsafeStdout: false };
 
-jest.mock("../bot/notifier.js", () => ({ sendTextFile: jest.fn() }));
+jest.mock("../bot/notifier.js", () => ({
+  sendTextFile: jest.fn(async () => {}),
+}));
 jest.mock("../config.js", () => ({
   config: { options: { notifications: {} } },
 }));
@@ -36,7 +38,11 @@ describe("secure logs", () => {
       "moneyman.log",
     );
     writeFileSync(logFilePath, "the logs of the run");
-    process.env = { ...originalEnv, MONEYMAN_LOG_FILE_PATH: logFilePath };
+    process.env = {
+      ...originalEnv,
+      MONEYMAN_LOG_FILE_PATH: logFilePath,
+      MONEYMAN_TELEMETRY_FILE_PATH: `${logFilePath}.otel.jsonl`,
+    };
   });
 
   afterEach(() => {
@@ -126,7 +132,6 @@ describe("secure logs", () => {
       telegram: { apiKey: "test-token", chatId: "555" },
     });
     const { readReportLogs } = await import("./secure-log.js");
-
     expect(config.options.notifications.telegram?.sendLogFileToTelegram).toBe(
       true,
     );
@@ -134,6 +139,46 @@ describe("secure logs", () => {
     expect(readFileSync(logFilePath, "utf-8")).toBe("the logs of the run");
   });
 
+  it.each([true, false])(
+    "retains telemetry in reports, standalone delivery and storage uploads (delete=%s)",
+    async (deleteFile) => {
+      const telemetryPath = `${logFilePath}.otel.jsonl`;
+      const telemetry = '{"resourceSpans":[]}\n';
+      writeFileSync(telemetryPath, telemetry, { mode: 0o600 });
+      const { config } = await import("../config.js");
+      const { NotificationOptionsSchema } = await import("../config.schema.js");
+      config.options.notifications = NotificationOptionsSchema.parse({
+        telegram: { apiKey: "invented-token", chatId: "invented-chat" },
+      });
+      const { readReportLogs, sendLogFile } = await import("./secure-log.js");
+      const { sendTextFile } = await import("../bot/notifier.js");
+      const storage = mock<MoneymanDashStorage>();
+      storage.sendLogs.mockResolvedValue(undefined);
+      const combined = `the logs of the run\n${telemetry}`;
+      expect(readReportLogs()).toBe(combined);
+      await sendLogFile(deleteFile, [storage]);
+      expect(sendTextFile).toHaveBeenCalledWith(logFilePath);
+      expect(sendTextFile).toHaveBeenCalledWith(telemetryPath);
+      expect(storage.sendLogs).toHaveBeenCalledWith(combined);
+      if (deleteFile) expect(existsSync(telemetryPath)).toBe(false);
+      else expect(readFileSync(telemetryPath, "utf8")).toBe("");
+    },
+  );
+
+  it("does not include private telemetry when log consent is disabled", async () => {
+    writeFileSync(`${logFilePath}.otel.jsonl`, '{"resourceLogs":[]}\n');
+    const { config } = await import("../config.js");
+    const { NotificationOptionsSchema } = await import("../config.schema.js");
+    config.options.notifications = NotificationOptionsSchema.parse({
+      telegram: {
+        apiKey: "invented-token",
+        chatId: "invented-chat",
+        sendLogFileToTelegram: false,
+      },
+    });
+    const { readReportLogs } = await import("./secure-log.js");
+    expect(readReportLogs()).toBeUndefined();
+  });
   it.each([
     "disabled",
     "report disabled",

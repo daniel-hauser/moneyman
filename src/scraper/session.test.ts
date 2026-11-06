@@ -10,6 +10,8 @@ import {
   type WorkerConfig,
 } from "./protocol.js";
 import type { AccountScrapeResult } from "../types.js";
+import type { ReadableSpan } from "@opentelemetry/sdk-trace-base";
+import { ExportResultCode } from "@opentelemetry/core";
 
 jest.mock("node:worker_threads", () => ({
   ...jest.requireActual("node:worker_threads"),
@@ -20,7 +22,9 @@ jest.mock("comlink", () => ({
   expose: jest.fn(),
 }));
 jest.mock("./index.js", () => ({ scrapeAccounts: jest.fn() }));
-jest.mock("debug", () => ({ enable: jest.fn() }));
+jest.mock("debug", () =>
+  Object.assign(jest.requireActual("debug"), { enable: jest.fn() }),
+);
 jest.mock("../security/domains.js", () => ({
   createDomainTracker: jest.fn(() => ({
     initDomainTracking: jest.fn(async () => {}),
@@ -41,6 +45,7 @@ const settings: WorkerConfig = {
   blockByDefault: false,
   enableOtp: false,
   debugFilter: "",
+  traceCarrier: {},
 };
 const otpSettings = WorkerConfigSchema.parse({
   ...settings,
@@ -116,6 +121,21 @@ describe("worker session locks", () => {
     ).toBeLessThan(callbacks[releaseProxy].mock.invocationCallOrder[0]);
   });
 
+  it("returns successful business results with explicit telemetry failure metadata", async () => {
+    const { privateTelemetrySink } = await import("../utils/telemetry.js");
+    jest.spyOn(privateTelemetrySink, "write").mockImplementation(() => {
+      throw new Error("invented-private-path");
+    });
+    const results: AccountScrapeResult[] = [];
+    scrapeAccounts.mockResolvedValueOnce(results);
+    await expect(session.scrape(settings, callbacks)).resolves.toEqual({
+      results,
+      domains: {},
+      telemetryFailed: true,
+    });
+    expect(callbacks[releaseProxy]).toHaveBeenCalledTimes(1);
+  });
+
   it("disposes the tracker when browser startup fails", async () => {
     scrapeAccounts.mockRejectedValueOnce(new Error("browser startup failed"));
     await expect(session.scrape(settings, callbacks)).rejects.toThrow(
@@ -124,6 +144,20 @@ describe("worker session locks", () => {
     expect(
       createDomainTracker.mock.results[0].value.dispose,
     ).toHaveBeenCalledTimes(1);
+    expect(callbacks[releaseProxy]).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases callbacks when the trace carrier fails strict boundary validation", async () => {
+    await expect(
+      session.scrape(
+        {
+          ...settings,
+          traceCarrier: { traceparent: "invalid" },
+        },
+        callbacks,
+      ),
+    ).rejects.toThrow();
+    expect(scrapeAccounts).not.toHaveBeenCalled();
     expect(callbacks[releaseProxy]).toHaveBeenCalledTimes(1);
   });
 
@@ -284,6 +318,15 @@ describe("worker session locks", () => {
   });
 
   it("waits for startup/browser cleanup before cancellation finishes", async () => {
+    const telemetry = await import("../utils/telemetry.js");
+    const spans: ReadableSpan[] = [];
+    jest
+      .spyOn(telemetry.privateSpanExporter, "export")
+      .mockImplementation((batch, done) => {
+        spans.push(...batch);
+        done({ code: ExportResultCode.SUCCESS });
+      });
+    const shutdown = jest.spyOn(telemetry.tracerProvider, "shutdown");
     const started = Promise.withResolvers<AbortSignal>();
     const cleaned = Promise.withResolvers<AccountScrapeResult[]>();
     jest
@@ -310,6 +353,46 @@ describe("worker session locks", () => {
     await cancel;
     expect(callbacks[releaseProxy]).toHaveBeenCalledTimes(1);
     expect(tracker.dispose).toHaveBeenCalledTimes(1);
+    expect(spans).toHaveLength(1);
+    expect(spans[0]).toMatchObject({
+      name: "scraper.worker",
+      ended: true,
+      status: { code: 2 },
+    });
+    expect(shutdown).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses the supplied W3C parent and marks unsuccessful returned results as failed", async () => {
+    const telemetry = await import("../utils/telemetry.js");
+    const spans: ReadableSpan[] = [];
+    jest
+      .spyOn(telemetry.privateSpanExporter, "export")
+      .mockImplementation((batch, done) => {
+        spans.push(...batch);
+        done({ code: ExportResultCode.SUCCESS });
+      });
+    scrapeAccounts.mockResolvedValueOnce([
+      {
+        companyId: otpSettings.accounts[0].companyId,
+        result: { success: false, errorMessage: "invented failure" },
+      },
+    ]);
+    await telemetry.inSpan("parent-run", async (root) => {
+      await session.scrape(
+        {
+          ...settings,
+          traceCarrier: structuredClone(telemetry.traceCarrier()),
+        },
+        callbacks,
+      );
+      expect(spans[0].parentSpanContext).toMatchObject({
+        traceId: root.spanContext().traceId,
+        spanId: root.spanContext().spanId,
+        isRemote: true,
+      });
+      expect(spans[0].status.code).toBe(2);
+      expect(spans[0].ended).toBe(true);
+    });
   });
 
   it.each(["reply", "cancel"])(
@@ -387,7 +470,10 @@ describe("worker session locks", () => {
       },
     );
     await expect(session.scrape(otpSettings, callbacks)).rejects.toBe(failure);
-    expect(callbacks.otp).toHaveBeenCalledWith(0);
+    expect(callbacks.otp).toHaveBeenCalledWith(
+      0,
+      expect.objectContaining({ traceparent: expect.any(String) }),
+    );
     expect(callbacks[releaseProxy]).toHaveBeenCalledTimes(1);
     expect(
       createDomainTracker.mock.results[0].value.dispose,
@@ -415,7 +501,10 @@ describe("worker session locks", () => {
     await expect(
       session.scrape(sharedPhoneSettings, callbacks),
     ).resolves.toEqual({ results: [], domains: {} });
-    expect(callbacks.otp).toHaveBeenCalledWith(1);
+    expect(callbacks.otp).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ traceparent: expect.any(String) }),
+    );
     expect(callbacks[releaseProxy]).toHaveBeenCalledTimes(1);
   });
 
@@ -431,7 +520,10 @@ describe("worker session locks", () => {
       },
     );
     await expect(session.scrape(otpSettings, callbacks)).rejects.toBe(failure);
-    expect(callbacks.otp).toHaveBeenCalledWith(0);
+    expect(callbacks.otp).toHaveBeenCalledWith(
+      0,
+      expect.objectContaining({ traceparent: expect.any(String) }),
+    );
     expect(callbacks[releaseProxy]).toHaveBeenCalledTimes(1);
     expect(
       createDomainTracker.mock.results[0].value.dispose,

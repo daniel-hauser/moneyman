@@ -11,6 +11,20 @@ import { CompanyTypes } from "israeli-bank-scrapers";
 import { scrapeAccounts } from "./client.js";
 import { requestOtpCode } from "../bot/notifier.js";
 import { formatUnknownError } from "../utils/utils.js";
+import { context, ROOT_CONTEXT } from "@opentelemetry/api";
+import { ExportResultCode } from "@opentelemetry/core";
+import type { ReadableSpan } from "@opentelemetry/sdk-trace-base";
+import type { ReadableLogRecord } from "@opentelemetry/sdk-logs";
+import debug from "debug";
+import {
+  inSpan,
+  parentContext,
+  traceCarrier,
+  flushTelemetry,
+  privateSpanExporter,
+  privateLogExporter,
+} from "../utils/telemetry.js";
+import { createLogger } from "../utils/logger.js";
 import type {
   ScraperWorkerApi,
   WorkerCallbacks,
@@ -253,7 +267,7 @@ describe("Comlink scraper client", () => {
     const onError = jest.fn(async () => {});
     api.scrape.mockImplementationOnce(async () => {
       await callbacks().status(["working"], 2);
-      await callbacks().warning(new Error("close failed"), "browser.close");
+      await callbacks().warning(new Error("close failed"), "browser.close", {});
       callbacks()[finalizer]();
       return { results, domains: { oneZero: { allowed: ["GET bank.test"] } } };
     });
@@ -267,6 +281,23 @@ describe("Comlink scraper client", () => {
     expect(result.domains).toEqual({
       oneZero: { allowed: ["GET bank.test"] },
     });
+  });
+
+  it("reports worker telemetry failure without discarding scraped results", async () => {
+    const onError = jest.fn(async () => {});
+    api.scrape.mockImplementationOnce(async () => {
+      callbacks()[finalizer]();
+      return { results, domains: {}, telemetryFailed: true };
+    });
+    await expect(
+      scrapeAccounts(scraping, undefined, onError),
+    ).resolves.toMatchObject({ results });
+    expect(onError).toHaveBeenCalledWith(
+      new Error(
+        "Private telemetry could not be saved. Diagnostic records may be missing.",
+      ),
+      "Telemetry",
+    );
   });
 
   it("relays epoch timing updates unchanged and keeps timing hooks optional", async () => {
@@ -350,8 +381,8 @@ describe("Comlink scraper client", () => {
       .mockRejectedValueOnce(new Error("OTP unavailable"));
     api.scrape.mockImplementationOnce(async () => {
       const replies = await Promise.allSettled([
-        callbacks().otp(0),
-        callbacks().otp(0),
+        callbacks().otp(0, {}),
+        callbacks().otp(0, {}),
       ]);
       expect(replies).toEqual([
         { status: "fulfilled", value: "654321" },
@@ -371,11 +402,112 @@ describe("Comlink scraper client", () => {
     );
   });
 
+  it("joins concurrent OTP and warning callbacks to their remote account parents", async () => {
+    const spans: ReadableSpan[] = [];
+    const logs: ReadableLogRecord[] = [];
+    const spanExport = jest
+      .spyOn(privateSpanExporter, "export")
+      .mockImplementation((batch, done) => {
+        spans.push(...batch);
+        done({ code: ExportResultCode.SUCCESS });
+      });
+    const logExport = jest
+      .spyOn(privateLogExporter, "export")
+      .mockImplementation((batch, done) => {
+        logs.push(...batch);
+        done({ code: ExportResultCode.SUCCESS });
+      });
+    const filter = debug.disable();
+    debug.enable("moneyman:callback");
+    const logger = createLogger("callback");
+    jest.mocked(requestOtpCode).mockImplementation(async (_company, phone) => {
+      logger("OTP for %s", phone);
+      return "123456";
+    });
+    api.scrape.mockImplementationOnce(async (settings) => {
+      await Promise.all(
+        settings.accounts.map((_, index) =>
+          inSpan(
+            "account",
+            async () => {
+              const carrier = structuredClone(traceCarrier());
+              await context.with(ROOT_CONTEXT, async () => {
+                await callbacks().otp(index, carrier);
+                await callbacks().warning(
+                  new Error("invented"),
+                  `account-${index}`,
+                  carrier,
+                );
+              });
+            },
+            { "account.index": index, "account.company": "oneZero" },
+            parentContext(settings.traceCarrier),
+          ),
+        ),
+      );
+      callbacks()[finalizer]();
+      return { results, domains: {} };
+    });
+    try {
+      await inSpan("main", async () =>
+        scrapeAccounts(
+          {
+            ...scraping,
+            accounts: [
+              scraping.accounts[0],
+              { ...scraping.accounts[0], phoneNumber: "+97200000001" },
+            ],
+          },
+          undefined,
+          async (_error, caller) => {
+            logger("Warning for %s", caller);
+          },
+        ),
+      );
+      await flushTelemetry();
+      for (const index of [0, 1]) {
+        const account = spans.find(
+          (span) => span.attributes["account.index"] === index,
+        )!;
+        const otp = spans.find(
+          (span) =>
+            span.name === "otp.request" &&
+            span.parentSpanContext?.spanId === account.spanContext().spanId,
+        )!;
+        expect(otp.parentSpanContext?.isRemote).toBe(true);
+        const phone = index === 0 ? "+97200000000" : "+97200000001";
+        expect(
+          logs.find((log) => log.body === `OTP for ${phone}`)?.spanContext
+            ?.spanId,
+        ).toBe(otp.spanContext().spanId);
+        expect(
+          logs.find((log) => log.body === `Warning for account-${index}`)
+            ?.spanContext?.spanId,
+        ).toBe(account.spanContext().spanId);
+      }
+    } finally {
+      spanExport.mockRestore();
+      logExport.mockRestore();
+      debug.enable(filter);
+    }
+  });
+
+  it("rejects malformed callback carriers before requesting an OTP", async () => {
+    api.scrape.mockImplementationOnce(async () => {
+      await expect(
+        callbacks().otp(0, { traceparent: "invented-invalid" }),
+      ).rejects.toThrow();
+      callbacks()[finalizer]();
+      return { results, domains: {} };
+    });
+    await scrapeAccounts(scraping);
+    expect(requestOtpCode).not.toHaveBeenCalled();
+  });
   it.each([-1, 0.5, 5])(
     "rejects unauthorized OTP account index %s",
     async (index) => {
       api.scrape.mockImplementationOnce(async () => {
-        await expect(callbacks().otp(index)).rejects.toThrow(
+        await expect(callbacks().otp(index, {})).rejects.toThrow(
           "Invalid scraper worker OTP request",
         );
         callbacks()[finalizer]();
@@ -419,7 +551,7 @@ describe("Comlink scraper client", () => {
 
     api.scrape.mockImplementationOnce(async () => {
       try {
-        await callbacks().otp(0);
+        await callbacks().otp(0, {});
         return { results, domains: {} };
       } finally {
         callbacks()[finalizer]();
@@ -509,7 +641,7 @@ describe("Comlink scraper client", () => {
       });
     api.scrape.mockImplementationOnce(async () => {
       try {
-        await callbacks().otp(0);
+        await callbacks().otp(0, {});
         return { results, domains: {} };
       } finally {
         callbacks()[finalizer]();

@@ -4,6 +4,7 @@ import { sendTextFile } from "../bot/notifier.js";
 import { logToPublicLog, unsafeStdout, createLogger } from "./logger.js";
 import type { TransactionStorage } from "../types.js";
 import debug from "debug";
+import { privateTelemetryPath } from "./telemetry.js";
 
 const logger = createLogger("secure-log");
 
@@ -31,17 +32,28 @@ export function readReportLogs(): string | undefined {
     unsafeStdout ||
     !telegram?.chatId ||
     !telegram.sendLogFileToTelegram ||
-    !telegram.sendReportFileToTelegram ||
-    !logFilePath
+    !telegram.sendReportFileToTelegram
   ) {
     return;
   }
 
   try {
-    return readFileSync(logFilePath, "utf-8");
+    return readPrivateLogs(logFilePath);
   } catch (error) {
     logger("Failed to read logs for report:", error);
   }
+}
+
+function privateLogPaths(logFilePath?: string) {
+  return [logFilePath, privateTelemetryPath].filter((path): path is string =>
+    Boolean(path && existsSync(path)),
+  );
+}
+
+function readPrivateLogs(logFilePath?: string) {
+  const paths = privateLogPaths(logFilePath);
+  if (!paths.length) return;
+  return paths.map((path) => readFileSync(path, "utf-8")).join("\n");
 }
 
 export async function sendLogFile(
@@ -52,7 +64,8 @@ export async function sendLogFile(
   if (unsafeStdout) return;
 
   const logFilePath = process.env.MONEYMAN_LOG_FILE_PATH;
-  if (!logFilePath || !existsSync(logFilePath)) return;
+  const logPaths = privateLogPaths(logFilePath);
+  if (!logPaths.length) return;
 
   const telegram = config.options.notifications?.telegram;
   const logStorages = storages.filter(
@@ -73,15 +86,17 @@ export async function sendLogFile(
   try {
     if (telegram?.sendLogFileToTelegram && !logsSent) {
       logToPublicLog("Sending log file", logger);
-      await sendTextFile(logFilePath).catch((error) => {
-        logger("Failed to send logs to Telegram:", error);
-        logToPublicLog("Failed to send logs to Telegram", logger);
-      });
+      for (const path of logPaths) {
+        await sendTextFile(path).catch((error) => {
+          logger("Failed to send logs to Telegram:", error);
+          logToPublicLog("Failed to send logs to Telegram", logger);
+        });
+      }
     }
 
     // Send logs to all storages that support it
     if (logStorages.length > 0) {
-      const logContent = readFileSync(logFilePath, "utf-8");
+      const logContent = readPrivateLogs(logFilePath) ?? "";
 
       const results = await Promise.allSettled(
         logStorages.map(async (storage) => {
@@ -106,10 +121,10 @@ export async function sendLogFile(
     try {
       if (deleteFile) {
         logToPublicLog(`Deleting log file`, logger);
-        unlinkSync(logFilePath);
+        for (const path of logPaths) unlinkSync(path);
       } else {
         logToPublicLog(`Clearing log file`, logger);
-        truncateSync(logFilePath, 0);
+        for (const path of logPaths) truncateSync(path, 0);
       }
     } catch (error) {
       logger("Failed to clear log file:", error);

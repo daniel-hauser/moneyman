@@ -6,6 +6,7 @@ import { BuxferApiClient, BuxferTransaction } from "buxfer-ts-client";
 import { createSaveStats } from "../saveStats.js";
 import type { MoneymanConfig } from "../../config.js";
 import assert from "node:assert";
+import { spanEvent } from "../../utils/telemetry.js";
 
 const BUXFER_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("BuxferStorage");
@@ -16,7 +17,7 @@ export class BuxferStorage implements TransactionStorage {
 
   constructor(private config: MoneymanConfig) {}
   async init() {
-    logger("init");
+    spanEvent("storage.initialize");
     const buxferConfig = this.config.storage.buxfer;
     assert(buxferConfig, "Buxfer configuration not found");
 
@@ -75,14 +76,10 @@ export class BuxferStorage implements TransactionStorage {
       this.tagTransactionsByRules(txToSend);
 
       // Send transactions to Buxfer
-      logger(
-        `sending to Buxfer accounts: "${this.accountToBuxferAccount.keys()}"`,
-      );
-      const [resp] = await Promise.all([
-        this.buxferClient.addTransactions(txToSend),
+      const [, resp] = await Promise.all([
         onProgress("Sending"),
+        this.buxferClient.addTransactions(txToSend),
       ]);
-      logger("transactions sent to Buxfer successfully!");
       stats.added = resp.addedTransactionIds.length;
       stats.existing = resp.duplicatedTransactionIds.length;
       stats.otherSkipped += resp.ignoredTransactionIds.length;

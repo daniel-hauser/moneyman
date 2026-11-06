@@ -137,7 +137,8 @@ describe("domains", () => {
     await expect(next.getUsedDomains()).resolves.toEqual({});
   });
 
-  it("records Node requests and logger contexts only in the owning tracker", async () => {
+  it("records Node requests and active span owners only in the owning tracker", async () => {
+    await import("../utils/telemetry.js");
     const { ClientRequestInterceptor } =
       await import("@mswjs/interceptors/ClientRequest");
     const instances: InstanceType<typeof ClientRequestInterceptor>[] = [];
@@ -159,23 +160,25 @@ describe("domains", () => {
       domainTracking: true,
       blockByDefault: false,
     });
-    const { loggerContextStore } = await import("../utils/asyncContext.js");
-    for (const [index, prefix, url] of [
-      [0, "first", "https://first.test"],
-      [1, "second", "https://second.test"],
+    const { inSpan } = await import("../utils/telemetry.js");
+    const owners: string[] = [];
+    for (const [index, url] of [
+      [0, "https://first.test"],
+      [1, "https://second.test"],
     ] as const) {
       const listener = instances[index].listeners("request")[index];
-      await loggerContextStore.run({ prefix }, () =>
-        listener(
+      await inSpan("request", async (span) => {
+        owners[index] = span.spanContext().spanId;
+        await listener(
           mock<Parameters<typeof listener>[0]>({ request: new Request(url) }),
-        ),
-      );
+        );
+      });
     }
     await expect(first.getUsedDomains()).resolves.toEqual({
-      node: { first: ["GET first.test"] },
+      node: { [owners[0]]: ["GET first.test"] },
     });
     await expect(second.getUsedDomains()).resolves.toEqual({
-      node: { second: ["GET second.test"] },
+      node: { [owners[1]]: ["GET second.test"] },
     });
     first.dispose();
     const remaining = instances[0].listeners("request");
@@ -186,10 +189,10 @@ describe("domains", () => {
       }),
     );
     await expect(first.getUsedDomains()).resolves.toEqual({
-      node: { first: ["GET first.test"] },
+      node: { [owners[0]]: ["GET first.test"] },
     });
     await expect(second.getUsedDomains()).resolves.toEqual({
-      node: { second: ["GET second.test"], node: ["GET later.test"] },
+      node: { [owners[1]]: ["GET second.test"], node: ["GET later.test"] },
     });
   });
 

@@ -7,12 +7,11 @@ import {
 } from "azure-kusto-ingest";
 import { sendError } from "../notifier.js";
 import { systemName, type MoneymanConfig } from "../../config.js";
-import { createLogger } from "../../utils/logger.js";
+import { trace, SpanStatusCode } from "@opentelemetry/api";
+import { spanEvent } from "../../utils/telemetry.js";
 import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { createSaveStats } from "../saveStats.js";
 import assert from "node:assert";
-
-const logger = createLogger("azure-data-explorer");
 
 export class AzureDataExplorerStorage implements TransactionStorage {
   ingestClient: IngestClient;
@@ -20,8 +19,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
   constructor(private config: MoneymanConfig) {}
 
   init() {
-    logger("init");
-
+    spanEvent("storage.initialize");
     try {
       const adxConfig = this.config.storage.azure;
       assert(adxConfig, "Azure Data Explorer configuration not found");
@@ -41,9 +39,13 @@ export class AzureDataExplorerStorage implements TransactionStorage {
         ingestionMappingReference: adxConfig.ingestionMapping,
       });
 
-      logger("Creating ingestClient");
+      spanEvent("storage.connect");
       this.ingestClient = new IngestClient(connection, ingestionProps);
     } catch (e) {
+      trace.getActiveSpan()?.setStatus({ code: SpanStatusCode.ERROR });
+      trace
+        .getActiveSpan()
+        ?.recordException(e instanceof Error ? e : String(e));
       sendError(e, "AzureDataExplorerStorage");
     }
   }
@@ -56,7 +58,6 @@ export class AzureDataExplorerStorage implements TransactionStorage {
     txns: Array<TransactionRow>,
     onProgress: (status: string) => Promise<void>,
   ) {
-    logger(`Saving ${txns.length} transactions`);
     this.init();
 
     const stats = createSaveStats(
@@ -66,6 +67,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
     );
 
     if (!this.ingestClient) {
+      trace.getActiveSpan()?.setStatus({ code: SpanStatusCode.ERROR });
       await sendError(
         "Called without initializing",
         "AzureDataExplorerStorage.saveTransactions",
@@ -81,6 +83,10 @@ export class AzureDataExplorerStorage implements TransactionStorage {
         ]);
         stats.added = txns.length;
       } catch (e) {
+        trace.getActiveSpan()?.setStatus({ code: SpanStatusCode.ERROR });
+        trace
+          .getActiveSpan()
+          ?.recordException(e instanceof Error ? e : String(e));
         await sendError(e, "AzureDataExplorer.ingestFromStream");
       }
     }

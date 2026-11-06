@@ -8,6 +8,8 @@ import { sendDeprecationMessage } from "../deprecationManager.js";
 import { createSaveStats } from "../saveStats.js";
 import type { MoneymanConfig } from "../../config.js";
 import assert from "node:assert";
+import { spanEvent } from "../../utils/telemetry.js";
+import { trace } from "@opentelemetry/api";
 
 const YNAB_DATE_FORMAT = "yyyy-MM-dd";
 const logger = createLogger("YNABStorage");
@@ -20,12 +22,13 @@ export class YNABStorage implements TransactionStorage {
   constructor(private config: MoneymanConfig) {}
 
   async init() {
-    logger("init");
+    spanEvent("storage.initialize");
     const ynabConfig = this.config.storage.ynab;
     assert(ynabConfig, "YNAB configuration not found");
 
     this.ynabAPI = new ynab.API(ynabConfig.token);
     this.budgetName = await this.getBudgetName(ynabConfig.budgetId);
+    trace.getActiveSpan()?.setAttribute("storage.budget_name", this.budgetName);
     this.accountToYnabAccount = new Map(Object.entries(ynabConfig.accounts));
   }
 
@@ -80,17 +83,15 @@ export class YNABStorage implements TransactionStorage {
 
     if (txToSend.length > 0) {
       // Send transactions to YNAB
-      logger(`sending to YNAB budget: "${this.budgetName}"`);
-      const [resp] = await Promise.all([
+      const [, resp] = await Promise.all([
+        onProgress("Sending"),
         this.ynabAPI.transactions.createTransactions(
           this.config.storage.ynab!.budgetId,
           {
             transactions: txToSend,
           },
         ),
-        onProgress("Sending"),
       ]);
-      logger("transactions sent to YNAB successfully!");
       stats.added = resp.data.transactions?.length ?? 0;
       stats.existing = resp.data.duplicate_import_ids?.length ?? 0;
 
@@ -110,6 +111,7 @@ export class YNABStorage implements TransactionStorage {
   }
 
   private async getBudgetName(budgetId: string) {
+    spanEvent("storage.load_budget", { "storage.budget_id": budgetId });
     const planResponse = await this.ynabAPI.plans.getPlanById(budgetId);
     if (planResponse.data) {
       return planResponse.data.plan.name;
