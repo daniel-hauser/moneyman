@@ -302,7 +302,7 @@ async function run(trigger: RunTrigger, runId: string, signal?: AbortSignal) {
                 (config.options.notifications.telegram
                   ?.sendReportFileToTelegram ??
                   false);
-              const logs = sendReportFile ? readReportLogs() : undefined;
+              const logs = sendReportFile ? readReportLogs(true) : undefined;
               publication.reportSent = await createReportPublisher(report, {
                 transport: reportTransport,
                 sendReportFile,

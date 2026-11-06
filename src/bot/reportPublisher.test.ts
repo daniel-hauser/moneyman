@@ -172,6 +172,25 @@ describe("createReportPublisher", () => {
     expect(transport.edit).not.toHaveBeenCalled();
   });
 
+  it("passes separate private sources to the explorer only in the final attachment", async () => {
+    const { transport, report, finish } = setup();
+    const sources = {
+      console: "invented console",
+      telemetry:
+        '{"resourceLogs":[{"scopeLogs":[{"logRecords":[{"body":{"stringValue":"invented diagnostic"}}]}]}]}\n',
+    };
+    const done = finish(sources);
+    await tick(500);
+    await done;
+    expect(renderHTMLReport).toHaveBeenCalledWith(report, sources);
+    expect(transport.sendFile.mock.calls[0][1]).toContain(
+      "<report-diagnostics",
+    );
+    expect(transport.send.mock.calls[0][0]).not.toContain(
+      "invented diagnostic",
+    );
+  });
+
   it("does nothing without a transport", async () => {
     const { report, finish } = createReportPublisher(createRunReport());
     report.scrape.status = ["a"];

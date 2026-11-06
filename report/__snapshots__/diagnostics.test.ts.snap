@@ -1,0 +1,954 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`offline diagnostics explorer renders a readable escaped SSR event timeline with connected operation context 1`] = `
+"<!--lit-part Pj1ilfNQYr4=--><section aria-labelledby="diagnostics-heading">
+      <div class="section-heading">
+        <h2 id="diagnostics-heading">
+          Diagnostics
+          <span id="diagnostics-count" aria-live="polite">(<!--lit-part-->21<!--/lit-part--> of <!--lit-part-->21<!--/lit-part--> events)</span>
+        </h2>
+        <div class="heading-actions">
+          <!--lit-part 3VrvxzeMlFo=--><!--lit-node 0--><button type="button" class="interactive" data-download="diagnostics-json" data-filename="diagnostics.json" data-type="application/json;charset=utf-8">
+      <!--lit-part-->Download diagnostics JSON<!--/lit-part-->
+    </button><!--/lit-part-->
+          <!--lit-part 3VrvxzeMlFo=--><!--lit-node 0--><button type="button" class="interactive" data-download="telemetry-json" data-filename="telemetry.otel.jsonl" data-type="application/x-ndjson;charset=utf-8">
+      <!--lit-part-->Download original OTLP<!--/lit-part-->
+    </button><!--/lit-part-->
+        </div>
+      </div>
+      <!--lit-part P11EFexhtfY=--><p class="javascript-warning" role="status"><!--lit-part-->3<!--/lit-part--> span events were dropped by the recorder. This history is incomplete.</p><!--/lit-part-->
+      <!--lit-part yDmtMwypNrs=--><details class="diagnostics-warning">
+              <summary>
+                <!--lit-part-->3<!--/lit-part--> parsing warnings — some records could
+                not be displayed
+              </summary>
+              <ul>
+                <!--lit-part--><!--lit-part PuAyB/F8cHw=--><li><!--lit-part-->Line 4: invalid JSON; original retained in download.<!--/lit-part--></li><!--/lit-part--><!--lit-part PuAyB/F8cHw=--><li><!--lit-part-->Line 5: unsupported OTLP request; original retained in download.<!--/lit-part--></li><!--/lit-part--><!--lit-part PuAyB/F8cHw=--><li><!--lit-part-->Line 6: malformed OTLP entry; original retained in download.<!--/lit-part--></li><!--/lit-part--><!--/lit-part-->
+              </ul>
+              <p>
+                The original OTLP download preserves every input line, including
+                malformed entries.
+              </p>
+            </details><!--/lit-part-->
+      <div class="diagnostics-filters interactive">
+        <label>Search whole events
+          <!--lit-node 13--><input id="search-diagnostics" type="search" aria-controls="diagnostic-events" placeholder="Filter: * any text, ? one character" title="Case-insensitive; * and ? cross line endings. ~ escapes wildcards.">
+        </label>
+        <!--lit-part GzCtCWKGgU0=--><label><!--lit-part-->Trace / run<!--/lit-part-->
+      <!--lit-node 2--><select id="diagnostic-trace" class="interactive">
+        <!--lit-node 3--><option value="" selected="">
+          All
+        </option>
+        <!--lit-part--><!--lit-part GYLAUlH8x1k=--><!--lit-node 0--><option value="11111111111111111111111111111111"><!--lit-part-->invented-run · manual<!--/lit-part--></option><!--/lit-part--><!--lit-part GYLAUlH8x1k=--><!--lit-node 0--><option value="22222222222222222222222222222222"><!--lit-part-->other-run<!--/lit-part--></option><!--/lit-part--><!--/lit-part-->
+      </select>
+    </label><!--/lit-part-->
+        <!--lit-part GzCtCWKGgU0=--><label><!--lit-part-->Operation<!--/lit-part-->
+      <!--lit-node 2--><select id="diagnostic-operation" class="interactive">
+        <!--lit-node 3--><option value="" selected="">
+          All
+        </option>
+        <!--lit-part--><!--lit-part GYLAUlH8x1k=--><!--lit-node 0--><option value="11111111111111111111111111111111/0000000000000001"><!--lit-part-->main.run<!--/lit-part--></option><!--/lit-part--><!--lit-part GYLAUlH8x1k=--><!--lit-node 0--><option value="11111111111111111111111111111111/0000000000000002"><!--lit-part-->— scraper.account · invented-bank · account 0<!--/lit-part--></option><!--/lit-part--><!--lit-part GYLAUlH8x1k=--><!--lit-node 0--><option value="11111111111111111111111111111111/0000000000000004"><!--lit-part-->— — storage.save · invented-A<!--/lit-part--></option><!--/lit-part--><!--lit-part GYLAUlH8x1k=--><!--lit-node 0--><option value="11111111111111111111111111111111/0000000000000005"><!--lit-part-->— — storage.save · invented-B<!--/lit-part--></option><!--/lit-part--><!--lit-part GYLAUlH8x1k=--><!--lit-node 0--><option value="11111111111111111111111111111111/0000000000000003"><!--lit-part-->— scraper.account · invented-bank · account 1<!--/lit-part--></option><!--/lit-part--><!--lit-part GYLAUlH8x1k=--><!--lit-node 0--><option value="22222222222222222222222222222222/0000000000000001"><!--lit-part-->main.run<!--/lit-part--></option><!--/lit-part--><!--/lit-part-->
+      </select>
+    </label><!--/lit-part-->
+        <label><!--lit-node 17--><input id="diagnostic-descendants" type="checkbox" checked="">
+          Include descendant operations</label>
+        <!--lit-part--><!--lit-part GzCtCWKGgU0=--><label><!--lit-part-->Company<!--/lit-part-->
+      <!--lit-node 2--><select id="facet-account-company" class="interactive">
+        <!--lit-node 3--><option value="" selected="">
+          All
+        </option>
+        <!--lit-part--><!--lit-part GYLAUlH8x1k=--><!--lit-node 0--><option value="invented-bank"><!--lit-part-->invented-bank<!--/lit-part--></option><!--/lit-part--><!--/lit-part-->
+      </select>
+    </label><!--/lit-part--><!--lit-part GzCtCWKGgU0=--><label><!--lit-part-->Configured account index<!--/lit-part-->
+      <!--lit-node 2--><select id="facet-account-index" class="interactive">
+        <!--lit-node 3--><option value="" selected="">
+          All
+        </option>
+        <!--lit-part--><!--lit-part GYLAUlH8x1k=--><!--lit-node 0--><option value="0"><!--lit-part-->0<!--/lit-part--></option><!--/lit-part--><!--lit-part GYLAUlH8x1k=--><!--lit-node 0--><option value="1"><!--lit-part-->1<!--/lit-part--></option><!--/lit-part--><!--/lit-part-->
+      </select>
+    </label><!--/lit-part--><!--lit-part GzCtCWKGgU0=--><label><!--lit-part-->Storage<!--/lit-part-->
+      <!--lit-node 2--><select id="facet-storage-name" class="interactive">
+        <!--lit-node 3--><option value="" selected="">
+          All
+        </option>
+        <!--lit-part--><!--lit-part GYLAUlH8x1k=--><!--lit-node 0--><option value="invented-A"><!--lit-part-->invented-A<!--/lit-part--></option><!--/lit-part--><!--lit-part GYLAUlH8x1k=--><!--lit-node 0--><option value="invented-B"><!--lit-part-->invented-B<!--/lit-part--></option><!--/lit-part--><!--/lit-part-->
+      </select>
+    </label><!--/lit-part--><!--lit-part GzCtCWKGgU0=--><label><!--lit-part-->Namespace<!--/lit-part-->
+      <!--lit-node 2--><select id="facet-log-namespace" class="interactive">
+        <!--lit-node 3--><option value="" selected="">
+          All
+        </option>
+        <!--lit-part--><!--lit-part GYLAUlH8x1k=--><!--lit-node 0--><option value="moneyman:invented"><!--lit-part-->moneyman:invented<!--/lit-part--></option><!--/lit-part--><!--/lit-part-->
+      </select>
+    </label><!--/lit-part--><!--/lit-part-->
+        <!--lit-part GzCtCWKGgU0=--><label><!--lit-part-->Record type<!--/lit-part-->
+      <!--lit-node 2--><select id="diagnostic-type" class="interactive">
+        <!--lit-node 3--><option value="" selected="">
+          All
+        </option>
+        <!--lit-part--><!--lit-part GYLAUlH8x1k=--><!--lit-node 0--><option value="log"><!--lit-part-->log<!--/lit-part--></option><!--/lit-part--><!--lit-part GYLAUlH8x1k=--><!--lit-node 0--><option value="milestone"><!--lit-part-->milestone<!--/lit-part--></option><!--/lit-part--><!--lit-part GYLAUlH8x1k=--><!--lit-node 0--><option value="exception"><!--lit-part-->exception<!--/lit-part--></option><!--/lit-part--><!--lit-part GYLAUlH8x1k=--><!--lit-node 0--><option value="failure"><!--lit-part-->Failures and exceptions<!--/lit-part--></option><!--/lit-part--><!--/lit-part-->
+      </select>
+    </label><!--/lit-part-->
+        <!--lit-node 20--><button id="diagnostics-reset" type="button">
+          Reset filters
+        </button>
+      </div>
+      <p class="diagnostic-context">
+        Operation context:
+        <!--lit-part-->All operations<!--/lit-part-->.
+        Unscoped records are never assigned a guessed owner.
+      </p>
+      <details class="diagnostic-operations">
+        <summary>
+          Operation hierarchy and timings (<!--lit-part-->6<!--/lit-part-->)
+        </summary>
+        <p>
+          These are the recorded spans. Select an operation to explore its
+          timeline; ancestors and siblings remain visible.
+        </p>
+        <ul aria-label="Operation hierarchy">
+          <!--lit-part--><!--lit-part VjF3C8uRnOc=--><li>
+                <!--lit-node 1--><button type="button" class="interactive" aria-pressed="false">
+                  <!--lit-part--><!--/lit-part--><!--lit-part-->main.run<!--/lit-part-->
+                </button>
+                <span class="diagnostic-operation-name"><!--lit-part-->main.run<!--/lit-part--></span>
+                <!--lit-node 6--><svg class="diagnostic-waterfall" viewBox="0 0 1000 12" preserveAspectRatio="none" role="img" aria-label="main.run recorded interval">
+                  <!--lit-node 7--><rect x="90.9090918181818" y="1" width="909.0909081818181" height="10"></rect>
+                </svg>
+                <small>+<!--lit-part-->0.100<!--/lit-part-->s ·
+                  <!--lit-part-->1.000s<!--/lit-part-->
+                  ·
+                  <!--lit-part-->completed<!--/lit-part--><!--lit-part--><!--/lit-part--></small>
+              </li><!--/lit-part--><!--lit-part VjF3C8uRnOc=--><li>
+                <!--lit-node 1--><button type="button" class="interactive" aria-pressed="false">
+                  <!--lit-part-->— <!--/lit-part--><!--lit-part-->scraper.account · invented-bank · account 0<!--/lit-part-->
+                </button>
+                <span class="diagnostic-operation-name"><!--lit-part-->scraper.account · invented-bank · account 0<!--/lit-part--></span>
+                <!--lit-node 6--><svg class="diagnostic-waterfall" viewBox="0 0 1000 12" preserveAspectRatio="none" role="img" aria-label="scraper.account · invented-bank · account 0 recorded interval">
+                  <!--lit-node 7--><rect x="90.9090918181818" y="1" width="909.0909081818181" height="10"></rect>
+                </svg>
+                <small>+<!--lit-part-->0.100<!--/lit-part-->s ·
+                  <!--lit-part-->1.000s<!--/lit-part-->
+                  ·
+                  <!--lit-part-->error: invented failure<!--/lit-part--><!--lit-part--><!--/lit-part--></small>
+              </li><!--/lit-part--><!--lit-part VjF3C8uRnOc=--><li>
+                <!--lit-node 1--><button type="button" class="interactive" aria-pressed="false">
+                  <!--lit-part-->— — <!--/lit-part--><!--lit-part-->storage.save · invented-A<!--/lit-part-->
+                </button>
+                <span class="diagnostic-operation-name"><!--lit-part-->storage.save · invented-A<!--/lit-part--></span>
+                <!--lit-node 6--><svg class="diagnostic-waterfall" viewBox="0 0 1000 12" preserveAspectRatio="none" role="img" aria-label="storage.save · invented-A recorded interval">
+                  <!--lit-node 7--><rect x="90.9090918181818" y="1" width="909.0909081818181" height="10"></rect>
+                </svg>
+                <small>+<!--lit-part-->0.100<!--/lit-part-->s ·
+                  <!--lit-part-->1.000s<!--/lit-part-->
+                  ·
+                  <!--lit-part-->completed<!--/lit-part--><!--lit-part--><!--/lit-part--></small>
+              </li><!--/lit-part--><!--lit-part VjF3C8uRnOc=--><li>
+                <!--lit-node 1--><button type="button" class="interactive" aria-pressed="false">
+                  <!--lit-part-->— — <!--/lit-part--><!--lit-part-->storage.save · invented-B<!--/lit-part-->
+                </button>
+                <span class="diagnostic-operation-name"><!--lit-part-->storage.save · invented-B<!--/lit-part--></span>
+                <!--lit-node 6--><svg class="diagnostic-waterfall" viewBox="0 0 1000 12" preserveAspectRatio="none" role="img" aria-label="storage.save · invented-B recorded interval">
+                  <!--lit-node 7--><rect x="90.9090918181818" y="1" width="909.0909081818181" height="10"></rect>
+                </svg>
+                <small>+<!--lit-part-->0.100<!--/lit-part-->s ·
+                  <!--lit-part-->1.000s<!--/lit-part-->
+                  ·
+                  <!--lit-part-->completed<!--/lit-part--><!--lit-part--><!--/lit-part--></small>
+              </li><!--/lit-part--><!--lit-part VjF3C8uRnOc=--><li>
+                <!--lit-node 1--><button type="button" class="interactive" aria-pressed="false">
+                  <!--lit-part-->— <!--/lit-part--><!--lit-part-->scraper.account · invented-bank · account 1<!--/lit-part-->
+                </button>
+                <span class="diagnostic-operation-name"><!--lit-part-->scraper.account · invented-bank · account 1<!--/lit-part--></span>
+                <!--lit-node 6--><svg class="diagnostic-waterfall" viewBox="0 0 1000 12" preserveAspectRatio="none" role="img" aria-label="scraper.account · invented-bank · account 1 recorded interval">
+                  <!--lit-node 7--><rect x="90.9090918181818" y="1" width="909.0909081818181" height="10"></rect>
+                </svg>
+                <small>+<!--lit-part-->0.100<!--/lit-part-->s ·
+                  <!--lit-part-->1.000s<!--/lit-part-->
+                  ·
+                  <!--lit-part-->completed<!--/lit-part--><!--lit-part--><!--/lit-part--></small>
+              </li><!--/lit-part--><!--lit-part VjF3C8uRnOc=--><li>
+                <!--lit-node 1--><button type="button" class="interactive" aria-pressed="false">
+                  <!--lit-part--><!--/lit-part--><!--lit-part-->main.run<!--/lit-part-->
+                </button>
+                <span class="diagnostic-operation-name"><!--lit-part-->main.run<!--/lit-part--></span>
+                <!--lit-node 6--><svg class="diagnostic-waterfall" viewBox="0 0 1000 12" preserveAspectRatio="none" role="img" aria-label="main.run recorded interval">
+                  <!--lit-node 7--><rect x="90.9090918181818" y="1" width="909.0909081818181" height="10"></rect>
+                </svg>
+                <small>+<!--lit-part-->0.100<!--/lit-part-->s ·
+                  <!--lit-part-->1.000s<!--/lit-part-->
+                  ·
+                  <!--lit-part-->completed<!--/lit-part--><!--lit-part--><!--/lit-part--></small>
+              </li><!--/lit-part--><!--/lit-part-->
+        </ul>
+      </details>
+      <ol id="diagnostic-events" class="diagnostic-events" aria-label="Chronological diagnostic events">
+        <!--lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="event-3">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T09:59:59.900Z"><!--lit-part-->2024-01-01T09:59:59.900Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+0.000s<!--/lit-part-->
+                    · <!--lit-part-->log<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->Unscoped<!--/lit-part--><!--lit-part--> · moneyman:invented<!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->Unscoped startup<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->No recorded operation context<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->unscoped<!--/lit-part--><!--lit-part--><!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->Unscoped startup<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->7<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->service.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-service<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->log.namespace<!--/lit-part--></dt>
+                        <dd><!--lit-part-->moneyman:invented<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="11111111111111111111111111111111/0000000000000001/start">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:00.000Z"><!--lit-part-->2024-01-01T10:00:00.000Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+0.100s<!--/lit-part-->
+                    · <!--lit-part-->milestone<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->main.run<!--/lit-part--><!--lit-part--><!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->main.run started<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->main.run<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->11111111111111111111111111111111<!--/lit-part--><!--lit-part--> · 11111111111111111111111111111111/0000000000000001<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->main.run started<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->worker<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-run<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.trigger<!--/lit-part--></dt>
+                        <dd><!--lit-part-->manual<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="11111111111111111111111111111111/0000000000000002/start">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:00.000Z"><!--lit-part-->2024-01-01T10:00:00.000Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+0.100s<!--/lit-part-->
+                    · <!--lit-part-->milestone<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->scraper.account · invented-bank · account 0<!--/lit-part--><!--lit-part--><!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->scraper.account started<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->main.run → scraper.account · invented-bank · account 0<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->11111111111111111111111111111111<!--/lit-part--><!--lit-part--> · 11111111111111111111111111111111/0000000000000002<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->scraper.account started<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->worker<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-run<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.trigger<!--/lit-part--></dt>
+                        <dd><!--lit-part-->manual<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.company<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-bank<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.index<!--/lit-part--></dt>
+                        <dd><!--lit-part-->0<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->invented.attribute<!--/lit-part--></dt>
+                        <dd><!--lit-part-->&lt;/template&gt;&lt;script&gt;globalThis.injected = true&lt;/script&gt;&amp;"<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="11111111111111111111111111111111/0000000000000003/start">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:00.000Z"><!--lit-part-->2024-01-01T10:00:00.000Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+0.100s<!--/lit-part-->
+                    · <!--lit-part-->milestone<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->scraper.account · invented-bank · account 1<!--/lit-part--><!--lit-part--><!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->scraper.account started<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->main.run → scraper.account · invented-bank · account 1<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->11111111111111111111111111111111<!--/lit-part--><!--lit-part--> · 11111111111111111111111111111111/0000000000000003<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->scraper.account started<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->worker<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-run<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.trigger<!--/lit-part--></dt>
+                        <dd><!--lit-part-->manual<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.company<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-bank<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.index<!--/lit-part--></dt>
+                        <dd><!--lit-part-->1<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="11111111111111111111111111111111/0000000000000004/start">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:00.000Z"><!--lit-part-->2024-01-01T10:00:00.000Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+0.100s<!--/lit-part-->
+                    · <!--lit-part-->milestone<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->storage.save · invented-A<!--/lit-part--><!--lit-part--><!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->storage.save started<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->main.run → scraper.account · invented-bank · account 0 → storage.save · invented-A<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->11111111111111111111111111111111<!--/lit-part--><!--lit-part--> · 11111111111111111111111111111111/0000000000000004<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->storage.save started<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->worker<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-run<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.trigger<!--/lit-part--></dt>
+                        <dd><!--lit-part-->manual<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.company<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-bank<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.index<!--/lit-part--></dt>
+                        <dd><!--lit-part-->0<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->invented.attribute<!--/lit-part--></dt>
+                        <dd><!--lit-part-->&lt;/template&gt;&lt;script&gt;globalThis.injected = true&lt;/script&gt;&amp;"<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->storage.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-A<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="11111111111111111111111111111111/0000000000000005/start">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:00.000Z"><!--lit-part-->2024-01-01T10:00:00.000Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+0.100s<!--/lit-part-->
+                    · <!--lit-part-->milestone<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->storage.save · invented-B<!--/lit-part--><!--lit-part--><!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->storage.save started<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->main.run → scraper.account · invented-bank · account 0 → storage.save · invented-B<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->11111111111111111111111111111111<!--/lit-part--><!--lit-part--> · 11111111111111111111111111111111/0000000000000005<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->storage.save started<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->worker<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-run<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.trigger<!--/lit-part--></dt>
+                        <dd><!--lit-part-->manual<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.company<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-bank<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.index<!--/lit-part--></dt>
+                        <dd><!--lit-part-->0<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->invented.attribute<!--/lit-part--></dt>
+                        <dd><!--lit-part-->&lt;/template&gt;&lt;script&gt;globalThis.injected = true&lt;/script&gt;&amp;"<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->storage.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-B<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="22222222222222222222222222222222/0000000000000001/start">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:00.000Z"><!--lit-part-->2024-01-01T10:00:00.000Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+0.100s<!--/lit-part-->
+                    · <!--lit-part-->milestone<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->main.run<!--/lit-part--><!--lit-part--><!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->main.run started<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->main.run<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->22222222222222222222222222222222<!--/lit-part--><!--lit-part--> · 22222222222222222222222222222222/0000000000000001<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->main.run started<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->worker<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->other-run<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="event-0">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:00.123Z"><!--lit-part-->2024-01-01T10:00:00.123Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+0.223s<!--/lit-part-->
+                    · <!--lit-part-->log<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->storage.save · invented-A<!--/lit-part--><!--lit-part--> · moneyman:invented<!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->First line<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->main.run → scraper.account · invented-bank · account 0 → storage.save · invented-A<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->11111111111111111111111111111111<!--/lit-part--><!--lit-part--> · 11111111111111111111111111111111/0000000000000004<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->First line
+  continuation frame
+&lt;/template&gt;&lt;script&gt;globalThis.injected = true&lt;/script&gt;&amp;"<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->worker<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->7<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->service.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-service<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-run<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.trigger<!--/lit-part--></dt>
+                        <dd><!--lit-part-->manual<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.company<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-bank<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.index<!--/lit-part--></dt>
+                        <dd><!--lit-part-->0<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->invented.attribute<!--/lit-part--></dt>
+                        <dd><!--lit-part-->&lt;/template&gt;&lt;script&gt;globalThis.injected = true&lt;/script&gt;&amp;"<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->storage.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-A<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->log.namespace<!--/lit-part--></dt>
+                        <dd><!--lit-part-->moneyman:invented<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="event-1">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:00.123Z"><!--lit-part-->2024-01-01T10:00:00.123Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+0.223s<!--/lit-part-->
+                    · <!--lit-part-->log<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->scraper.account · invented-bank · account 1<!--/lit-part--><!--lit-part--> · moneyman:invented<!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->Same company, second configured account<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->main.run → scraper.account · invented-bank · account 1<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->11111111111111111111111111111111<!--/lit-part--><!--lit-part--> · 11111111111111111111111111111111/0000000000000003<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->Same company, second configured account<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->worker<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->7<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->service.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-service<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-run<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.trigger<!--/lit-part--></dt>
+                        <dd><!--lit-part-->manual<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.company<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-bank<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.index<!--/lit-part--></dt>
+                        <dd><!--lit-part-->1<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->log.namespace<!--/lit-part--></dt>
+                        <dd><!--lit-part-->moneyman:invented<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="event-2">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:00.123Z"><!--lit-part-->2024-01-01T10:00:00.123Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+0.223s<!--/lit-part-->
+                    · <!--lit-part-->log<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->storage.save · invented-B<!--/lit-part--><!--lit-part--> · moneyman:invented<!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->Parallel storage B<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->main.run → scraper.account · invented-bank · account 0 → storage.save · invented-B<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->11111111111111111111111111111111<!--/lit-part--><!--lit-part--> · 11111111111111111111111111111111/0000000000000005<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->Parallel storage B<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->worker<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->7<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->service.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-service<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-run<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.trigger<!--/lit-part--></dt>
+                        <dd><!--lit-part-->manual<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.company<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-bank<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.index<!--/lit-part--></dt>
+                        <dd><!--lit-part-->0<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->invented.attribute<!--/lit-part--></dt>
+                        <dd><!--lit-part-->&lt;/template&gt;&lt;script&gt;globalThis.injected = true&lt;/script&gt;&amp;"<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->storage.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-B<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->log.namespace<!--/lit-part--></dt>
+                        <dd><!--lit-part-->moneyman:invented<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="event-4">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:00.123Z"><!--lit-part-->2024-01-01T10:00:00.123Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+0.223s<!--/lit-part-->
+                    · <!--lit-part-->log<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->Orphan — operation not recorded<!--/lit-part--><!--lit-part--> · moneyman:invented<!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->Orphan record<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->No recorded operation context<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->11111111111111111111111111111111<!--/lit-part--><!--lit-part--> · 11111111111111111111111111111111/0000000000000006<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->Orphan record<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->7<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->service.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-service<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->log.namespace<!--/lit-part--></dt>
+                        <dd><!--lit-part-->moneyman:invented<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="event-5">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:00.123Z"><!--lit-part-->2024-01-01T10:00:00.123Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+0.223s<!--/lit-part-->
+                    · <!--lit-part-->log<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->Orphan — operation not recorded<!--/lit-part--><!--lit-part--> · moneyman:invented<!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->Other trace record<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->No recorded operation context<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->22222222222222222222222222222222<!--/lit-part--><!--lit-part--> · 22222222222222222222222222222222/0000000000000002<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->Other trace record<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->7<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->service.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-service<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->log.namespace<!--/lit-part--></dt>
+                        <dd><!--lit-part-->moneyman:invented<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="event-8">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:00.123Z"><!--lit-part-->2024-01-01T10:00:00.123Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+0.223s<!--/lit-part-->
+                    · <!--lit-part-->log<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->scraper.account · invented-bank · account 1<!--/lit-part--><!--lit-part--> · moneyman:invented<!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->survives malformed neighbor<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->main.run → scraper.account · invented-bank · account 1<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->11111111111111111111111111111111<!--/lit-part--><!--lit-part--> · 11111111111111111111111111111111/0000000000000003<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->survives malformed neighbor<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->worker<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-run<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.trigger<!--/lit-part--></dt>
+                        <dd><!--lit-part-->manual<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.company<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-bank<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.index<!--/lit-part--></dt>
+                        <dd><!--lit-part-->1<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->log.namespace<!--/lit-part--></dt>
+                        <dd><!--lit-part-->moneyman:invented<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="event-6">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:00.400Z"><!--lit-part-->2024-01-01T10:00:00.400Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+0.500s<!--/lit-part-->
+                    · <!--lit-part-->exception<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->scraper.account · invented-bank · account 0<!--/lit-part--><!--lit-part--><!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->invented failure<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->main.run → scraper.account · invented-bank · account 0<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->11111111111111111111111111111111<!--/lit-part--><!--lit-part--> · 11111111111111111111111111111111/0000000000000002<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->invented failure
+InventedError
+  at invented-frame<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->worker<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-run<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.trigger<!--/lit-part--></dt>
+                        <dd><!--lit-part-->manual<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.company<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-bank<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.index<!--/lit-part--></dt>
+                        <dd><!--lit-part-->0<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->invented.attribute<!--/lit-part--></dt>
+                        <dd><!--lit-part-->&lt;/template&gt;&lt;script&gt;globalThis.injected = true&lt;/script&gt;&amp;"<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->exception.type<!--/lit-part--></dt>
+                        <dd><!--lit-part-->InventedError<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->exception.message<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented failure<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->exception.stacktrace<!--/lit-part--></dt>
+                        <dd><!--lit-part-->InventedError
+  at invented-frame<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="event-7">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:00.999Z"><!--lit-part-->2024-01-01T10:00:00.999Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+1.100s<!--/lit-part-->
+                    · <!--lit-part-->log<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->storage.save · invented-A<!--/lit-part--><!--lit-part--> · moneyman:invented<!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->after exported span<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->main.run → scraper.account · invented-bank · account 0 → storage.save · invented-A<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->11111111111111111111111111111111<!--/lit-part--><!--lit-part--> · 11111111111111111111111111111111/0000000000000004<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->after exported span<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->worker<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-run<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.trigger<!--/lit-part--></dt>
+                        <dd><!--lit-part-->manual<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.company<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-bank<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.index<!--/lit-part--></dt>
+                        <dd><!--lit-part-->0<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->invented.attribute<!--/lit-part--></dt>
+                        <dd><!--lit-part-->&lt;/template&gt;&lt;script&gt;globalThis.injected = true&lt;/script&gt;&amp;"<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->storage.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-A<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->log.namespace<!--/lit-part--></dt>
+                        <dd><!--lit-part-->moneyman:invented<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="11111111111111111111111111111111/0000000000000001/end">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:01.000Z"><!--lit-part-->2024-01-01T10:00:01.000Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+1.100s<!--/lit-part-->
+                    · <!--lit-part-->milestone<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->main.run<!--/lit-part--><!--lit-part--><!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->main.run completed<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->main.run<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->11111111111111111111111111111111<!--/lit-part--><!--lit-part--> · 11111111111111111111111111111111/0000000000000001<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->main.run completed<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->worker<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-run<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.trigger<!--/lit-part--></dt>
+                        <dd><!--lit-part-->manual<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="11111111111111111111111111111111/0000000000000002/end">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:01.000Z"><!--lit-part-->2024-01-01T10:00:01.000Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+1.100s<!--/lit-part-->
+                    · <!--lit-part-->milestone<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->scraper.account · invented-bank · account 0<!--/lit-part--><!--lit-part--><!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->scraper.account error: invented failure<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->main.run → scraper.account · invented-bank · account 0<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->11111111111111111111111111111111<!--/lit-part--><!--lit-part--> · 11111111111111111111111111111111/0000000000000002<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->scraper.account error: invented failure<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->worker<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-run<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.trigger<!--/lit-part--></dt>
+                        <dd><!--lit-part-->manual<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.company<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-bank<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.index<!--/lit-part--></dt>
+                        <dd><!--lit-part-->0<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->invented.attribute<!--/lit-part--></dt>
+                        <dd><!--lit-part-->&lt;/template&gt;&lt;script&gt;globalThis.injected = true&lt;/script&gt;&amp;"<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="11111111111111111111111111111111/0000000000000003/end">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:01.000Z"><!--lit-part-->2024-01-01T10:00:01.000Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+1.100s<!--/lit-part-->
+                    · <!--lit-part-->milestone<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->scraper.account · invented-bank · account 1<!--/lit-part--><!--lit-part--><!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->scraper.account completed<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->main.run → scraper.account · invented-bank · account 1<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->11111111111111111111111111111111<!--/lit-part--><!--lit-part--> · 11111111111111111111111111111111/0000000000000003<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->scraper.account completed<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->worker<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-run<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.trigger<!--/lit-part--></dt>
+                        <dd><!--lit-part-->manual<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.company<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-bank<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.index<!--/lit-part--></dt>
+                        <dd><!--lit-part-->1<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="11111111111111111111111111111111/0000000000000004/end">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:01.000Z"><!--lit-part-->2024-01-01T10:00:01.000Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+1.100s<!--/lit-part-->
+                    · <!--lit-part-->milestone<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->storage.save · invented-A<!--/lit-part--><!--lit-part--><!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->storage.save completed<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->main.run → scraper.account · invented-bank · account 0 → storage.save · invented-A<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->11111111111111111111111111111111<!--/lit-part--><!--lit-part--> · 11111111111111111111111111111111/0000000000000004<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->storage.save completed<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->worker<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-run<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.trigger<!--/lit-part--></dt>
+                        <dd><!--lit-part-->manual<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.company<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-bank<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.index<!--/lit-part--></dt>
+                        <dd><!--lit-part-->0<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->invented.attribute<!--/lit-part--></dt>
+                        <dd><!--lit-part-->&lt;/template&gt;&lt;script&gt;globalThis.injected = true&lt;/script&gt;&amp;"<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->storage.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-A<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="11111111111111111111111111111111/0000000000000005/end">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:01.000Z"><!--lit-part-->2024-01-01T10:00:01.000Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+1.100s<!--/lit-part-->
+                    · <!--lit-part-->milestone<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->storage.save · invented-B<!--/lit-part--><!--lit-part--><!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->storage.save completed<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->main.run → scraper.account · invented-bank · account 0 → storage.save · invented-B<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->11111111111111111111111111111111<!--/lit-part--><!--lit-part--> · 11111111111111111111111111111111/0000000000000005<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->storage.save completed<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->worker<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-run<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.trigger<!--/lit-part--></dt>
+                        <dd><!--lit-part-->manual<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.company<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-bank<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->account.index<!--/lit-part--></dt>
+                        <dd><!--lit-part-->0<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->invented.attribute<!--/lit-part--></dt>
+                        <dd><!--lit-part-->&lt;/template&gt;&lt;script&gt;globalThis.injected = true&lt;/script&gt;&amp;"<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->storage.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->invented-B<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--lit-part KS8HjYbPuZM=--><!--lit-node 0--><li data-event-id="22222222222222222222222222222222/0000000000000001/end">
+              <details>
+                <summary>
+                  <!--lit-node 3--><time datetime="2024-01-01T10:00:01.000Z"><!--lit-part-->2024-01-01T10:00:01.000Z<!--/lit-part--></time>
+                  <small><!--lit-part-->+1.100s<!--/lit-part-->
+                    · <!--lit-part-->milestone<!--/lit-part--></small>
+                  <span class="diagnostic-owner"><!--lit-part-->main.run<!--/lit-part--><!--lit-part--><!--/lit-part--></span>
+                  <span class="diagnostic-preview"><!--lit-part-->main.run completed<!--/lit-part--></span>
+                </summary>
+                <p>
+                  <!--lit-part-->main.run<!--/lit-part-->
+                  · trace
+                  <!--lit-part-->22222222222222222222222222222222<!--/lit-part--><!--lit-part--> · 22222222222222222222222222222222/0000000000000001<!--/lit-part-->
+                </p>
+                <pre class="diagnostic-body"><!--lit-part-->main.run completed<!--/lit-part--></pre>
+                <dl class="diagnostic-attributes">
+                  <!--lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->thread.name<!--/lit-part--></dt>
+                        <dd><!--lit-part-->worker<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--lit-part MBCKrfWfFwE=--><div>
+                        <dt><!--lit-part-->run.id<!--/lit-part--></dt>
+                        <dd><!--lit-part-->other-run<!--/lit-part--></dd>
+                      </div><!--/lit-part--><!--/lit-part-->
+                </dl>
+              </details>
+            </li><!--/lit-part--><!--/lit-part-->
+      </ol>
+      <!--lit-part--><!--/lit-part-->
+    </section><!--/lit-part-->"
+`;

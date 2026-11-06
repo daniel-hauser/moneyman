@@ -11,7 +11,9 @@ import {
   renderReportStorages,
   renderReportTransactions,
   renderReportLogs,
+  renderReportDiagnostics,
 } from "./report/components.js";
+import { parseDiagnostics, type ReportLogInput } from "./report/diagnostics.js";
 import { reportClientScript, reportStyles } from "./report/assets.generated.js";
 import { statsDetailsLines, type SaveStats } from "./saveStats.js";
 import { truncateError } from "./truncateError.js";
@@ -196,7 +198,22 @@ export function renderFullReport(report: RunReport): string {
   return render(report, { details: true, full: true });
 }
 
-export function renderHTMLReport(report: RunReport, logs?: string): string {
+export function renderHTMLReport(
+  report: RunReport,
+  logs?: ReportLogInput,
+): string {
+  const diagnostics =
+    typeof logs === "object" && logs.telemetry
+      ? parseDiagnostics(logs.telemetry)
+      : undefined;
+  const logSection =
+    typeof logs === "object"
+      ? diagnostics
+        ? renderReportDiagnostics(logs, diagnostics)
+        : renderReportLogs(logs.console)
+      : logs === undefined
+        ? ""
+        : renderReportLogs(logs);
   const transactions = report.summary
     ? renderReportTransactions(report.summary.results)
     : "";
@@ -252,8 +269,8 @@ export function renderHTMLReport(report: RunReport, logs?: string): string {
         })}
         ${renderReportAccounts(report.summary?.results ?? [], screenshots)}
         ${transactions}
-        ${renderReportStorages(report.storages)}${renderReportTimings(report.timings, report.startedAt, report.endedAt)}
-        ${renderReportErrors(report.errors)}${logs === undefined ? "" : renderReportLogs(logs)}
+        ${renderReportStorages(report.storages)}${diagnostics?.spans.length ? "" : renderReportTimings(report.timings, report.startedAt, report.endedAt)}
+        ${renderReportErrors(report.errors)}${logSection}
         <footer class="report-footer">
           <a
             href="https://github.com/daniel-hauser/moneyman"

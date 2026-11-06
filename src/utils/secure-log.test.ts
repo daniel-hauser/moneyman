@@ -139,6 +139,22 @@ describe("secure logs", () => {
     expect(readFileSync(logFilePath, "utf-8")).toBe("the logs of the run");
   });
 
+  it("reads console and OTLP separately for the explorer without changing legacy uploads", async () => {
+    const telemetry = '{"resourceSpans":[]}\n';
+    writeFileSync(`${logFilePath}.otel.jsonl`, telemetry);
+    const { config } = await import("../config.js");
+    const { NotificationOptionsSchema } = await import("../config.schema.js");
+    config.options.notifications = NotificationOptionsSchema.parse({
+      telegram: { apiKey: "invented-token", chatId: "invented-chat" },
+    });
+    const { readReportLogs } = await import("./secure-log.js");
+    expect(readReportLogs(true)).toEqual({
+      console: "the logs of the run",
+      telemetry,
+    });
+    expect(readReportLogs()).toBe(`the logs of the run\n${telemetry}`);
+  });
+
   it.each([true, false])(
     "retains telemetry in reports, standalone delivery and storage uploads (delete=%s)",
     async (deleteFile) => {
@@ -178,6 +194,7 @@ describe("secure logs", () => {
     });
     const { readReportLogs } = await import("./secure-log.js");
     expect(readReportLogs()).toBeUndefined();
+    expect(readReportLogs(true)).toBeUndefined();
   });
   it.each([
     "disabled",
@@ -210,6 +227,7 @@ describe("secure logs", () => {
     const { readReportLogs } = await import("./secure-log.js");
 
     expect(readReportLogs()).toBeUndefined();
+    expect(readReportLogs(true)).toBeUndefined();
   });
 
   it.each([true, false])(

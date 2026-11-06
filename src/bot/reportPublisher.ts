@@ -1,6 +1,7 @@
 import { proxy, subscribe } from "valtio/vanilla";
 import { createLogger } from "../utils/logger.js";
 import { sleep } from "../utils/utils.js";
+import type { ReportLogInput } from "./report/diagnostics.js";
 import {
   renderHTMLReport,
   renderRunReport,
@@ -109,7 +110,7 @@ export function createReportPublisher(
     });
   }
 
-  async function finish(logs?: string) {
+  async function finish(logs?: ReportLogInput) {
     if (!transport) return false;
     dirty = true;
     while (dirty || running) {

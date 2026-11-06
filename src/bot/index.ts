@@ -39,7 +39,7 @@ export async function runWithStorage(
   });
   publication.report = report;
   publication.finish = async () => {
-    const logs = sendReportFile ? readReportLogs() : undefined;
+    const logs = sendReportFile ? readReportLogs(true) : undefined;
     publication.reportSent = await finish(logs);
     publication.logsSent = publication.reportSent && logs !== undefined;
   };

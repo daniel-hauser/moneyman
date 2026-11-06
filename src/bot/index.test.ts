@@ -174,6 +174,7 @@ describe("runWithStorage report logs", () => {
     await runWithStorage(runner, [mock<TransactionStorage>()]);
 
     expect(readReportLogs).toHaveBeenCalledTimes(1);
+    expect(readReportLogs).toHaveBeenCalledWith(true);
     expect(finish).toHaveBeenCalledWith("captured logs");
   });
 

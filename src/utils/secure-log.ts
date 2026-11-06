@@ -5,6 +5,7 @@ import { logToPublicLog, unsafeStdout, createLogger } from "./logger.js";
 import type { TransactionStorage } from "../types.js";
 import debug from "debug";
 import { privateTelemetryPath } from "./telemetry.js";
+import type { ReportLogInput } from "../bot/report/diagnostics.js";
 
 const logger = createLogger("secure-log");
 
@@ -25,7 +26,7 @@ export function enableDebugLoggingIfNeeded() {
   }
 }
 
-export function readReportLogs(): string | undefined {
+export function readReportLogs(structured = false): ReportLogInput | undefined {
   const telegram = config.options.notifications?.telegram;
   const logFilePath = process.env.MONEYMAN_LOG_FILE_PATH;
   if (
@@ -38,6 +39,13 @@ export function readReportLogs(): string | undefined {
   }
 
   try {
+    if (structured) {
+      const read = (path: string | undefined) =>
+        path && existsSync(path) ? readFileSync(path, "utf-8") : "";
+      const console = read(logFilePath);
+      const telemetry = read(privateTelemetryPath);
+      return console || telemetry ? { console, telemetry } : undefined;
+    }
     return readPrivateLogs(logFilePath);
   } catch (error) {
     logger("Failed to read logs for report:", error);
