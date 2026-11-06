@@ -56,15 +56,18 @@ function* getMousePath(from: Point, to: Point): Generator<Point> {
   }
 }
 
-async function moveTo(page: Page, from: Point, to: Point): Promise<Point> {
+async function moveTo(
+  page: Page,
+  from: Point,
+  to: Point,
+  signal: AbortSignal,
+): Promise<Point> {
   logger("Moving mouse from", from, "to", to);
   for (const [px, py] of getMousePath(from, to)) {
-    if (page.isClosed()) {
-      throw new Error("Page is closed");
-    }
+    signal.throwIfAborted();
     await page.mouse.move(px, py);
     if (Math.random() * 100 > 15) {
-      await sleep(Math.random() * 500 + 100);
+      await sleep(Math.random() * 500 + 100, undefined, { signal });
     }
   }
   return to;
@@ -74,36 +77,54 @@ const containerLocation = { x: 506, y: 257 };
 const checkboxBox = { x: 522, y: 280, width: 20, height: 20 };
 
 export async function solveTurnstile(page: Page): Promise<string> {
+  const controller = new AbortController();
+  const { signal } = controller;
+  const onClose = () => controller.abort();
+  page.once("close", onClose);
   try {
+    if (page.isClosed()) onClose();
+    signal.throwIfAborted();
     const windowWidth = await page.evaluate(() => window.innerWidth);
     const windowHeight = await page.evaluate(() => window.innerHeight);
     logger("Solving turnstile, Window size", { windowWidth, windowHeight });
 
-    page.on("close", () => {
-      logger("Page closed");
-    });
-
     let currentPosition: Point = [0, 0];
-    currentPosition = await moveTo(page, currentPosition, [
-      containerLocation.x + Math.random() * 12 + 5,
-      containerLocation.y + Math.random() * 12 + 5,
-    ]);
+    currentPosition = await moveTo(
+      page,
+      currentPosition,
+      [
+        containerLocation.x + Math.random() * 12 + 5,
+        containerLocation.y + Math.random() * 12 + 5,
+      ],
+      signal,
+    );
 
     logger("Mouse moved to random position");
-    await sleep(1500);
+    await sleep(1500, undefined, { signal });
 
     const { x, y, width, height } = checkboxBox;
-    currentPosition = await moveTo(page, currentPosition, [
-      x + width / 5 + Math.random() * (width - width / 5),
-      y + height / 5 + Math.random() * (height - height / 5),
-    ]);
+    currentPosition = await moveTo(
+      page,
+      currentPosition,
+      [
+        x + width / 5 + Math.random() * (width - width / 5),
+        y + height / 5 + Math.random() * (height - height / 5),
+      ],
+      signal,
+    );
 
     await page.mouse.click(...currentPosition);
     logger("Clicked on checkbox");
     await page.waitForNavigation({ timeout: 60_000 });
     return "success";
   } catch (error) {
+    if (signal.aborted) {
+      logger("Page closed");
+      return "page closed";
+    }
     logger("solveTurnstile error", error);
     return "failed to solve: " + error;
+  } finally {
+    page.off("close", onClose);
   }
 }
