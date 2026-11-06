@@ -217,6 +217,7 @@ describe("per-run storage ownership", () => {
         `https://${secret}.test/post`,
         expect.objectContaining({
           headers: expect.objectContaining({ Authorization: secret }),
+          signal: expect.any(AbortSignal),
         }),
       );
       expect(fetchMock).toHaveBeenCalledWith(

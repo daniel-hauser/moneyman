@@ -7,6 +7,7 @@ import type { MoneymanConfig } from "../../config.js";
 import assert from "node:assert";
 
 const logger = createLogger("WebPostStorage");
+const WEB_POST_TIMEOUT_MS = 30_000;
 
 export class WebPostStorage implements TransactionStorage {
   constructor(private config: MoneymanConfig) {}
@@ -34,6 +35,7 @@ export class WebPostStorage implements TransactionStorage {
 
     const [response] = await Promise.all([
       fetch(webPostConfig.url, {
+        signal: AbortSignal.timeout(WEB_POST_TIMEOUT_MS),
         method: "POST",
         headers: {
           "Content-Type": "application/json",
