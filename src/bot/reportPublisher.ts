@@ -1,6 +1,6 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { proxy, subscribe } from "valtio/vanilla";
 import { createLogger } from "../utils/logger.js";
-import { sleep } from "../utils/utils.js";
 import {
   renderHTMLReport,
   renderRunReport,

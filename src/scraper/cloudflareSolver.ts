@@ -1,6 +1,6 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import type { Page } from "puppeteer";
 import { createLogger } from "../utils/logger.js";
-import { sleep } from "../utils/utils.js";
 
 const logger = createLogger("cloudflare-solver");
 

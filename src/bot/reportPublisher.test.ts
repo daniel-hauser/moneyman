@@ -5,6 +5,11 @@ import {
 import { createRunReport, renderHTMLReport } from "./runReport.js";
 import { mock } from "jest-mock-extended";
 
+// Native promise timers are not controlled by Jest fake timers.
+jest.mock("node:timers/promises", () => ({
+  setTimeout: (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
+}));
+
 jest.mock("./runReport.js", () => {
   const actual =
     jest.requireActual<typeof import("./runReport.js")>("./runReport.js");
