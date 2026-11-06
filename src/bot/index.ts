@@ -8,17 +8,25 @@ import { createRunReport, type RunReport } from "./runReport.js";
 import { readReportLogs } from "../utils/secure-log.js";
 import { config } from "../config.js";
 import { createScreenshotDataUrl } from "./screenshotDataUrl.js";
+import { spanEvent, withDeliveryTelemetry } from "../utils/telemetry.js";
+import { SpanStatusCode, trace } from "@opentelemetry/api";
 
 const logger = createLogger("bot");
+
+export interface RunPublication {
+  report: RunReport;
+  reportSent: boolean;
+  logsSent?: boolean;
+  finish?: () => Promise<void>;
+}
 
 export async function runWithStorage(
   runScraper: Runner,
   storages: readonly TransactionStorage[],
-  publication: {
-    report: RunReport;
-    reportSent: boolean;
-    logsSent?: boolean;
-  } = { report: createRunReport(), reportSent: false },
+  publication: RunPublication = {
+    report: createRunReport(),
+    reportSent: false,
+  },
 ): Promise<typeof publication> {
   const sendReportFile =
     Boolean(reportTransport) &&
@@ -27,12 +35,18 @@ export async function runWithStorage(
     transport: reportTransport,
     sendReportFile,
     intervalMs: reportUpdateIntervalMs,
+    log: (...args) => withDeliveryTelemetry(() => logger(...args)),
   });
   publication.report = report;
+  publication.finish = async () => {
+    const logs = sendReportFile ? readReportLogs(true) : undefined;
+    publication.reportSent = await finish(logs);
+    publication.logsSent = publication.reportSent && logs !== undefined;
+  };
 
   try {
     if (!storages.length) {
-      logger("No storages found, aborting");
+      spanEvent("run.skipped", { reason: "no storages" });
       report.notices.push("No storages found, aborting");
       return publication;
     }
@@ -45,11 +59,9 @@ export async function runWithStorage(
         else timings[index] = { ...timing };
       },
       async onStatusChanged(status: Array<string>, totalTime?: number) {
-        logger(`scrape status: ${status.join(" | ")}`);
         report.scrape = { status, totalTimeSec: totalTime };
       },
       async onResultsReady(results: AccountScrapeResult[]) {
-        logger(`scrape results ready (${results.length} results)`);
         report.summary = { results };
         const failedAccounts = results.filter(({ result }) => !result.success);
         if (failedAccounts.length) {
@@ -87,9 +99,12 @@ export async function runWithStorage(
     logToPublicLog("Scraping ended", logger);
   } finally {
     report.endedAt = new Date();
-    const logs = sendReportFile ? readReportLogs() : undefined;
-    publication.reportSent = await finish(logs);
-    publication.logsSent = publication.reportSent && logs !== undefined;
+    if (
+      report.failed ||
+      Object.values(report.storages).some((row) => row.state === "error")
+    ) {
+      trace.getActiveSpan()?.setStatus({ code: SpanStatusCode.ERROR });
+    }
   }
 
   return publication;

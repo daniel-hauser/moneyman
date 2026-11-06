@@ -1,9 +1,6 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { createLogger } from "../utils/logger.js";
-import {
-  runInLoggerContext,
-  loggerContextStore,
-} from "../utils/asyncContext.js";
+import { context, trace } from "@opentelemetry/api";
 import type { BrowserContext } from "puppeteer";
 import { ClientRequestInterceptor } from "@mswjs/interceptors/ClientRequest";
 import { DomainRuleManager } from "./domainRules.js";
@@ -48,13 +45,13 @@ export function createDomainTracker({
       interceptor.apply(tracker);
       interceptor.on(
         "request",
-        runInLoggerContext(({ request }) => {
+        ({ request }) => {
           logger(`Outgoing request: ${request.method} ${request.url}`);
           const { hostname } = new URL(request.url);
-          const context = loggerContextStore.getStore() ?? { prefix: "node" };
           const reqKey = `${request.method} ${hostname}`;
-          addToKeyedSet(domainsFromNode, context.prefix, reqKey);
-        }),
+          const owner = trace.getActiveSpan()?.spanContext().spanId ?? "node";
+          addToKeyedSet(domainsFromNode, owner, reqKey);
+        },
         { signal: listeners.signal },
       );
     }
@@ -68,8 +65,6 @@ export function createDomainTracker({
     companyId: CompanyTypes,
   ): Promise<void> {
     if (domainTracking) {
-      const context = loggerContextStore.getStore();
-
       const rules = new DomainRuleManager(
         companyId,
         firewallRules,
@@ -77,7 +72,7 @@ export function createDomainTracker({
       );
       browserContext.on(
         "targetcreated",
-        runInLoggerContext(async (target) => {
+        context.bind(context.active(), async (target) => {
           switch (target.type()) {
             // String literals used instead of TargetType enum because puppeteer is ESM-only
             // and Jest cannot import its value exports. Safe to use TargetType.PAGE etc.
@@ -94,11 +89,11 @@ export function createDomainTracker({
 
               page.on(
                 "framenavigated",
-                runInLoggerContext((frame) => {
+                context.bind(context.active(), (frame) => {
                   logger(`Frame navigated: ${frame.url()}`);
                   const { hostname, pathname } = new URL(page.url());
                   addToKeyedSet(pagesByCompany, companyId, hostname + pathname);
-                }, context),
+                }),
               );
 
               const canIntercept = rules.hasAnyRule();
@@ -109,7 +104,7 @@ export function createDomainTracker({
 
               page.on(
                 "request",
-                runInLoggerContext(async (request) => {
+                context.bind(context.active(), async (request) => {
                   const url = new URL(request.url());
                   const pageUrl = new URL(page.url());
                   const hostname = url.hostname;
@@ -144,7 +139,7 @@ export function createDomainTracker({
                   if (canIntercept) {
                     await request.continue(undefined, 100);
                   }
-                }, context),
+                }),
               );
 
               break;
@@ -152,7 +147,7 @@ export function createDomainTracker({
             default:
               break;
           }
-        }, context),
+        }),
       );
     }
   }

@@ -5,14 +5,24 @@ import { addAbortListener, once } from "node:events";
 import { aborted } from "node:util";
 import { finalizer, proxy, releaseProxy, wrap } from "comlink";
 import debug from "debug";
+import {
+  privateTelemetryPath,
+  traceCarrier,
+  parentContext,
+  inSpan,
+  TELEMETRY_EXPORT_FAILURE,
+} from "../utils/telemetry.js";
+import { context } from "@opentelemetry/api";
 import type { RunnerHooks, RunTiming } from "../types.js";
 import { requestOtpCode } from "../bot/notifier.js";
 import { workerEnvironment } from "./environment.js";
 import {
   WorkerConfigSchema,
+  TraceCarrierSchema,
   type ScraperWorkerApi,
   type WorkerResult,
   type ScraperRunConfig,
+  type WorkerCallbacks,
 } from "./protocol.js";
 
 export async function scrapeAccounts(
@@ -28,6 +38,7 @@ export async function scrapeAccounts(
   const settings = WorkerConfigSchema.parse({
     ...scraping,
     debugFilter,
+    traceCarrier: traceCarrier(),
   });
   const resources = new AsyncDisposableStack();
   const activeTimings = new Map<string, RunTiming>();
@@ -39,7 +50,10 @@ export async function scrapeAccounts(
     });
     const listeners = new AbortController();
     const worker = new Worker(new URL("./worker.js", import.meta.url), {
-      env: workerEnvironment(process.env),
+      env: {
+        ...workerEnvironment(process.env),
+        MONEYMAN_TELEMETRY_FILE_PATH: privateTelemetryPath,
+      },
       execArgv: [],
       workerData: port2,
       transferList: [port2],
@@ -88,20 +102,28 @@ export async function scrapeAccounts(
       Promise.withResolvers<void>();
     const scrapingResult = api.scrape(
       settings,
-      proxy({
-        timing: async (timing: RunTiming) => {
+      proxy<WorkerCallbacks & { [finalizer](): void }>({
+        timing: context.bind(context.active(), async (timing: RunTiming) => {
           if (timing.endedAt === undefined)
             activeTimings.set(timing.id, timing);
           else activeTimings.delete(timing.id);
           await onTiming?.(timing);
-        },
-        status: async (status: string[], totalTime?: number) => {
-          await onStatus?.(status, totalTime);
-        },
-        warning: async (error: unknown, caller: string) => {
-          await onError?.(error, caller);
-        },
-        otp: async (accountIndex: number) => {
+        }),
+        status: context.bind(
+          context.active(),
+          async (status: string[], totalTime?: number) => {
+            await onStatus?.(status, totalTime);
+          },
+        ),
+        warning: async (error, caller, carrier) =>
+          context.with(
+            parentContext(TraceCarrierSchema.parse(carrier)),
+            async () => {
+              await onError?.(error, caller);
+            },
+          ),
+        otp: async (accountIndex, carrier) => {
+          const parent = parentContext(TraceCarrierSchema.parse(carrier));
           const account =
             Number.isInteger(accountIndex) && accountIndex >= 0
               ? scraping.accounts[accountIndex]
@@ -116,10 +138,16 @@ export async function scrapeAccounts(
           ) {
             throw new Error("Invalid scraper worker OTP request");
           }
-          return requestOtpCode(
-            account.companyId,
-            account.phoneNumber,
-            abort.signal,
+          return inSpan(
+            "otp.request",
+            () =>
+              requestOtpCode(
+                account.companyId,
+                account.phoneNumber,
+                abort.signal,
+              ),
+            {},
+            parent,
           );
         },
         [finalizer]: released,
@@ -140,6 +168,9 @@ export async function scrapeAccounts(
     ]);
     if (!result || abort.signal.aborted) throw abort.signal.reason;
     await resources.disposeAsync();
+    if (result.telemetryFailed) {
+      await onError?.(new Error(TELEMETRY_EXPORT_FAILURE), "Telemetry");
+    }
     return result;
   } catch (error) {
     await resources.disposeAsync().catch((cleanup: unknown) => {

@@ -1,4 +1,6 @@
 import "../src/bot/report/interactive.js";
+import "../src/bot/report/diagnostics-element.js";
+import type { ReportDiagnostics } from "../src/bot/report/diagnostics-element.js";
 import type {
   ReportTransactions,
   ReportLogs,
@@ -37,6 +39,12 @@ export async function initializeLogs(
   if (!element) return;
   if (highlight) element.highlight = highlight;
   await element.ready();
+}
+
+export function initializeDiagnostics(document: Document) {
+  return document
+    .querySelector<ReportDiagnostics>("report-diagnostics")
+    ?.ready();
 }
 
 export function initializeScreenshots(document: Document) {
@@ -101,6 +109,7 @@ export async function initializeReport(document: Document) {
   await Promise.all([
     initializeTransactions(document),
     initializeLogs(document),
+    initializeDiagnostics(document),
   ]);
   initializeScreenshots(document);
   initializeDownloads(document);

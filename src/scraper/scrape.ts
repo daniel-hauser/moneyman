@@ -8,6 +8,8 @@ import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js"
 import { createLogger } from "../utils/logger.js";
 import { prepareAccountCredentials, type OtpRequest } from "./otp.js";
 import { isCloudflareBlock } from "./cloudflareSolver.js";
+import { spanEvent } from "../utils/telemetry.js";
+import { context, trace } from "@opentelemetry/api";
 
 const logger = createLogger("scrape");
 
@@ -17,14 +19,18 @@ export async function getAccountTransactions(
   onProgress: (companyId: string, status: string) => void,
   requestOtpCode?: OtpRequest,
 ): Promise<ScraperScrapingResult> {
-  logger(`started`);
   try {
     const scraper = createScraper(options);
 
-    scraper.onProgress((companyId, { type }) => {
-      logger(`[${companyId}] ${type}`);
-      onProgress(companyId, type);
-    });
+    scraper.onProgress(
+      context.bind(context.active(), (companyId, { type }) => {
+        spanEvent("scraper.progress", {
+          "account.company": companyId,
+          step: type,
+        });
+        onProgress(companyId, type);
+      }),
+    );
 
     const result = await scraper.scrape({
       ...account,
@@ -43,10 +49,10 @@ export async function getAccountTransactions(
       }
       logger(`error: ${result.errorType} ${result.errorMessage}`);
     }
-    logger(`ended`);
 
     return result;
   } catch (e) {
+    trace.getActiveSpan()?.recordException(e instanceof Error ? e : String(e));
     logger(e);
     const errorString = String(e);
 

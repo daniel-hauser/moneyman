@@ -1,11 +1,9 @@
 import path from "node:path";
 import fs from "node:fs/promises";
-import { createLogger } from "../../utils/logger.js";
 import type { TransactionRow, TransactionStorage } from "../../types.js";
 import { createSaveStats } from "../saveStats.js";
 import type { MoneymanConfig } from "../../config.js";
-
-const logger = createLogger("LocalJsonStorage");
+import { spanEvent } from "../../utils/telemetry.js";
 
 export class LocalJsonStorage implements TransactionStorage {
   folder: string;
@@ -16,7 +14,7 @@ export class LocalJsonStorage implements TransactionStorage {
   }
 
   async init() {
-    logger("init");
+    spanEvent("storage.initialize");
     await fs.mkdir(this.folder, { recursive: true });
   }
 
@@ -25,7 +23,6 @@ export class LocalJsonStorage implements TransactionStorage {
   }
 
   async saveTransactions(txns: Array<TransactionRow>) {
-    logger("saveTransactions");
     await this.init();
 
     const fileName = path.join(
@@ -33,6 +30,7 @@ export class LocalJsonStorage implements TransactionStorage {
       `${new Date().toISOString().replace(/:/g, "_")}.json`,
     );
 
+    spanEvent("storage.write", { "transaction.count": txns.length });
     await fs.appendFile(fileName, JSON.stringify(txns), { encoding: "utf8" });
 
     const stats = createSaveStats("LocalJsonStorage", fileName, txns, {

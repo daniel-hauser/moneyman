@@ -1,26 +1,67 @@
 import debug from "debug";
 import { writeFileSync, existsSync, writeSync } from "fs";
 import { BooleanEnvVarSchema, IntEnvVarSchema } from "../config.schema.js";
-import { loggerContextStore } from "./asyncContext.js";
-import { isMainThread, threadId } from "node:worker_threads";
+import { formatWithOptions, type InspectOptions } from "node:util";
+import { inSpan, telemetryLogger } from "./telemetry.js";
+import {
+  context as otelContext,
+  type Context,
+  type Span,
+  type SpanOptions,
+} from "@opentelemetry/api";
 
 export const logger = debug("moneyman");
 
-// Hook into debug.log to inject logger context
-const originalLog = debug.log;
+// Keep source messages and namespace filters, not debug's terminal decoration.
+debug.formatArgs = () => {};
 debug.log = function (...args: unknown[]) {
-  const context = loggerContextStore.getStore();
-  const prefix = `[${isMainThread ? "main" : `worker ${threadId}`}]${context ? ` ${context.prefix}` : ""}`;
-  if (typeof args[0] === "string") {
-    args[0] = `${prefix} ${args[0]}`;
-  } else {
-    args.unshift(prefix);
-  }
-  return originalLog.apply(this, args);
+  telemetryLogger.emit({
+    context: otelContext.active(),
+    body: formatWithOptions(
+      (debug.inspectOpts ?? {}) as InspectOptions,
+      ...args,
+    ),
+    attributes: {
+      "log.namespace":
+        (this as unknown as debug.Debugger)?.namespace ?? "debug",
+    },
+  });
 };
 
-export function createLogger(name: string) {
-  return logger.extend(name);
+type OperationOptions = SpanOptions & {
+  name: string;
+  parent?: Context;
+};
+
+export interface Logger extends debug.Debugger {
+  extend(namespace: string, delimiter?: string): Logger;
+  span<T>(
+    options: OperationOptions,
+    operation: (span: Span) => Promise<T>,
+  ): Promise<T>;
+}
+
+function withSpans(debugger_: debug.Debugger): Logger {
+  const extend = debugger_.extend.bind(debugger_);
+  return Object.assign(debugger_, {
+    extend: (namespace: string, delimiter?: string): Logger =>
+      withSpans(extend(namespace, delimiter)),
+    span: <T>(
+      { name, parent = otelContext.active(), ...options }: OperationOptions,
+      operation: (span: Span) => Promise<T>,
+    ) =>
+      inSpan(
+        `${debugger_.namespace.replace(/^moneyman:?/, "").replaceAll(":", ".")}.${name}`,
+        operation,
+        options.attributes,
+        parent,
+        options,
+      ),
+  });
+}
+
+export function createLogger(name: string): Logger {
+  return withSpans(logger.extend(name));
 }
 
 export const unsafeStdout = BooleanEnvVarSchema.parse(

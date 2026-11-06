@@ -5,6 +5,8 @@ import { mock } from "jest-mock-extended";
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { CustomElementRegistry } from "@lit-labs/ssr-dom-shim";
 import type { ReportTransport } from "./bot/reportPublisher.js";
+import type { ReadableSpan } from "@opentelemetry/sdk-trace-base";
+import { ExportResultCode } from "@opentelemetry/core";
 
 jest.mock("./bot/runReport.js", () => {
   const actual =
@@ -70,7 +72,9 @@ jest.mock("./utils/failureScreenshot.js", () => ({
   sendFailureScreenShots: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock("./utils/logger.js", () => ({
-  createLogger: () => jest.fn(),
+  ...jest.requireActual<typeof import("./utils/logger.js")>(
+    "./utils/logger.js",
+  ),
   logToPublicLog: jest.fn(),
 }));
 
@@ -258,6 +262,48 @@ describe("index", () => {
     it("hands the runner to the server without running", () => {
       expect(mocks.runWithStorageMock).not.toHaveBeenCalled();
       expect(mocks.exit).not.toHaveBeenCalled();
+    });
+
+    it("ends the root before reading report logs and retains run ownership through delivery", async () => {
+      const { config } = await import("./config.js");
+      const { NotificationOptionsSchema } = await import("./config.schema.js");
+      const notifier = await import("./bot/notifier.js");
+      const { readReportLogs } = await import("./utils/secure-log.js");
+      const { privateSpanExporter } = await import("./utils/telemetry.js");
+      const spans: ReadableSpan[] = [];
+      jest
+        .spyOn(privateSpanExporter, "export")
+        .mockImplementation((batch, done) => {
+          spans.push(...batch);
+          done({ code: ExportResultCode.SUCCESS });
+        });
+      const transport = mock<ReportTransport>();
+      transport.send.mockResolvedValue(1);
+      transport.sendFile.mockResolvedValue(undefined);
+      jest.replaceProperty(notifier, "reportTransport", transport);
+      config.options.notifications = NotificationOptionsSchema.parse({
+        telegram: { apiKey: "invented-token", chatId: "1" },
+      });
+      let deliveredRunId: string | undefined;
+      jest.mocked(readReportLogs).mockImplementation(() => {
+        const root = spans.find((span) => span.name === "main.run")!;
+        expect(root.ended).toBe(true);
+        expect(root.endTime).not.toEqual([0, 0]);
+        deliveredRunId = mocks.runContextStore.getStore()?.runId;
+        expect(root.attributes["run.id"]).toBe(deliveredRunId);
+        return "invented completed telemetry";
+      });
+      mocks.sendLogFileMock.mockImplementation(async () => {
+        expect(await runner.isRunning()).toBe(true);
+        expect(mocks.runContextStore.getStore()?.runId).toBe(deliveredRunId);
+        expect(spans.filter((span) => span.name === "main.run")).toHaveLength(
+          1,
+        );
+      });
+      await runOnce("manual");
+      expect(readReportLogs).toHaveBeenCalledTimes(1);
+      expect(await runner.isRunning()).toBe(false);
+      expect(spans.filter((span) => span.name === "main.run")).toHaveLength(1);
     });
 
     it.each(["manual", "scheduled"] as const)(

@@ -8,7 +8,6 @@ import {
 } from "../../types.js";
 import { randomUUID } from "node:crypto";
 import { createLogger } from "../../utils/logger.js";
-import { loggerContextStore } from "../../utils/asyncContext.js";
 import { sendError } from "../notifier.js";
 import type { RunReport, Step } from "../runReport.js";
 import { ActualBudgetStorage } from "./actual.js";
@@ -24,6 +23,8 @@ import { SqlStorage } from "./sql.js";
 import { MoneymanDashStorage } from "./moneyman.js";
 import { formatUnknownError } from "../../utils/utils.js";
 import type { MoneymanConfig } from "../../config.js";
+import { SpanStatusCode } from "@opentelemetry/api";
+import { spanEvent } from "../../utils/telemetry.js";
 
 const baseLogger = createLogger("storage");
 
@@ -48,14 +49,14 @@ export async function saveResults(
   storages: readonly TransactionStorage[],
 ) {
   if (storages.length === 0) {
-    baseLogger("No storages found, skipping save");
+    spanEvent("storage.skipped", { reason: "no storages" });
     report.notices.push("No storages found, skipping save");
     return;
   }
 
   const txns = resultsToTransactions(results);
   if (txns.length === 0) {
-    baseLogger("No transactions found, skipping save");
+    spanEvent("storage.skipped", { reason: "no transactions" });
     report.notices.push("No transactions found, skipping save");
     return;
   }
@@ -100,45 +101,66 @@ export async function saveResults(
         stepStart = now;
       };
 
-      return loggerContextStore.run({ prefix: `[${name}]` }, async () => {
-        try {
-          logger(`saving ${txns.length} transactions`);
-          report.storages[name] = { state: "saving", steps: [] };
-          const start = performance.now();
-          const stats = await storage.saveTransactions(
-            txns,
-            async (step) => {
-              endStep();
-              steps.push({ name: step });
-              timings.push({
-                id: `step-${randomUUID()}`,
-                parentId: timing.id,
-                kind: "step",
-                name: step,
-                startedAt: Date.now(),
-              });
-              activeStep = timings[timings.length - 1];
-              logger(`step "${step}"`);
-              report.storages[name] = { state: "saving", steps: [...steps] };
-            },
-            context,
-          );
-          const durationMs = performance.now() - start;
-          endStep();
-          logger(
-            `done ${(durationMs / 1000).toFixed(1)}s, ${stats.added} added`,
-          );
-          report.storages[name] = { state: "done", stats, durationMs, steps };
-        } catch (e) {
-          timing.failed = true;
-          logger(`error saving transactions`, e);
-          const message = formatUnknownError(e);
-          report.storages[name] = { state: "error", message };
-        } finally {
-          if (activeStep) endStep();
-          timing.endedAt = Date.now();
-        }
-      });
+      return baseLogger.span(
+        {
+          name: "save",
+          attributes: {
+            "storage.name": name,
+            "transaction.count": txns.length,
+          },
+        },
+        async (span) => {
+          try {
+            report.storages[name] = { state: "saving", steps: [] };
+            const start = performance.now();
+            const stats = await storage.saveTransactions(
+              txns,
+              async (step) => {
+                endStep();
+                steps.push({ name: step });
+                timings.push({
+                  id: `step-${randomUUID()}`,
+                  parentId: timing.id,
+                  kind: "step",
+                  name: step,
+                  startedAt: Date.now(),
+                });
+                activeStep = timings[timings.length - 1];
+                spanEvent("storage.progress", { step }, span);
+                report.storages[name] = {
+                  state: "saving",
+                  steps: [...steps],
+                };
+              },
+              context,
+            );
+            const durationMs = performance.now() - start;
+            endStep();
+            span.setAttributes({
+              "transaction.added": stats.added,
+              "transaction.existing": stats.existing,
+              "transaction.pending": stats.pending,
+              "transaction.other_skipped": stats.otherSkipped,
+            });
+            report.storages[name] = {
+              state: "done",
+              stats,
+              durationMs,
+              steps,
+            };
+          } catch (e) {
+            span.setStatus({ code: SpanStatusCode.ERROR });
+            span.recordException(e instanceof Error ? e : String(e));
+            timing.failed = true;
+            logger(`error saving transactions`, e);
+            const message = formatUnknownError(e);
+            report.storages[name] = { state: "error", message };
+          } finally {
+            if (activeStep) endStep();
+            timing.endedAt = Date.now();
+          }
+        },
+      );
     }),
   );
 }

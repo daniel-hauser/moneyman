@@ -4,6 +4,85 @@
   --report-muted: light-dark(#5f6368, #bdc1c6);
   --report-accent: light-dark(#1a73e8, #8ab4f8);
 }
+.diagnostics-filters {
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-block: 1rem;
+}
+report-diagnostics .heading-actions {
+  flex-wrap: wrap;
+}
+.diagnostics-filters label {
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+}
+.diagnostics-filters select,
+.diagnostics-filters input {
+  max-width: 24rem;
+  padding: 0.3rem;
+}
+.diagnostic-events {
+  list-style: none;
+  padding: 0;
+}
+.diagnostic-events > li {
+  margin-block: 0.5rem;
+}
+.diagnostic-events summary > span,
+.diagnostic-events summary > small {
+  display: block;
+}
+.diagnostic-events time,
+.diagnostic-context,
+.diagnostic-events small {
+  color: var(--report-muted);
+  font-size: 0.85rem;
+}
+.diagnostic-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.diagnostic-body,
+.diagnostic-attributes dd {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.diagnostic-attributes {
+  font-size: 0.85rem;
+}
+.diagnostic-attributes dd {
+  margin-inline-start: 1rem;
+}
+.diagnostic-operations li {
+  margin-block: 0.5rem;
+  overflow-wrap: anywhere;
+}
+.diagnostic-operations small {
+  display: block;
+}
+.diagnostic-waterfall {
+  display: block;
+  width: 100%;
+  height: 12px;
+  fill: var(--report-accent);
+}
+.diagnostic-events {
+  max-height: 48rem;
+  overflow: auto;
+}
+.diagnostic-events > li {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 8rem;
+}
+.report-interactive .diagnostic-operation-name {
+  display: none;
+}
+.diagnostic-operations button[aria-pressed="true"] {
+  font-weight: bold;
+  outline: 2px solid var(--report-accent);
+}
 .interactive {
   display: none;
 }
@@ -434,6 +513,7 @@ figcaption {
   contain-intrinsic-size: auto 24rem;
 }
 report-transactions,
-report-logs {
+report-logs,
+report-diagnostics {
   display: block;
 }

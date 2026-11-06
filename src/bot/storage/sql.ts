@@ -10,6 +10,8 @@ import { createSaveStats } from "../saveStats.js";
 import { sendError } from "../notifier.js";
 import type { MoneymanConfig } from "../../config.js";
 import { normalizeCurrency } from "../../utils/currency.js";
+import { spanEvent } from "../../utils/telemetry.js";
+import { trace, SpanStatusCode } from "@opentelemetry/api";
 
 const logger = createLogger("sql-storage");
 
@@ -58,6 +60,7 @@ export class SqlStorage implements TransactionStorage {
       txns,
     );
 
+    spanEvent("storage.connect");
     const pool = new Pool({
       connectionString: sqlConfig.connectionString,
       max: 1,
@@ -85,8 +88,6 @@ export class SqlStorage implements TransactionStorage {
         await onProgress(`Recording ${txns.length} raw transactions`);
         await this.insertRawTransactions(transactionClient, txns, schema);
       });
-
-      logger(`Saved ${txns.length} transactions`, stats);
     } catch (error) {
       logger("error saving transactions", error);
       await sendError(error, "SqlStorage::saveTransactions");
@@ -97,6 +98,10 @@ export class SqlStorage implements TransactionStorage {
       try {
         await pool.end();
       } catch (e) {
+        trace.getActiveSpan()?.setStatus({ code: SpanStatusCode.ERROR });
+        trace
+          .getActiveSpan()
+          ?.recordException(e instanceof Error ? e : String(e));
         await onProgress("Error closing SQL client");
         logger("error closing SQL client", e);
       }
@@ -109,15 +114,16 @@ export class SqlStorage implements TransactionStorage {
     client: PoolClient,
     fn: (tx: PoolClient) => Promise<T>,
   ): Promise<T> {
+    spanEvent("storage.transaction.begin");
     await client.query("BEGIN");
-    logger("Starting transaction");
     try {
       const result = await fn(client);
-      logger("Transaction completed successfully");
+      spanEvent("storage.transaction.commit");
       await client.query("COMMIT");
       return result;
     } catch (error) {
       logger("Rolling back transaction due to error", error);
+      spanEvent("storage.transaction.rollback");
       await client.query("ROLLBACK");
       throw error;
     }

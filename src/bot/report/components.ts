@@ -8,6 +8,8 @@ import { html } from "./html.js";
 import { html as litHtml } from "lit";
 import { renderLight } from "@lit-labs/ssr-client/directives/render-light.js";
 import "./interactive.js";
+import "./diagnostics-element.js";
+import type { Diagnostics, ReportDiagnosticSources } from "./diagnostics.js";
 import { ReportLightRenderer } from "./light-renderer.js";
 
 const escaped = (value: string | number) =>
@@ -471,4 +473,28 @@ export function renderReportLogs(logs: string) {
         { elementRenderers: [ReportLightRenderer] },
       ),
     ).replaceAll("\r", "&#13;")}`;
+}
+
+export function renderReportDiagnostics(
+  sources: ReportDiagnosticSources,
+  diagnostics: Diagnostics,
+) {
+  return html`<template id="diagnostics-json"
+      >${escaped(JSON.stringify(diagnostics, null, 2))}</template
+    >
+    <template id="telemetry-json" data-json
+      >${escaped(JSON.stringify(sources.telemetry))}</template
+    >
+    ${collectResultSync(
+      render(
+        litHtml`<report-diagnostics id="diagnostics-ui" data-ssr .diagnostics=${diagnostics}>${renderLight()}</report-diagnostics>`,
+        { elementRenderers: [ReportLightRenderer] },
+      ),
+    ).replaceAll("\r", "&#13;")}
+    <details class="raw-console">
+      <summary>
+        Raw console output (separate from structured diagnostics)
+      </summary>
+      ${renderReportLogs(sources.console)}
+    </details>`;
 }

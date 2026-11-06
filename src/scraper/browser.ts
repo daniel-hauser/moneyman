@@ -6,12 +6,10 @@ import puppeteer, {
   type LaunchOptions,
 } from "puppeteer";
 import { createLogger } from "../utils/logger.js";
-import {
-  runInLoggerContext,
-  loggerContextStore,
-} from "../utils/asyncContext.js";
+import { context } from "@opentelemetry/api";
 import type { DomainTracker } from "../security/domains.js";
 import { solveTurnstile } from "./cloudflareSolver.js";
+import { createPuppeteerLogger } from "./puppeteerLogger.js";
 
 export const browserArgs = [
   "--disable-dev-shm-usage",
@@ -25,16 +23,28 @@ export async function createBrowser(
   executablePath?: string,
   signal?: AbortSignal,
 ): Promise<Browser> {
+  // The returned browser outlives this scope. Cleanup follows disconnect, not
+  // function return or the cancellation request that starts browser shutdown.
+  const lifetime = new AbortController();
+  const logging = createPuppeteerLogger(lifetime.signal);
   const options = {
     args: browserArgs,
     executablePath: executablePath || undefined,
     signal,
+    logger: logging.logger,
     // Hide the "Chrome is being controlled by automated software" marker.
     ignoreDefaultArgs: ["--enable-automation"],
   } satisfies LaunchOptions;
 
-  logger("Creating browser", options);
-  return puppeteer.launch(options);
+  logger("Launch options", options);
+  try {
+    const browser = await puppeteer.launch(options);
+    browser.once("disconnected", () => lifetime.abort());
+    return browser;
+  } catch (error) {
+    lifetime.abort();
+    throw error;
+  }
 }
 
 export async function createSecureBrowserContext(
@@ -49,14 +59,11 @@ export async function createSecureBrowserContext(
 }
 
 async function initCloudflareSkipping(browserContext: BrowserContext) {
-  const activeContext = loggerContextStore.getStore();
-
   const cfParam = "__cf_chl_rt_tk";
 
-  logger("Setting up Cloudflare skipping");
   browserContext.on(
     "targetcreated",
-    runInLoggerContext(async (target) => {
+    context.bind(context.active(), async (target) => {
       if (target.type() === TargetType.PAGE) {
         logger("Target created %o", target.type());
         const page = await target.page();
@@ -85,7 +92,7 @@ async function initCloudflareSkipping(browserContext: BrowserContext) {
 
         page.on(
           "framenavigated",
-          runInLoggerContext((frame) => {
+          context.bind(context.active(), (frame) => {
             const url = frame.url();
             if (!url || url === "about:blank") return;
             logger("Frame navigated", {
@@ -103,9 +110,9 @@ async function initCloudflareSkipping(browserContext: BrowserContext) {
                 },
               );
             }
-          }, activeContext),
+          }),
         );
       }
-    }, activeContext),
+    }),
   );
 }

@@ -78,7 +78,7 @@ describe("native Comlink worker smoke test", () => {
           accounts: [], startDate: new Date(), futureMonthsToScrape: 1, parallelScrapers: 1,
           additionalTransactionInformation: false, includeRawTransaction: true,
           executablePath: "nonexistent-smoke-browser", domainTracking: false,
-          firewallSettings: [], blockByDefault: true, enableOtp: false, debugFilter: "",
+          firewallSettings: [], blockByDefault: true, enableOtp: false, debugFilter: "", traceCarrier: {},
         }, proxy({ [finalizer]: release }))), /cancelled/);
         await rpc(released);
       }

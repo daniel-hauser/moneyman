@@ -101,8 +101,6 @@ export class MoneymanDashStorage implements TransactionStorage {
     onProgress: (status: string) => Promise<void>,
     context?: SaveContext,
   ) {
-    logger("saveTransactions");
-
     assert(this.canSave(), "Token not properly parsed");
     // canSave() guarantees these are set
     const endpoint = this.endpoint!;
@@ -128,7 +126,8 @@ export class MoneymanDashStorage implements TransactionStorage {
 
     // Run progress update in parallel with the network request
     const signal = AbortSignal.timeout(30_000);
-    const [response] = await Promise.all([
+    const [, response] = await Promise.all([
+      onProgress("Sending transactions"),
       fetch(endpoint, {
         method: "POST",
         headers: {
@@ -138,7 +137,6 @@ export class MoneymanDashStorage implements TransactionStorage {
         body: JSON.stringify(payload),
         signal,
       }),
-      onProgress("Sending transactions"),
     ]);
 
     if (!response.ok) {
@@ -159,10 +157,6 @@ export class MoneymanDashStorage implements TransactionStorage {
         `Unexpected ingestion response shape: ${JSON.stringify(result)}`,
       );
     }
-
-    logger(
-      `Ingestion complete: ${result.transactionsAdded} transactions added`,
-    );
 
     const stats = createSaveStats("MoneymanDashStorage", "moneyman", txns);
     stats.added = result.transactionsAdded;

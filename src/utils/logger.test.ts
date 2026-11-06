@@ -1,78 +1,47 @@
 import debug from "debug";
 import { createLogger } from "./logger.js";
-import { loggerContextStore } from "./asyncContext.js";
+import { privateLogExporter } from "./telemetry.js";
+import { ExportResultCode } from "@opentelemetry/core";
+import type { ReadableLogRecord } from "@opentelemetry/sdk-logs";
 
-const mockThread = { isMainThread: true, threadId: 0 };
-
-jest.mock("node:worker_threads", () => ({
-  get isMainThread() {
-    return mockThread.isMainThread;
-  },
-  get threadId() {
-    return mockThread.threadId;
-  },
-}));
-
-describe("debug logger thread scopes", () => {
-  let write: jest.SpiedFunction<typeof process.stderr.write>;
-  let debugFilter: string;
-
-  const output = () =>
-    write.mock.calls.map(([chunk]) => String(chunk)).join("");
-
+describe("structured debug bridge", () => {
+  let records: ReadableLogRecord[];
+  let filter: string;
   beforeEach(() => {
-    mockThread.isMainThread = true;
-    mockThread.threadId = 0;
-    write = jest.spyOn(process.stderr, "write").mockReturnValue(true);
-    debugFilter = debug.disable();
+    records = [];
+    filter = debug.disable();
     debug.enable("moneyman:*");
+    jest
+      .spyOn(privateLogExporter, "export")
+      .mockImplementation((batch, done) => {
+        records.push(...batch);
+        done({ code: ExportResultCode.SUCCESS });
+      });
   });
-
   afterEach(() => {
-    debug.enable(debugFilter);
-    write.mockRestore();
+    debug.enable(filter);
+    jest.restoreAllMocks();
   });
-
-  it.each([
-    [true, 0, "[main]"],
-    [false, 4, "[worker 4]"],
-  ])("labels thread %s/%s as %s", (isMainThread, threadId, scope) => {
-    Object.assign(mockThread, { isMainThread, threadId });
+  it("keeps messages separate from namespace and thread resource metadata", () => {
     const logger = createLogger("scraper");
-
-    logger("scraping %d accounts", 2);
-
+    logger("scraping %d accounts\nnext line", 2);
     expect(logger.namespace).toBe("moneyman:scraper");
-    expect(output()).toContain(scope);
-    expect(output()).toContain("scraping 2 accounts");
-  });
-
-  it("preserves company and account context inside the worker scope", () => {
-    Object.assign(mockThread, { isMainThread: false, threadId: 7 });
-
-    loggerContextStore.run({ prefix: "[#0 oneZero]" }, () => {
-      createLogger("scraper")("started");
+    expect(records).toHaveLength(1);
+    expect(records[0].body).toBe("scraping 2 accounts\nnext line");
+    expect(records[0].attributes).toEqual({
+      "log.namespace": "moneyman:scraper",
     });
-
-    expect(output()).toContain("[worker 7] [#0 oneZero]");
-    expect(output()).toContain("started");
+    expect(records[0].resource.attributes).toMatchObject({
+      "thread.id": 0,
+      "thread.name": "main",
+    });
   });
-
-  it("adds the scope when logging a non-string value", () => {
-    debug.log({ message: "failure" });
-
-    expect(output()).toContain("[main]");
-    expect(output()).toContain("failure");
-  });
-
-  it("preserves existing namespace filters", () => {
+  it("preserves non-string diagnostics and namespace filters", () => {
     debug.enable("moneyman:scraper");
-
-    createLogger("scraper")("included");
+    createLogger("scraper")({ message: "failure" });
     createLogger("other")("excluded");
-
-    expect(output()).toContain("[main]");
-    expect(output()).toContain("included");
-    expect(output()).not.toContain("excluded");
+    expect(records).toHaveLength(1);
+    expect(records[0].body).toContain("failure");
+    expect(records[0].body).not.toContain("excluded");
   });
 });
