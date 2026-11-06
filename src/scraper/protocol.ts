@@ -8,6 +8,15 @@ import type {
 import type { UsedDomains } from "../security/domains.js";
 
 export const WorkerConfigSchema = z.strictObject({
+  /** Account id -> label for the configured accounts, for run results */
+  accountLabels: z.record(z.string(), z.string()).optional(),
+  /**
+   * Account ids computed on the main thread, index-aligned with `accounts`.
+   * The id is keyed by a per-process secret, so the worker must not compute its
+   * own: it would not match the ids the main thread selected, marked as failed
+   * or looked up labels with.
+   */
+  accountIds: z.array(z.string()),
   accounts: z.array(
     z
       .looseObject({

@@ -18,7 +18,15 @@ import {
   enableDebugLoggingIfNeeded,
   readReportLogs,
 } from "./utils/secure-log.js";
-import { RunHandle, RunnerHooks, RunStatus, RunTrigger } from "./types.js";
+import {
+  RunHandle,
+  RunOptions,
+  RunnerHooks,
+  RunStatus,
+  RunTrigger,
+} from "./types.js";
+import type { AccountScrapeResult } from "./types.js";
+import type { ScraperRunConfig } from "./scraper/protocol.js";
 import { runWithStorage } from "./bot/index.js";
 import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
 import { createDomainTracker, type DomainTracker } from "./security/domains.js";
@@ -31,7 +39,6 @@ import {
   SECRET_REFRESH_FAILURE,
 } from "./configRefresh.js";
 import { createStorages } from "./bot/storage/index.js";
-import type { MoneymanConfig } from "./config.js";
 import { getBuildMetadata } from "./buildMetadata.js";
 import { createRunReport } from "./bot/runReport.js";
 import { createReportPublisher } from "./bot/reportPublisher.js";
@@ -75,7 +82,7 @@ async function main() {
     process.once("SIGINT", cancel);
     process.once("SIGTERM", cancel);
     try {
-      await runOnce("startup", abort.signal);
+      await runOnce("startup", { signal: abort.signal });
     } finally {
       process.removeListener("SIGINT", cancel);
       process.removeListener("SIGTERM", cancel);
@@ -97,7 +104,7 @@ async function isRunning() {
  */
 async function startRun(
   trigger: RunTrigger,
-  signal?: AbortSignal,
+  options: RunOptions = {},
 ): Promise<RunHandle> {
   const { promise: started, resolve: reportStarted } =
     Promise.withResolvers<boolean>();
@@ -111,9 +118,15 @@ async function startRun(
     reportStarted(true);
     return runContextStore.run({ runId: randomUUID() }, async () => {
       const startedAt = new Date();
-      const failed = await run(signal);
+      const outcome = await run(options);
 
-      lastRun = { trigger, startedAt, endedAt: new Date(), failed };
+      lastRun = {
+        trigger,
+        startedAt,
+        endedAt: new Date(),
+        failed: outcome.failed,
+        failedAccountIds: outcome.failedAccountIds,
+      };
       logger("Run finished", lastRun);
       return lastRun;
     });
@@ -134,9 +147,9 @@ async function refreshSecrets(): Promise<SecretRefreshResult> {
 
 async function runOnce(
   trigger: RunTrigger,
-  signal?: AbortSignal,
+  options: RunOptions = {},
 ): Promise<RunStatus> {
-  const status = await (await startRun(trigger, signal)).finished;
+  const status = await (await startRun(trigger, options)).finished;
 
   if (!status) {
     throw new Error("A scrape is already in progress");
@@ -147,17 +160,27 @@ async function runOnce(
 
 async function runScraper(
   hooks: RunnerHooks,
-  snapshot: MoneymanConfig,
+  scraperConfig: ScraperRunConfig,
   domainTracker: DomainTracker,
-  signal?: AbortSignal,
+  options: RunOptions = {},
 ) {
   try {
     logger("About to start");
     await hooks.onBeforeStart();
 
+    if (options.accountIds?.length && !scraperConfig.accounts.length) {
+      // A selection that matches no configured account must fail loudly: an
+      // empty scrape would otherwise look like a successful run.
+      await hooks.onError(
+        new Error("No configured account matches the requested scrape"),
+        "scrape selection",
+      );
+      return;
+    }
+
     logger("Starting to scrape");
     const { results, domains } = await scrapeAccounts(
-      getScraperConfig(snapshot),
+      scraperConfig,
       async (status, totalTime) => {
         logger("Status changed", { status, totalTime });
         return hooks.onStatusChanged(status, totalTime);
@@ -166,7 +189,7 @@ async function runScraper(
         logger("Error while scraping", e);
         return hooks.onError(e, caller);
       },
-      signal,
+      options.signal,
       hooks.onTiming,
     );
     logger("Scraping ended");
@@ -200,7 +223,22 @@ async function prepareRun() {
   }
 }
 
-async function run(signal?: AbortSignal) {
+type RunOutcome = {
+  failed: boolean;
+  /** Ids of the accounts that failed, so the next picker can mark them */
+  failedAccountIds: readonly string[];
+};
+
+/** Ids of the accounts whose scrape failed, when the result carries one */
+function failedAccountIds(
+  results: Array<AccountScrapeResult> | undefined,
+): readonly string[] {
+  return (results ?? [])
+    .filter(({ result }) => !result.success)
+    .flatMap(({ accountId }) => (accountId ? [accountId] : []));
+}
+
+async function run(options: RunOptions = {}): Promise<RunOutcome> {
   let publication: Awaited<ReturnType<typeof runWithStorage>> = {
     report: createRunReport(),
     reportSent: false,
@@ -212,9 +250,10 @@ async function run(signal?: AbortSignal) {
     if (!prepared) {
       report.failed = true;
       report.errors.push({ caller: "Setup", message: "Run setup failed" });
-      return true;
+      return { failed: true, failedAccountIds: [] };
     }
     const { snapshot, storages } = prepared;
+    const scraperConfig = getScraperConfig(snapshot, options.accountIds);
     const domainTracker = createDomainTracker({
       domainTracking: snapshot.options.scraping.domainTracking,
       ...snapshot.options.security,
@@ -222,7 +261,7 @@ async function run(signal?: AbortSignal) {
     try {
       logger("Running with storage");
       publication = await runWithStorage(
-        (hooks) => runScraper(hooks, snapshot, domainTracker, signal),
+        (hooks) => runScraper(hooks, scraperConfig, domainTracker, options),
         storages,
         publication,
       );
@@ -236,12 +275,22 @@ async function run(signal?: AbortSignal) {
     if (failedStorages.length) {
       logger(`Storages that failed: ${failedStorages.join(", ")}`);
     }
-    return report.failed || failedStorages.length > 0;
+    return {
+      failed: report.failed || failedStorages.length > 0,
+      failedAccountIds: failedAccountIds(report.summary?.results),
+    };
   } catch (error) {
     logger(error);
     report.failed = true;
     report.errors.push({ caller: "Run", message: formatUnknownError(error) });
-    return true;
+    // The scrape may already have published its results before whatever threw
+    // here (a cleanup, a report), and those failures are still the answer to
+    // "what failed last run" — dropping them would leave the picker and
+    // `/status` naming nothing.
+    return {
+      failed: true,
+      failedAccountIds: failedAccountIds(report.summary?.results),
+    };
   } finally {
     try {
       if (!report.endedAt) {

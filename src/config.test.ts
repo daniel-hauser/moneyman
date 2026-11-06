@@ -134,7 +134,10 @@ describe("config", () => {
         },
       }),
     };
-    const { getScraperConfig } = await import("./config.js");
+    const { getAccounts, getScraperConfig } = await import("./config.js");
+    // Same module registry as the config module (this file resets modules), so
+    // the ids below are the ones it computed
+    const { accountId } = await import("./utils/accountLabel.js");
     const snapshot = MoneymanConfigSchema.parse({
       accounts: [
         { companyId: "hapoalim", password: "fresh-bank" },
@@ -167,6 +170,8 @@ describe("config", () => {
     const settings = getScraperConfig(snapshot);
     expect(settings).toMatchObject({
       accounts: [snapshot.accounts[0]],
+      // Computed here, index-aligned: the scraper worker cannot derive them
+      accountIds: getAccounts(snapshot).map((account) => accountId(account)),
       futureMonthsToScrape: 4,
       parallelScrapers: 3,
       additionalTransactionInformation: true,
@@ -177,6 +182,7 @@ describe("config", () => {
       blockByDefault: true,
       enableOtp: true,
     });
+    expect(settings.accountIds).toHaveLength(settings.accounts.length);
     expect(settings.startDate.getTime()).toBeGreaterThanOrEqual(
       subDays(before, 23).getTime(),
     );

@@ -25,6 +25,10 @@ function createHandlers(overrides: Partial<CommandHandlers> = {}) {
   } satisfies CommandHandlers;
 }
 
+// A picker is a message, and a message id is unique, so each tap gets its own.
+// Module scope, because the claimed pickers the command keeps are too.
+let nextPickerMessageId = 7;
+
 function registerBot(handlers: CommandHandlers) {
   const bot = new Telegraf("123:token");
   bot.botInfo = {
@@ -58,12 +62,60 @@ function registerBot(handlers: CommandHandlers) {
     });
   }
 
+  async function tap(
+    data: string,
+    fromChat = chatId,
+    messageId = nextPickerMessageId++,
+  ) {
+    await bot.handleUpdate({
+      update_id: 2,
+      callback_query: {
+        id: "callback",
+        chat_instance: "chat-instance",
+        from: { id: fromChat, is_bot: false, first_name: "user" },
+        data,
+        message: {
+          message_id: messageId,
+          date: 0,
+          chat: { id: fromChat, type: "private", first_name: "user" },
+          from: { id: 1, is_bot: true, first_name: "moneyman" },
+          text: "Pick a provider/account to scrape:",
+        },
+      },
+    });
+  }
+
   const replies = () =>
     callApi.mock.calls
       .filter(([method]) => method === "sendMessage")
       .map(([, payload]) => (payload as { text: string }).text);
 
-  return { send, replies, callApi };
+  const replyMarkups = () =>
+    callApi.mock.calls
+      .filter(([method]) => method === "sendMessage")
+      .map(
+        ([, payload]) =>
+          (payload as { reply_markup?: unknown }).reply_markup as
+            | {
+                inline_keyboard: Array<
+                  Array<{ text: string; callback_data: string }>
+                >;
+              }
+            | undefined,
+      );
+
+  const edits = () =>
+    callApi.mock.calls
+      .filter(([method]) => method === "editMessageText")
+      .map(
+        ([, payload]) =>
+          payload as {
+            text: string;
+            reply_markup?: { inline_keyboard: Array<unknown> };
+          },
+      );
+
+  return { send, tap, replies, replyMarkups, edits, callApi };
 }
 
 describe("commands", () => {
@@ -87,6 +139,7 @@ describe("commands", () => {
         isRunning: async () => false,
         getLastRun: () => undefined,
         getNextRunAt: () => undefined,
+        listAccounts: async () => [],
       });
 
       expect(status).toContain("😴 Idle");
@@ -99,6 +152,7 @@ describe("commands", () => {
         isRunning: async () => true,
         getLastRun: () => undefined,
         getNextRunAt: () => new Date("2026-03-01T21:00:00"),
+        listAccounts: async () => [],
       });
 
       expect(status).toContain("🔄 A scrape is running right now");
@@ -115,10 +169,60 @@ describe("commands", () => {
           failed: true,
         }),
         getNextRunAt: () => undefined,
+        listAccounts: async () => [],
       });
 
       expect(status).toContain("❌ Last run (manual)");
       expect(status).toContain("took 120s");
+    });
+
+    it("names the accounts that failed the last run", async () => {
+      const status = await formatStatus({
+        isRunning: async () => false,
+        getLastRun: () => ({
+          trigger: "manual",
+          startedAt: new Date("2026-03-01T09:00:00"),
+          endedAt: new Date("2026-03-01T09:02:00"),
+          failed: true,
+          failedAccountIds: ["aaa1", "bbb2", "ccc3"],
+        }),
+        getNextRunAt: () => undefined,
+        // Labels are the picker's, so both surfaces name an account alike
+        listAccounts: async () => [
+          {
+            id: "aaa1",
+            label: "isracard · •••111 · n••• #aaa1",
+            failedLastRun: true,
+          },
+          { id: "bbb2", label: "hapoalim · ••••user", failedLastRun: true },
+          { id: "ddd4", label: "max · ••7890", failedLastRun: false },
+        ],
+      });
+
+      expect(status).toContain(
+        "\tFailed: isracard · •••111 · n••• #aaa1, hapoalim · ••••user, 1 no longer configured",
+      );
+      // Nothing that did not fail
+      expect(status).not.toContain("max");
+    });
+
+    it("adds no failure line to a run that succeeded", async () => {
+      const listAccounts = jest.fn().mockResolvedValue([]);
+      const status = await formatStatus({
+        isRunning: async () => false,
+        getLastRun: () => ({
+          trigger: "scheduled",
+          startedAt: new Date("2026-03-01T09:00:00"),
+          endedAt: new Date("2026-03-01T09:02:00"),
+          failed: false,
+        }),
+        getNextRunAt: () => undefined,
+        listAccounts,
+      });
+
+      expect(status).toContain("✅ Last run (scheduled)");
+      expect(status).not.toContain("Failed:");
+      expect(listAccounts).not.toHaveBeenCalled();
     });
   });
 
@@ -167,6 +271,8 @@ describe("commands", () => {
         await send(command);
 
         expect(handlers.scrape).toHaveBeenCalledTimes(1);
+        // No selection: every configured account is scraped
+        expect(handlers.scrape).toHaveBeenCalledWith();
         expect(replies()).toEqual(["🔄 Starting a scrape now..."]);
       },
     );
@@ -226,6 +332,225 @@ describe("commands", () => {
       await send("/scrape");
 
       expect(replies()).toEqual(["❌ Failed to handle the command"]);
+    });
+  });
+
+  describe("scrape_provider", () => {
+    const choices = [
+      { id: "aaa111", label: "isracard · ••3456", failedLastRun: true },
+      { id: "bbb222", label: "max · ••7890", failedLastRun: false },
+    ];
+
+    it("offers one button per configured account, marking last run's failures", async () => {
+      const handlers = createHandlers({
+        listAccounts: jest.fn().mockResolvedValue(choices),
+      });
+      const { send, replies, replyMarkups, callApi } = registerBot(handlers);
+
+      await send("/scrape_provider");
+
+      expect(replies()[0]).toContain("Pick a provider/account to scrape:");
+      expect(replyMarkups()[0]).toEqual({
+        inline_keyboard: [
+          [
+            {
+              text: "❌ isracard · ••3456",
+              callback_data: "scrape_provider:aaa111",
+            },
+          ],
+          [
+            {
+              text: "▶️ max · ••7890",
+              callback_data: "scrape_provider:bbb222",
+            },
+          ],
+        ],
+      });
+      expect(callApi).toHaveBeenCalledWith(
+        "setMyCommands",
+        expect.objectContaining({
+          commands: expect.arrayContaining([
+            { command: "scrape_provider", description: expect.any(String) },
+          ]),
+        }),
+      );
+    });
+
+    it("reports when no accounts are configured", async () => {
+      const { send, replies, replyMarkups } = registerBot(
+        createHandlers({ listAccounts: jest.fn().mockResolvedValue([]) }),
+      );
+
+      await send("/scrape_provider");
+
+      expect(replies()).toEqual(["No accounts are configured to scrape."]);
+      expect(replyMarkups()).toEqual([undefined]);
+    });
+
+    it("scrapes only the tapped account and retires the keyboard", async () => {
+      const handlers = createHandlers({
+        listAccounts: jest.fn().mockResolvedValue(choices),
+      });
+      const { tap, edits } = registerBot(handlers);
+
+      await tap("scrape_provider:aaa111");
+
+      expect(handlers.scrape).toHaveBeenCalledWith(["aaa111"]);
+      expect(edits()).toEqual([
+        expect.objectContaining({
+          text: "▶️ isracard · ••3456\n🔄 Starting a scrape now...",
+          reply_markup: { inline_keyboard: [] },
+        }),
+      ]);
+    });
+
+    it("starts no run for an account that is no longer configured", async () => {
+      const handlers = createHandlers({
+        listAccounts: jest.fn().mockResolvedValue([choices[1]]),
+      });
+      const { tap, edits } = registerBot(handlers);
+
+      await tap("scrape_provider:aaa111");
+
+      expect(handlers.scrape).not.toHaveBeenCalled();
+      expect(edits()[0].text).toContain("no longer configured");
+      expect(edits()[0].reply_markup).toEqual({ inline_keyboard: [] });
+    });
+
+    it("ignores picker taps from other chats", async () => {
+      const handlers = createHandlers({
+        listAccounts: jest.fn().mockResolvedValue(choices),
+      });
+      const { send, tap, replies, edits } = registerBot(handlers);
+
+      await send("/scrape_provider", 999);
+      await tap("scrape_provider:aaa111", 999);
+
+      expect(replies()).toEqual([]);
+      expect(edits()).toEqual([]);
+      expect(handlers.scrape).not.toHaveBeenCalled();
+    });
+
+    it("is absent from the menu and from /help without a way to list accounts", async () => {
+      const { send, replies, callApi } = registerBot(createHandlers());
+
+      expect(callApi).toHaveBeenCalledWith(
+        "setMyCommands",
+        expect.objectContaining({
+          commands: expect.not.arrayContaining([
+            { command: "scrape_provider", description: expect.any(String) },
+          ]),
+        }),
+      );
+      await send("/scrape_provider");
+      expect(replies()).toEqual([]);
+      await send("/help");
+      expect(replies()).toHaveLength(1);
+      expect(replies()[0]).not.toContain("/scrape_provider");
+    });
+
+    it("renders the labels it is given, verbatim", async () => {
+      const choices = [
+        {
+          id: "aaa11111",
+          label: "isracard · •••111 · n••• #aaa1",
+          failedLastRun: true,
+        },
+        {
+          id: "bbb22222",
+          label: "isracard · •••111 · n••• #bbb2",
+          failedLastRun: false,
+        },
+        { id: "ccc33333", label: "max · ••7890", failedLastRun: false },
+      ];
+      const { send, replyMarkups } = registerBot(
+        createHandlers({
+          listAccounts: jest.fn().mockResolvedValue(choices),
+        }),
+      );
+
+      await send("/scrape_provider");
+
+      expect(
+        (replyMarkups()[0]?.inline_keyboard ?? []).map(
+          ([button]) => button.text,
+        ),
+      ).toEqual([
+        "❌ isracard · •••111 · n••• #aaa1",
+        "▶️ isracard · •••111 · n••• #bbb2",
+        "▶️ max · ••7890",
+      ]);
+      expect(
+        (replyMarkups()[0]?.inline_keyboard ?? []).map(
+          ([button]) => button.callback_data,
+        ),
+      ).toEqual([
+        "scrape_provider:aaa11111",
+        "scrape_provider:bbb22222",
+        "scrape_provider:ccc33333",
+      ]);
+    });
+
+    it("starts one scrape when the same picker is tapped twice", async () => {
+      const scrape = jest.fn().mockResolvedValue("🔄 Starting a scrape now...");
+      const { tap } = registerBot(
+        createHandlers({
+          scrape,
+          listAccounts: jest.fn().mockResolvedValue([
+            {
+              id: "aaa11111",
+              label: "isracard · •••111",
+              failedLastRun: false,
+            },
+          ]),
+        }),
+      );
+
+      // Same message, twice: the first tap claimed it
+      await tap("scrape_provider:aaa11111", chatId, 21);
+      await tap("scrape_provider:aaa11111", chatId, 21);
+
+      expect(scrape).toHaveBeenCalledTimes(1);
+
+      // A picker sent later is its own message, and still works
+      await tap("scrape_provider:aaa11111", chatId, 22);
+
+      expect(scrape).toHaveBeenCalledTimes(2);
+    });
+
+    it("names the tapped account exactly as its button did", async () => {
+      const { tap, edits } = registerBot(
+        createHandlers({
+          listAccounts: jest.fn().mockResolvedValue([
+            {
+              id: "aaa11111",
+              label: "isracard · •••111 · n••• #aaa1",
+              failedLastRun: false,
+            },
+            {
+              id: "bbb22222",
+              label: "isracard · •••111 · n••• #bbb2",
+              failedLastRun: false,
+            },
+          ]),
+        }),
+      );
+
+      await tap("scrape_provider:bbb22222");
+
+      expect(edits()[0].text).toBe(
+        "▶️ isracard · •••111 · n••• #bbb2\n🔄 Starting a scrape now...",
+      );
+    });
+
+    it("lists the command in /help when accounts can be listed", async () => {
+      const { send, replies } = registerBot(
+        createHandlers({ listAccounts: jest.fn().mockResolvedValue(choices) }),
+      );
+
+      await send("/help");
+
+      expect(replies()[0]).toContain("/scrape_provider");
     });
   });
 });

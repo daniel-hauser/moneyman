@@ -31,6 +31,7 @@ jest.mock("../security/domains.js", () => ({
 
 const settings: WorkerConfig = {
   accounts: [],
+  accountIds: [],
   startDate: new Date("2026-01-01T00:00:00Z"),
   futureMonthsToScrape: 1,
   parallelScrapers: 1,

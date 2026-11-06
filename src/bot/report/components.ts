@@ -219,11 +219,12 @@ export function renderReportAccounts(
           </thead>
           <tbody>
             ${results
-              .map(({ companyId, result }) => {
+              .map(({ companyId, accountLabel, result }) => {
+                const title = accountLabel ?? companyId;
                 if (!result.success) {
                   const failure = `❌ Failed: ${result.errorType ?? "Unknown error"}`;
                   return html`<tr>
-                    <td>${escaped(companyId)}</td>
+                    <td>${escaped(title)}</td>
                     <td>
                       ${
                         result.errorMessage
@@ -242,7 +243,7 @@ export function renderReportAccounts(
                       .map(
                         (account) =>
                           html`<tr>
-                            <td>${escaped(companyId)}</td>
+                            <td>${escaped(title)}</td>
                             <td>✅ Succeeded</td>
                             <td>${escaped(account.accountNumber)}</td>
                             <td>${escaped(account.txns.length)}</td>
@@ -250,7 +251,7 @@ export function renderReportAccounts(
                       )
                       .join("")
                   : html`<tr>
-                      <td>${escaped(companyId)}</td>
+                      <td>${escaped(title)}</td>
                       <td>✅ Succeeded</td>
                       <td>No accounts returned</td>
                       <td>0</td>

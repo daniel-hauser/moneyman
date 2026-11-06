@@ -5,6 +5,7 @@ import { scrapeAccounts } from "./index.js";
 import { createBrowser, createSecureBrowserContext } from "./browser.js";
 import { getAccountTransactions } from "./scrape.js";
 import type { RunTiming, ScraperConfig } from "../types.js";
+import { accountId } from "../utils/accountLabel.js";
 
 jest.mock("./browser.js", () => ({
   createBrowser: jest.fn(),
@@ -15,14 +16,15 @@ jest.mock("../utils/failureScreenshot.js", () => ({
   getFailureScreenShotPath: jest.fn(() => "failure.png"),
 }));
 
+const hapoalim = {
+  companyId: CompanyTypes.hapoalim,
+  userCode: "user",
+  password: "password",
+};
+
 const config: ScraperConfig = {
-  accounts: [
-    {
-      companyId: CompanyTypes.hapoalim,
-      userCode: "user",
-      password: "password",
-    },
-  ],
+  accounts: [hapoalim],
+  accountIds: [accountId(hapoalim)],
   startDate: new Date("2026-01-01T00:00:00Z"),
   futureMonthsToScrape: 1,
   parallelScrapers: 1,
@@ -62,6 +64,7 @@ describe("scraper runtime browser lifecycle", () => {
       {
         ...config,
         accounts: Array(3).fill(config.accounts[0]),
+        accountIds: Array(3).fill(config.accountIds[0]),
         parallelScrapers: 2,
       },
       initDomainTracking,
@@ -159,7 +162,12 @@ describe("scraper runtime browser lifecycle", () => {
       },
     );
     expect(results).toEqual([
-      { companyId: "hapoalim", result: { success: true, accounts: [] } },
+      {
+        companyId: "hapoalim",
+        accountLabel: "hapoalim · ••er",
+        accountId: expect.any(String),
+        result: { success: true, accounts: [] },
+      },
     ]);
     expect(createBrowser).toHaveBeenCalledWith("browser", undefined);
     expect(getAccountTransactions).toHaveBeenCalledWith(
@@ -177,6 +185,59 @@ describe("scraper runtime browser lifecycle", () => {
       CompanyTypes.hapoalim,
       initDomainTracking,
     );
+  });
+
+  it("labels each account so two accounts of one provider are told apart", async () => {
+    const first = {
+      companyId: CompanyTypes.isracard,
+      id: "012345678",
+      card6Digits: "111111",
+      password: "first-card",
+    };
+    const second = {
+      companyId: CompanyTypes.isracard,
+      id: "012345678",
+      card6Digits: "222222",
+      password: "second-card",
+    };
+    // Literal ids: the assertion is the index alignment, not a restated input
+    const results = await scrapeAccounts(
+      {
+        ...config,
+        accounts: [first, second],
+        accountIds: ["id-of-first", "id-of-second"],
+      },
+      initDomainTracking,
+    );
+
+    expect(results.map(({ accountId }) => accountId)).toEqual([
+      "id-of-first",
+      "id-of-second",
+    ]);
+    expect(results.map(({ accountLabel }) => accountLabel)).toEqual([
+      "isracard · •••111 · •••••5678",
+      "isracard · •••222 · •••••5678",
+    ]);
+  });
+
+  it("publishes the id and label the run was given, not ones it derived", async () => {
+    const account0 = config.accounts[0];
+    // An id only the caller's key could produce: a worker computing its own
+    // would return something else, and never match what the caller selected,
+    // marked as failed or looked a label up with.
+    const fromTheCaller = "3f9c1d2e4b5a";
+    const labelled = await scrapeAccounts(
+      {
+        ...config,
+        accountIds: [fromTheCaller],
+        accountLabels: { [fromTheCaller]: "hapoalim · ••er #4f2a" },
+      },
+      initDomainTracking,
+    );
+
+    expect(labelled[0].accountId).toBe(fromTheCaller);
+    expect(labelled[0].accountLabel).toBe("hapoalim · ••er #4f2a");
+    expect(labelled[0].accountId).not.toBe(accountId(account0));
   });
 
   it("closes the browser when context setup fails", async () => {
