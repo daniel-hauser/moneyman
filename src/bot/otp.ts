@@ -10,14 +10,14 @@ const logger = createLogger("otp");
 export function createOtpHandler(
   bot: Telegraf<Context> | null,
   polling: {
-    isTelegramBotRunning(): boolean;
-    launchTelegramBot(): Promise<void>;
-    stopTelegramBot(): void;
+    acquireOtpPolling(): {
+      started: Promise<void>;
+      release(): void;
+    };
   },
 ) {
   const telegramConfig = config.options.notifications?.telegram;
   const pending = new Map<number, (text: string) => void>();
-  let otpFlowOwnsBot = false;
 
   bot?.on(message("text"), (ctx, next) => {
     const text = ctx.message.text.trim();
@@ -58,11 +58,6 @@ export function createOtpHandler(
     logger("Waiting for OTP code from user...");
 
     const timeoutSeconds = telegramConfig.otpTimeoutSeconds;
-    const ownsBot = !polling.isTelegramBotRunning();
-    if (ownsBot) {
-      otpFlowOwnsBot = true;
-    }
-
     const timeout = AbortSignal.timeout(timeoutSeconds * 1000);
     const completed = new AbortController();
     const combined = AbortSignal.any(
@@ -70,14 +65,14 @@ export function createOtpHandler(
         (signal) => signal !== undefined,
       ),
     );
+    let pollingLease: ReturnType<typeof polling.acquireOtpPolling> | undefined;
     const responsePromise = new Promise<string>((resolve, reject) => {
       pending.set(requestMessage.message_id, (text) => {
         pending.delete(requestMessage.message_id);
         resolve(text);
       });
-      if (!ownsBot) return;
-
-      polling.launchTelegramBot().catch((error) => {
+      pollingLease = polling.acquireOtpPolling();
+      pollingLease.started.catch((error) => {
         logger("Failed to start Telegram bot for OTP", error);
         void bot.telegram
           .sendMessage(
@@ -109,11 +104,7 @@ export function createOtpHandler(
       completed.abort();
       pending.delete(requestMessage.message_id);
 
-      // OTP must not stop polling owned by the long-running server.
-      if (pending.size === 0 && otpFlowOwnsBot) {
-        otpFlowOwnsBot = false;
-        polling.stopTelegramBot();
-      }
+      pollingLease?.release();
     }
   };
 }

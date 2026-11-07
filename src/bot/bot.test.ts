@@ -106,6 +106,37 @@ describe("createBot", () => {
     expect(controller.isTelegramBotRunning()).toBe(true);
   });
 
+  it("keeps polling when the server takes ownership during an OTP startup", async () => {
+    const startup = Promise.withResolvers<void>();
+    bot.launch.mockReturnValue(startup.promise);
+
+    const otpLease = controller.acquireOtpPolling();
+    const serverStartup = controller.launchTelegramBot();
+    await Promise.resolve();
+    expect(bot.launch).toHaveBeenCalledTimes(1);
+
+    startup.resolve();
+    await Promise.all([otpLease.started, serverStartup]);
+    otpLease.release();
+    expect(bot.stop).not.toHaveBeenCalled();
+
+    controller.stopTelegramBot();
+    expect(bot.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("shares the in-flight shutdown with concurrent callers", async () => {
+    const deletion = Promise.withResolvers<true>();
+    bot.telegram.deleteMyCommands.mockReturnValueOnce(deletion.promise);
+
+    const first = controller.shutdownTelegramBot();
+    const second = controller.shutdownTelegramBot();
+
+    expect(second).toBe(first);
+    expect(bot.telegram.deleteMyCommands).toHaveBeenCalledTimes(1);
+    deletion.resolve(true);
+    await Promise.all([first, second]);
+  });
+
   it("resets the running state after startup fails and permits a retry", async () => {
     bot.launch.mockRejectedValueOnce(new Error("polling failed"));
 

@@ -34,16 +34,19 @@ describe("createOtpHandler", () => {
   const bot = mockDeep<Telegraf<Context>>();
   const polling = mock<Parameters<typeof createOtpHandler>[1]>();
   let requestOtpCode: ReturnType<typeof createOtpHandler>;
+  let releases: jest.Mock[];
 
   beforeEach(() => {
     jest.clearAllMocks();
+    releases = [];
     let nextMessageId = 1;
     bot.telegram.sendMessage.mockImplementation(async () =>
       mock<Message.TextMessage>({ message_id: nextMessageId++ }),
     );
-    polling.isTelegramBotRunning.mockReturnValue(false);
-    polling.launchTelegramBot.mockImplementation(async () => {
-      polling.isTelegramBotRunning.mockReturnValue(true);
+    polling.acquireOtpPolling.mockImplementation(() => {
+      const release = jest.fn();
+      releases.push(release);
+      return { started: Promise.resolve(), release };
     });
     requestOtpCode = createOtpHandler(bot, polling);
   });
@@ -75,13 +78,13 @@ describe("createOtpHandler", () => {
     await handler(ctx, async () => {});
   }
 
-  it("matches concurrent replies and stops polling after the last request", async () => {
+  it("matches concurrent replies and releases each polling lease", async () => {
     const first = requestOtpCode("oneZero", "+97200000001");
     const second = requestOtpCode("oneZero", "+97200000002");
     await flush();
 
     expect(bot.on).toHaveBeenCalledTimes(1);
-    expect(polling.launchTelegramBot).toHaveBeenCalledTimes(1);
+    expect(polling.acquireOtpPolling).toHaveBeenCalledTimes(2);
 
     await reply(0, "999999");
     expect(await settleState(first)).toBe("pending");
@@ -92,34 +95,34 @@ describe("createOtpHandler", () => {
     await reply(0, "222222", 2);
     await expect(second).resolves.toBe("222222");
     expect(await settleState(first)).toBe("pending");
-    expect(polling.stopTelegramBot).not.toHaveBeenCalled();
+    expect(releases[1]).toHaveBeenCalledTimes(1);
 
     await reply(0, "111111");
     await expect(first).resolves.toBe("111111");
-    expect(polling.stopTelegramBot).toHaveBeenCalledTimes(1);
+    expect(releases[0]).toHaveBeenCalledTimes(1);
   });
 
-  it("does not start or stop polling owned by the server", async () => {
-    polling.isTelegramBotRunning.mockReturnValue(true);
+  it("releases its polling lease when the server also owns polling", async () => {
     const request = requestOtpCode("oneZero", "+97200000001");
     await flush();
 
     await reply(0, "123456");
 
     await expect(request).resolves.toBe("123456");
-    expect(polling.launchTelegramBot).not.toHaveBeenCalled();
-    expect(polling.stopTelegramBot).not.toHaveBeenCalled();
+    expect(releases[0]).toHaveBeenCalledTimes(1);
   });
 
   it("rejects the request and notifies the chat when polling fails", async () => {
-    polling.launchTelegramBot.mockRejectedValueOnce(
-      new Error("polling failed"),
-    );
+    const release = jest.fn();
+    polling.acquireOtpPolling.mockReturnValueOnce({
+      started: Promise.reject(new Error("polling failed")),
+      release,
+    });
 
     await expect(requestOtpCode("oneZero", "+97200000001")).rejects.toThrow(
       "Failed to start Telegram bot for OTP: Error: polling failed",
     );
-    expect(polling.stopTelegramBot).toHaveBeenCalledTimes(1);
+    expect(release).toHaveBeenCalledTimes(1);
     expect(bot.telegram.sendMessage).toHaveBeenLastCalledWith(
       "555",
       expect.stringContaining("requestOtpCode\n❌ polling failed"),
@@ -147,25 +150,20 @@ describe("createOtpHandler", () => {
     }
   });
 
-  it.each([false, true])(
-    "cancels a worker OTP without stopping server-owned polling (%s)",
-    async (serverOwnsPolling) => {
-      polling.isTelegramBotRunning.mockReturnValue(serverOwnsPolling);
-      const abort = new AbortController();
-      const request = requestOtpCode("oneZero", "+97200000001", abort.signal);
-      const rejected = expect(request).rejects.toThrow("worker exited");
-      await flush();
-      abort.abort(new Error("worker exited"));
-      await rejected;
-      expect(polling.stopTelegramBot).toHaveBeenCalledTimes(
-        serverOwnsPolling ? 0 : 1,
-      );
-      const next = requestOtpCode("oneZero", "+97200000002");
-      await flush();
-      await reply(0, "654321");
-      await expect(next).resolves.toBe("654321");
-    },
-  );
+  it("releases its polling lease when a worker OTP is cancelled", async () => {
+    const abort = new AbortController();
+    const request = requestOtpCode("oneZero", "+97200000001", abort.signal);
+    const rejected = expect(request).rejects.toThrow("worker exited");
+    await flush();
+    abort.abort(new Error("worker exited"));
+    await rejected;
+    expect(releases[0]).toHaveBeenCalledTimes(1);
+
+    const next = requestOtpCode("oneZero", "+97200000002");
+    await flush();
+    await reply(0, "654321");
+    await expect(next).resolves.toBe("654321");
+  });
 
   it("does not start an OTP request after the worker already exited", async () => {
     const abort = new AbortController();
@@ -174,7 +172,7 @@ describe("createOtpHandler", () => {
       requestOtpCode("oneZero", "+97200000001", abort.signal),
     ).rejects.toThrow("worker exited");
     expect(bot.telegram.sendMessage).not.toHaveBeenCalled();
-    expect(polling.launchTelegramBot).not.toHaveBeenCalled();
+    expect(polling.acquireOtpPolling).not.toHaveBeenCalled();
   });
 
   it("ignores commands and replies targeting completed requests", async () => {
