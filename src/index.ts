@@ -36,7 +36,7 @@ import { getBuildMetadata } from "./buildMetadata.js";
 import { createRunReport } from "./bot/runReport.js";
 import { createReportPublisher } from "./bot/reportPublisher.js";
 import { formatUnknownError } from "./utils/utils.js";
-import { registerProcessErrorHandlers } from "./utils/processErrors.js";
+import { registerProcessHandlers } from "./utils/processErrors.js";
 
 const logger = createLogger("main");
 const SCRAPE_LOCK = "moneyman-scrape";
@@ -47,10 +47,10 @@ let lastRun: RunStatus | undefined;
 
 console.log("Starting...");
 
-const processErrors = registerProcessErrorHandlers({
+const processHandlers = registerProcessHandlers({
   logger,
   notify: (message) => sendError(message),
-  exit: () => {
+  onFatal: () => {
     process.exitCode = 1;
   },
 });
@@ -68,24 +68,15 @@ async function main() {
       refreshSecrets: hasConfigSecretProvider() ? refreshSecrets : undefined,
       isRunning,
       getLastRun: () => lastRun,
-      processErrorSignal: processErrors.signal,
-      waitForProcessErrorNotifications: processErrors.waitForNotifications,
+      processHandlers,
     });
   } else {
-    const abort = new AbortController();
-    const signal = AbortSignal.any([abort.signal, processErrors.signal]);
-    const cancel = () => abort.abort(new Error("Scraper worker cancelled"));
     try {
-      using cleanup = new DisposableStack();
-      process.once("SIGINT", cancel);
-      cleanup.defer(() => process.removeListener("SIGINT", cancel));
-      process.once("SIGTERM", cancel);
-      cleanup.defer(() => process.removeListener("SIGTERM", cancel));
       await sendConfigToTelegramIfRequested();
-      await runOnce("startup", signal);
+      await runOnce("startup", processHandlers.signal);
     } finally {
-      await processErrors.waitForNotifications();
-      processErrors.dispose();
+      processHandlers.dispose();
+      await processHandlers.waitForNotifications();
       // kill internal browsers if stuck
       process.exit(process.exitCode ?? 0);
     }

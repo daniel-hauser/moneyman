@@ -3,9 +3,11 @@ import { Context, Telegraf } from "telegraf";
 import { schedule } from "node-cron";
 import { startServer, type ServerRunner } from "./server.js";
 import type { RunStatus } from "./types.js";
-import { getEventListeners } from "node:events";
+import { EventEmitter, getEventListeners } from "node:events";
+import type { ProcessEventMap } from "node:process";
 import { logToPublicLog } from "./utils/logger.js";
 import { registerCommands } from "./bot/commands.js";
+import { registerProcessHandlers } from "./utils/processErrors.js";
 import {
   getTelegramBot,
   launchTelegramBot,
@@ -33,14 +35,27 @@ jest.mock("./utils/logger.js", () => ({
   logToPublicLog: jest.fn(),
 }));
 
+function createProcessHandlers() {
+  const source = new EventEmitter<ProcessEventMap>();
+  const notify = jest
+    .fn<Promise<unknown>, [string]>()
+    .mockResolvedValue(undefined);
+  const onFatal = jest.fn<void, [unknown]>();
+  const handlers = registerProcessHandlers({
+    logger: () => {},
+    notify,
+    onFatal,
+    process: source,
+  });
+
+  return { source, notify, onFatal, handlers };
+}
+
 describe("startServer", () => {
   let runner: ReturnType<typeof mock<Required<ServerRunner>>>;
   let exit: jest.SpyInstance;
-  let listeners: Map<
-    "SIGINT" | "SIGTERM",
-    ReturnType<typeof process.listeners>
-  >;
   const task = mock<ReturnType<typeof schedule>>();
+  let lifecycle: ReturnType<typeof createProcessHandlers>;
   let bot: DeepMockProxy<Telegraf<Context>>;
   const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
   const handlers = () => jest.mocked(registerCommands).mock.calls[0][1];
@@ -49,23 +64,15 @@ describe("startServer", () => {
     refreshSecrets: runner.refreshSecrets,
     isRunning: runner.isRunning,
     getLastRun: runner.getLastRun,
-    processErrorSignal: new AbortController().signal,
-    waitForProcessErrorNotifications: jest
-      .fn<Promise<void>, []>()
-      .mockResolvedValue(undefined),
+    processHandlers: lifecycle.handlers,
   });
 
   beforeEach(() => {
     jest.clearAllMocks();
-    listeners = new Map(
-      (["SIGINT", "SIGTERM"] as const).map((signal) => [
-        signal,
-        process.listeners(signal),
-      ]),
-    );
     exit = jest
       .spyOn(process, "exit")
       .mockImplementation((() => undefined) as never);
+    lifecycle = createProcessHandlers();
     runner = mock<Required<ServerRunner>>();
     jest.mocked(schedule).mockReturnValue(task);
     bot = mockDeep<Telegraf<Context>>();
@@ -75,12 +82,7 @@ describe("startServer", () => {
   });
 
   afterEach(() => {
-    for (const [signal, original] of listeners) {
-      for (const listener of process.listeners(signal)) {
-        if (!original.includes(listener))
-          process.removeListener(signal, listener);
-      }
-    }
+    lifecycle.handlers.dispose();
     jest.restoreAllMocks();
   });
 
@@ -148,7 +150,7 @@ describe("startServer", () => {
       await startServer(serverOptions());
       await handlers().scrape();
 
-      process.emit(signal);
+      lifecycle.source.emit(signal, signal);
       await flush();
       expect(task.stop).toHaveBeenCalledTimes(1);
       expect(shutdownTelegramBot).not.toHaveBeenCalled();
@@ -180,7 +182,7 @@ describe("startServer", () => {
     await startServer(serverOptions());
     await handlers().scrape();
 
-    process.emit("SIGTERM");
+    lifecycle.source.emit("SIGTERM", "SIGTERM");
     await flush();
 
     await expect(handlers().scrape()).resolves.toContain("Shutting down");
@@ -210,7 +212,7 @@ describe("startServer", () => {
         await startServer(serverOptions());
         await handlers().scrape();
 
-        process.emit("SIGTERM");
+        lifecycle.source.emit("SIGTERM", "SIGTERM");
         expect(timeout).toHaveBeenCalledWith(30_000);
         expect(exit).not.toHaveBeenCalled();
         controller.abort();
@@ -227,29 +229,36 @@ describe("startServer", () => {
     },
   );
 
-  it("gracefully shuts down after a process error and preserves the failure exit code", async () => {
+  it("drains fatal notifications before shutdown and preserves the failure exit code", async () => {
     const previousExitCode = process.exitCode;
-    const processError = new AbortController();
-    const waitForNotifications = jest
-      .fn<Promise<void>, []>()
-      .mockResolvedValue(undefined);
-    process.exitCode = 1;
+    let releaseNotification!: () => void;
+    lifecycle.notify.mockReturnValue(
+      new Promise<void>((resolve) => {
+        releaseNotification = resolve;
+      }),
+    );
+    lifecycle.onFatal.mockImplementation(() => {
+      process.exitCode = 1;
+    });
 
     try {
-      await startServer({
-        ...serverOptions(),
-        processErrorSignal: processError.signal,
-        waitForProcessErrorNotifications: waitForNotifications,
-      });
-      processError.abort(new Error("fatal error"));
+      await startServer(serverOptions());
+      lifecycle.source.emit(
+        "uncaughtException",
+        new Error("fatal error"),
+        "uncaughtException",
+      );
       await flush();
 
       expect(task.stop).toHaveBeenCalledTimes(1);
-      expect(waitForNotifications).toHaveBeenCalledTimes(1);
+      expect(lifecycle.notify).toHaveBeenCalledTimes(1);
+      expect(shutdownTelegramBot).not.toHaveBeenCalled();
+      expect(exit).not.toHaveBeenCalled();
+
+      releaseNotification();
+      await flush();
+
       expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
-      expect(waitForNotifications.mock.invocationCallOrder[0]).toBeLessThan(
-        jest.mocked(shutdownTelegramBot).mock.invocationCallOrder[0],
-      );
       expect(exit).toHaveBeenCalledWith(1);
     } finally {
       process.exitCode = previousExitCode;
@@ -258,23 +267,20 @@ describe("startServer", () => {
 
   it("shuts down when the process error signal is already aborted", async () => {
     const previousExitCode = process.exitCode;
-    const processError = new AbortController();
-    const waitForNotifications = jest
-      .fn<Promise<void>, []>()
-      .mockResolvedValue(undefined);
-    processError.abort(new Error("fatal error"));
-    process.exitCode = 1;
+    lifecycle.onFatal.mockImplementation(() => {
+      process.exitCode = 1;
+    });
+    lifecycle.source.emit(
+      "uncaughtException",
+      new Error("fatal error"),
+      "uncaughtException",
+    );
 
     try {
-      await startServer({
-        ...serverOptions(),
-        processErrorSignal: processError.signal,
-        waitForProcessErrorNotifications: waitForNotifications,
-      });
+      await startServer(serverOptions());
       await flush();
 
       expect(task.stop).toHaveBeenCalledTimes(1);
-      expect(waitForNotifications).toHaveBeenCalledTimes(1);
       expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
       expect(exit).toHaveBeenCalledWith(1);
     } finally {
@@ -318,7 +324,7 @@ describe("startServer", () => {
     await flush();
 
     expect(mockLogger).toHaveBeenCalledWith("scheduled run failed", error);
-    process.emit("SIGTERM");
+    lifecycle.source.emit("SIGTERM", "SIGTERM");
     await flush();
     expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
     expect(exit).toHaveBeenCalledWith(0);
