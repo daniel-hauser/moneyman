@@ -136,20 +136,17 @@ describe("createBot", () => {
     await Promise.all([first, second]);
   });
 
-  it("retries the native stop only while Telegraf has not started polling", async () => {
-    let ready = false;
+  it("attempts the native stop once while Telegraf has not started polling", async () => {
     bot.stop.mockImplementation(() => {
-      if (!ready) throw new Error("Bot is not running!");
-      polling.resolve();
+      throw new Error("Bot is not running!");
     });
     const lifetime = controller.launchTelegramBot();
-    const stopping = controller.stopTelegramBot();
 
-    await new Promise<void>((resolve) => setTimeout(resolve, 20));
-    ready = true;
-    await Promise.all([lifetime, stopping]);
+    await controller.stopTelegramBot();
 
-    expect(bot.stop).toHaveBeenCalledTimes(2);
+    expect(bot.stop).toHaveBeenCalledTimes(1);
+    polling.resolve();
+    await lifetime;
   });
 
   it("permits a retry after polling startup fails", async () => {
