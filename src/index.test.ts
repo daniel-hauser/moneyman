@@ -99,9 +99,6 @@ async function loadEntrypoint(
     >,
   ) => void,
   configureLifecycle?: (mocks: {
-    sendConfig: jest.MockedFunction<
-      typeof import("./config.js").sendConfigToTelegramIfRequested
-    >;
     sendLogFile: jest.MockedFunction<
       typeof import("./utils/secure-log.js").sendLogFile
     >;
@@ -126,10 +123,8 @@ async function loadEntrypoint(
   const { startServer } = await import("./server.js");
   const { runContextStore } = await import("./utils/asyncContext.js");
   const { hasConfigSecretProvider } = await import("./configRefresh.js");
-  const { sendConfigToTelegramIfRequested } = await import("./config.js");
   const { sendError } = await import("./bot/notifier.js");
   configureLifecycle?.({
-    sendConfig: jest.mocked(sendConfigToTelegramIfRequested),
     sendLogFile: jest.mocked(sendLogFile),
     sendError: jest.mocked(sendError),
   });
@@ -248,7 +243,7 @@ describe("index", () => {
     },
   );
 
-  it.each(["startup", "cleanup", "cleanup after signal"] as const)(
+  it.each(["cleanup", "cleanup after signal"] as const)(
     "reports a one-shot %s failure before exiting with status 1",
     async (stage) => {
       const error = new Error(`${stage} failed`);
@@ -267,11 +262,7 @@ describe("index", () => {
               })
           : undefined,
         (mocks) => {
-          if (stage === "startup") {
-            mocks.sendConfig.mockRejectedValueOnce(error);
-          } else {
-            mocks.sendLogFile.mockRejectedValueOnce(error);
-          }
+          mocks.sendLogFile.mockRejectedValueOnce(error);
           mocks.sendError.mockImplementationOnce(async () => {
             notificationStarted.resolve();
             await notificationFinished.promise;

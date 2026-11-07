@@ -61,8 +61,9 @@ getExternalIp().then((ipInfo) => logger("External IP info:", ipInfo));
 main();
 
 async function main() {
+  await sendConfigToTelegramIfRequested();
+
   if (longRunning) {
-    await sendConfigToTelegramIfRequested();
     await startServer(
       {
         startRun,
@@ -74,7 +75,6 @@ async function main() {
     );
   } else {
     try {
-      await sendConfigToTelegramIfRequested();
       await runOnce("startup", processHandlers.signal);
     } catch (error) {
       processHandlers.reportUnhandledRejection(error);
