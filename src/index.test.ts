@@ -9,6 +9,7 @@ import { CompanyTypes } from "israeli-bank-scrapers";
 import { CustomElementRegistry } from "@lit-labs/ssr-dom-shim";
 import type { ReportTransport } from "./bot/reportPublisher.js";
 import { locks } from "node:worker_threads";
+import { getEventListeners } from "node:events";
 
 jest.mock("./bot/runReport.js", () => {
   const actual =
