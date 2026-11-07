@@ -4,7 +4,6 @@ import { format, parseISO } from "date-fns";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { BuxferApiClient, BuxferTransaction } from "buxfer-ts-client";
 import { createSaveStats } from "../saveStats.js";
-import { nonPendingTransactions } from "./utils.js";
 import type { MoneymanConfig } from "../../config.js";
 import assert from "node:assert";
 
@@ -50,7 +49,7 @@ export class BuxferStorage implements TransactionStorage {
     const txToSend: BuxferTransaction[] = [];
     const missingAccounts = new Set<string>();
 
-    for (const tx of nonPendingTransactions(txns)) {
+    for (const tx of txns) {
       const accountId = this.accountToBuxferAccount.get(tx.account);
       if (!accountId) {
         missingAccounts.add(tx.account);

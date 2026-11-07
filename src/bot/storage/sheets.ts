@@ -6,7 +6,6 @@ import {
 } from "google-spreadsheet";
 import { JWT } from "google-auth-library";
 import type { TransactionRow, TransactionStorage } from "../../types.js";
-import { nonPendingTransactions } from "./utils.js";
 import { sendError } from "../notifier.js";
 import { sendDeprecationMessage } from "../deprecationManager.js";
 import { createSaveStats } from "../saveStats.js";
@@ -57,7 +56,7 @@ export class GoogleSheetsStorage implements TransactionStorage {
       },
     });
 
-    const newTxns = nonPendingTransactions(txns).filter((tx) => {
+    const newTxns = txns.filter((tx) => {
       if (this.config.options.scraping.transactionHashType === "moneyman") {
         // Use the new uniqueId as the unique identifier for the transactions if the hash type is moneyman
         if (existingHashes.has(tx.uniqueId)) {

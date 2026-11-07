@@ -1,6 +1,5 @@
 import * as ynab from "ynab";
 import { mockDeep } from "jest-mock-extended";
-import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { config, transactionRow } from "../../utils/tests.js";
 import { getSkippedCount } from "../saveStats.js";
 import { YNABStorage } from "./ynab.js";
@@ -13,10 +12,10 @@ jest.mock("ynab", () => ({
 }));
 jest.mock("../../config.js", () => ({ systemName: "moneyman" }));
 
-describe("YNAB pending statistics", () => {
+describe("YNAB statistics", () => {
   afterEach(() => jest.useRealTimers());
 
-  it("skips future dates but counts future pending only once for direct saves", async () => {
+  it("counts future dates, unmapped accounts and duplicates correctly", async () => {
     jest.useFakeTimers().setSystemTime(new Date("2026-02-01"));
     const cfg = config();
     cfg.storage.ynab = {
@@ -40,10 +39,6 @@ describe("YNAB pending statistics", () => {
     });
     const valid = transactionRow({});
     const txns = [
-      transactionRow({
-        status: TransactionStatuses.Pending,
-        date: "2026-03-01",
-      }),
       transactionRow({ date: "2026-03-01" }),
       transactionRow({ account: "unmapped" }),
       valid,
@@ -67,10 +62,10 @@ describe("YNAB pending statistics", () => {
       },
     );
     expect(stats).toMatchObject({
-      total: 4,
+      total: 3,
       added: 0,
       existing: 1,
-      pending: 1,
+      pending: 0,
       otherSkipped: 2,
     });
     expect(stats.added + getSkippedCount(stats)).toBe(stats.total);

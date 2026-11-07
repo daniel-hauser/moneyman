@@ -5,7 +5,6 @@ import type {
   TransactionStorage,
   SaveContext,
 } from "../../types.js";
-import { nonPendingTransactions } from "./utils.js";
 import { createSaveStats } from "../saveStats.js";
 import type { MoneymanConfig } from "../../config.js";
 import { runContextStore } from "../../utils/asyncContext.js";
@@ -108,16 +107,14 @@ export class MoneymanDashStorage implements TransactionStorage {
     const endpoint = this.endpoint!;
     const token = this.token!;
 
-    const nonPendingTxns = nonPendingTransactions(txns);
-
-    logger(`Posting ${nonPendingTxns.length} transactions to ${endpoint}`);
+    logger(`Posting ${txns.length} transactions to ${endpoint}`);
 
     const runId = runContextStore.getStore()?.runId;
     if (!runId) {
       logger("Warning: No runId found in context");
     }
 
-    const payload = this.buildIngestionPayload(nonPendingTxns, context);
+    const payload = this.buildIngestionPayload(txns, context);
 
     // Include runId in metadata for server-side correlation
     if (runId) {

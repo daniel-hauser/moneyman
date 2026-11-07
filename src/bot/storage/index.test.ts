@@ -443,25 +443,46 @@ describe("per-run storage ownership", () => {
     expect(first[0]).toBeInstanceOf(WebPostStorage);
   });
 
-  it("keeps pending filtering and skipped statistics for direct web-post saves", async () => {
-    const storage = new WebPostStorage(snapshot("direct"));
-    const stats = await storage.saveTransactions(
-      [
-        transactionRow({}),
-        transactionRow({ status: TransactionStatuses.Pending }),
-      ],
-      async () => {},
-    );
+  it.each(["web-post", "moneyman"] as const)(
+    "filters pending transactions centrally before %s saves",
+    async (provider) => {
+      const cfg = snapshot("filtered");
+      const storage =
+        provider === "web-post"
+          ? new WebPostStorage(cfg)
+          : new MoneymanDashStorage(cfg);
+      const report = createRunReport();
+      await saveResults(
+        [
+          {
+            companyId: CompanyTypes.hapoalim,
+            result: {
+              success: true,
+              accounts: [
+                {
+                  accountNumber: "123",
+                  txns: [
+                    transaction({}),
+                    transaction({ status: TransactionStatuses.Pending }),
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+        report,
+        [storage],
+      );
 
-    const rows = JSON.parse(fetchMock.mock.calls[0][1]!.body as string);
-    expect(rows).toHaveLength(1);
-    expect(stats).toMatchObject({
-      total: 2,
-      added: 1,
-      pending: 1,
-      otherSkipped: 0,
-    });
-  });
+      const payload = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+      const rows = Array.isArray(payload) ? payload : payload.transactions;
+      expect(rows).toHaveLength(1);
+      expect(report.storages[storage.constructor.name]).toMatchObject({
+        state: "done",
+        stats: { total: 2, added: 1, pending: 1, otherSkipped: 0 },
+      });
+    },
+  );
 
   it("applies per-run transaction hash options in storage providers", async () => {
     const fresh = snapshot("fresh");

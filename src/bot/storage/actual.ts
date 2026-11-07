@@ -1,5 +1,5 @@
 import * as actualApi from "@actual-app/api";
-import { nonPendingTransactions, stableHash } from "./utils.js";
+import { stableHash } from "./utils.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import assert from "node:assert";
 import fs from "node:fs/promises";
@@ -44,7 +44,7 @@ export class ActualBudgetStorage implements TransactionStorage {
         ImportTransactionEntity[]
       >();
 
-      for (let tx of nonPendingTransactions(txns)) {
+      for (let tx of txns) {
         const actualAccountId = this.bankToActualAccountMap.get(tx.account);
         if (!actualAccountId) {
           stats.otherSkipped++;
