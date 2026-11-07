@@ -56,19 +56,18 @@ export function createOtpHandler(bot: Telegraf<Context> | null) {
         (signal) => signal !== undefined,
       ),
     );
-    const responsePromise = new Promise<string>((resolve) => {
-      pending.set(requestMessage.message_id, (text) => {
-        pending.delete(requestMessage.message_id);
-        resolve(text);
-      });
+    const response = Promise.withResolvers<string>();
+    pending.set(requestMessage.message_id, (text) => {
+      pending.delete(requestMessage.message_id);
+      response.resolve(text);
     });
 
     try {
-      const response = await Promise.race([
-        responsePromise,
+      const received = await Promise.race([
+        response.promise,
         aborted(combined, requestMessage),
       ]);
-      if (typeof response === "string") return response;
+      if (typeof received === "string") return received;
       signal?.throwIfAborted();
       throw new Error(
         `OTP timeout: No response received within ${timeoutSeconds} seconds`,

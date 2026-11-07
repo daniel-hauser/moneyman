@@ -29,13 +29,8 @@ if (bot && telegramConfig) {
   });
 }
 
-export const {
-  startTelegramBot,
-  launchTelegramBot,
-  stopTelegramBot,
-  shutdownTelegramBot,
-  requestOtpCode,
-} = createBot(bot);
+export const { startTelegramBot, shutdownTelegramBot, requestOtpCode } =
+  createBot(bot);
 
 /** The shared Telegram bot, or `null` when Telegram is not configured */
 export function getTelegramBot() {
