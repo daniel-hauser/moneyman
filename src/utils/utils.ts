@@ -1,10 +1,6 @@
 /// <reference lib="esnext.disposable" />
 import { inspect } from "node:util";
 
-export function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 function inspectUnknownObject(value: object): string {
   return inspect(value, {
     depth: 8,
