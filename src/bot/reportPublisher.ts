@@ -1,4 +1,4 @@
-import { setTimeout as sleep } from "node:timers/promises";
+import { setTimeout } from "node:timers/promises";
 import { proxy, subscribe } from "valtio/vanilla";
 import { createLogger } from "../utils/logger.js";
 import {
@@ -56,7 +56,7 @@ export function createReportPublisher(
 
   async function publishLatest() {
     while (dirty) {
-      await sleep(Math.max(0, lastRequestAt + intervalMs - Date.now()));
+      await setTimeout(Math.max(0, lastRequestAt + intervalMs - Date.now()));
       dirty = false;
       const text = renderRunReport(report);
       stats.renders++;
@@ -80,7 +80,7 @@ export function createReportPublisher(
         if (error_code === 429) {
           stats.rateLimited++;
           dirty = true;
-          await sleep((Number(parameters?.retry_after) || 1) * 1000);
+          await setTimeout((Number(parameters?.retry_after) || 1) * 1000);
         } else if (
           String(description).startsWith("Bad Request: message is not modified")
         ) {

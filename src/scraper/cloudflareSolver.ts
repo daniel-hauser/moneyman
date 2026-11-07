@@ -1,4 +1,4 @@
-import { setTimeout as sleep } from "node:timers/promises";
+import { setTimeout } from "node:timers/promises";
 import type { Page } from "puppeteer";
 import { createLogger } from "../utils/logger.js";
 
@@ -67,7 +67,7 @@ async function moveTo(
     signal.throwIfAborted();
     await page.mouse.move(px, py);
     if (Math.random() * 100 > 15) {
-      await sleep(Math.random() * 500 + 100, undefined, { signal });
+      await setTimeout(Math.random() * 500 + 100, undefined, { signal });
     }
   }
   return to;
@@ -80,7 +80,9 @@ export async function solveTurnstile(page: Page): Promise<string> {
   const controller = new AbortController();
   const { signal } = controller;
   const onClose = () => controller.abort();
+  using cleanup = new DisposableStack();
   page.once("close", onClose);
+  cleanup.defer(() => page.off("close", onClose));
   try {
     if (page.isClosed()) onClose();
     signal.throwIfAborted();
@@ -100,7 +102,7 @@ export async function solveTurnstile(page: Page): Promise<string> {
     );
 
     logger("Mouse moved to random position");
-    await sleep(1500, undefined, { signal });
+    await setTimeout(1500, undefined, { signal });
 
     const { x, y, width, height } = checkboxBox;
     currentPosition = await moveTo(
@@ -124,7 +126,5 @@ export async function solveTurnstile(page: Page): Promise<string> {
     }
     logger("solveTurnstile error", error);
     return "failed to solve: " + error;
-  } finally {
-    page.off("close", onClose);
   }
 }
