@@ -63,13 +63,15 @@ main();
 async function main() {
   if (longRunning) {
     await sendConfigToTelegramIfRequested();
-    await startServer({
-      startRun,
-      refreshSecrets: hasConfigSecretProvider() ? refreshSecrets : undefined,
-      isRunning,
-      getLastRun: () => lastRun,
+    await startServer(
+      {
+        startRun,
+        refreshSecrets: hasConfigSecretProvider() ? refreshSecrets : undefined,
+        isRunning,
+        getLastRun: () => lastRun,
+      },
       processHandlers,
-    });
+    );
   } else {
     try {
       await sendConfigToTelegramIfRequested();
