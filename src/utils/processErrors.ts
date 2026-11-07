@@ -1,6 +1,6 @@
 import type { EventEmitter } from "node:events";
 import type { ProcessEventMap } from "node:process";
-import { truncateError } from "../bot/truncateError.js";
+import { formatUnknownError } from "./utils.js";
 
 type ErrorLogger = (message: string, ...details: unknown[]) => void;
 type ProcessHandlerReason = NodeJS.Signals | "process error";
@@ -9,6 +9,7 @@ export interface ProcessHandlers {
   signal: AbortSignal;
   readonly reason: ProcessHandlerReason | undefined;
   dispose(): void;
+  reportUnhandledRejection(error: unknown): void;
   waitForNotifications(): Promise<void>;
 }
 
@@ -43,14 +44,13 @@ export function registerProcessHandlers({
   const handle = (
     kind: "Uncaught exception" | "Unhandled rejection",
     error: unknown,
+    message: string,
     ...details: unknown[]
   ) => {
-    if (controller.signal.aborted) return;
-
     logger(kind, error, ...details);
     notifications = notifications.then(async () => {
       try {
-        await notify(truncateError(`${kind}. See private logs.`));
+        await notify(message);
       } catch (notificationError) {
         logger("Failed to send process error notification", notificationError);
       }
@@ -60,13 +60,28 @@ export function registerProcessHandlers({
   };
 
   const onUncaughtException = (error: Error, origin: string) => {
-    handle("Uncaught exception", error, origin);
+    console.error("uncaughtException, sending error");
+    handle(
+      "Uncaught exception",
+      error,
+      `
+    Caught exception: ${error}
+    err.stack: ${error.stack}
+    Exception origin: ${origin}`,
+      origin,
+    );
   };
+  const reportUnhandledRejection = (error: unknown) =>
+    handle(
+      "Unhandled rejection",
+      error,
+      `Unhandled rejection: ${formatUnknownError(error)}${error instanceof Error && error.stack ? `\n${error.stack}` : ""}`,
+    );
   const onUnhandledRejection = (
     reason: unknown,
     _promise: Promise<unknown>,
   ) => {
-    handle("Unhandled rejection", reason);
+    reportUnhandledRejection(reason);
   };
   const onSigint = () => stop("SIGINT", new Error("Scraper worker cancelled"));
   const onSigterm = () =>
@@ -91,6 +106,7 @@ export function registerProcessHandlers({
       return reason;
     },
     dispose,
+    reportUnhandledRejection,
     waitForNotifications: () => notifications,
   };
 }
