@@ -32,23 +32,15 @@ function settleState(promise: Promise<unknown>) {
 
 describe("createOtpHandler", () => {
   const bot = mockDeep<Telegraf<Context>>();
-  const polling = mock<Parameters<typeof createOtpHandler>[1]>();
   let requestOtpCode: ReturnType<typeof createOtpHandler>;
-  let releases: jest.Mock[];
 
   beforeEach(() => {
     jest.clearAllMocks();
-    releases = [];
     let nextMessageId = 1;
     bot.telegram.sendMessage.mockImplementation(async () =>
       mock<Message.TextMessage>({ message_id: nextMessageId++ }),
     );
-    polling.acquireOtpPolling.mockImplementation(() => {
-      const release = jest.fn();
-      releases.push(release);
-      return { started: Promise.resolve(), release };
-    });
-    requestOtpCode = createOtpHandler(bot, polling);
+    requestOtpCode = createOtpHandler(bot);
   });
 
   afterEach(() => jest.restoreAllMocks());
@@ -78,13 +70,12 @@ describe("createOtpHandler", () => {
     await handler(ctx, async () => {});
   }
 
-  it("matches concurrent replies and releases each polling lease", async () => {
+  it("matches replies for concurrent requests", async () => {
     const first = requestOtpCode("oneZero", "+97200000001");
     const second = requestOtpCode("oneZero", "+97200000002");
     await flush();
 
     expect(bot.on).toHaveBeenCalledTimes(1);
-    expect(polling.acquireOtpPolling).toHaveBeenCalledTimes(2);
 
     await reply(0, "999999");
     expect(await settleState(first)).toBe("pending");
@@ -95,43 +86,14 @@ describe("createOtpHandler", () => {
     await reply(0, "222222", 2);
     await expect(second).resolves.toBe("222222");
     expect(await settleState(first)).toBe("pending");
-    expect(releases[1]).toHaveBeenCalledTimes(1);
 
     await reply(0, "111111");
     await expect(first).resolves.toBe("111111");
-    expect(releases[0]).toHaveBeenCalledTimes(1);
-  });
-
-  it("releases its polling lease when the server also owns polling", async () => {
-    const request = requestOtpCode("oneZero", "+97200000001");
-    await flush();
-
-    await reply(0, "123456");
-
-    await expect(request).resolves.toBe("123456");
-    expect(releases[0]).toHaveBeenCalledTimes(1);
-  });
-
-  it("rejects the request and notifies the chat when polling fails", async () => {
-    const release = jest.fn();
-    polling.acquireOtpPolling.mockReturnValueOnce({
-      started: Promise.reject(new Error("polling failed")),
-      release,
-    });
-
-    await expect(requestOtpCode("oneZero", "+97200000001")).rejects.toThrow(
-      "Failed to start Telegram bot for OTP: Error: polling failed",
-    );
-    expect(release).toHaveBeenCalledTimes(1);
-    expect(bot.telegram.sendMessage).toHaveBeenLastCalledWith(
-      "555",
-      expect.stringContaining("requestOtpCode\n❌ polling failed"),
-    );
   });
 
   it("rejects requests when Telegram is not configured", async () => {
     await expect(
-      createOtpHandler(null, polling)("oneZero", "+97200000001"),
+      createOtpHandler(null)("oneZero", "+97200000001"),
     ).rejects.toThrow("Telegram OTP is not enabled or configured");
     expect(bot.telegram.sendMessage).not.toHaveBeenCalled();
   });
@@ -150,14 +112,13 @@ describe("createOtpHandler", () => {
     }
   });
 
-  it("releases its polling lease when a worker OTP is cancelled", async () => {
+  it("cancels a worker OTP and continues accepting a later request", async () => {
     const abort = new AbortController();
     const request = requestOtpCode("oneZero", "+97200000001", abort.signal);
     const rejected = expect(request).rejects.toThrow("worker exited");
     await flush();
     abort.abort(new Error("worker exited"));
     await rejected;
-    expect(releases[0]).toHaveBeenCalledTimes(1);
 
     const next = requestOtpCode("oneZero", "+97200000002");
     await flush();
@@ -172,7 +133,6 @@ describe("createOtpHandler", () => {
       requestOtpCode("oneZero", "+97200000001", abort.signal),
     ).rejects.toThrow("worker exited");
     expect(bot.telegram.sendMessage).not.toHaveBeenCalled();
-    expect(polling.acquireOtpPolling).not.toHaveBeenCalled();
   });
 
   it("ignores commands and replies targeting completed requests", async () => {

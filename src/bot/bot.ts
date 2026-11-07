@@ -1,6 +1,7 @@
 import { Context, Telegraf } from "telegraf";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
 import { aborted } from "node:util";
+import { setTimeout as delay } from "node:timers/promises";
 import { formatUnknownError } from "../utils/utils.js";
 import { createOtpHandler } from "./otp.js";
 import { config } from "../config.js";
@@ -19,105 +20,139 @@ export function createBot(bot: Telegraf<Context> | null) {
   });
   let botRunning = false;
   let launchPromise: Promise<void> | undefined;
-  let serverOwnsPolling = false;
-  let otpPollingLeases = 0;
+  let startupPromise: Promise<void> | undefined;
+  let stopPromise: Promise<void> | undefined;
   let shutdownPromise: Promise<void> | undefined;
 
-  function isTelegramBotRunning(): boolean {
-    return botRunning;
-  }
-
-  function ensureTelegramBotLaunched(): Promise<void> {
+  function startTelegramBot(): Promise<void> {
     if (!bot) {
       return Promise.reject(new Error("Telegram is not configured"));
     }
-    if (launchPromise) return launchPromise;
-    if (botRunning) return Promise.resolve();
+    if (botRunning) return startupPromise ?? Promise.resolve();
+    if (launchPromise) return startupPromise ?? Promise.resolve();
 
     botRunning = true;
-    const starting = bot
-      .launch(() => logger("Telegram bot launched"))
-      .catch((e) => {
+    const started = Promise.withResolvers<void>();
+    startupPromise = started.promise;
+    let ready = false;
+    const running = bot.launch(() => {
+      ready = true;
+      logger("Telegram bot launched");
+      started.resolve();
+    });
+    launchPromise = running;
+    void running.then(
+      () => {
         botRunning = false;
-        throw e;
-      });
-    launchPromise = starting;
-    void starting.then(
-      () => {
-        if (launchPromise === starting) launchPromise = undefined;
+        if (!ready) started.resolve();
       },
-      () => {
-        if (launchPromise === starting) launchPromise = undefined;
+      (error) => {
+        botRunning = false;
+        if (ready) logger("Telegram bot polling failed", error);
+        else started.reject(error);
       },
     );
-    return starting;
-  }
-
-  async function launchTelegramBot(): Promise<void> {
-    serverOwnsPolling = true;
-    try {
-      await ensureTelegramBotLaunched();
-    } catch (e) {
-      serverOwnsPolling = false;
-      throw e;
-    }
-  }
-
-  function stopPolling() {
-    if (!bot || !botRunning) return;
-    botRunning = false;
-    try {
-      bot.stop();
-    } catch (e) {
-      // Telegraf can still be starting when a shutdown signal arrives.
-      logger(`Failed to stop the Telegram bot: ${formatUnknownError(e)}`);
-    }
-  }
-
-  function stopPollingIfUnowned() {
-    if (!serverOwnsPolling && otpPollingLeases === 0) {
-      stopPolling();
-    }
-  }
-
-  function acquireOtpPolling() {
-    otpPollingLeases++;
-    let released = false;
-
-    return {
-      started: ensureTelegramBotLaunched(),
-      release() {
-        if (released) return;
-        released = true;
-        otpPollingLeases--;
-        stopPollingIfUnowned();
+    void running.then(
+      () => {
+        if (launchPromise === running) launchPromise = undefined;
       },
-    };
+      () => {
+        if (launchPromise === running) launchPromise = undefined;
+      },
+    );
+    void started.promise.then(
+      () => {
+        if (startupPromise === started.promise) startupPromise = undefined;
+      },
+      () => {
+        if (startupPromise === started.promise) startupPromise = undefined;
+      },
+    );
+    return started.promise;
   }
 
-  function stopTelegramBot() {
-    serverOwnsPolling = false;
-    stopPollingIfUnowned();
+  function launchTelegramBot(): Promise<void> {
+    if (!bot) {
+      return Promise.reject(new Error("Telegram is not configured"));
+    }
+    const started = startTelegramBot();
+    const running = launchPromise;
+    return started.then(() => running);
+  }
+
+  function stopTelegramBot(signal?: AbortSignal): Promise<void> | undefined {
+    if (!bot || !botRunning) {
+      return signal && stopPromise
+        ? Promise.race([stopPromise, aborted(signal, bot)])
+        : stopPromise;
+    }
+    botRunning = false;
+    const running = launchPromise;
+    if (!running) return;
+
+    const stopping = (async () => {
+      const settled = running.catch((error) =>
+        logger(`Failed to stop the Telegram bot: ${formatUnknownError(error)}`),
+      );
+      while (launchPromise === running) {
+        try {
+          bot.stop();
+          break;
+        } catch (error) {
+          if (
+            !(error instanceof Error) ||
+            error.message !== "Bot is not running!"
+          ) {
+            logger(
+              `Failed to stop the Telegram bot: ${formatUnknownError(error)}`,
+            );
+            return;
+          }
+          await Promise.race([delay(100, undefined, { ref: false }), settled]);
+        }
+      }
+      await settled;
+    })();
+    stopPromise = stopping;
+    void stopping.then(
+      () => {
+        if (stopPromise === stopping) stopPromise = undefined;
+      },
+      () => {
+        if (stopPromise === stopping) stopPromise = undefined;
+      },
+    );
+    return signal ? Promise.race([stopping, aborted(signal, bot)]) : stopping;
   }
 
   function shutdownTelegramBot(): Promise<void> {
     if (shutdownPromise) return shutdownPromise;
     shutdownPromise = (async () => {
-      serverOwnsPolling = false;
-      stopPolling();
-      if (!bot) return;
-
       const completed = new AbortController();
       const signal = AbortSignal.any([
         AbortSignal.timeout(3_000),
         completed.signal,
       ]);
       try {
-        const cleared = await Promise.race([
-          bot.telegram.deleteMyCommands(),
-          aborted(signal, bot),
+        const stopped = stopTelegramBot(signal);
+        if (!bot) {
+          if (stopped) await stopped;
+          return;
+        }
+
+        const [stopResult, clearResult] = await Promise.allSettled([
+          Promise.resolve(stopped),
+          Promise.race([
+            bot.telegram.deleteMyCommands(),
+            aborted(signal, bot).then(() => signal.throwIfAborted()),
+          ]),
         ]);
-        if (cleared !== true) signal.throwIfAborted();
+        if (stopResult.status === "rejected") {
+          logger("Failed to stop Telegram polling", stopResult.reason);
+        }
+        if (clearResult.status === "rejected") {
+          throw clearResult.reason;
+        }
       } catch (error) {
         logger("Failed to clear Telegram command menu", error);
         logToPublicLog("Failed to clear Telegram command menu", logger);
@@ -128,16 +163,11 @@ export function createBot(bot: Telegraf<Context> | null) {
     return shutdownPromise;
   }
 
-  const polling = {
-    isTelegramBotRunning,
-    acquireOtpPolling,
+  return {
+    startTelegramBot,
     launchTelegramBot,
     stopTelegramBot,
-  };
-
-  return {
-    ...polling,
     shutdownTelegramBot,
-    requestOtpCode: createOtpHandler(bot, polling),
+    requestOtpCode: createOtpHandler(bot),
   };
 }

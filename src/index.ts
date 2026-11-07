@@ -9,9 +9,13 @@ import {
 } from "./config.js";
 import { BooleanEnvVarSchema } from "./config.schema.js";
 import {
+  startTelegramBot,
   sendError,
+  send as sendTelegramMessage,
   reportTransport,
   reportUpdateIntervalMs,
+  requestOtpCode,
+  stopTelegramBot,
 } from "./bot/notifier.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 import {
@@ -38,8 +42,11 @@ import { createRunReport } from "./bot/runReport.js";
 import { createReportPublisher } from "./bot/reportPublisher.js";
 import { formatUnknownError } from "./utils/utils.js";
 import { registerProcessHandlers } from "./utils/processErrors.js";
+import { aborted } from "node:util";
+import type { OtpRequest } from "./scraper/otp.js";
 
 const logger = createLogger("main");
+const otpLogger = createLogger("otp");
 const SCRAPE_LOCK = "moneyman-scrape";
 const longRunning = BooleanEnvVarSchema.parse(
   process.env.MONEYMAN_LONG_RUNNING,
@@ -173,6 +180,7 @@ async function runScraper(
   hooks: RunnerHooks,
   snapshot: MoneymanConfig,
   domainTracker: DomainTracker,
+  requestOtp: OtpRequest,
   signal?: AbortSignal,
 ) {
   try {
@@ -182,6 +190,7 @@ async function runScraper(
     logger("Starting to scrape");
     const { results, domains } = await scrapeAccounts(
       getScraperConfig(snapshot),
+      requestOtp,
       async (status, totalTime) => {
         logger("Status changed", { status, totalTime });
         return hooks.onStatusChanged(status, totalTime);
@@ -206,6 +215,72 @@ async function runScraper(
   }
 }
 
+function createOneShotOtpSession(signal?: AbortSignal) {
+  let startup: Promise<void> | undefined;
+
+  function startPolling() {
+    startup ??= startTelegramBot().catch((error) => {
+      otpLogger("Failed to start Telegram bot for OTP", error);
+      void sendTelegramMessage(
+        `requestOtpCode\n❌ ${
+          error instanceof Error
+            ? `${error.message}\n${error.stack}`
+            : formatUnknownError(error)
+        }`,
+      ).catch((notificationError) =>
+        otpLogger("Failed to send OTP error notification", notificationError),
+      );
+      throw new Error(`Failed to start Telegram bot for OTP: ${error}`);
+    });
+    return startup;
+  }
+
+  const request: OtpRequest = async (companyId, phoneNumber, requestSignal) => {
+    signal?.throwIfAborted();
+    requestSignal?.throwIfAborted();
+
+    const started = startPolling();
+    if (requestSignal) {
+      const completed = new AbortController();
+      const combined = AbortSignal.any(
+        [signal, requestSignal, completed.signal].filter(
+          (signal) => signal !== undefined,
+        ),
+      );
+      try {
+        await Promise.race([
+          started,
+          aborted(combined, started).then(() => combined.throwIfAborted()),
+        ]);
+      } finally {
+        completed.abort();
+      }
+    } else {
+      await started;
+    }
+
+    signal?.throwIfAborted();
+    requestSignal?.throwIfAborted();
+    return requestOtpCode(companyId, phoneNumber, requestSignal ?? signal);
+  };
+
+  return {
+    request,
+    async close() {
+      const completed = new AbortController();
+      const shutdown = AbortSignal.any([
+        AbortSignal.timeout(3_000),
+        completed.signal,
+      ]);
+      try {
+        await stopTelegramBot(shutdown);
+      } finally {
+        completed.abort();
+      }
+    },
+  };
+}
+
 async function prepareRun() {
   try {
     let snapshot = config;
@@ -225,6 +300,8 @@ async function prepareRun() {
 }
 
 async function run(signal?: AbortSignal) {
+  const otpSession = longRunning ? undefined : createOneShotOtpSession(signal);
+  const requestOtp = otpSession?.request ?? requestOtpCode;
   let publication: Awaited<ReturnType<typeof runWithStorage>> = {
     report: createRunReport(),
     reportSent: false,
@@ -246,7 +323,8 @@ async function run(signal?: AbortSignal) {
     try {
       logger("Running with storage");
       publication = await runWithStorage(
-        (hooks) => runScraper(hooks, snapshot, domainTracker, signal),
+        (hooks) =>
+          runScraper(hooks, snapshot, domainTracker, requestOtp, signal),
         storages,
         publication,
       );
@@ -268,26 +346,30 @@ async function run(signal?: AbortSignal) {
     return true;
   } finally {
     try {
-      if (!report.endedAt) {
-        report.endedAt = new Date();
-        const sendReportFile =
-          Boolean(reportTransport) &&
-          (config.options.notifications.telegram?.sendReportFileToTelegram ??
-            false);
-        const logs = sendReportFile ? readReportLogs() : undefined;
-        publication.reportSent = await createReportPublisher(report, {
-          transport: reportTransport,
-          sendReportFile,
-          intervalMs: reportUpdateIntervalMs,
-        }).finish(logs);
-        publication.logsSent = publication.reportSent && logs !== undefined;
-      }
+      await otpSession?.close();
     } finally {
-      await sendLogFile(
-        !longRunning,
-        prepared?.storages ?? [],
-        publication.logsSent,
-      );
+      try {
+        if (!report.endedAt) {
+          report.endedAt = new Date();
+          const sendReportFile =
+            Boolean(reportTransport) &&
+            (config.options.notifications.telegram?.sendReportFileToTelegram ??
+              false);
+          const logs = sendReportFile ? readReportLogs() : undefined;
+          publication.reportSent = await createReportPublisher(report, {
+            transport: reportTransport,
+            sendReportFile,
+            intervalMs: reportUpdateIntervalMs,
+          }).finish(logs);
+          publication.logsSent = publication.reportSent && logs !== undefined;
+        }
+      } finally {
+        await sendLogFile(
+          !longRunning,
+          prepared?.storages ?? [],
+          publication.logsSent,
+        );
+      }
     }
   }
 }

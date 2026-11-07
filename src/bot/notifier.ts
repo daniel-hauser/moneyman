@@ -30,7 +30,7 @@ if (bot && telegramConfig) {
 }
 
 export const {
-  isTelegramBotRunning,
+  startTelegramBot,
   launchTelegramBot,
   stopTelegramBot,
   shutdownTelegramBot,

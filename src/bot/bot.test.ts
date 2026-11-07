@@ -16,10 +16,16 @@ jest.mock("../config.js", () => ({
 describe("createBot", () => {
   const bot = mockDeep<Telegraf<Context>>();
   let controller: ReturnType<typeof createBot>;
+  let polling: PromiseWithResolvers<void>;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    bot.launch.mockResolvedValue(undefined);
+    polling = Promise.withResolvers<void>();
+    bot.launch.mockImplementation((config, onLaunch) => {
+      (typeof config === "function" ? config : onLaunch)?.();
+      return polling.promise;
+    });
+    bot.stop.mockImplementation(() => polling.resolve());
     bot.telegram.deleteMyCommands.mockResolvedValue(true);
     controller = createBot(bot);
   });
@@ -27,12 +33,11 @@ describe("createBot", () => {
   afterEach(() => jest.restoreAllMocks());
 
   it("stops polling and clears the command menu", async () => {
-    await controller.launchTelegramBot();
+    await controller.startTelegramBot();
     await controller.shutdownTelegramBot();
 
     expect(bot.stop).toHaveBeenCalledTimes(1);
     expect(bot.telegram.deleteMyCommands).toHaveBeenCalledWith();
-    expect(controller.isTelegramBotRunning()).toBe(false);
   });
 
   it("logs menu cleanup failures without rejecting shutdown", async () => {
@@ -83,6 +88,26 @@ describe("createBot", () => {
     expect(logToPublicLog).not.toHaveBeenCalled();
   });
 
+  it("bounds polling shutdown and menu cleanup under the same deadline", async () => {
+    const timeout = new AbortController();
+    jest.spyOn(AbortSignal, "timeout").mockReturnValue(timeout.signal);
+    await controller.startTelegramBot();
+    bot.stop.mockImplementation(() => {});
+    bot.telegram.deleteMyCommands.mockImplementation(
+      () => new Promise(() => {}),
+    );
+
+    const shutdown = controller.shutdownTelegramBot();
+    timeout.abort(new Error("shutdown deadline"));
+    await expect(shutdown).resolves.toBeUndefined();
+
+    expect(bot.stop).toHaveBeenCalledTimes(1);
+    expect(logToPublicLog).toHaveBeenCalledWith(
+      "Failed to clear Telegram command menu",
+      expect.any(Function),
+    );
+  });
+
   it("handles a command RPC rejection after the deadline already won", async () => {
     const timeout = new AbortController();
     const deletion = Promise.withResolvers<true>();
@@ -97,31 +122,43 @@ describe("createBot", () => {
   });
 
   it("starts polling only once", async () => {
-    expect(controller.isTelegramBotRunning()).toBe(false);
-
-    await controller.launchTelegramBot();
-    await controller.launchTelegramBot();
+    await controller.startTelegramBot();
+    await controller.startTelegramBot();
 
     expect(bot.launch).toHaveBeenCalledTimes(1);
-    expect(controller.isTelegramBotRunning()).toBe(true);
+    await controller.stopTelegramBot();
   });
 
-  it("keeps polling when the server takes ownership during an OTP startup", async () => {
-    const startup = Promise.withResolvers<void>();
-    bot.launch.mockReturnValue(startup.promise);
+  it("shares an in-flight polling startup between callers", async () => {
+    let onLaunch!: () => void;
+    bot.launch.mockImplementationOnce((config, callback) => {
+      onLaunch = typeof config === "function" ? config : callback!;
+      return polling.promise;
+    });
 
-    const otpLease = controller.acquireOtpPolling();
-    const serverStartup = controller.launchTelegramBot();
+    const first = controller.startTelegramBot();
+    const second = controller.startTelegramBot();
+    expect(second).toBe(first);
     await Promise.resolve();
     expect(bot.launch).toHaveBeenCalledTimes(1);
 
-    startup.resolve();
-    await Promise.all([otpLease.started, serverStartup]);
-    otpLease.release();
-    expect(bot.stop).not.toHaveBeenCalled();
-
-    controller.stopTelegramBot();
+    onLaunch();
+    await Promise.all([first, second]);
+    await controller.stopTelegramBot();
     expect(bot.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the server launch promise pending until polling stops", async () => {
+    const launch = controller.launchTelegramBot();
+    await controller.startTelegramBot();
+    const state = await Promise.race([
+      launch.then(() => "resolved"),
+      Promise.resolve("pending"),
+    ]);
+
+    expect(state).toBe("pending");
+    await controller.stopTelegramBot();
+    await expect(launch).resolves.toBeUndefined();
   });
 
   it("shares the in-flight shutdown with concurrent callers", async () => {
@@ -137,49 +174,67 @@ describe("createBot", () => {
     await Promise.all([first, second]);
   });
 
-  it("resets the running state after startup fails and permits a retry", async () => {
+  it("permits a retry after polling startup fails", async () => {
     bot.launch.mockRejectedValueOnce(new Error("polling failed"));
 
-    await expect(controller.launchTelegramBot()).rejects.toThrow(
+    await expect(controller.startTelegramBot()).rejects.toThrow(
       "polling failed",
     );
-    expect(controller.isTelegramBotRunning()).toBe(false);
 
-    await controller.launchTelegramBot();
+    await controller.startTelegramBot();
 
-    expect(controller.isTelegramBotRunning()).toBe(true);
     expect(bot.launch).toHaveBeenCalledTimes(2);
+    await controller.stopTelegramBot();
   });
 
   it("stops polling only when running", async () => {
     controller.stopTelegramBot();
     expect(bot.stop).not.toHaveBeenCalled();
 
-    await controller.launchTelegramBot();
-    controller.stopTelegramBot();
-    controller.stopTelegramBot();
+    await controller.startTelegramBot();
+    await controller.stopTelegramBot();
+    await controller.stopTelegramBot();
 
     expect(bot.stop).toHaveBeenCalledTimes(1);
-    expect(controller.isTelegramBotRunning()).toBe(false);
   });
 
   it("keeps shutting down when Telegraf has nothing to stop yet", async () => {
-    await controller.launchTelegramBot();
+    await controller.startTelegramBot();
     bot.stop.mockImplementationOnce(() => {
       throw new Error("Bot is not running!");
     });
 
-    expect(() => controller.stopTelegramBot()).not.toThrow();
-    expect(controller.isTelegramBotRunning()).toBe(false);
+    await controller.stopTelegramBot();
+  });
+
+  it("retries stop when shutdown races with Telegraf polling startup", async () => {
+    let onLaunch!: () => void;
+    let pollingReady = false;
+    bot.launch.mockImplementationOnce((config, callback) => {
+      onLaunch = typeof config === "function" ? config : callback!;
+      return polling.promise;
+    });
+    bot.stop.mockImplementation(() => {
+      if (!pollingReady) throw new Error("Bot is not running!");
+      polling.resolve();
+    });
+
+    const startup = controller.startTelegramBot();
+    const shutdown = controller.stopTelegramBot();
+    onLaunch();
+    pollingReady = true;
+
+    await Promise.all([startup, shutdown]);
+    expect(bot.stop).toHaveBeenCalledTimes(2);
   });
 
   it("rejects startup when Telegram is not configured", async () => {
     const unconfigured = createBot(null);
 
-    await expect(unconfigured.launchTelegramBot()).rejects.toThrow(
+    await expect(unconfigured.startTelegramBot()).rejects.toThrow(
       "Telegram is not configured",
     );
-    expect(() => unconfigured.stopTelegramBot()).not.toThrow();
+    await unconfigured.stopTelegramBot();
     await expect(unconfigured.shutdownTelegramBot()).resolves.toBeUndefined();
   });
 });
