@@ -45,7 +45,6 @@ export async function startServer(
   let activeRun: Promise<unknown> | undefined;
   let shuttingDown = false;
   let task: ReturnType<typeof schedule> | undefined;
-  let processAbortListener: ReturnType<typeof addAbortListener> | undefined;
 
   async function startTrackedRun(trigger: RunTrigger) {
     const handle = await startRun(trigger);
@@ -72,7 +71,6 @@ export async function startServer(
   async function shutdown(signal: string) {
     if (shuttingDown) return;
     shuttingDown = true;
-    processAbortListener?.[Symbol.dispose]();
 
     logger(`Received ${signal}, shutting down`);
     task?.stop();
@@ -110,7 +108,7 @@ export async function startServer(
     return;
   }
 
-  processAbortListener = addAbortListener(processHandlers.signal, () => {
+  addAbortListener(processHandlers.signal, () => {
     void shutdown(processHandlers.reason ?? "process error").catch(
       handleShutdownFailure,
     );
