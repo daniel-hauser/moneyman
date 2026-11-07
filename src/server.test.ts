@@ -217,6 +217,30 @@ describe("startServer", () => {
     },
   );
 
+  it("gracefully shuts down after a process error and preserves the failure exit code", async () => {
+    const previousExitCode = process.exitCode;
+    const processError = new AbortController();
+    const waitForNotifications = jest.fn().mockResolvedValue(undefined);
+    process.exitCode = 1;
+
+    try {
+      await startServer({
+        ...runner,
+        processErrorSignal: processError.signal,
+        waitForProcessErrorNotifications: waitForNotifications,
+      });
+      processError.abort(new Error("fatal error"));
+      await flush();
+
+      expect(task.stop).toHaveBeenCalledTimes(1);
+      expect(waitForNotifications).toHaveBeenCalledTimes(1);
+      expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
+      expect(exit).toHaveBeenCalledWith(1);
+    } finally {
+      process.exitCode = previousExitCode;
+    }
+  });
+
   it("runs scheduled scrapes", async () => {
     runner.startRun.mockResolvedValue({
       started: true,

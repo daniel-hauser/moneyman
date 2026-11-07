@@ -138,10 +138,12 @@ async function loadEntrypoint(
 describe("index", () => {
   const originalEnv = process.env;
   let originalExceptionListeners: ReturnType<typeof process.listeners>;
+  let originalRejectionListeners: ReturnType<typeof process.listeners>;
   let originalExitListeners: ReturnType<typeof process.listeners>;
 
   beforeEach(() => {
     originalExceptionListeners = process.listeners("uncaughtException");
+    originalRejectionListeners = process.listeners("unhandledRejection");
     originalExitListeners = process.listeners("exit");
   });
 
@@ -149,6 +151,11 @@ describe("index", () => {
     for (const listener of process.listeners("uncaughtException")) {
       if (!originalExceptionListeners.includes(listener)) {
         process.removeListener("uncaughtException", listener);
+      }
+    }
+    for (const listener of process.listeners("unhandledRejection")) {
+      if (!originalRejectionListeners.includes(listener)) {
+        process.removeListener("unhandledRejection", listener);
       }
     }
     for (const listener of process.listeners("exit")) {

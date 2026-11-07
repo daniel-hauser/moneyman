@@ -25,12 +25,19 @@ export type ServerRunner = {
   getLastRun(): RunStatus | undefined;
 };
 
+type ServerOptions = ServerRunner & {
+  processErrorSignal?: AbortSignal;
+  waitForProcessErrorNotifications?: () => Promise<void>;
+};
+
 export async function startServer({
   startRun,
   refreshSecrets,
   isRunning,
   getLastRun,
-}: ServerRunner) {
+  processErrorSignal,
+  waitForProcessErrorNotifications,
+}: ServerOptions) {
   const cron = config.options.scheduling.cron;
   const bot = getTelegramBot();
   if (!bot && !cron) {
@@ -98,13 +105,28 @@ export async function startServer({
       }
     }
 
+    await waitForProcessErrorNotifications?.();
     await shutdownTelegramBot();
 
-    process.exit(0);
+    process.exit(process.exitCode ?? 0);
   }
 
   process.once("SIGINT", () => shutdown("SIGINT"));
   process.once("SIGTERM", () => shutdown("SIGTERM"));
+  const hasProcessErrorSignal =
+    processErrorSignal &&
+    typeof processErrorSignal.addEventListener === "function";
+  if (hasProcessErrorSignal) {
+    processErrorSignal.addEventListener(
+      "abort",
+      () => void shutdown("process error"),
+      { once: true },
+    );
+  }
+  if (hasProcessErrorSignal && processErrorSignal.aborted) {
+    void shutdown("process error");
+    return;
+  }
 
   if (!bot) {
     logToPublicLog(
