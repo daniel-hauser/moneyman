@@ -1,6 +1,6 @@
 import { mock, mockDeep, type DeepMockProxy } from "jest-mock-extended";
 import { Context, Telegraf } from "telegraf";
-import { schedule } from "node-cron";
+import { createTask } from "node-cron";
 import { startServer, type ServerRunner } from "./server.js";
 import type { RunStatus } from "./types.js";
 import { EventEmitter, getEventListeners } from "node:events";
@@ -18,7 +18,7 @@ import {
 jest.mock("./config.js", () => ({
   config: { options: { scheduling: { cron: "0 9 * * *" } } },
 }));
-jest.mock("node-cron", () => ({ schedule: jest.fn() }));
+jest.mock("node-cron", () => ({ createTask: jest.fn() }));
 jest.mock("./bot/commands.js", () => ({ registerCommands: jest.fn() }));
 jest.mock("./bot/notifier.js", () => ({
   getTelegramBot: jest.fn(),
@@ -54,7 +54,7 @@ function createProcessHandlers() {
 describe("startServer", () => {
   let runner: ReturnType<typeof mock<Required<ServerRunner>>>;
   let exit: jest.SpyInstance;
-  const task = mock<ReturnType<typeof schedule>>();
+  const task = mock<ReturnType<typeof createTask>>();
   let lifecycle: ReturnType<typeof createProcessHandlers>;
   let bot: DeepMockProxy<Telegraf<Context>>;
   const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
@@ -73,7 +73,7 @@ describe("startServer", () => {
       .mockImplementation((() => undefined) as never);
     lifecycle = createProcessHandlers();
     runner = mock<Required<ServerRunner>>();
-    jest.mocked(schedule).mockReturnValue(task);
+    jest.mocked(createTask).mockReturnValue(task);
     bot = mockDeep<Telegraf<Context>>();
     bot.telegram.deleteMyCommands.mockResolvedValue(true);
     jest.mocked(getTelegramBot).mockReturnValue(bot);
@@ -298,13 +298,45 @@ describe("startServer", () => {
       await startServer(serverRunner(), lifecycle.handlers);
       await flush();
 
-      expect(schedule).not.toHaveBeenCalled();
+      expect(createTask).toHaveBeenCalledTimes(1);
+      expect(task.start).not.toHaveBeenCalled();
       expect(launchTelegramBot).not.toHaveBeenCalled();
       expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
       expect(exit).toHaveBeenCalledWith(1);
     } finally {
       process.exitCode = previousExitCode;
     }
+  });
+
+  it("does not initialize Telegram if interrupted while the cron task starts", async () => {
+    let releaseStart!: () => void;
+    task.start.mockReturnValue(
+      new Promise<void>((resolve) => {
+        releaseStart = resolve;
+      }),
+    );
+
+    const startup = startServer(serverRunner(), lifecycle.handlers);
+    expect(task.start).toHaveBeenCalledTimes(1);
+
+    lifecycle.source.emit("SIGTERM", "SIGTERM");
+    await flush();
+    expect(task.stop).toHaveBeenCalledTimes(1);
+    expect(launchTelegramBot).not.toHaveBeenCalled();
+
+    releaseStart();
+    await startup;
+    expect(launchTelegramBot).not.toHaveBeenCalled();
+  });
+
+  it("propagates cron task startup failures", async () => {
+    const error = new Error("Cron task failed to start");
+    task.start.mockRejectedValueOnce(error);
+
+    await expect(startServer(serverRunner(), lifecycle.handlers)).rejects.toBe(
+      error,
+    );
+    expect(launchTelegramBot).not.toHaveBeenCalled();
   });
 
   it("logs shutdown failures and exits with a failure code", async () => {
@@ -339,7 +371,9 @@ describe("startServer", () => {
       }),
     });
     await startServer(serverRunner(), lifecycle.handlers);
-    const callback = jest.mocked(schedule).mock.calls[0][1];
+    expect(createTask).toHaveBeenCalledWith("0 9 * * *", expect.any(Function));
+    expect(task.start).toHaveBeenCalledTimes(1);
+    const callback = jest.mocked(createTask).mock.calls[0][1];
     if (typeof callback !== "function")
       throw new Error("Expected cron callback");
     await callback(mock<Parameters<typeof callback>[0]>());
@@ -353,7 +387,7 @@ describe("startServer", () => {
     });
     runner.startRun.mockResolvedValue({ started: true, finished });
     await startServer(serverRunner(), lifecycle.handlers);
-    const callback = jest.mocked(schedule).mock.calls[0][1];
+    const callback = jest.mocked(createTask).mock.calls[0][1];
     if (typeof callback !== "function")
       throw new Error("Expected cron callback");
     await callback(mock<Parameters<typeof callback>[0]>());
