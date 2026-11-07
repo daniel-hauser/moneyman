@@ -103,7 +103,7 @@ export async function solveTurnstile(page: Page): Promise<string> {
 
     await page.mouse.click(...currentPosition);
     logger("Clicked on checkbox");
-    await page.waitForNavigation({ timeout: 60_000 });
+    await page.waitForNavigation({ timeout: 60_000, signal });
     return "success";
   } catch (error) {
     if (signal.aborted) {

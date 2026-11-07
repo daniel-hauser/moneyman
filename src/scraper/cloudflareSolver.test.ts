@@ -1,5 +1,6 @@
 import { EventEmitter } from "node:events";
 import { setImmediate } from "node:timers/promises";
+import { aborted } from "node:util";
 import { mockDeep } from "jest-mock-extended";
 import type { Page } from "puppeteer";
 import { solveTurnstile } from "./cloudflareSolver.js";
@@ -39,7 +40,10 @@ describe("solveTurnstile", () => {
     log.mockClear();
     jest.spyOn(Math, "random").mockReturnValue(0);
   });
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest.useRealTimers();
+  });
 
   it.each([
     ["mouse movement", 0.5],
@@ -96,7 +100,29 @@ describe("solveTurnstile", () => {
     await expect(solveTurnstile(page)).resolves.toBe("success");
 
     expect(page.mouse.click).toHaveBeenCalledTimes(1);
-    expect(page.waitForNavigation).toHaveBeenCalledWith({ timeout: 60_000 });
+    expect(page.waitForNavigation).toHaveBeenCalledWith({
+      timeout: 60_000,
+      signal: expect.any(AbortSignal),
+    });
+    expect(events.listenerCount("close")).toBe(0);
+  });
+
+  it("cancels the native navigation wait when the page closes", async () => {
+    jest.useFakeTimers();
+    const { page, events, close } = setup();
+    page.waitForNavigation.mockImplementation(async ({ signal } = {}) => {
+      if (!signal) throw new Error("Missing navigation cancellation signal");
+      await aborted(signal, page);
+      signal.throwIfAborted();
+      return null;
+    });
+    const solving = solveTurnstile(page);
+    await jest.advanceTimersByTimeAsync(1500);
+    expect(page.waitForNavigation).toHaveBeenCalledTimes(1);
+
+    close();
+
+    await expect(solving).resolves.toBe("page closed");
     expect(events.listenerCount("close")).toBe(0);
   });
 });
