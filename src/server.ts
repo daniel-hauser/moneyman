@@ -1,4 +1,4 @@
-import { schedule } from "node-cron";
+import { createTask } from "node-cron";
 import { addAbortListener } from "node:events";
 import { config } from "./config.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
@@ -58,20 +58,13 @@ export async function startServer(
     return handle;
   }
 
-  const task =
-    cron && !processHandlers.signal.aborted
-      ? schedule(cron, () => {
-          startTrackedRun("scheduled").catch((e) =>
-            logger("Scheduled run failed", e),
-          );
-        })
-      : undefined;
-  logToPublicLog(
-    cron
-      ? `Scheduled runs: ${cron} (${Intl.DateTimeFormat().resolvedOptions().timeZone})`
-      : "No scheduled runs, use /scrape in Telegram to run on demand",
-  );
-
+  const task = cron
+    ? createTask(cron, () => {
+        startTrackedRun("scheduled").catch((e) =>
+          logger("Scheduled run failed", e),
+        );
+      })
+    : undefined;
   function handleShutdownFailure(error: unknown) {
     process.exitCode = 1;
     try {
@@ -126,6 +119,24 @@ export async function startServer(
       handleShutdownFailure,
     );
   });
+
+  if (processHandlers.signal.aborted) return;
+
+  try {
+    const starting = task?.start();
+    if (starting) await starting;
+  } catch (error) {
+    if (!processHandlers.signal.aborted) throw error;
+    logger("Failed to start scheduled task during shutdown", error);
+    return;
+  }
+  if (processHandlers.signal.aborted) return;
+
+  logToPublicLog(
+    cron
+      ? `Scheduled runs: ${cron} (${Intl.DateTimeFormat().resolvedOptions().timeZone})`
+      : "No scheduled runs, use /scrape in Telegram to run on demand",
+  );
 
   if (!bot) {
     logToPublicLog(
