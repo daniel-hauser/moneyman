@@ -22,34 +22,22 @@ export function createBot(bot: Telegraf<Context> | null) {
   let polling: TelegramPolling | undefined;
   let shutdown: Promise<void> | undefined;
 
-  function createPolling(): TelegramPolling {
-    const lifetime = bot
-      ? bot.launch(() => logger("Telegram bot launched"))
-      : Promise.reject(new Error("Telegram is not configured"));
+  function createPolling(bot: Telegraf<Context>): TelegramPolling {
+    const lifetime = bot.launch(() => logger("Telegram bot launched"));
     const finished = lifetime.then(
       () => true,
       (error) => {
-        if (bot) logger("Telegram bot polling failed", error);
+        logger("Telegram bot polling failed", error);
+        if (polling?.lifetime === lifetime) polling = undefined;
         return true;
       },
     );
     let stopping: Promise<void> | undefined;
 
-    function stop(signal?: AbortSignal): Promise<void> {
-      stopping ??= (async () => {
-        if (!bot || (await Promise.race([finished, Promise.resolve(false)]))) {
-          return;
-        }
-        const settled = lifetime.then(
-          () => true,
-          (error) => {
-            logger(
-              `Failed to stop the Telegram bot: ${formatUnknownError(error)}`,
-            );
-            return true;
-          },
-        );
-        while (true) {
+    async function stopInternal(): Promise<void> {
+      if (await Promise.race([finished, Promise.resolve(false)])) return;
+      try {
+        do {
           try {
             bot.stop();
             break;
@@ -58,45 +46,33 @@ export function createBot(bot: Telegraf<Context> | null) {
               !(error instanceof Error) ||
               error.message !== "Bot is not running!"
             ) {
-              logger(
-                `Failed to stop the Telegram bot: ${formatUnknownError(error)}`,
-              );
-              return;
-            }
-            if (
-              await Promise.race([
-                setTimeout(100, false, { ref: false }),
-                settled,
-              ])
-            ) {
-              return;
+              throw error;
             }
           }
-        }
-        await settled;
-      })();
-      return signal && bot
-        ? Promise.race([stopping, aborted(signal, bot)])
-        : stopping;
+        } while (
+          !(await Promise.race([
+            setTimeout(100, false, { ref: false }),
+            finished,
+          ]))
+        );
+        await lifetime;
+      } catch (error) {
+        logger(`Failed to stop the Telegram bot: ${formatUnknownError(error)}`);
+      }
+    }
+
+    function stop(signal?: AbortSignal): Promise<void> {
+      stopping ??= stopInternal();
+      return signal ? Promise.race([stopping, aborted(signal, bot)]) : stopping;
     }
 
     return { lifetime, stop };
   }
 
-  function getPolling(): TelegramPolling {
-    if (!polling) {
-      polling = createPolling();
-      const current = polling;
-      void current.lifetime.catch(() => {
-        if (polling === current) polling = undefined;
-      });
-    }
-    return polling;
-  }
-
   function launchTelegramBot(): Promise<void> {
     if (!bot) return Promise.reject(new Error("Telegram is not configured"));
-    return getPolling().lifetime;
+    polling ??= createPolling(bot);
+    return polling.lifetime;
   }
 
   function stopTelegramBot(signal?: AbortSignal): Promise<void> {
