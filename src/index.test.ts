@@ -5,6 +5,8 @@ import { mock } from "jest-mock-extended";
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { CustomElementRegistry } from "@lit-labs/ssr-dom-shim";
 import type { ReportTransport } from "./bot/reportPublisher.js";
+import { locks } from "node:worker_threads";
+import { getEventListeners } from "node:events";
 
 jest.mock("./bot/runReport.js", () => {
   const actual =
@@ -97,6 +99,19 @@ async function loadEntrypoint(
       typeof import("./scraper/client.js").scrapeAccounts
     >,
   ) => void,
+  configureLifecycle?: (mocks: {
+    sendLogFile: jest.MockedFunction<
+      typeof import("./utils/secure-log.js").sendLogFile
+    >;
+    sendError: jest.MockedFunction<
+      typeof import("./bot/notifier.js").sendError
+    >;
+  }) => void,
+  configureConfigUpload?: (
+    upload: jest.MockedFunction<
+      typeof import("./config.js").sendConfigToTelegramIfRequested
+    >,
+  ) => void,
 ) {
   // Each reset loads new component constructors; isolate the SSR registry too.
   globalThis.customElements = new CustomElementRegistry();
@@ -114,6 +129,13 @@ async function loadEntrypoint(
   const { startServer } = await import("./server.js");
   const { runContextStore } = await import("./utils/asyncContext.js");
   const { hasConfigSecretProvider } = await import("./configRefresh.js");
+  const { sendError } = await import("./bot/notifier.js");
+  const { sendConfigToTelegramIfRequested } = await import("./config.js");
+  configureLifecycle?.({
+    sendLogFile: jest.mocked(sendLogFile),
+    sendError: jest.mocked(sendError),
+  });
+  configureConfigUpload?.(jest.mocked(sendConfigToTelegramIfRequested));
   jest.mocked(hasConfigSecretProvider).mockReturnValue(providerConfigured);
   const scrapeAccountsMock = jest.mocked(scrapeAccounts);
   const runWithStorageMock = jest.mocked(runWithStorage);
@@ -129,6 +151,9 @@ async function loadEntrypoint(
     exit,
     scrapeAccountsMock,
     runWithStorageMock,
+    sendConfigToTelegramIfRequestedMock: jest.mocked(
+      sendConfigToTelegramIfRequested,
+    ),
     sendLogFileMock: jest.mocked(sendLogFile),
     startServerMock,
     runContextStore,
@@ -137,12 +162,25 @@ async function loadEntrypoint(
 
 describe("index", () => {
   const originalEnv = process.env;
+  const originalExitCode = process.exitCode;
   let originalExceptionListeners: ReturnType<typeof process.listeners>;
+  let originalRejectionListeners: ReturnType<typeof process.listeners>;
   let originalExitListeners: ReturnType<typeof process.listeners>;
+  let originalSignalListeners: Map<
+    "SIGINT" | "SIGTERM",
+    ReturnType<typeof process.listeners>
+  >;
 
   beforeEach(() => {
     originalExceptionListeners = process.listeners("uncaughtException");
+    originalRejectionListeners = process.listeners("unhandledRejection");
     originalExitListeners = process.listeners("exit");
+    originalSignalListeners = new Map(
+      (["SIGINT", "SIGTERM"] as const).map((signal) => [
+        signal,
+        process.listeners(signal),
+      ]),
+    );
   });
 
   afterEach(() => {
@@ -151,11 +189,23 @@ describe("index", () => {
         process.removeListener("uncaughtException", listener);
       }
     }
+    for (const listener of process.listeners("unhandledRejection")) {
+      if (!originalRejectionListeners.includes(listener)) {
+        process.removeListener("unhandledRejection", listener);
+      }
+    }
     for (const listener of process.listeners("exit")) {
       if (!originalExitListeners.includes(listener))
         process.removeListener("exit", listener);
     }
+    for (const [signal, original] of originalSignalListeners) {
+      for (const listener of process.listeners(signal)) {
+        if (!original.includes(listener))
+          process.removeListener(signal, listener);
+      }
+    }
     process.env = originalEnv;
+    process.exitCode = originalExitCode;
     jest.restoreAllMocks();
   });
 
@@ -175,6 +225,85 @@ describe("index", () => {
     expect(
       ["SIGINT", "SIGTERM"].map((signal) => process.listenerCount(signal)),
     ).toEqual(listeners);
+  });
+
+  it("removes the config upload observer after normal completion without cancelling the process", async () => {
+    const combined = jest.spyOn(AbortSignal, "any");
+    const result = await loadEntrypoint(true);
+    const processSignal = result.startServerMock.mock.calls[0][1].signal;
+    const uploadSignal = combined.mock.results[0].value as AbortSignal;
+
+    expect(uploadSignal).not.toBe(processSignal);
+    expect(getEventListeners(uploadSignal, "abort")).toEqual([]);
+    expect(processSignal.aborted).toBe(false);
+    expect(result.exit).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [false, "SIGINT"],
+    [false, "SIGTERM"],
+    [true, "SIGINT"],
+    [true, "SIGTERM"],
+  ] as const)(
+    "cancels a pending config upload before starting either mode (%s, %s)",
+    async (longRunning, signal) => {
+      const uploadStarted = Promise.withResolvers<void>();
+      const upload = Promise.withResolvers<void>();
+      const entrypoint = loadEntrypoint(
+        longRunning,
+        false,
+        undefined,
+        undefined,
+        (sendConfig) =>
+          sendConfig.mockImplementation(() => {
+            uploadStarted.resolve();
+            return upload.promise;
+          }),
+      );
+      await uploadStarted.promise;
+      process.emit(signal);
+
+      const {
+        exit,
+        runWithStorageMock,
+        scrapeAccountsMock,
+        sendConfigToTelegramIfRequestedMock,
+        startServerMock,
+      } = await entrypoint;
+
+      expect(sendConfigToTelegramIfRequestedMock).toHaveBeenCalledTimes(1);
+      expect(exit).toHaveBeenCalledWith(0);
+      expect(runWithStorageMock).not.toHaveBeenCalled();
+      expect(scrapeAccountsMock).not.toHaveBeenCalled();
+      expect(startServerMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("preserves fatal exit status when a pending config upload is cancelled", async () => {
+    const uploadStarted = Promise.withResolvers<void>();
+    const upload = Promise.withResolvers<void>();
+    const error = new Error("fatal during startup");
+    const entrypoint = loadEntrypoint(
+      false,
+      false,
+      undefined,
+      undefined,
+      (sendConfig) =>
+        sendConfig.mockImplementation(() => {
+          uploadStarted.resolve();
+          return upload.promise;
+        }),
+    );
+    await uploadStarted.promise;
+    process.emit("uncaughtException", error, "uncaughtException");
+
+    const { exit, runWithStorageMock, scrapeAccountsMock, startServerMock } =
+      await entrypoint;
+
+    expect(exit).toHaveBeenCalledWith(1);
+    expect(runWithStorageMock).not.toHaveBeenCalled();
+    expect(scrapeAccountsMock).not.toHaveBeenCalled();
+    expect(startServerMock).not.toHaveBeenCalled();
   });
 
   it.each(["SIGINT", "SIGTERM"] as const)(
@@ -203,6 +332,69 @@ describe("index", () => {
       ).toEqual(listeners);
     },
   );
+
+  it.each(["cleanup", "cleanup after signal"] as const)(
+    "reports a one-shot %s failure before exiting with status 1",
+    async (stage) => {
+      const error = new Error(`${stage} failed`);
+      error.stack = `Error: ${stage} failed\n    at lifecycle.js:1`;
+      const notificationStarted = Promise.withResolvers<void>();
+      const notificationFinished = Promise.withResolvers<void>();
+      let exit: jest.SpyInstance | undefined;
+      const entrypoint = loadEntrypoint(
+        false,
+        false,
+        stage === "cleanup after signal"
+          ? (scrape) =>
+              scrape.mockImplementationOnce(async () => {
+                process.emit("SIGTERM");
+                return { results: [], domains: {} };
+              })
+          : undefined,
+        (mocks) => {
+          mocks.sendLogFile.mockRejectedValueOnce(error);
+          mocks.sendError.mockImplementationOnce(async () => {
+            notificationStarted.resolve();
+            await notificationFinished.promise;
+          });
+          exit = jest.mocked(process.exit);
+        },
+      );
+
+      await notificationStarted.promise;
+      expect(exit).not.toHaveBeenCalled();
+      const { sendError } = await import("./bot/notifier.js");
+      expect(sendError).toHaveBeenCalledWith(
+        `Unhandled rejection: ${stage} failed\nError: ${stage} failed\n    at lifecycle.js:1`,
+      );
+      notificationFinished.resolve();
+      const result = await entrypoint;
+      expect(result.exit).toHaveBeenCalledWith(1);
+    },
+  );
+
+  it("reports a rejected one-shot run and exits with status 1", async () => {
+    const acquired = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const held = locks.request("moneyman-scrape", async () => {
+      acquired.resolve();
+      await release.promise;
+    });
+    await acquired.promise;
+    try {
+      const { exit } = await loadEntrypoint(false);
+      const { sendError } = await import("./bot/notifier.js");
+      expect(sendError).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "Unhandled rejection: A scrape is already in progress",
+        ),
+      );
+      expect(exit).toHaveBeenCalledWith(1);
+    } finally {
+      release.resolve();
+      await held;
+    }
+  });
 
   it("disposes the per-run parent tracker after scraping", async () => {
     await loadEntrypoint(false);
@@ -258,6 +450,11 @@ describe("index", () => {
     it("hands the runner to the server without running", () => {
       expect(mocks.runWithStorageMock).not.toHaveBeenCalled();
       expect(mocks.exit).not.toHaveBeenCalled();
+      const processHandlers = mocks.startServerMock.mock.calls[0][1];
+      expect(processHandlers.signal).toBeInstanceOf(AbortSignal);
+      expect(processHandlers.waitForNotifications).toEqual(
+        expect.any(Function),
+      );
     });
 
     it.each(["manual", "scheduled"] as const)(

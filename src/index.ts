@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { aborted } from "node:util";
 import { locks } from "node:worker_threads";
 import { scrapeAccounts } from "./scraper/client.js";
 import {
@@ -36,6 +37,7 @@ import { getBuildMetadata } from "./buildMetadata.js";
 import { createRunReport } from "./bot/runReport.js";
 import { createReportPublisher } from "./bot/reportPublisher.js";
 import { formatUnknownError } from "./utils/utils.js";
+import { registerProcessHandlers } from "./utils/processErrors.js";
 
 const logger = createLogger("main");
 const SCRAPE_LOCK = "moneyman-scrape";
@@ -46,12 +48,12 @@ let lastRun: RunStatus | undefined;
 
 console.log("Starting...");
 
-process.on("uncaughtException", (err, origin) => {
-  console.error("uncaughtException, sending error");
-  sendError(`
-    Caught exception: ${err}
-    err.stack: ${err.stack}
-    Exception origin: ${origin}`).catch((e) => {});
+const processHandlers = registerProcessHandlers({
+  logger,
+  notify: (message) => sendError(message),
+  onFatal: () => {
+    process.exitCode = 1;
+  },
 });
 
 enableDebugLoggingIfNeeded();
@@ -60,29 +62,51 @@ getExternalIp().then((ipInfo) => logger("External IP info:", ipInfo));
 main();
 
 async function main() {
-  await sendConfigToTelegramIfRequested();
+  const configUpload = sendConfigToTelegramIfRequested();
+  const completed = new AbortController();
+  const uploadSignal = AbortSignal.any([
+    processHandlers.signal,
+    completed.signal,
+  ]);
+  try {
+    await Promise.race([configUpload, aborted(uploadSignal, configUpload)]);
+  } finally {
+    completed.abort();
+  }
+  if (processHandlers.signal.aborted) {
+    try {
+      await processHandlers.waitForNotifications();
+    } finally {
+      processHandlers.dispose();
+    }
+    process.exit(process.exitCode ?? 0);
+    return;
+  }
 
   if (longRunning) {
-    await startServer({
-      startRun,
-      refreshSecrets: hasConfigSecretProvider() ? refreshSecrets : undefined,
-      isRunning,
-      getLastRun: () => lastRun,
-    });
+    await startServer(
+      {
+        startRun,
+        refreshSecrets: hasConfigSecretProvider() ? refreshSecrets : undefined,
+        isRunning,
+        getLastRun: () => lastRun,
+      },
+      processHandlers,
+    );
   } else {
-    const abort = new AbortController();
-    const cancel = () => abort.abort(new Error("Scraper worker cancelled"));
-    process.once("SIGINT", cancel);
-    process.once("SIGTERM", cancel);
     try {
-      await runOnce("startup", abort.signal);
+      await runOnce("startup", processHandlers.signal);
+    } catch (error) {
+      processHandlers.reportUnhandledRejection(error);
     } finally {
-      process.removeListener("SIGINT", cancel);
-      process.removeListener("SIGTERM", cancel);
+      try {
+        await processHandlers.waitForNotifications();
+      } finally {
+        processHandlers.dispose();
+      }
+      // kill internal browsers if stuck
+      process.exit(process.exitCode ?? 0);
     }
-
-    // kill internal browsers if stuck
-    process.exit(0);
   }
 }
 

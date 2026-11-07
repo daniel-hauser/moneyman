@@ -1,4 +1,5 @@
-import { schedule } from "node-cron";
+import { createTask } from "node-cron";
+import { addAbortListener } from "node:events";
 import { config } from "./config.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 import {
@@ -10,6 +11,7 @@ import {
 import { registerCommands } from "./bot/commands.js";
 import type { RunHandle, RunStatus, RunTrigger } from "./types.js";
 import { aborted } from "node:util";
+import type { ProcessHandlers } from "./utils/processErrors.js";
 
 const logger = createLogger("server");
 
@@ -25,12 +27,10 @@ export type ServerRunner = {
   getLastRun(): RunStatus | undefined;
 };
 
-export async function startServer({
-  startRun,
-  refreshSecrets,
-  isRunning,
-  getLastRun,
-}: ServerRunner) {
+export async function startServer(
+  { startRun, refreshSecrets, isRunning, getLastRun }: ServerRunner,
+  processHandlers: ProcessHandlers,
+) {
   const cron = config.options.scheduling.cron;
   const bot = getTelegramBot();
   if (!bot && !cron) {
@@ -59,17 +59,21 @@ export async function startServer({
   }
 
   const task = cron
-    ? schedule(cron, () => {
+    ? createTask(cron, () => {
         startTrackedRun("scheduled").catch((e) =>
           logger("Scheduled run failed", e),
         );
       })
     : undefined;
-  logToPublicLog(
-    cron
-      ? `Scheduled runs: ${cron} (${Intl.DateTimeFormat().resolvedOptions().timeZone})`
-      : "No scheduled runs, use /scrape in Telegram to run on demand",
-  );
+  const signal = processHandlers.signal;
+  function handleShutdownFailure(error: unknown) {
+    process.exitCode = 1;
+    try {
+      logger("Failed to shut down cleanly", error);
+    } finally {
+      process.exit(1);
+    }
+  }
 
   async function shutdown(signal: string) {
     if (shuttingDown) return;
@@ -98,13 +102,39 @@ export async function startServer({
       }
     }
 
-    await shutdownTelegramBot();
+    try {
+      await shutdownTelegramBot();
+    } finally {
+      try {
+        await processHandlers.waitForNotifications();
+      } finally {
+        processHandlers.dispose();
+      }
+    }
 
-    process.exit(0);
+    process.exit(process.exitCode ?? 0);
   }
 
-  process.once("SIGINT", () => shutdown("SIGINT"));
-  process.once("SIGTERM", () => shutdown("SIGTERM"));
+  addAbortListener(signal, () => {
+    void shutdown(processHandlers.reason ?? "process error").catch(
+      handleShutdownFailure,
+    );
+  });
+
+  try {
+    signal.throwIfAborted();
+    await task?.start();
+    signal.throwIfAborted();
+  } catch (error) {
+    if (signal.aborted && error === signal.reason) return;
+    throw error;
+  }
+
+  logToPublicLog(
+    cron
+      ? `Scheduled runs: ${cron} (${Intl.DateTimeFormat().resolvedOptions().timeZone})`
+      : "No scheduled runs, use /scrape in Telegram to run on demand",
+  );
 
   if (!bot) {
     logToPublicLog(
