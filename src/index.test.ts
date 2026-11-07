@@ -79,11 +79,6 @@ jest.mock("./security/domains.js", () => ({
 jest.mock("./utils/failureScreenshot.js", () => ({
   sendFailureScreenShots: jest.fn().mockResolvedValue(undefined),
 }));
-jest.mock("./utils/logger.js", () => ({
-  createLogger: () => jest.fn(),
-  logToPublicLog: jest.fn(),
-}));
-
 const accountResult = (
   companyId: CompanyTypes,
   success: boolean,
