@@ -8,6 +8,7 @@ import type { MoneymanConfig } from "../../config.js";
 const logger = createLogger("LocalJsonStorage");
 
 export class LocalJsonStorage implements TransactionStorage {
+  readonly supportsPendingTransactions = true;
   folder: string;
 
   constructor(private config: MoneymanConfig) {
@@ -37,6 +38,7 @@ export class LocalJsonStorage implements TransactionStorage {
 
     const stats = createSaveStats("LocalJsonStorage", fileName, txns, {
       added: txns.length,
+      pending: 0,
     });
 
     return stats;

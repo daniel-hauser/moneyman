@@ -19,6 +19,16 @@ import { newDb, type IMemoryDb } from "pg-mem";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { SqlStorage } from "./sql.js";
 import { config, transactionRow } from "../../utils/tests.js";
+import { CompanyTypes } from "israeli-bank-scrapers";
+import { saveResults } from "./index.js";
+import { createRunReport } from "../runReport.js";
+import { getSkippedCount } from "../saveStats.js";
+
+jest.mock("../../config.js", () => ({ systemName: "moneyman" }));
+jest.mock("google-spreadsheet", () => ({ GoogleSpreadsheet: jest.fn() }));
+jest.mock("azure-kusto-data", () => ({}));
+jest.mock("azure-kusto-ingest", () => ({}));
+jest.mock("@actual-app/api", () => ({}));
 
 const onProgress = jest
   .fn<Promise<void>, [string]>()
@@ -136,6 +146,53 @@ describe("SqlStorage", () => {
     ) as { status: TransactionStatuses };
     expect(rawStored.status).toBe(TransactionStatuses.Pending);
   });
+
+  it.each([false, true])(
+    "preserves raw pending through orchestration with completed=%s",
+    async (includeCompleted) => {
+      const txns = [
+        transactionRow({ status: TransactionStatuses.Pending }),
+        ...(includeCompleted
+          ? [transactionRow({ uniqueId: "completed" })]
+          : []),
+      ];
+      const report = createRunReport();
+      await saveResults(
+        [
+          {
+            companyId: CompanyTypes.hapoalim,
+            result: {
+              success: true,
+              accounts: [{ accountNumber: "123", txns }],
+            },
+          },
+        ],
+        report,
+        [storage],
+      );
+
+      const result = report.storages.SqlStorage;
+      expect(result.state).toBe("done");
+      if (result.state !== "done") throw new Error("SQL save failed");
+      expect(result.stats).toMatchObject({
+        total: txns.length,
+        added: Number(includeCompleted),
+        pending: 1,
+        existing: 0,
+      });
+      expect(result.stats.added + getSkippedCount(result.stats)).toBe(
+        txns.length,
+      );
+      expect(
+        db.public.many('SELECT * FROM "moneyman"."transactions"'),
+      ).toHaveLength(Number(includeCompleted));
+      const rawRows = db.public.many(
+        `SELECT "raw"->>'status' AS status FROM "moneyman"."transactions_raw"`,
+      );
+      expect(rawRows).toHaveLength(txns.length);
+      expect(rawRows).toContainEqual({ status: TransactionStatuses.Pending });
+    },
+  );
 
   it("counts duplicate unique IDs within a single batch as updates", async () => {
     const first = transactionRow({
