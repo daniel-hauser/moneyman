@@ -60,3 +60,19 @@ jest.mock("node:timers/promises", () => {
     },
   };
 });
+
+jest.mock("./src/utils/logger.js", () => {
+  const { BooleanEnvVarSchema } = jest.requireActual("./src/config.schema.js");
+  const createMockLogger = () => {
+    const log = jest.fn();
+    log.extend = createMockLogger;
+    return log;
+  };
+
+  return {
+    logger: createMockLogger(),
+    createLogger: createMockLogger,
+    logToPublicLog: jest.fn(),
+    unsafeStdout: BooleanEnvVarSchema.parse(process.env.MONEYMAN_UNSAFE_STDOUT),
+  };
+});

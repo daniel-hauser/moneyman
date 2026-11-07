@@ -2,6 +2,8 @@ import debug from "debug";
 import { createLogger } from "./logger.js";
 import { loggerContextStore } from "./asyncContext.js";
 
+jest.unmock("./logger.js");
+
 const mockThread = { isMainThread: true, threadId: 0 };
 
 jest.mock("node:worker_threads", () => ({
