@@ -50,6 +50,7 @@ export interface TransactionStorage {
    */
   readonly supportsPendingTransactions?: boolean;
   canSave(): boolean;
+  /** Called with completed transactions unless supportsPendingTransactions is true. */
   saveTransactions(
     txns: Array<TransactionRow>,
     onProgress: (status: string) => Promise<void>,

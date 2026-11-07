@@ -1,6 +1,5 @@
 import { createLogger } from "../../utils/logger.js";
 import type { TransactionRow, TransactionStorage } from "../../types.js";
-import { nonPendingTransactions } from "./utils.js";
 import { tableRow } from "../transactionTableRow.js";
 import { createSaveStats } from "../saveStats.js";
 import type { MoneymanConfig } from "../../config.js";
@@ -25,11 +24,7 @@ export class WebPostStorage implements TransactionStorage {
     const webPostConfig = this.config.storage.webPost;
     assert(webPostConfig, "Web Post configuration not found");
 
-    const nonPendingTxns = nonPendingTransactions(txns);
-
-    logger(
-      `Posting ${nonPendingTxns.length} transactions to ${webPostConfig.url}`,
-    );
+    logger(`Posting ${txns.length} transactions to ${webPostConfig.url}`);
 
     const [response] = await Promise.all([
       fetch(webPostConfig.url, {
@@ -40,7 +35,7 @@ export class WebPostStorage implements TransactionStorage {
           Authorization: webPostConfig.authorizationToken,
         },
         body: JSON.stringify(
-          nonPendingTxns.map((tx) =>
+          txns.map((tx) =>
             tableRow(
               tx,
               false,
@@ -60,7 +55,7 @@ export class WebPostStorage implements TransactionStorage {
     const res = (await response.json()) as Record<string, number>;
 
     const stats = createSaveStats("WebPostStorage", "web-post", txns);
-    stats.added = res.added ?? nonPendingTxns.length;
+    stats.added = res.added ?? txns.length;
 
     return stats;
   }

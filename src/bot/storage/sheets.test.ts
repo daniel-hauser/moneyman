@@ -6,7 +6,6 @@ import {
 import { mock, mockClear } from "jest-mock-extended";
 import { config, transactionRow } from "../../utils/tests.js";
 import type { MoneymanConfig } from "../../config.js";
-import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { getSkippedCount } from "../saveStats.js";
 
 jest.mock("../../config.js", () => ({ systemName: "moneyman" }));
@@ -62,7 +61,7 @@ describe("GoogleSheetsStorage", () => {
   });
 
   it.each(["moneyman", ""] as const)(
-    "keeps %s hash semantics without counting pending or existing twice",
+    "keeps %s hash semantics without counting existing transactions twice",
     async (hashType) => {
       mockConfig.options.scraping.transactionHashType = hashType;
       const txns = [
@@ -70,11 +69,6 @@ describe("GoogleSheetsStorage", () => {
         transactionRow({ hash: "new-hash", uniqueId: "new-id" }),
         transactionRow({ hash: "both-hash", uniqueId: "both-id" }),
         transactionRow({ hash: "fresh", uniqueId: "fresh-id" }),
-        transactionRow({
-          status: TransactionStatuses.Pending,
-          hash: "old",
-          uniqueId: "new-id",
-        }),
       ];
       mockSheet.getCellsInRange.mockResolvedValue([
         ["old", "new-id", "both-hash", "both-id"],
@@ -83,10 +77,10 @@ describe("GoogleSheetsStorage", () => {
       const stats = await storage.saveTransactions(txns, async () => {});
       const added = hashType === "moneyman" ? 1 : 2;
       expect(stats).toMatchObject({
-        total: 5,
+        total: 4,
         added,
         existing: 4 - added,
-        pending: 1,
+        pending: 0,
         otherSkipped: 0,
       });
       expect(stats.added + getSkippedCount(stats)).toBe(stats.total);
