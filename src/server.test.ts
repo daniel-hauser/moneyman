@@ -10,7 +10,7 @@ import { registerCommands } from "./bot/commands.js";
 import { registerProcessHandlers } from "./utils/processErrors.js";
 import {
   getTelegramBot,
-  startTelegramBot,
+  launchTelegramBot,
   shutdownTelegramBot,
   sendError,
 } from "./bot/notifier.js";
@@ -22,7 +22,7 @@ jest.mock("node-cron", () => ({ createTask: jest.fn() }));
 jest.mock("./bot/commands.js", () => ({ registerCommands: jest.fn() }));
 jest.mock("./bot/notifier.js", () => ({
   getTelegramBot: jest.fn(),
-  startTelegramBot: jest.fn(),
+  launchTelegramBot: jest.fn(),
   shutdownTelegramBot: jest.fn().mockResolvedValue(undefined),
   sendError: jest.fn().mockResolvedValue(undefined),
 }));
@@ -77,11 +77,7 @@ describe("startServer", () => {
     bot = mockDeep<Telegraf<Context>>();
     bot.telegram.deleteMyCommands.mockResolvedValue(true);
     jest.mocked(getTelegramBot).mockReturnValue(bot);
-    jest.mocked(startTelegramBot).mockReturnValue({
-      lifetime: Promise.resolve(),
-      stop: jest.fn().mockResolvedValue(undefined),
-      shutdown: jest.fn().mockResolvedValue(undefined),
-    });
+    jest.mocked(launchTelegramBot).mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -165,9 +161,7 @@ describe("startServer", () => {
       releaseRun();
       await flush();
       expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
-      expect(shutdownTelegramBot).toHaveBeenCalledWith(
-        jest.mocked(startTelegramBot).mock.results[0].value,
-      );
+      expect(shutdownTelegramBot).toHaveBeenCalledWith();
       expect(exit).toHaveBeenCalledWith(0);
       expect(exit).toHaveBeenCalledTimes(1);
       expect(
@@ -307,7 +301,7 @@ describe("startServer", () => {
 
       expect(createTask).toHaveBeenCalledTimes(1);
       expect(task.start).not.toHaveBeenCalled();
-      expect(startTelegramBot).not.toHaveBeenCalled();
+      expect(launchTelegramBot).not.toHaveBeenCalled();
       expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
       expect(exit).toHaveBeenCalledWith(1);
     } finally {
@@ -329,11 +323,11 @@ describe("startServer", () => {
     lifecycle.source.emit("SIGTERM", "SIGTERM");
     await flush();
     expect(task.stop).toHaveBeenCalledTimes(1);
-    expect(startTelegramBot).not.toHaveBeenCalled();
+    expect(launchTelegramBot).not.toHaveBeenCalled();
 
     releaseStart();
     await startup;
-    expect(startTelegramBot).not.toHaveBeenCalled();
+    expect(launchTelegramBot).not.toHaveBeenCalled();
   });
 
   it("propagates cron task startup failures", async () => {
@@ -343,7 +337,7 @@ describe("startServer", () => {
     await expect(startServer(serverRunner(), lifecycle.handlers)).rejects.toBe(
       error,
     );
-    expect(startTelegramBot).not.toHaveBeenCalled();
+    expect(launchTelegramBot).not.toHaveBeenCalled();
   });
 
   it("does not mistake a cron startup failure for a concurrent abort", async () => {
@@ -354,7 +348,7 @@ describe("startServer", () => {
     lifecycle.source.emit("SIGTERM", "SIGTERM");
 
     await expect(startup).rejects.toBe(error);
-    expect(startTelegramBot).not.toHaveBeenCalled();
+    expect(launchTelegramBot).not.toHaveBeenCalled();
   });
 
   it("logs shutdown failures and exits with a failure code", async () => {

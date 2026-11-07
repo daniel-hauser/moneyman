@@ -18,46 +18,11 @@ export function createBot(bot: Telegraf<Context> | null) {
     if (isAuthorizedChat(ctx)) return next();
     logger(`Ignoring an update from unauthorized chat ${ctx.chat?.id}`);
   });
-  function shutdownTelegramBot(polling?: TelegramPolling): Promise<void> {
-    if (polling) return polling.shutdown();
-    return shutdown();
-  }
 
-  async function shutdown(polling?: TelegramPolling): Promise<void> {
-    const completed = new AbortController();
-    const signal = AbortSignal.any([
-      AbortSignal.timeout(3_000),
-      completed.signal,
-    ]);
-    try {
-      const stopped = polling?.stop(signal);
-      if (!bot) {
-        if (stopped) await stopped;
-        return;
-      }
+  let polling: TelegramPolling | undefined;
+  let shutdown: Promise<void> | undefined;
 
-      const [stopResult, clearResult] = await Promise.allSettled([
-        Promise.resolve(stopped),
-        Promise.race([
-          bot.telegram.deleteMyCommands(),
-          aborted(signal, bot).then(() => signal.throwIfAborted()),
-        ]),
-      ]);
-      if (stopResult.status === "rejected") {
-        logger("Failed to stop Telegram polling", stopResult.reason);
-      }
-      if (clearResult.status === "rejected") {
-        throw clearResult.reason;
-      }
-    } catch (error) {
-      logger("Failed to clear Telegram command menu", error);
-      logToPublicLog("Failed to clear Telegram command menu", logger);
-    } finally {
-      completed.abort();
-    }
-  }
-
-  function startTelegramBot(): TelegramPolling {
+  function createPolling(): TelegramPolling {
     const lifetime = bot
       ? bot.launch(() => logger("Telegram bot launched"))
       : Promise.reject(new Error("Telegram is not configured"));
@@ -69,7 +34,6 @@ export function createBot(bot: Telegraf<Context> | null) {
       },
     );
     let stopping: Promise<void> | undefined;
-    let shutdownPromise: Promise<void> | undefined;
 
     function stop(signal?: AbortSignal): Promise<void> {
       stopping ??= (async () => {
@@ -116,23 +80,73 @@ export function createBot(bot: Telegraf<Context> | null) {
         : stopping;
     }
 
-    const polling: TelegramPolling = {
-      lifetime,
-      stop,
-      shutdown: () => (shutdownPromise ??= shutdown(polling)),
-    };
+    return { lifetime, stop };
+  }
+
+  function getPolling(): TelegramPolling {
+    if (!polling) {
+      polling = createPolling();
+      const current = polling;
+      void current.lifetime.catch(() => {
+        if (polling === current) polling = undefined;
+      });
+    }
     return polling;
   }
 
+  function launchTelegramBot(): Promise<void> {
+    if (!bot) return Promise.reject(new Error("Telegram is not configured"));
+    return getPolling().lifetime;
+  }
+
+  function stopTelegramBot(signal?: AbortSignal): Promise<void> {
+    return polling?.stop(signal) ?? Promise.resolve();
+  }
+
+  function shutdownTelegramBot(): Promise<void> {
+    shutdown ??= shutdownWithDeadline();
+    return shutdown;
+  }
+
+  async function shutdownWithDeadline(): Promise<void> {
+    const completed = new AbortController();
+    const signal = AbortSignal.any([
+      AbortSignal.timeout(3_000),
+      completed.signal,
+    ]);
+    try {
+      const [stopResult, clearResult] = await Promise.allSettled([
+        stopTelegramBot(signal),
+        bot
+          ? Promise.race([
+              bot.telegram.deleteMyCommands(),
+              aborted(signal, bot).then(() => signal.throwIfAborted()),
+            ])
+          : Promise.resolve(),
+      ]);
+      if (stopResult.status === "rejected") {
+        logger("Failed to stop Telegram polling", stopResult.reason);
+      }
+      if (clearResult.status === "rejected") {
+        throw clearResult.reason;
+      }
+    } catch (error) {
+      logger("Failed to clear Telegram command menu", error);
+      logToPublicLog("Failed to clear Telegram command menu", logger);
+    } finally {
+      completed.abort();
+    }
+  }
+
   return {
-    startTelegramBot,
+    launchTelegramBot,
+    stopTelegramBot,
     shutdownTelegramBot,
     requestOtpCode: createOtpHandler(bot),
   };
 }
 
-export type TelegramPolling = {
+type TelegramPolling = {
   lifetime: Promise<void>;
   stop(signal?: AbortSignal): Promise<void>;
-  shutdown(): Promise<void>;
 };

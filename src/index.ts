@@ -8,9 +8,7 @@ import {
 } from "./config.js";
 import { BooleanEnvVarSchema } from "./config.schema.js";
 import {
-  startTelegramBot,
   sendError,
-  send as sendTelegramMessage,
   reportTransport,
   reportUpdateIntervalMs,
   requestOtpCode,
@@ -41,9 +39,9 @@ import { createReportPublisher } from "./bot/reportPublisher.js";
 import { formatUnknownError } from "./utils/utils.js";
 import { registerProcessHandlers } from "./utils/processErrors.js";
 import type { OtpRequest } from "./scraper/otp.js";
+import { createOneShotOtpSession } from "./bot/otpSession.js";
 
 const logger = createLogger("main");
-const otpLogger = createLogger("otp");
 const SCRAPE_LOCK = "moneyman-scrape";
 const longRunning = BooleanEnvVarSchema.parse(
   process.env.MONEYMAN_LONG_RUNNING,
@@ -188,75 +186,6 @@ async function runScraper(
     logger("Error", e);
     await hooks.onError(e);
   }
-}
-
-function createOneShotOtpSession(signal?: AbortSignal) {
-  let polling:
-    | { resource: ReturnType<typeof startTelegramBot>; lifetime: Promise<void> }
-    | undefined;
-
-  function startPolling() {
-    if (!polling) {
-      const started = startTelegramBot();
-      polling = {
-        resource: started,
-        lifetime: started.lifetime.catch((error) => {
-          otpLogger("Failed to start Telegram bot for OTP", error);
-          void sendTelegramMessage(
-            `requestOtpCode\n❌ ${
-              error instanceof Error
-                ? `${error.message}\n${error.stack}`
-                : formatUnknownError(error)
-            }`,
-          ).catch((notificationError) =>
-            otpLogger(
-              "Failed to send OTP error notification",
-              notificationError,
-            ),
-          );
-          throw new Error(`Failed to start Telegram bot for OTP: ${error}`);
-        }),
-      };
-    }
-    return polling.lifetime;
-  }
-
-  const request: OtpRequest = async (companyId, phoneNumber, requestSignal) => {
-    signal?.throwIfAborted();
-    requestSignal?.throwIfAborted();
-
-    const completed = new AbortController();
-    const combined = AbortSignal.any(
-      [signal, requestSignal, completed.signal].filter(
-        (signal) => signal !== undefined,
-      ),
-    );
-    try {
-      const response = requestOtpCode(companyId, phoneNumber, combined);
-      const polling = startPolling().then(() => {
-        throw new Error("Telegram bot stopped while waiting for OTP");
-      });
-      return await Promise.race([response, polling]);
-    } finally {
-      completed.abort();
-    }
-  };
-
-  return {
-    request,
-    async close() {
-      const completed = new AbortController();
-      const shutdown = AbortSignal.any([
-        AbortSignal.timeout(3_000),
-        completed.signal,
-      ]);
-      try {
-        await polling?.resource.stop(shutdown);
-      } finally {
-        completed.abort();
-      }
-    },
-  };
 }
 
 async function prepareRun() {

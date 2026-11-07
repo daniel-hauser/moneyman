@@ -51,11 +51,8 @@ jest.mock("./bot/notifier.js", () => ({
   __esModule: true,
   sendError: jest.fn().mockResolvedValue(undefined),
   send: jest.fn().mockResolvedValue(undefined),
-  startTelegramBot: jest.fn(() => ({
-    lifetime: new Promise<void>(() => {}),
-    stop: jest.fn().mockResolvedValue(undefined),
-    shutdown: jest.fn().mockResolvedValue(undefined),
-  })),
+  launchTelegramBot: jest.fn(() => new Promise<void>(() => {})),
+  stopTelegramBot: jest.fn().mockResolvedValue(undefined),
   shutdownTelegramBot: jest.fn().mockResolvedValue(undefined),
   requestOtpCode: jest.fn().mockResolvedValue("123456"),
   sendPhotos: jest.fn().mockResolvedValue(undefined),
@@ -112,9 +109,6 @@ async function loadEntrypoint(
     notifier: typeof import("./bot/notifier.js"),
   ) => void,
   configureLifecycle?: (mocks: {
-    sendConfig: jest.MockedFunction<
-      typeof import("./config.js").sendConfigToTelegramIfRequested
-    >;
     sendLogFile: jest.MockedFunction<
       typeof import("./utils/secure-log.js").sendLogFile
     >;
@@ -139,10 +133,8 @@ async function loadEntrypoint(
   const { startServer } = await import("./server.js");
   const { runContextStore } = await import("./utils/asyncContext.js");
   const { hasConfigSecretProvider } = await import("./configRefresh.js");
-  const { sendConfigToTelegramIfRequested } = await import("./config.js");
   const { sendError } = await import("./bot/notifier.js");
   configureLifecycle?.({
-    sendConfig: jest.mocked(sendConfigToTelegramIfRequested),
     sendLogFile: jest.mocked(sendLogFile),
     sendError: jest.mocked(sendError),
   });
@@ -228,7 +220,7 @@ describe("index", () => {
 
     expect(runWithStorageMock).toHaveBeenCalledTimes(1);
     expect(startServerMock).not.toHaveBeenCalled();
-    expect(notifier.startTelegramBot).not.toHaveBeenCalled();
+    expect(notifier.launchTelegramBot).not.toHaveBeenCalled();
     expect(exit).toHaveBeenCalledWith(0);
     expect(sendLogFileMock).toHaveBeenCalledWith(true, [{}], false);
     const { loadRunConfig } = await import("./configRefresh.js");
@@ -262,7 +254,7 @@ describe("index", () => {
       );
       const notifier = await import("./bot/notifier.js");
       expect(scrapeAccountsMock).toHaveBeenCalledTimes(1);
-      expect(notifier.startTelegramBot).not.toHaveBeenCalled();
+      expect(notifier.launchTelegramBot).not.toHaveBeenCalled();
       expect(exit).toHaveBeenCalledWith(0);
       expect(
         ["SIGINT", "SIGTERM"].map((signal) => process.listenerCount(signal)),
@@ -288,11 +280,9 @@ describe("index", () => {
 
     expect(scrapeAccountsMock).toHaveBeenCalledTimes(1);
     expect(responses).toEqual(["123456", "123456"]);
-    expect(notifier.startTelegramBot).toHaveBeenCalledTimes(1);
+    expect(notifier.launchTelegramBot).toHaveBeenCalledTimes(1);
     expect(notifier.requestOtpCode).toHaveBeenCalledTimes(2);
-    expect(
-      jest.mocked(notifier.startTelegramBot).mock.results[0].value.stop,
-    ).toHaveBeenCalledTimes(1);
+    expect(notifier.stopTelegramBot).toHaveBeenCalledTimes(1);
   });
 
   it("cleans up after polling startup fails in a one-shot run", async () => {
@@ -301,11 +291,9 @@ describe("index", () => {
       false,
       false,
       (scrape, notifier) => {
-        jest.mocked(notifier.startTelegramBot).mockImplementationOnce(() => ({
-          lifetime: Promise.reject(new Error("polling failed")),
-          stop: jest.fn().mockResolvedValue(undefined),
-          shutdown: jest.fn().mockResolvedValue(undefined),
-        }));
+        jest
+          .mocked(notifier.launchTelegramBot)
+          .mockRejectedValueOnce(new Error("polling failed"));
         jest
           .mocked(notifier.requestOtpCode)
           .mockImplementationOnce(async (_companyId, _phoneNumber, signal) => {
@@ -332,9 +320,7 @@ describe("index", () => {
     expect(notifier.send).toHaveBeenCalledWith(
       expect.stringContaining("requestOtpCode\n❌ polling failed"),
     );
-    expect(
-      jest.mocked(notifier.startTelegramBot).mock.results[0].value.stop,
-    ).toHaveBeenCalledTimes(1);
+    expect(notifier.stopTelegramBot).toHaveBeenCalledTimes(1);
   });
 
   it("shares one polling failure and notification across concurrent OTP requests", async () => {
@@ -343,11 +329,9 @@ describe("index", () => {
       false,
       false,
       (scrape, notifier) => {
-        jest.mocked(notifier.startTelegramBot).mockImplementationOnce(() => ({
-          lifetime: Promise.reject(new Error("polling failed")),
-          stop: jest.fn().mockResolvedValue(undefined),
-          shutdown: jest.fn().mockResolvedValue(undefined),
-        }));
+        jest
+          .mocked(notifier.launchTelegramBot)
+          .mockRejectedValueOnce(new Error("polling failed"));
         jest
           .mocked(notifier.requestOtpCode)
           .mockImplementation(async (_companyId, _phoneNumber, signal) => {
@@ -370,11 +354,9 @@ describe("index", () => {
       expect.objectContaining({ status: "rejected" }),
       expect.objectContaining({ status: "rejected" }),
     ]);
-    expect(notifier.startTelegramBot).toHaveBeenCalledTimes(1);
+    expect(notifier.launchTelegramBot).toHaveBeenCalledTimes(1);
     expect(notifier.send).toHaveBeenCalledTimes(1);
-    expect(
-      jest.mocked(notifier.startTelegramBot).mock.results[0].value.stop,
-    ).toHaveBeenCalledTimes(1);
+    expect(notifier.stopTelegramBot).toHaveBeenCalledTimes(1);
   });
 
   it("stops a polling startup after OTP cancellation before launch completes", async () => {
@@ -385,11 +367,9 @@ describe("index", () => {
       false,
       false,
       (scrape, notifier) => {
-        jest.mocked(notifier.startTelegramBot).mockReturnValue({
-          lifetime: startup.promise,
-          stop: jest.fn().mockResolvedValue(undefined),
-          shutdown: jest.fn().mockResolvedValue(undefined),
-        });
+        jest
+          .mocked(notifier.launchTelegramBot)
+          .mockReturnValue(startup.promise);
         jest
           .mocked(notifier.requestOtpCode)
           .mockImplementationOnce(async (_companyId, _phoneNumber, signal) => {
@@ -419,9 +399,7 @@ describe("index", () => {
       ),
     ).toEqual([]);
     expect(notifier.requestOtpCode).toHaveBeenCalledTimes(1);
-    expect(
-      jest.mocked(notifier.startTelegramBot).mock.results[0].value.stop,
-    ).toHaveBeenCalledTimes(1);
+    expect(notifier.stopTelegramBot).toHaveBeenCalledTimes(1);
   });
 
   it("applies the OTP response timeout while polling startup is pending", async () => {
@@ -471,13 +449,11 @@ describe("index", () => {
         message: "OTP timeout: No response received within 30 seconds",
       }),
     );
-    expect(notifier.startTelegramBot).toHaveBeenCalledTimes(1);
-    expect(
-      jest.mocked(notifier.startTelegramBot).mock.results[0].value.stop,
-    ).toHaveBeenCalledTimes(1);
+    expect(notifier.launchTelegramBot).toHaveBeenCalledTimes(1);
+    expect(notifier.stopTelegramBot).toHaveBeenCalledTimes(1);
   });
 
-  it.each(["startup", "cleanup", "cleanup after signal"] as const)(
+  it.each(["cleanup", "cleanup after signal"] as const)(
     "reports a one-shot %s failure before exiting with status 1",
     async (stage) => {
       const error = new Error(`${stage} failed`);
@@ -496,11 +472,7 @@ describe("index", () => {
               })
           : undefined,
         (mocks) => {
-          if (stage === "startup") {
-            mocks.sendConfig.mockRejectedValueOnce(error);
-          } else {
-            mocks.sendLogFile.mockRejectedValueOnce(error);
-          }
+          mocks.sendLogFile.mockRejectedValueOnce(error);
           mocks.sendError.mockImplementationOnce(async () => {
             notificationStarted.resolve();
             await notificationFinished.promise;
@@ -618,7 +590,7 @@ describe("index", () => {
       expect(mocks.scrapeAccountsMock.mock.calls[0][1]).toBe(
         mocks.notifier.requestOtpCode,
       );
-      expect(mocks.notifier.startTelegramBot).not.toHaveBeenCalled();
+      expect(mocks.notifier.launchTelegramBot).not.toHaveBeenCalled();
     });
 
     it.each(["manual", "scheduled"] as const)(
