@@ -4,7 +4,7 @@ import { config } from "./config.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 import {
   getTelegramBot,
-  startTelegramBot,
+  launchTelegramBot,
   shutdownTelegramBot,
   sendError,
 } from "./bot/notifier.js";
@@ -12,7 +12,6 @@ import { registerCommands } from "./bot/commands.js";
 import type { RunHandle, RunStatus, RunTrigger } from "./types.js";
 import { aborted } from "node:util";
 import type { ProcessHandlers } from "./utils/processErrors.js";
-import type { TelegramPolling } from "./bot/bot.js";
 
 const logger = createLogger("server");
 
@@ -45,7 +44,6 @@ export async function startServer(
   /** The run in progress, mirrored so a shutdown can wait for it. */
   let activeRun: Promise<unknown> | undefined;
   let shuttingDown = false;
-  let polling: TelegramPolling | undefined;
 
   async function startTrackedRun(trigger: RunTrigger) {
     const handle = await startRun(trigger);
@@ -105,7 +103,7 @@ export async function startServer(
     }
 
     try {
-      await shutdownTelegramBot(polling);
+      await shutdownTelegramBot();
     } finally {
       try {
         await processHandlers.waitForNotifications();
@@ -176,8 +174,7 @@ export async function startServer(
     getNextRunAt: () => task?.getNextRun() ?? undefined,
   });
 
-  polling = startTelegramBot();
-  await polling.lifetime
+  await launchTelegramBot()
     .then(() => logToPublicLog("Listening for Telegram commands"))
     .catch((e) => {
       // Telegram fetch errors can contain the bot token; keep details out of public logs.
