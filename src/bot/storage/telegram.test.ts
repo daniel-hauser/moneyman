@@ -3,12 +3,6 @@ import { config } from "../../utils/tests.js";
 import type { MoneymanConfig } from "../../config.js";
 import { NotificationOptionsSchema } from "../../config.schema.js";
 
-// Mock logger
-jest.mock("../../utils/logger.js", () => ({
-  createLogger: () => jest.fn(),
-  logToPublicLog: jest.fn(),
-}));
-
 // Mock notifier
 jest.mock("../notifier.js", () => ({
   sendJSON: jest.fn(),

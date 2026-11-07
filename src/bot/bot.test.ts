@@ -4,11 +4,6 @@ import type { Message, UserFromGetMe } from "telegraf/types";
 import { createBot } from "./bot.js";
 import { logToPublicLog } from "../utils/logger.js";
 
-jest.mock("../utils/logger.js", () => ({
-  createLogger: () => jest.fn(),
-  logToPublicLog: jest.fn(),
-}));
-
 jest.mock("../config.js", () => ({
   config: {
     options: {

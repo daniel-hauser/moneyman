@@ -1,7 +1,3 @@
-jest.mock("../utils/logger.js", () => ({
-  createLogger: () => jest.fn(),
-}));
-
 describe("deprecationManager", () => {
   let sendDeprecationMessage: any;
   let assignDeprecationHandler: any;

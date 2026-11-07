@@ -12,10 +12,6 @@ import { mock } from "jest-mock-extended";
 import http from "node:http";
 import type { DomainTracker, createDomainTracker } from "./domains.js";
 
-jest.mock("../utils/logger.js", () => ({
-  createLogger: jest.fn(() => jest.fn()),
-}));
-
 const trackers = new Set<DomainTracker>();
 async function loadDomains(
   settings: Parameters<typeof createDomainTracker>[0],

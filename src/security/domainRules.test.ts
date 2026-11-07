@@ -1,10 +1,6 @@
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { DomainRuleManager } from "./domainRules.js";
 
-jest.mock("../utils/logger.js", () => ({
-  createLogger: jest.fn(() => jest.fn()),
-}));
-
 jest.mock("../config.js", () => ({
   config: {
     options: {
