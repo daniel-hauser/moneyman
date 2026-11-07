@@ -5,14 +5,6 @@ import {
 import { createRunReport, renderHTMLReport } from "./runReport.js";
 import { mock } from "jest-mock-extended";
 
-jest.mock("node:timers/promises", () =>
-  jest
-    .requireActual<typeof import("../testUtils/promiseTimers.js")>(
-      "../testUtils/promiseTimers.js",
-    )
-    .createPromiseTimerMock(),
-);
-
 jest.mock("./runReport.js", () => {
   const actual =
     jest.requireActual<typeof import("./runReport.js")>("./runReport.js");
