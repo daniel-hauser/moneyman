@@ -1,9 +1,12 @@
 import type { EventEmitter } from "node:events";
 import type { ProcessEventMap } from "node:process";
+import { aborted } from "node:util";
 import { formatUnknownError } from "./utils.js";
 
 type ErrorLogger = (message: string, ...details: unknown[]) => void;
 type ProcessHandlerReason = NodeJS.Signals | "process error";
+
+const NOTIFICATION_DRAIN_TIMEOUT_MS = 3_000;
 
 export interface ProcessHandlers {
   signal: AbortSignal;
@@ -25,20 +28,45 @@ export function registerProcessHandlers({
   process?: EventEmitter<ProcessEventMap>;
 }): ProcessHandlers {
   const controller = new AbortController();
-  const cleanup = new DisposableStack();
+  const errorCleanup = new DisposableStack();
+  const signalCleanup = new DisposableStack();
   let notifications = Promise.resolve();
   let reason: ProcessHandlerReason | undefined;
 
   function dispose() {
-    cleanup.dispose();
+    errorCleanup.dispose();
+    signalCleanup.dispose();
   }
 
   function stop(stopReason: ProcessHandlerReason, abortReason: unknown) {
     if (controller.signal.aborted) return;
 
     reason = stopReason;
-    dispose();
+    signalCleanup.dispose();
     controller.abort(abortReason);
+  }
+
+  async function waitForNotifications() {
+    const completed = new AbortController();
+    const deadline = AbortSignal.any([
+      AbortSignal.timeout(NOTIFICATION_DRAIN_TIMEOUT_MS),
+      completed.signal,
+    ]);
+    const timedOut = aborted(deadline, completed).then(() => true);
+    try {
+      while (true) {
+        const pending = notifications;
+        if (await Promise.race([pending.then(() => false), timedOut])) {
+          logger(
+            `Timed out after ${NOTIFICATION_DRAIN_TIMEOUT_MS} ms waiting for process error notifications`,
+          );
+          return;
+        }
+        if (pending === notifications) return;
+      }
+    } finally {
+      completed.abort();
+    }
   }
 
   const handle = (
@@ -59,14 +87,17 @@ export function registerProcessHandlers({
     onFatal(error);
   };
 
-  const onUncaughtException = (error: Error, origin: string) => {
+  const onUncaughtException = (
+    error: Error | null | undefined,
+    origin: string,
+  ) => {
     console.error("uncaughtException, sending error");
     handle(
       "Uncaught exception",
       error,
       `
     Caught exception: ${error}
-    err.stack: ${error.stack}
+    err.stack: ${error?.stack}
     Exception origin: ${origin}`,
       origin,
     );
@@ -88,17 +119,17 @@ export function registerProcessHandlers({
     stop("SIGTERM", new Error("Scraper worker cancelled"));
 
   processSource.on("uncaughtException", onUncaughtException);
-  cleanup.defer(() =>
+  errorCleanup.defer(() =>
     processSource.removeListener("uncaughtException", onUncaughtException),
   );
   processSource.on("unhandledRejection", onUnhandledRejection);
-  cleanup.defer(() =>
+  errorCleanup.defer(() =>
     processSource.removeListener("unhandledRejection", onUnhandledRejection),
   );
   processSource.on("SIGINT", onSigint);
-  cleanup.defer(() => processSource.removeListener("SIGINT", onSigint));
+  signalCleanup.defer(() => processSource.removeListener("SIGINT", onSigint));
   processSource.on("SIGTERM", onSigterm);
-  cleanup.defer(() => processSource.removeListener("SIGTERM", onSigterm));
+  signalCleanup.defer(() => processSource.removeListener("SIGTERM", onSigterm));
 
   return {
     signal: controller.signal,
@@ -107,6 +138,6 @@ export function registerProcessHandlers({
     },
     dispose,
     reportUnhandledRejection,
-    waitForNotifications: () => notifications,
+    waitForNotifications,
   };
 }

@@ -102,8 +102,15 @@ export async function startServer(
       }
     }
 
-    await processHandlers.waitForNotifications();
-    await shutdownTelegramBot();
+    try {
+      await shutdownTelegramBot();
+    } finally {
+      try {
+        await processHandlers.waitForNotifications();
+      } finally {
+        processHandlers.dispose();
+      }
+    }
 
     process.exit(process.exitCode ?? 0);
   }

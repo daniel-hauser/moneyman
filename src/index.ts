@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { aborted } from "node:util";
 import { locks } from "node:worker_threads";
 import { scrapeAccounts } from "./scraper/client.js";
 import {
@@ -61,7 +62,26 @@ getExternalIp().then((ipInfo) => logger("External IP info:", ipInfo));
 main();
 
 async function main() {
-  await sendConfigToTelegramIfRequested();
+  const configUpload = sendConfigToTelegramIfRequested();
+  const completed = new AbortController();
+  const uploadSignal = AbortSignal.any([
+    processHandlers.signal,
+    completed.signal,
+  ]);
+  try {
+    await Promise.race([configUpload, aborted(uploadSignal, configUpload)]);
+  } finally {
+    completed.abort();
+  }
+  if (processHandlers.signal.aborted) {
+    try {
+      await processHandlers.waitForNotifications();
+    } finally {
+      processHandlers.dispose();
+    }
+    process.exit(process.exitCode ?? 0);
+    return;
+  }
 
   if (longRunning) {
     await startServer(
@@ -79,8 +99,11 @@ async function main() {
     } catch (error) {
       processHandlers.reportUnhandledRejection(error);
     } finally {
-      processHandlers.dispose();
-      await processHandlers.waitForNotifications();
+      try {
+        await processHandlers.waitForNotifications();
+      } finally {
+        processHandlers.dispose();
+      }
       // kill internal browsers if stuck
       process.exit(process.exitCode ?? 0);
     }

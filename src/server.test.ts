@@ -157,18 +157,15 @@ describe("startServer", () => {
       expect(task.stop).toHaveBeenCalledTimes(1);
       expect(shutdownTelegramBot).not.toHaveBeenCalled();
       expect(exit).not.toHaveBeenCalled();
+      const runDrainSignal = combined.mock.results.at(-1)?.value as AbortSignal;
+      expect(getEventListeners(runDrainSignal, "abort")).toHaveLength(1);
 
       releaseRun();
       await flush();
       expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
       expect(exit).toHaveBeenCalledWith(0);
       expect(exit).toHaveBeenCalledTimes(1);
-      expect(
-        getEventListeners(
-          combined.mock.results[0].value as AbortSignal,
-          "abort",
-        ),
-      ).toEqual([]);
+      expect(getEventListeners(runDrainSignal, "abort")).toEqual([]);
       expect(logToPublicLog).not.toHaveBeenCalledWith(
         expect.stringContaining("did not finish"),
       );
@@ -176,12 +173,12 @@ describe("startServer", () => {
   );
 
   it("shuts down even when another abort listener stops immediate propagation", async () => {
-    await startServer(serverRunner(), lifecycle.handlers);
     lifecycle.handlers.signal.addEventListener(
       "abort",
       (event) => event.stopImmediatePropagation(),
       { once: true },
     );
+    await startServer(serverRunner(), lifecycle.handlers);
 
     lifecycle.source.emit("SIGTERM", "SIGTERM");
     await flush();
@@ -270,7 +267,7 @@ describe("startServer", () => {
 
       expect(task.stop).toHaveBeenCalledTimes(1);
       expect(lifecycle.notify).toHaveBeenCalledTimes(1);
-      expect(shutdownTelegramBot).not.toHaveBeenCalled();
+      expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
       expect(exit).not.toHaveBeenCalled();
 
       releaseNotification();
