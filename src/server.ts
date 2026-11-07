@@ -10,6 +10,7 @@ import {
 import { registerCommands } from "./bot/commands.js";
 import type { RunHandle, RunStatus, RunTrigger } from "./types.js";
 import { aborted } from "node:util";
+import type { ProcessHandlers } from "./utils/processErrors.js";
 
 const logger = createLogger("server");
 
@@ -26,8 +27,7 @@ export type ServerRunner = {
 };
 
 type ServerOptions = ServerRunner & {
-  processErrorSignal: AbortSignal;
-  waitForProcessErrorNotifications: () => Promise<void>;
+  processHandlers: ProcessHandlers;
 };
 
 export async function startServer({
@@ -35,8 +35,7 @@ export async function startServer({
   refreshSecrets,
   isRunning,
   getLastRun,
-  processErrorSignal,
-  waitForProcessErrorNotifications,
+  processHandlers,
 }: ServerOptions) {
   const cron = config.options.scheduling.cron;
   const bot = getTelegramBot();
@@ -105,21 +104,19 @@ export async function startServer({
       }
     }
 
-    await waitForProcessErrorNotifications();
+    await processHandlers.waitForNotifications();
     await shutdownTelegramBot();
 
     process.exit(process.exitCode ?? 0);
   }
 
-  process.once("SIGINT", () => shutdown("SIGINT"));
-  process.once("SIGTERM", () => shutdown("SIGTERM"));
-  processErrorSignal.addEventListener(
-    "abort",
-    () => void shutdown("process error"),
-    { once: true },
-  );
-  if (processErrorSignal.aborted) {
-    void shutdown("process error");
+  const shutdownOnProcessSignal = () =>
+    void shutdown(processHandlers.reason ?? "process error");
+  processHandlers.signal.addEventListener("abort", shutdownOnProcessSignal, {
+    once: true,
+  });
+  if (processHandlers.signal.aborted) {
+    shutdownOnProcessSignal();
     return;
   }
 

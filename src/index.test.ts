@@ -140,11 +140,21 @@ describe("index", () => {
   let originalExceptionListeners: ReturnType<typeof process.listeners>;
   let originalRejectionListeners: ReturnType<typeof process.listeners>;
   let originalExitListeners: ReturnType<typeof process.listeners>;
+  let originalSignalListeners: Map<
+    "SIGINT" | "SIGTERM",
+    ReturnType<typeof process.listeners>
+  >;
 
   beforeEach(() => {
     originalExceptionListeners = process.listeners("uncaughtException");
     originalRejectionListeners = process.listeners("unhandledRejection");
     originalExitListeners = process.listeners("exit");
+    originalSignalListeners = new Map(
+      (["SIGINT", "SIGTERM"] as const).map((signal) => [
+        signal,
+        process.listeners(signal),
+      ]),
+    );
   });
 
   afterEach(() => {
@@ -161,6 +171,12 @@ describe("index", () => {
     for (const listener of process.listeners("exit")) {
       if (!originalExitListeners.includes(listener))
         process.removeListener("exit", listener);
+    }
+    for (const [signal, original] of originalSignalListeners) {
+      for (const listener of process.listeners(signal)) {
+        if (!original.includes(listener))
+          process.removeListener(signal, listener);
+      }
     }
     process.env = originalEnv;
     jest.restoreAllMocks();
@@ -266,8 +282,8 @@ describe("index", () => {
       expect(mocks.runWithStorageMock).not.toHaveBeenCalled();
       expect(mocks.exit).not.toHaveBeenCalled();
       const options = mocks.startServerMock.mock.calls[0][0];
-      expect(options.processErrorSignal).toBeInstanceOf(AbortSignal);
-      expect(options.waitForProcessErrorNotifications).toEqual(
+      expect(options.processHandlers.signal).toBeInstanceOf(AbortSignal);
+      expect(options.processHandlers.waitForNotifications).toEqual(
         expect.any(Function),
       );
     });

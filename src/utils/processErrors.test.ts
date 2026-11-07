@@ -1,25 +1,21 @@
 import { EventEmitter } from "node:events";
 import type { ProcessEventMap } from "node:process";
 import { mock } from "jest-mock-extended";
-import { registerProcessErrorHandlers } from "./processErrors.js";
+import { registerProcessHandlers } from "./processErrors.js";
 
 type ErrorLogger = { log(message: string, ...details: unknown[]): void };
 type Notify = { notify(message: string): Promise<unknown> };
-type ProcessErrorExit = (
-  error: unknown,
-  waitForNotifications: () => Promise<void>,
-) => void;
 
-describe("registerProcessErrorHandlers", () => {
-  it("logs and sanitizes uncaught exceptions, then requests exit", async () => {
+describe("registerProcessHandlers", () => {
+  it("logs and sanitizes uncaught exceptions, then reports a fatal error", async () => {
     const source = new EventEmitter<ProcessEventMap>();
     const logger = mock<ErrorLogger>();
     const notifier = mock<Notify>();
-    const exit = jest.fn<void, Parameters<ProcessErrorExit>>();
-    const handlers = registerProcessErrorHandlers({
+    const onFatal = jest.fn();
+    const handlers = registerProcessHandlers({
       logger: logger.log,
       notify: notifier.notify,
-      exit,
+      onFatal,
       process: source,
     });
     const error = new Error("secret-token");
@@ -33,9 +29,13 @@ describe("registerProcessErrorHandlers", () => {
       "uncaughtException",
     );
     expect(handlers.signal.aborted).toBe(true);
+    expect(handlers.signal.reason).toBe(error);
+    expect(handlers.reason).toBe("process error");
     expect(source.listenerCount("uncaughtException")).toBe(0);
     expect(source.listenerCount("unhandledRejection")).toBe(0);
-    expect(exit).toHaveBeenCalledWith(error, expect.any(Function));
+    expect(source.listenerCount("SIGINT")).toBe(0);
+    expect(source.listenerCount("SIGTERM")).toBe(0);
+    expect(onFatal).toHaveBeenCalledWith(error);
 
     await handlers.waitForNotifications();
     expect(notifier.notify).toHaveBeenCalledWith(
@@ -50,11 +50,11 @@ describe("registerProcessErrorHandlers", () => {
     const source = new EventEmitter<ProcessEventMap>();
     const logger = mock<ErrorLogger>();
     const notifier = mock<Notify>();
-    const exit = jest.fn<void, Parameters<ProcessErrorExit>>();
-    const handlers = registerProcessErrorHandlers({
+    const onFatal = jest.fn();
+    const handlers = registerProcessHandlers({
       logger: logger.log,
       notify: notifier.notify,
-      exit,
+      onFatal,
       process: source,
     });
     const reason = "private rejection details";
@@ -64,7 +64,7 @@ describe("registerProcessErrorHandlers", () => {
     source.emit("unhandledRejection", reason, Promise.resolve());
 
     expect(logger.log).toHaveBeenCalledWith("Unhandled rejection", reason);
-    expect(exit).toHaveBeenCalledWith(reason, expect.any(Function));
+    expect(onFatal).toHaveBeenCalledWith(reason);
     await handlers.waitForNotifications();
     expect(notifier.notify).toHaveBeenCalledWith(
       "Unhandled rejection. See private logs.",
@@ -76,5 +76,53 @@ describe("registerProcessErrorHandlers", () => {
     expect(source.listenerCount("uncaughtException")).toBe(0);
     expect(source.listenerCount("unhandledRejection")).toBe(0);
     handlers.dispose();
+  });
+
+  it.each(["SIGINT", "SIGTERM"] as const)(
+    "cancels without reporting a fatal error on %s",
+    async (signal) => {
+      const source = new EventEmitter<ProcessEventMap>();
+      const logger = mock<ErrorLogger>();
+      const notifier = mock<Notify>();
+      const onFatal = jest.fn();
+      const handlers = registerProcessHandlers({
+        logger: logger.log,
+        notify: notifier.notify,
+        onFatal,
+        process: source,
+      });
+
+      source.emit(signal, signal);
+
+      expect(handlers.signal.aborted).toBe(true);
+      expect(handlers.signal.reason).toEqual(
+        new Error("Scraper worker cancelled"),
+      );
+      expect(handlers.reason).toBe(signal);
+      expect(logger.log).not.toHaveBeenCalled();
+      expect(notifier.notify).not.toHaveBeenCalled();
+      expect(onFatal).not.toHaveBeenCalled();
+      expect(source.listenerCount("uncaughtException")).toBe(0);
+      expect(source.listenerCount("unhandledRejection")).toBe(0);
+      expect(source.listenerCount("SIGINT")).toBe(0);
+      expect(source.listenerCount("SIGTERM")).toBe(0);
+      await handlers.waitForNotifications();
+    },
+  );
+
+  it("disposes all process listeners without aborting the lifecycle signal", () => {
+    const source = new EventEmitter<ProcessEventMap>();
+    const handlers = registerProcessHandlers({
+      logger: jest.fn(),
+      notify: jest.fn().mockResolvedValue(undefined),
+      onFatal: jest.fn(),
+      process: source,
+    });
+
+    handlers.dispose();
+    handlers.dispose();
+
+    expect(handlers.signal.aborted).toBe(false);
+    expect(source.eventNames()).toEqual([]);
   });
 });
