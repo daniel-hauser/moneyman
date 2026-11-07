@@ -44,6 +44,11 @@ export interface SaveContext {
 }
 
 export interface TransactionStorage {
+  /**
+   * Receive pending transactions as well as completed ones. Defaults to false.
+   * Dual-output providers may still exclude pending from their structured output.
+   */
+  readonly supportsPendingTransactions?: boolean;
   canSave(): boolean;
   saveTransactions(
     txns: Array<TransactionRow>,

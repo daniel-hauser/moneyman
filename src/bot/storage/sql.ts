@@ -34,6 +34,8 @@ const TRANSACTION_COLUMNS = [
 ] as const;
 
 export class SqlStorage implements TransactionStorage {
+  // Pending is archived in the raw table; stats describe the structured table.
+  readonly supportsPendingTransactions = true;
   constructor(private readonly config: MoneymanConfig) {}
 
   canSave(): boolean {

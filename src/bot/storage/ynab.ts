@@ -2,7 +2,7 @@ import { TransactionRow, TransactionStorage } from "../../types.js";
 import { createLogger } from "../../utils/logger.js";
 import { format, parseISO } from "date-fns";
 import * as ynab from "ynab";
-import { stableHash } from "./utils.js";
+import { nonPendingTransactions, stableHash } from "./utils.js";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { sendDeprecationMessage } from "../deprecationManager.js";
 import { createSaveStats } from "../saveStats.js";
@@ -53,14 +53,11 @@ export class YNABStorage implements TransactionStorage {
     const txToSend: ynab.NewTransaction[] = [];
     const missingAccounts = new Set<string>();
 
-    for (let tx of txns) {
-      const isPending = tx.status === TransactionStatuses.Pending;
+    for (let tx of nonPendingTransactions(txns)) {
       // YNAB doesn't support future transactions. Will result in 400 Bad Request
       const isDateInFuture = this.isDateInFuture(tx.date);
-      if (isPending || isDateInFuture) {
-        if (isDateInFuture) {
-          stats.otherSkipped++;
-        }
+      if (isDateInFuture) {
+        stats.otherSkipped++;
         continue;
       }
 

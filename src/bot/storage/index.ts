@@ -16,7 +16,11 @@ import { AzureDataExplorerStorage } from "./azure-data-explorer.js";
 import { BuxferStorage } from "./buxfer.js";
 import { LocalJsonStorage } from "./json.js";
 import { GoogleSheetsStorage } from "./sheets.js";
-import { transactionHash, transactionUniqueId } from "./utils.js";
+import {
+  nonPendingTransactions,
+  transactionHash,
+  transactionUniqueId,
+} from "./utils.js";
 import { WebPostStorage } from "./web-post.js";
 import { TelegramStorage } from "./telegram.js";
 import { YNABStorage } from "./ynab.js";
@@ -59,6 +63,7 @@ export async function saveResults(
     report.notices.push("No transactions found, skipping save");
     return;
   }
+  const nonPendingTxns = nonPendingTransactions(txns);
 
   // Build context with per-account scraping results
   const context: SaveContext = {
@@ -75,6 +80,9 @@ export async function saveResults(
 
   await parallel(
     storages.map((storage: TransactionStorage) => async () => {
+      const storageTxns =
+        storage.supportsPendingTransactions === true ? txns : nonPendingTxns;
+      const skippedPending = txns.length - storageTxns.length;
       const { name } = storage.constructor;
       const logger = baseLogger.extend(name);
       const steps: Array<Step> = [];
@@ -102,11 +110,11 @@ export async function saveResults(
 
       return loggerContextStore.run({ prefix: `[${name}]` }, async () => {
         try {
-          logger(`saving ${txns.length} transactions`);
+          logger(`saving ${storageTxns.length} transactions`);
           report.storages[name] = { state: "saving", steps: [] };
           const start = performance.now();
           const stats = await storage.saveTransactions(
-            txns,
+            storageTxns,
             async (step) => {
               endStep();
               steps.push({ name: step });
@@ -123,6 +131,8 @@ export async function saveResults(
             },
             context,
           );
+          stats.total += skippedPending;
+          stats.pending += skippedPending;
           const durationMs = performance.now() - start;
           endStep();
           logger(
