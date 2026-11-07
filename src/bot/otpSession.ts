@@ -14,7 +14,9 @@ export function createOneShotOtpSession(signal?: AbortSignal) {
   let polling: Promise<void> | undefined;
 
   function startPolling() {
-    polling ??= launchTelegramBot().catch((error: unknown) => {
+    if (polling) return polling;
+    const launched = launchTelegramBot().catch((error: unknown) => {
+      if (polling === launched) polling = undefined;
       logger("Failed to start Telegram bot for OTP", error);
       void send(
         `requestOtpCode\n❌ ${
@@ -27,6 +29,7 @@ export function createOneShotOtpSession(signal?: AbortSignal) {
       );
       throw new Error(`Failed to start Telegram bot for OTP: ${error}`);
     });
+    polling = launched;
     return polling;
   }
 
@@ -41,10 +44,10 @@ export function createOneShotOtpSession(signal?: AbortSignal) {
       ),
     );
     try {
-      const response = requestOtpCode(companyId, phoneNumber, combined);
       const lifetime = startPolling().then(() => {
         throw new Error("Telegram bot stopped while waiting for OTP");
       });
+      const response = requestOtpCode(companyId, phoneNumber, combined);
       return await Promise.race([response, lifetime]);
     } finally {
       completed.abort();

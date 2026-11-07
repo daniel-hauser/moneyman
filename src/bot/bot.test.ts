@@ -1,6 +1,6 @@
 import { mock, mockDeep } from "jest-mock-extended";
 import { Context, Telegraf } from "telegraf";
-import type { UserFromGetMe } from "telegraf/types";
+import type { Message, UserFromGetMe } from "telegraf/types";
 import { createBot } from "./bot.js";
 import { logToPublicLog } from "../utils/logger.js";
 
@@ -10,7 +10,17 @@ jest.mock("../utils/logger.js", () => ({
 }));
 
 jest.mock("../config.js", () => ({
-  config: { options: { notifications: {} } },
+  config: {
+    options: {
+      notifications: {
+        telegram: {
+          chatId: "555",
+          enableOtp: true,
+          otpTimeoutSeconds: 3600,
+        },
+      },
+    },
+  },
 }));
 
 describe("createBot", () => {
@@ -145,6 +155,8 @@ describe("createBot", () => {
     await controller.stopTelegramBot();
 
     expect(bot.stop).toHaveBeenCalledTimes(1);
+    expect(controller.launchTelegramBot()).toBe(lifetime);
+    expect(bot.launch).toHaveBeenCalledTimes(1);
     polling.resolve();
     await lifetime;
   });
@@ -162,6 +174,41 @@ describe("createBot", () => {
     await controller.stopTelegramBot();
     await expect(running).resolves.toBeUndefined();
   });
+
+  it("rejects OTP prompts before polling is launched", async () => {
+    await expect(
+      controller.requestOtpCode("oneZero", "+97200000001"),
+    ).rejects.toThrow("Telegram bot polling is unavailable");
+    expect(bot.telegram.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it.each(["failure", "stop"] as const)(
+    "cancels pending OTP and rejects new prompts after polling %s",
+    async (ending) => {
+      bot.telegram.sendMessage.mockResolvedValue(
+        mock<Message.TextMessage>({ message_id: 1 }),
+      );
+      const lifetime = controller.launchTelegramBot();
+      const request = controller.requestOtpCode("oneZero", "+97200000001");
+      const error =
+        ending === "failure"
+          ? new Error("polling failed")
+          : new Error("Telegram bot stopped while waiting for OTP");
+      const rejected = expect(request).rejects.toThrow(error);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      if (ending === "failure") {
+        polling.reject(error);
+        await expect(lifetime).rejects.toBe(error);
+      } else {
+        await controller.stopTelegramBot();
+      }
+      await rejected;
+      await expect(
+        controller.requestOtpCode("oneZero", "+97200000002"),
+      ).rejects.toThrow(error);
+      expect(bot.telegram.sendMessage).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it.each(["getMe", "deleteWebhook"] as const)(
     "propagates %s failures from the actual Telegraf launch promise",

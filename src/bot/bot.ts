@@ -4,6 +4,7 @@ import { aborted } from "node:util";
 import { formatUnknownError } from "../utils/utils.js";
 import { createOtpHandler } from "./otp.js";
 import { config } from "../config.js";
+import type { OtpRequest } from "../scraper/otp.js";
 
 const logger = createLogger("bot");
 
@@ -19,17 +20,31 @@ export function createBot(bot: Telegraf<Context> | null) {
   });
 
   let polling: TelegramPolling | undefined;
+  let pollingSignal: AbortSignal | undefined;
   let shutdown: Promise<void> | undefined;
+  const receiveOtp = createOtpHandler(bot);
 
   function createPolling(bot: Telegraf<Context>): TelegramPolling {
+    const availability = new AbortController();
+    pollingSignal = availability.signal;
     const lifetime = bot.launch(() => logger("Telegram bot launched"));
-    lifetime.catch((error) => {
-      logger("Telegram bot polling failed", error);
-      if (polling?.lifetime === lifetime) polling = undefined;
-    });
+    void lifetime.then(
+      () =>
+        availability.abort(
+          new Error("Telegram bot stopped while waiting for OTP"),
+        ),
+      (error: unknown) => {
+        availability.abort(error);
+        logger("Telegram bot polling failed", error);
+        if (polling?.lifetime === lifetime) polling = undefined;
+      },
+    );
     let stopping: Promise<void> | undefined;
 
     async function stopInternal(): Promise<void> {
+      availability.abort(
+        new Error("Telegram bot stopped while waiting for OTP"),
+      );
       try {
         bot.stop();
         await lifetime;
@@ -51,6 +66,19 @@ export function createBot(bot: Telegraf<Context> | null) {
     polling ??= createPolling(bot);
     return polling.lifetime;
   }
+
+  const requestOtpCode: OtpRequest = (companyId, phoneNumber, signal) => {
+    if (!pollingSignal) {
+      return Promise.reject(new Error("Telegram bot polling is unavailable"));
+    }
+    return receiveOtp(
+      companyId,
+      phoneNumber,
+      AbortSignal.any(
+        [signal, pollingSignal].filter((signal) => signal !== undefined),
+      ),
+    );
+  };
 
   function stopTelegramBot(signal?: AbortSignal): Promise<void> {
     return polling?.stop(signal) ?? Promise.resolve();
@@ -95,7 +123,7 @@ export function createBot(bot: Telegraf<Context> | null) {
     launchTelegramBot,
     stopTelegramBot,
     shutdownTelegramBot,
-    requestOtpCode: createOtpHandler(bot),
+    requestOtpCode,
   };
 }
 

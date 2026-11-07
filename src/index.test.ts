@@ -9,7 +9,6 @@ import { CompanyTypes } from "israeli-bank-scrapers";
 import { CustomElementRegistry } from "@lit-labs/ssr-dom-shim";
 import type { ReportTransport } from "./bot/reportPublisher.js";
 import { locks } from "node:worker_threads";
-import { getEventListeners } from "node:events";
 
 jest.mock("./bot/runReport.js", () => {
   const actual =
@@ -80,7 +79,7 @@ jest.mock("./utils/failureScreenshot.js", () => ({
   sendFailureScreenShots: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock("./utils/logger.js", () => ({
-  createLogger: () => jest.fn(),
+  createLogger: jest.fn(() => jest.fn()),
   logToPublicLog: jest.fn(),
 }));
 
@@ -447,17 +446,17 @@ describe("index", () => {
     expect(notifier.stopTelegramBot).toHaveBeenCalledTimes(1);
   });
 
-  it("stops a polling startup after OTP cancellation before launch completes", async () => {
+  it("retries a failed OTP polling launch for a later account in the same run", async () => {
     const startup = Promise.withResolvers<void>();
-    const combined = jest.spyOn(AbortSignal, "any");
-    let requestError: unknown;
+    let recovered: string | undefined;
     const { notifier } = await loadEntrypoint(
       false,
       false,
       (scrape, notifier) => {
         jest
           .mocked(notifier.launchTelegramBot)
-          .mockReturnValue(startup.promise);
+          .mockRejectedValueOnce(new Error("polling failed"))
+          .mockReturnValueOnce(startup.promise);
         jest
           .mocked(notifier.requestOtpCode)
           .mockImplementationOnce(async (_companyId, _phoneNumber, signal) => {
@@ -467,27 +466,94 @@ describe("index", () => {
             return "123456";
           });
         scrape.mockImplementationOnce(async (_settings, requestOtp) => {
-          const worker = new AbortController();
-          const request = requestOtp("oneZero", "+97200000000", worker.signal);
-          worker.abort(new Error("worker exited"));
-          requestError = await request.catch((error: unknown) => error);
-          startup.resolve();
+          await expect(requestOtp("oneZero", "+97200000001")).rejects.toThrow(
+            "Failed to start Telegram bot for OTP: Error: polling failed",
+          );
+          recovered = await requestOtp("oneZero", "+97200000002");
           return { results: [], domains: {} };
         });
       },
     );
+    expect(recovered).toBe("123456");
+    expect(notifier.launchTelegramBot).toHaveBeenCalledTimes(2);
+    expect(notifier.send).toHaveBeenCalledTimes(1);
+    startup.resolve();
+    await startup.promise;
+  });
 
-    expect(requestError).toEqual(
-      expect.objectContaining({ message: "worker exited" }),
+  it("attempts native stop once when a worker cancels while polling startup remains pending", async () => {
+    const startup = Promise.withResolvers<void>();
+    const bot = mockDeep<Telegraf<Context>>();
+    bot.launch.mockReturnValue(startup.promise);
+    bot.stop.mockImplementation(() => {
+      throw new Error("Bot is not running!");
+    });
+    bot.telegram.sendMessage.mockResolvedValue(
+      mock<Message.TextMessage>({ message_id: 1 }),
     );
-    expect(
-      getEventListeners(
-        combined.mock.results.at(-1)!.value as AbortSignal,
-        "abort",
-      ),
-    ).toEqual([]);
-    expect(notifier.requestOtpCode).toHaveBeenCalledTimes(1);
-    expect(notifier.stopTelegramBot).toHaveBeenCalledTimes(1);
+    let requestError: unknown;
+    try {
+      const { notifier, exit } = await loadEntrypoint(
+        false,
+        false,
+        (scrape, notifier) => {
+          scrape.mockImplementationOnce(async (_settings, requestOtp) => {
+            const { config } = await import("./config.js");
+            const { NotificationOptionsSchema } =
+              await import("./config.schema.js");
+            config.options.notifications.telegram =
+              NotificationOptionsSchema.parse({
+                telegram: {
+                  apiKey: "sample",
+                  chatId: "555",
+                  enableOtp: true,
+                  otpTimeoutSeconds: 30,
+                },
+              }).telegram;
+            const { createBot } = await import("./bot/bot.js");
+            const controller = createBot(bot);
+            jest
+              .mocked(notifier.launchTelegramBot)
+              .mockImplementation(controller.launchTelegramBot);
+            jest
+              .mocked(notifier.stopTelegramBot)
+              .mockImplementation(controller.stopTelegramBot);
+            jest
+              .mocked(notifier.requestOtpCode)
+              .mockImplementation(controller.requestOtpCode);
+            const worker = new AbortController();
+            const request = requestOtp(
+              "oneZero",
+              "+97200000000",
+              worker.signal,
+            );
+            worker.abort(new Error("worker exited"));
+            requestError = await request.catch((error: unknown) => error);
+            return { results: [], domains: {} };
+          });
+        },
+      );
+
+      expect(requestError).toEqual(
+        expect.objectContaining({ message: "worker exited" }),
+      );
+      expect(exit).toHaveBeenCalledWith(0);
+      expect(notifier.requestOtpCode).toHaveBeenCalledTimes(1);
+      expect(notifier.stopTelegramBot).toHaveBeenCalledTimes(1);
+      expect(bot.stop).toHaveBeenCalledTimes(1);
+      const { createLogger } = await import("./utils/logger.js");
+      const loggers = jest.mocked(createLogger);
+      const botLogger = loggers.mock.results
+        .filter((_, index) => loggers.mock.calls[index][0] === "bot")
+        .at(-1)!.value;
+      expect(botLogger).toHaveBeenCalledTimes(1);
+      expect(botLogger).toHaveBeenCalledWith(
+        "Failed to stop the Telegram bot: Bot is not running!",
+      );
+    } finally {
+      startup.resolve();
+      await startup.promise;
+    }
   });
 
   it("applies the OTP response timeout while polling startup is pending", async () => {

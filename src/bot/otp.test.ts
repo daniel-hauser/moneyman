@@ -67,7 +67,9 @@ describe("createOtpHandler", () => {
       },
     });
     ctx.reply.mockResolvedValue(mock<Message.TextMessage>());
-    await handler(ctx, async () => {});
+    const next = jest.fn(async () => {});
+    await handler(ctx, next);
+    return { ctx, next };
   }
 
   it("matches replies for concurrent requests", async () => {
@@ -90,6 +92,96 @@ describe("createOtpHandler", () => {
     await reply(0, "111111");
     await expect(first).resolves.toBe("111111");
   });
+
+  it("preserves an explicit reply received before a delayed prompt is registered", async () => {
+    const sent = Promise.withResolvers<Message.TextMessage>();
+    bot.telegram.sendMessage.mockReturnValueOnce(sent.promise);
+    const first = requestOtpCode("oneZero", "+97200000001");
+    const second = requestOtpCode("oneZero", "+97200000002");
+    await flush();
+
+    const earlyReply = reply(0, "111111", 10);
+    await reply(0, "999999");
+    expect(await settleState(second)).toBe("pending");
+    await reply(0, "222222", 1);
+    await expect(second).resolves.toBe("222222");
+    expect(await settleState(first)).toBe("pending");
+
+    sent.resolve(mock<Message.TextMessage>({ message_id: 10 }));
+    await earlyReply;
+    await expect(first).resolves.toBe("111111");
+  });
+
+  it("does not hold an early reply behind unrelated in-flight prompts", async () => {
+    const firstSend = Promise.withResolvers<Message.TextMessage>();
+    const secondSend = Promise.withResolvers<Message.TextMessage>();
+    const abort = new AbortController();
+    bot.telegram.sendMessage
+      .mockReturnValueOnce(firstSend.promise)
+      .mockReturnValueOnce(secondSend.promise);
+    const first = requestOtpCode("oneZero", "+97200000001");
+    const second = requestOtpCode("oneZero", "+97200000002", abort.signal);
+    const cancelled = expect(second).rejects.toThrow("worker exited");
+    const earlyReply = reply(0, "111111", 10);
+
+    firstSend.resolve(mock<Message.TextMessage>({ message_id: 10 }));
+    await earlyReply;
+    await expect(first).resolves.toBe("111111");
+    abort.abort(new Error("worker exited"));
+    await cancelled;
+    secondSend.resolve(mock<Message.TextMessage>({ message_id: 20 }));
+  });
+
+  it("consumes only the first of two early replies to the same delayed prompt", async () => {
+    const sent = Promise.withResolvers<Message.TextMessage>();
+    bot.telegram.sendMessage.mockReturnValueOnce(sent.promise);
+    const request = requestOtpCode("oneZero", "+97200000001");
+    const first = reply(0, "111111", 10);
+    const second = reply(0, "222222", 10);
+
+    sent.resolve(mock<Message.TextMessage>({ message_id: 10 }));
+    const [firstReply, secondReply] = await Promise.all([first, second]);
+
+    await expect(request).resolves.toBe("111111");
+    expect(firstReply.ctx.reply).toHaveBeenCalledTimes(1);
+    expect(firstReply.next).not.toHaveBeenCalled();
+    expect(secondReply.ctx.reply).not.toHaveBeenCalled();
+    expect(secondReply.next).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["failure", "abort", "timeout"] as const)(
+    "settles early-reply observers when sending ends through %s",
+    async (ending) => {
+      const sent = Promise.withResolvers<Message.TextMessage>();
+      const abort = new AbortController();
+      const deadline = new AbortController();
+      jest.spyOn(AbortSignal, "timeout").mockReturnValueOnce(deadline.signal);
+      bot.telegram.sendMessage.mockReturnValueOnce(sent.promise);
+      const request = requestOtpCode("oneZero", "+97200000001", abort.signal);
+      const rejected = expect(request).rejects.toThrow(
+        ending === "timeout" ? "OTP timeout" : `${ending} failed`,
+      );
+      const earlyReply = reply(0, "111111", 10);
+      if (ending === "failure") sent.reject(new Error("failure failed"));
+      else if (ending === "abort") abort.abort(new Error("abort failed"));
+      else deadline.abort();
+      expect(await settleState(request)).toBe("rejected");
+      await rejected;
+      expect(await settleState(earlyReply)).toBe("resolved");
+      await earlyReply;
+      sent.resolve(mock<Message.TextMessage>({ message_id: 10 }));
+
+      bot.telegram.sendMessage.mockResolvedValueOnce(
+        mock<Message.TextMessage>({ message_id: 20 }),
+      );
+      const next = requestOtpCode("oneZero", "+97200000002");
+      await flush();
+      expect(await settleState(next)).toBe("pending");
+      await reply(0, "654321");
+      expect(await settleState(next)).toBe("resolved");
+      await expect(next).resolves.toBe("654321");
+    },
+  );
 
   it("rejects requests when Telegram is not configured", async () => {
     await expect(
