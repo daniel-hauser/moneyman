@@ -24,11 +24,6 @@ jest.mock("google-spreadsheet", () => ({
 }));
 jest.mock("google-auth-library");
 
-// Mock logger
-jest.mock("../../utils/logger.js", () => ({
-  createLogger: () => jest.fn(),
-}));
-
 // Mock other dependencies
 jest.mock("../notifier.js", () => ({
   sendError: jest.fn(),

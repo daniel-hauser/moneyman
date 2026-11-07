@@ -5,11 +5,6 @@ import type { SaveContext } from "../../types.js";
 import { runContextStore } from "../../utils/asyncContext.js";
 import { randomUUID } from "crypto";
 
-// Mock dependencies
-jest.mock("../../utils/logger.js", () => ({
-  createLogger: () => jest.fn(),
-}));
-
 const mockConfig = (token?: string): MoneymanConfig => {
   const cfg = config();
   if (token) {
