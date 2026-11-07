@@ -32,6 +32,8 @@ jest.mock("node:timers/promises", () => {
 
         const { signal, ref } = options ?? {};
         if (signal?.aborted) return actual.setTimeout(delay, value, options);
+        const normalizedDelay =
+          delay >= 1 && delay <= 2147483647 ? Math.trunc(delay) : 1;
 
         return new Promise((resolve, reject) => {
           const clear = globalThis.clearTimeout;
@@ -39,7 +41,7 @@ jest.mock("node:timers/promises", () => {
           const timer = globalThis.setTimeout(() => {
             listener?.[Symbol.dispose]();
             resolve(value);
-          }, delay);
+          }, normalizedDelay);
           if (ref === false) timer?.unref?.();
           if (signal) {
             try {

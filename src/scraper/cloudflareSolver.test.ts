@@ -49,15 +49,18 @@ describe("solveTurnstile", () => {
     ["mouse movement", 0.5],
     ["checkbox pause", 0],
   ] as const)("stops during %s when the page closes", async (_, random) => {
+    jest.useFakeTimers();
     jest.mocked(Math.random).mockReturnValue(random);
     const { page, events, close } = setup();
     const solving = solveTurnstile(page);
     await setImmediate();
     expect(page.mouse.move).toHaveBeenCalled();
     const moves = page.mouse.move.mock.calls.length;
+    expect(jest.getTimerCount()).toBe(1);
 
     close();
 
+    expect(jest.getTimerCount()).toBe(0);
     await expect(solving).resolves.toBe("page closed");
     expect(page.mouse.move).toHaveBeenCalledTimes(moves);
     expect(page.mouse.click).not.toHaveBeenCalled();

@@ -22,6 +22,24 @@ describe("automatic promise timer support", () => {
     expect(getEventListeners(controller.signal, "abort")).toHaveLength(0);
   });
 
+  it.each([undefined, 0, 0.5, -1, NaN, Infinity, 2147483648])(
+    "uses Node's one-millisecond minimum for delay %s",
+    async (delay) => {
+      jest.useFakeTimers();
+      const resolved = jest.fn();
+      const result = setTimeout(delay, "value");
+      result.then(resolved);
+
+      await jest.advanceTimersByTimeAsync(0);
+      expect(resolved).not.toHaveBeenCalled();
+      expect(jest.getTimerCount()).toBe(1);
+
+      await jest.advanceTimersByTimeAsync(1);
+      await expect(result).resolves.toBe("value");
+      expect(jest.getTimerCount()).toBe(0);
+    },
+  );
+
   it("rejects without scheduling when already aborted", async () => {
     jest.useFakeTimers();
     const controller = new AbortController();
