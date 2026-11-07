@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import type { ProcessEventMap } from "node:process";
 import { mock } from "jest-mock-extended";
 import { registerProcessErrorHandlers } from "./processErrors.js";
 
@@ -11,7 +12,7 @@ type ProcessErrorExit = (
 
 describe("registerProcessErrorHandlers", () => {
   it("logs and sanitizes uncaught exceptions, then requests exit", async () => {
-    const source = new EventEmitter();
+    const source = new EventEmitter<ProcessEventMap>();
     const logger = mock<ErrorLogger>();
     const notifier = mock<Notify>();
     const exit = jest.fn<void, Parameters<ProcessErrorExit>>();
@@ -46,7 +47,7 @@ describe("registerProcessErrorHandlers", () => {
   });
 
   it("handles unhandled rejections and logs notification failures privately", async () => {
-    const source = new EventEmitter();
+    const source = new EventEmitter<ProcessEventMap>();
     const logger = mock<ErrorLogger>();
     const notifier = mock<Notify>();
     const exit = jest.fn<void, Parameters<ProcessErrorExit>>();

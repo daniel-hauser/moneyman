@@ -1,23 +1,7 @@
+import type { EventEmitter } from "node:events";
+import type { ProcessEventMap } from "node:process";
 import { truncateError } from "../bot/truncateError.js";
 
-type ProcessErrorSource = {
-  on(
-    event: "uncaughtException",
-    listener: (error: Error, origin: string) => void,
-  ): unknown;
-  on(
-    event: "unhandledRejection",
-    listener: (reason: unknown, promise: Promise<unknown>) => void,
-  ): unknown;
-  removeListener(
-    event: "uncaughtException",
-    listener: (error: Error, origin: string) => void,
-  ): unknown;
-  removeListener(
-    event: "unhandledRejection",
-    listener: (reason: unknown, promise: Promise<unknown>) => void,
-  ): unknown;
-};
 type ErrorLogger = (message: string, ...details: unknown[]) => void;
 type ProcessErrorExit = (
   error: unknown,
@@ -39,7 +23,7 @@ export function registerProcessErrorHandlers({
   logger: ErrorLogger;
   notify: (message: string) => Promise<unknown>;
   exit: ProcessErrorExit;
-  process?: ProcessErrorSource;
+  process?: EventEmitter<ProcessEventMap>;
 }): ProcessErrorHandlers {
   const controller = new AbortController();
   let notifications = Promise.resolve();

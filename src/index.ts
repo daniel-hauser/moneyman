@@ -75,14 +75,15 @@ async function main() {
     const abort = new AbortController();
     const signal = AbortSignal.any([abort.signal, processErrors.signal]);
     const cancel = () => abort.abort(new Error("Scraper worker cancelled"));
-    process.once("SIGINT", cancel);
-    process.once("SIGTERM", cancel);
     try {
+      using cleanup = new DisposableStack();
+      process.once("SIGINT", cancel);
+      cleanup.defer(() => process.removeListener("SIGINT", cancel));
+      process.once("SIGTERM", cancel);
+      cleanup.defer(() => process.removeListener("SIGTERM", cancel));
       await sendConfigToTelegramIfRequested();
       await runOnce("startup", signal);
     } finally {
-      process.removeListener("SIGINT", cancel);
-      process.removeListener("SIGTERM", cancel);
       await processErrors.waitForNotifications();
       processErrors.dispose();
       // kill internal browsers if stuck
