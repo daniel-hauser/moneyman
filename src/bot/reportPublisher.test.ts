@@ -41,7 +41,7 @@ describe("createReportPublisher", () => {
   it("sends the first message, then edits it on nested mutations", async () => {
     const { transport, report, set } = setup();
     set("a");
-    await tick(0);
+    await tick(1);
     expect(transport.send).toHaveBeenCalledTimes(1);
     expect(transport.send.mock.calls[0][0]).toContain("a");
 
@@ -58,7 +58,7 @@ describe("createReportPublisher", () => {
   it("throttles and coalesces updates, rendering the latest", async () => {
     const { transport, set } = setup();
     set("a");
-    await tick(0);
+    await tick(1);
     set("b");
     set("c");
     set("d");
@@ -72,7 +72,7 @@ describe("createReportPublisher", () => {
   it("skips the request when the text is unchanged", async () => {
     const { transport, set } = setup();
     set("a");
-    await tick(0);
+    await tick(1);
     set("b");
     set("a");
     await tick(500);
@@ -88,7 +88,7 @@ describe("createReportPublisher", () => {
       },
     });
     set("a");
-    await tick(0);
+    await tick(1);
     expect(log).not.toHaveBeenCalled();
     set("a");
     await tick(500);
@@ -98,7 +98,7 @@ describe("createReportPublisher", () => {
   it("waits for retry_after on 429 and then renders the latest", async () => {
     const { transport, set } = setup();
     set("a");
-    await tick(0);
+    await tick(1);
     transport.edit.mockRejectedValueOnce({
       response: { error_code: 429, parameters: { retry_after: 3 } },
     });
@@ -117,7 +117,7 @@ describe("createReportPublisher", () => {
     const { transport, set, log, finish } = setup();
     transport.send.mockRejectedValueOnce(new Error("network"));
     set("a");
-    await tick(0);
+    await tick(1);
     expect(log).toHaveBeenCalledWith(
       "Failed to publish report",
       expect.any(Error),
@@ -132,7 +132,7 @@ describe("createReportPublisher", () => {
   it("flushes the latest state at finish and logs stats once", async () => {
     const { transport, set, finish, log } = setup();
     set("a");
-    await tick(0);
+    await tick(1);
     set("b");
     const done = finish();
     await tick(500);
@@ -182,7 +182,7 @@ describe("createReportPublisher", () => {
   it("skips HTML rendering and sending but preserves status updates and stats when disabled", async () => {
     const { transport, set, finish, log } = setup(500, false);
     set("Scraping");
-    await tick(0);
+    await tick(1);
     set("Done");
     const done = finish("invented log");
     await tick(500);
