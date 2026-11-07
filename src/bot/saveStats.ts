@@ -20,7 +20,8 @@ export interface SaveStats {
    */
   added: number;
   /**
-   * Total scrapped transactions that are pending status
+   * Transactions skipped from the reported output because they are pending.
+   * Raw archives that save pending transactions report zero.
    */
   pending: number;
   /**
@@ -68,6 +69,7 @@ export function skippedString(stats: SaveStats): string {
 
 /**
  * Create a new SaveStats object with the given name, table and transactions
+ * Pending is assumed to be skipped; providers that save it must override pending.
  * @param name Store name
  * @param table Store elements to be updated (Accounts, budgets, etc ...)
  * @param transactions Scrapped transactions

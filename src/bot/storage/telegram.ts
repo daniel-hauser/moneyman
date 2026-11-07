@@ -7,6 +7,7 @@ import { systemName, type MoneymanConfig } from "../../config.js";
 const logger = createLogger("TelegramStorage");
 
 export class TelegramStorage implements TransactionStorage {
+  readonly supportsPendingTransactions = true;
   constructor(private config: MoneymanConfig) {}
 
   canSave() {
@@ -33,7 +34,10 @@ export class TelegramStorage implements TransactionStorage {
   ) {
     logger("saveTransactions");
     await onProgress("Preparing JSON data");
-    const stats = createSaveStats("TelegramStorage", undefined, transactions);
+    const stats = createSaveStats("TelegramStorage", undefined, transactions, {
+      added: transactions.length,
+      pending: 0,
+    });
     await sendJSON(
       {
         metadata: {

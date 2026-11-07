@@ -2,13 +2,14 @@ import { CompanyTypes } from "israeli-bank-scrapers";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { createStorages, saveResults } from "./index.js";
 import { createRunReport } from "../runReport.js";
-import { config, transaction } from "../../utils/tests.js";
+import { config, transaction, transactionRow } from "../../utils/tests.js";
 import { MoneymanDashStorage } from "./moneyman.js";
 import { WebPostStorage } from "./web-post.js";
 import type { MoneymanConfig } from "../../config.schema.js";
 import { runContextStore } from "../../utils/asyncContext.js";
 import type { TransactionStorage } from "../../types.js";
 import { createSaveStats } from "../saveStats.js";
+import { mock } from "jest-mock-extended";
 
 jest.mock("../../config.js", () => ({ systemName: "moneyman" }));
 jest.mock("../notifier.js", () => ({
@@ -19,6 +20,94 @@ jest.mock("google-spreadsheet", () => ({ GoogleSpreadsheet: jest.fn() }));
 jest.mock("azure-kusto-data", () => ({}));
 jest.mock("azure-kusto-ingest", () => ({}));
 jest.mock("@actual-app/api", () => ({}));
+
+describe("storage pending policy", () => {
+  it.each([
+    {
+      supportsPendingTransactions: undefined,
+      completed: true,
+      added: 1,
+      pending: 1,
+    },
+    {
+      supportsPendingTransactions: false,
+      completed: true,
+      added: 1,
+      pending: 1,
+    },
+    {
+      supportsPendingTransactions: undefined,
+      completed: false,
+      added: 0,
+      pending: 1,
+    },
+    {
+      supportsPendingTransactions: true,
+      completed: true,
+      added: 2,
+      pending: 0,
+    },
+    {
+      supportsPendingTransactions: true,
+      completed: false,
+      added: 1,
+      pending: 0,
+    },
+  ])(
+    "filters and reports $supportsPendingTransactions with completed=$completed",
+    async ({ supportsPendingTransactions, completed, added, pending }) => {
+      const storage = mock<TransactionStorage>({ supportsPendingTransactions });
+      storage.saveTransactions.mockImplementation(async (txns) =>
+        createSaveStats("test", undefined, txns, {
+          added: txns.length,
+          pending: 0,
+        }),
+      );
+      const txns = [
+        transaction({ status: TransactionStatuses.Pending }),
+        ...(completed ? [transaction({})] : []),
+      ];
+      const report = createRunReport();
+
+      await saveResults(
+        [
+          {
+            companyId: CompanyTypes.hapoalim,
+            result: {
+              success: true,
+              accounts: [{ accountNumber: "123", txns }],
+            },
+          },
+        ],
+        report,
+        [storage],
+      );
+
+      expect(storage.saveTransactions).toHaveBeenCalledTimes(1);
+      expect(storage.saveTransactions.mock.calls[0][0]).toHaveLength(added);
+      if (supportsPendingTransactions !== true) {
+        expect(
+          storage.saveTransactions.mock.calls[0][0].every(
+            (tx) => tx.status !== TransactionStatuses.Pending,
+          ),
+        ).toBe(true);
+      }
+      expect(storage.saveTransactions.mock.calls[0][2]).toMatchObject({
+        accountResults: [{ txnCount: txns.length }],
+      });
+      expect(report.storages.Object).toMatchObject({
+        state: "done",
+        stats: {
+          total: txns.length,
+          added,
+          pending,
+          existing: 0,
+          otherSkipped: 0,
+        },
+      });
+    },
+  );
+});
 
 function snapshot(secret: string): MoneymanConfig {
   const result = config();
@@ -253,6 +342,26 @@ describe("per-run storage ownership", () => {
     next.storage = { localJson: { enabled: false } };
     expect(createStorages(next)).toEqual([]);
     expect(first[0]).toBeInstanceOf(WebPostStorage);
+  });
+
+  it("keeps pending filtering and skipped statistics for direct web-post saves", async () => {
+    const storage = new WebPostStorage(snapshot("direct"));
+    const stats = await storage.saveTransactions(
+      [
+        transactionRow({}),
+        transactionRow({ status: TransactionStatuses.Pending }),
+      ],
+      async () => {},
+    );
+
+    const rows = JSON.parse(fetchMock.mock.calls[0][1]!.body as string);
+    expect(rows).toHaveLength(1);
+    expect(stats).toMatchObject({
+      total: 2,
+      added: 1,
+      pending: 1,
+      otherSkipped: 0,
+    });
   });
 
   it("applies per-run transaction hash options in storage providers", async () => {
