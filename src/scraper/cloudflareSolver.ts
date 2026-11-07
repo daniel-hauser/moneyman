@@ -56,29 +56,25 @@ function* getMousePath(from: Point, to: Point): Generator<Point> {
   }
 }
 
-async function moveTo(
-  page: Page,
-  from: Point,
-  to: Point,
-  signal: AbortSignal,
-): Promise<Point> {
-  logger("Moving mouse from", from, "to", to);
-  for (const [px, py] of getMousePath(from, to)) {
-    signal.throwIfAborted();
-    await page.mouse.move(px, py);
-    if (Math.random() * 100 > 15) {
-      await setTimeout(Math.random() * 500 + 100, undefined, { signal });
-    }
-  }
-  return to;
-}
-
 const containerLocation = { x: 506, y: 257 };
 const checkboxBox = { x: 522, y: 280, width: 20, height: 20 };
 
 export async function solveTurnstile(page: Page): Promise<string> {
   const controller = new AbortController();
   const { signal } = controller;
+
+  async function moveTo(from: Point, to: Point): Promise<Point> {
+    logger("Moving mouse from", from, "to", to);
+    for (const [px, py] of getMousePath(from, to)) {
+      signal.throwIfAborted();
+      await page.mouse.move(px, py);
+      if (Math.random() * 100 > 15) {
+        await setTimeout(Math.random() * 500 + 100, undefined, { signal });
+      }
+    }
+    return to;
+  }
+
   const onClose = () => controller.abort();
   using cleanup = new DisposableStack();
   page.once("close", onClose);
@@ -91,29 +87,19 @@ export async function solveTurnstile(page: Page): Promise<string> {
     logger("Solving turnstile, Window size", { windowWidth, windowHeight });
 
     let currentPosition: Point = [0, 0];
-    currentPosition = await moveTo(
-      page,
-      currentPosition,
-      [
-        containerLocation.x + Math.random() * 12 + 5,
-        containerLocation.y + Math.random() * 12 + 5,
-      ],
-      signal,
-    );
+    currentPosition = await moveTo(currentPosition, [
+      containerLocation.x + Math.random() * 12 + 5,
+      containerLocation.y + Math.random() * 12 + 5,
+    ]);
 
     logger("Mouse moved to random position");
     await setTimeout(1500, undefined, { signal });
 
     const { x, y, width, height } = checkboxBox;
-    currentPosition = await moveTo(
-      page,
-      currentPosition,
-      [
-        x + width / 5 + Math.random() * (width - width / 5),
-        y + height / 5 + Math.random() * (height - height / 5),
-      ],
-      signal,
-    );
+    currentPosition = await moveTo(currentPosition, [
+      x + width / 5 + Math.random() * (width - width / 5),
+      y + height / 5 + Math.random() * (height - height / 5),
+    ]);
 
     await page.mouse.click(...currentPosition);
     logger("Clicked on checkbox");
