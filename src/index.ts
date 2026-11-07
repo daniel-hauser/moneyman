@@ -76,6 +76,8 @@ async function main() {
     try {
       await sendConfigToTelegramIfRequested();
       await runOnce("startup", processHandlers.signal);
+    } catch (error) {
+      processHandlers.reportUnhandledRejection(error);
     } finally {
       processHandlers.dispose();
       await processHandlers.waitForNotifications();

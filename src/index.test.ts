@@ -5,6 +5,7 @@ import { mock } from "jest-mock-extended";
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { CustomElementRegistry } from "@lit-labs/ssr-dom-shim";
 import type { ReportTransport } from "./bot/reportPublisher.js";
+import { locks } from "node:worker_threads";
 
 jest.mock("./bot/runReport.js", () => {
   const actual =
@@ -97,6 +98,17 @@ async function loadEntrypoint(
       typeof import("./scraper/client.js").scrapeAccounts
     >,
   ) => void,
+  configureLifecycle?: (mocks: {
+    sendConfig: jest.MockedFunction<
+      typeof import("./config.js").sendConfigToTelegramIfRequested
+    >;
+    sendLogFile: jest.MockedFunction<
+      typeof import("./utils/secure-log.js").sendLogFile
+    >;
+    sendError: jest.MockedFunction<
+      typeof import("./bot/notifier.js").sendError
+    >;
+  }) => void,
 ) {
   // Each reset loads new component constructors; isolate the SSR registry too.
   globalThis.customElements = new CustomElementRegistry();
@@ -114,6 +126,13 @@ async function loadEntrypoint(
   const { startServer } = await import("./server.js");
   const { runContextStore } = await import("./utils/asyncContext.js");
   const { hasConfigSecretProvider } = await import("./configRefresh.js");
+  const { sendConfigToTelegramIfRequested } = await import("./config.js");
+  const { sendError } = await import("./bot/notifier.js");
+  configureLifecycle?.({
+    sendConfig: jest.mocked(sendConfigToTelegramIfRequested),
+    sendLogFile: jest.mocked(sendLogFile),
+    sendError: jest.mocked(sendError),
+  });
   jest.mocked(hasConfigSecretProvider).mockReturnValue(providerConfigured);
   const scrapeAccountsMock = jest.mocked(scrapeAccounts);
   const runWithStorageMock = jest.mocked(runWithStorage);
@@ -137,6 +156,7 @@ async function loadEntrypoint(
 
 describe("index", () => {
   const originalEnv = process.env;
+  const originalExitCode = process.exitCode;
   let originalExceptionListeners: ReturnType<typeof process.listeners>;
   let originalRejectionListeners: ReturnType<typeof process.listeners>;
   let originalExitListeners: ReturnType<typeof process.listeners>;
@@ -179,6 +199,7 @@ describe("index", () => {
       }
     }
     process.env = originalEnv;
+    process.exitCode = originalExitCode;
     jest.restoreAllMocks();
   });
 
@@ -226,6 +247,73 @@ describe("index", () => {
       ).toEqual(listeners);
     },
   );
+
+  it.each(["startup", "cleanup", "cleanup after signal"] as const)(
+    "reports a one-shot %s failure before exiting with status 1",
+    async (stage) => {
+      const error = new Error(`${stage} failed`);
+      error.stack = `Error: ${stage} failed\n    at lifecycle.js:1`;
+      const notificationStarted = Promise.withResolvers<void>();
+      const notificationFinished = Promise.withResolvers<void>();
+      let exit: jest.SpyInstance | undefined;
+      const entrypoint = loadEntrypoint(
+        false,
+        false,
+        stage === "cleanup after signal"
+          ? (scrape) =>
+              scrape.mockImplementationOnce(async () => {
+                process.emit("SIGTERM");
+                return { results: [], domains: {} };
+              })
+          : undefined,
+        (mocks) => {
+          if (stage === "startup") {
+            mocks.sendConfig.mockRejectedValueOnce(error);
+          } else {
+            mocks.sendLogFile.mockRejectedValueOnce(error);
+          }
+          mocks.sendError.mockImplementationOnce(async () => {
+            notificationStarted.resolve();
+            await notificationFinished.promise;
+          });
+          exit = jest.mocked(process.exit);
+        },
+      );
+
+      await notificationStarted.promise;
+      expect(exit).not.toHaveBeenCalled();
+      const { sendError } = await import("./bot/notifier.js");
+      expect(sendError).toHaveBeenCalledWith(
+        `Unhandled rejection: ${stage} failed\nError: ${stage} failed\n    at lifecycle.js:1`,
+      );
+      notificationFinished.resolve();
+      const result = await entrypoint;
+      expect(result.exit).toHaveBeenCalledWith(1);
+    },
+  );
+
+  it("reports a rejected one-shot run and exits with status 1", async () => {
+    const acquired = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const held = locks.request("moneyman-scrape", async () => {
+      acquired.resolve();
+      await release.promise;
+    });
+    await acquired.promise;
+    try {
+      const { exit } = await loadEntrypoint(false);
+      const { sendError } = await import("./bot/notifier.js");
+      expect(sendError).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "Unhandled rejection: A scrape is already in progress",
+        ),
+      );
+      expect(exit).toHaveBeenCalledWith(1);
+    } finally {
+      release.resolve();
+      await held;
+    }
+  });
 
   it("disposes the per-run parent tracker after scraping", async () => {
     await loadEntrypoint(false);
