@@ -2,7 +2,7 @@ import assert from "node:assert";
 import { Pool, type PoolClient } from "pg";
 import pgFormat from "pg-format";
 import { format as formatDate, parseISO } from "date-fns";
-import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
+import { nonPendingTransactions } from "./utils.js";
 import { createLogger } from "../../utils/logger.js";
 import { tableRow } from "../transactionTableRow.js";
 import type { TransactionRow, TransactionStorage } from "../../types.js";
@@ -67,9 +67,7 @@ export class SqlStorage implements TransactionStorage {
       await onProgress(`Ensuring schema ${schema}`);
       await this.ensureInitialized(client, schema);
 
-      const nonPending = txns.filter(
-        (tx) => tx.status !== TransactionStatuses.Pending,
-      );
+      const nonPending = nonPendingTransactions(txns);
 
       await this.withTransaction(client, async (transactionClient) => {
         if (nonPending.length > 0) {

@@ -1,6 +1,6 @@
 import { createLogger } from "../../utils/logger.js";
 import type { TransactionRow, TransactionStorage } from "../../types.js";
-import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
+import { nonPendingTransactions } from "./utils.js";
 import { tableRow } from "../transactionTableRow.js";
 import { createSaveStats } from "../saveStats.js";
 import type { MoneymanConfig } from "../../config.js";
@@ -25,9 +25,7 @@ export class WebPostStorage implements TransactionStorage {
     const webPostConfig = this.config.storage.webPost;
     assert(webPostConfig, "Web Post configuration not found");
 
-    const nonPendingTxns = txns.filter(
-      (txn) => txn.status !== TransactionStatuses.Pending,
-    );
+    const nonPendingTxns = nonPendingTransactions(txns);
 
     logger(
       `Posting ${nonPendingTxns.length} transactions to ${webPostConfig.url}`,

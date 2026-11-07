@@ -5,7 +5,7 @@ import type {
   TransactionStorage,
   SaveContext,
 } from "../../types.js";
-import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
+import { nonPendingTransactions } from "./utils.js";
 import { createSaveStats } from "../saveStats.js";
 import type { MoneymanConfig } from "../../config.js";
 import { runContextStore } from "../../utils/asyncContext.js";
@@ -108,9 +108,7 @@ export class MoneymanDashStorage implements TransactionStorage {
     const endpoint = this.endpoint!;
     const token = this.token!;
 
-    const nonPendingTxns = txns.filter(
-      (txn) => txn.status !== TransactionStatuses.Pending,
-    );
+    const nonPendingTxns = nonPendingTransactions(txns);
 
     logger(`Posting ${nonPendingTxns.length} transactions to ${endpoint}`);
 
