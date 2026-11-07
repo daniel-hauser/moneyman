@@ -281,9 +281,9 @@ describe("index", () => {
     it("hands the runner to the server without running", () => {
       expect(mocks.runWithStorageMock).not.toHaveBeenCalled();
       expect(mocks.exit).not.toHaveBeenCalled();
-      const options = mocks.startServerMock.mock.calls[0][0];
-      expect(options.processHandlers.signal).toBeInstanceOf(AbortSignal);
-      expect(options.processHandlers.waitForNotifications).toEqual(
+      const processHandlers = mocks.startServerMock.mock.calls[0][1];
+      expect(processHandlers.signal).toBeInstanceOf(AbortSignal);
+      expect(processHandlers.waitForNotifications).toEqual(
         expect.any(Function),
       );
     });
