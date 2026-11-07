@@ -4,6 +4,7 @@ import { createLogger } from "../utils/logger.js";
 export type OtpRequest = (
   companyId: string,
   phoneNumber: string,
+  signal?: AbortSignal,
 ) => Promise<string>;
 
 const logger = createLogger("otp");
