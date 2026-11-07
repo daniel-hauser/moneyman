@@ -5,7 +5,7 @@ import { mock } from "jest-mock-extended";
 import { CompanyTypes } from "israeli-bank-scrapers";
 import { CustomElementRegistry } from "@lit-labs/ssr-dom-shim";
 import type { ReportTransport } from "./bot/reportPublisher.js";
-import { locks } from "node:worker_threads";
+import { getEventListeners } from "node:events";
 
 jest.mock("./bot/runReport.js", () => {
   const actual =
@@ -46,6 +46,12 @@ jest.mock("./configRefresh.js", () => ({
 jest.mock("./bot/notifier.js", () => ({
   __esModule: true,
   sendError: jest.fn().mockResolvedValue(undefined),
+  send: jest.fn().mockResolvedValue(undefined),
+  startTelegramBot: jest.fn().mockResolvedValue(undefined),
+  launchTelegramBot: jest.fn().mockResolvedValue(undefined),
+  stopTelegramBot: jest.fn(),
+  shutdownTelegramBot: jest.fn().mockResolvedValue(undefined),
+  requestOtpCode: jest.fn().mockResolvedValue("123456"),
   sendPhotos: jest.fn().mockResolvedValue(undefined),
   reportTransport: undefined,
 }));
@@ -97,15 +103,8 @@ async function loadEntrypoint(
     scrape: jest.MockedFunction<
       typeof import("./scraper/client.js").scrapeAccounts
     >,
+    notifier: typeof import("./bot/notifier.js"),
   ) => void,
-  configureLifecycle?: (mocks: {
-    sendLogFile: jest.MockedFunction<
-      typeof import("./utils/secure-log.js").sendLogFile
-    >;
-    sendError: jest.MockedFunction<
-      typeof import("./bot/notifier.js").sendError
-    >;
-  }) => void,
 ) {
   // Each reset loads new component constructors; isolate the SSR registry too.
   globalThis.customElements = new CustomElementRegistry();
@@ -123,17 +122,13 @@ async function loadEntrypoint(
   const { startServer } = await import("./server.js");
   const { runContextStore } = await import("./utils/asyncContext.js");
   const { hasConfigSecretProvider } = await import("./configRefresh.js");
-  const { sendError } = await import("./bot/notifier.js");
-  configureLifecycle?.({
-    sendLogFile: jest.mocked(sendLogFile),
-    sendError: jest.mocked(sendError),
-  });
+  const notifier = await import("./bot/notifier.js");
   jest.mocked(hasConfigSecretProvider).mockReturnValue(providerConfigured);
   const scrapeAccountsMock = jest.mocked(scrapeAccounts);
   const runWithStorageMock = jest.mocked(runWithStorage);
   const startServerMock = jest.mocked(startServer);
   scrapeAccountsMock.mockResolvedValue({ results: [], domains: {} });
-  configureScrape?.(scrapeAccountsMock);
+  configureScrape?.(scrapeAccountsMock, notifier);
   startServerMock.mockImplementation(async () => started());
 
   await import("./index.js");
@@ -146,12 +141,12 @@ async function loadEntrypoint(
     sendLogFileMock: jest.mocked(sendLogFile),
     startServerMock,
     runContextStore,
+    notifier,
   };
 }
 
 describe("index", () => {
   const originalEnv = process.env;
-  const originalExitCode = process.exitCode;
   let originalExceptionListeners: ReturnType<typeof process.listeners>;
   let originalRejectionListeners: ReturnType<typeof process.listeners>;
   let originalExitListeners: ReturnType<typeof process.listeners>;
@@ -194,7 +189,6 @@ describe("index", () => {
       }
     }
     process.env = originalEnv;
-    process.exitCode = originalExitCode;
     jest.restoreAllMocks();
   });
 
@@ -204,9 +198,12 @@ describe("index", () => {
     );
     const { exit, runWithStorageMock, startServerMock, sendLogFileMock } =
       await loadEntrypoint(false, true);
+    const notifier = await import("./bot/notifier.js");
 
     expect(runWithStorageMock).toHaveBeenCalledTimes(1);
     expect(startServerMock).not.toHaveBeenCalled();
+    expect(notifier.startTelegramBot).not.toHaveBeenCalled();
+    expect(notifier.stopTelegramBot).toHaveBeenCalledTimes(1);
     expect(exit).toHaveBeenCalledWith(0);
     expect(sendLogFileMock).toHaveBeenCalledWith(true, [{}], false);
     const { loadRunConfig } = await import("./configRefresh.js");
@@ -227,15 +224,21 @@ describe("index", () => {
         false,
         (scrape) =>
           scrape.mockImplementationOnce(
-            async (_settings, _status, _error, signal) => {
+            async (_settings, requestOtp, _status, _error, signal) => {
               expect(signal?.aborted).toBe(false);
               process.emit(signalName);
               expect(signal?.aborted).toBe(true);
+              await expect(
+                requestOtp("oneZero", "+97200000000", signal),
+              ).rejects.toThrow();
               throw signal!.reason;
             },
           ),
       );
+      const notifier = await import("./bot/notifier.js");
       expect(scrapeAccountsMock).toHaveBeenCalledTimes(1);
+      expect(notifier.startTelegramBot).not.toHaveBeenCalled();
+      expect(notifier.stopTelegramBot).toHaveBeenCalledTimes(1);
       expect(exit).toHaveBeenCalledWith(0);
       expect(
         ["SIGINT", "SIGTERM"].map((signal) => process.listenerCount(signal)),
@@ -243,67 +246,90 @@ describe("index", () => {
     },
   );
 
-  it.each(["cleanup", "cleanup after signal"] as const)(
-    "reports a one-shot %s failure before exiting with status 1",
-    async (stage) => {
-      const error = new Error(`${stage} failed`);
-      error.stack = `Error: ${stage} failed\n    at lifecycle.js:1`;
-      const notificationStarted = Promise.withResolvers<void>();
-      const notificationFinished = Promise.withResolvers<void>();
-      let exit: jest.SpyInstance | undefined;
-      const entrypoint = loadEntrypoint(
-        false,
-        false,
-        stage === "cleanup after signal"
-          ? (scrape) =>
-              scrape.mockImplementationOnce(async () => {
-                process.emit("SIGTERM");
-                return { results: [], domains: {} };
-              })
-          : undefined,
-        (mocks) => {
-          mocks.sendLogFile.mockRejectedValueOnce(error);
-          mocks.sendError.mockImplementationOnce(async () => {
-            notificationStarted.resolve();
-            await notificationFinished.promise;
-          });
-          exit = jest.mocked(process.exit);
-        },
-      );
+  it("shares one lazy polling start across OTP requests and stops after the one-shot run", async () => {
+    let responses: string[] = [];
+    const { scrapeAccountsMock } = await loadEntrypoint(
+      false,
+      false,
+      (scrape) =>
+        scrape.mockImplementationOnce(async (_settings, requestOtp) => {
+          responses = await Promise.all([
+            requestOtp("oneZero", "+97200000001"),
+            requestOtp("oneZero", "+97200000002"),
+          ]);
+          return { results: [], domains: {} };
+        }),
+    );
+    const notifier = await import("./bot/notifier.js");
 
-      await notificationStarted.promise;
-      expect(exit).not.toHaveBeenCalled();
-      const { sendError } = await import("./bot/notifier.js");
-      expect(sendError).toHaveBeenCalledWith(
-        `Unhandled rejection: ${stage} failed\nError: ${stage} failed\n    at lifecycle.js:1`,
-      );
-      notificationFinished.resolve();
-      const result = await entrypoint;
-      expect(result.exit).toHaveBeenCalledWith(1);
-    },
-  );
+    expect(scrapeAccountsMock).toHaveBeenCalledTimes(1);
+    expect(responses).toEqual(["123456", "123456"]);
+    expect(notifier.startTelegramBot).toHaveBeenCalledTimes(1);
+    expect(notifier.requestOtpCode).toHaveBeenCalledTimes(2);
+    expect(notifier.stopTelegramBot).toHaveBeenCalledTimes(1);
+  });
 
-  it("reports a rejected one-shot run and exits with status 1", async () => {
-    const acquired = Promise.withResolvers<void>();
-    const release = Promise.withResolvers<void>();
-    const held = locks.request("moneyman-scrape", async () => {
-      acquired.resolve();
-      await release.promise;
-    });
-    await acquired.promise;
-    try {
-      const { exit } = await loadEntrypoint(false);
-      const { sendError } = await import("./bot/notifier.js");
-      expect(sendError).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "Unhandled rejection: A scrape is already in progress",
-        ),
-      );
-      expect(exit).toHaveBeenCalledWith(1);
-    } finally {
-      release.resolve();
-      await held;
-    }
+  it("cleans up after polling startup fails in a one-shot run", async () => {
+    let requestError: unknown;
+    const { notifier } = await loadEntrypoint(
+      false,
+      false,
+      (scrape, notifier) => {
+        jest
+          .mocked(notifier.startTelegramBot)
+          .mockRejectedValueOnce(new Error("polling failed"));
+        scrape.mockImplementationOnce(async (_settings, requestOtp) => {
+          requestError = await requestOtp("oneZero", "+97200000000").catch(
+            (error: unknown) => error,
+          );
+          return { results: [], domains: {} };
+        });
+      },
+    );
+
+    expect(requestError).toEqual(
+      expect.objectContaining({
+        message: "Failed to start Telegram bot for OTP: Error: polling failed",
+      }),
+    );
+    expect(notifier.requestOtpCode).not.toHaveBeenCalled();
+    expect(notifier.send).toHaveBeenCalledWith(
+      expect.stringContaining("requestOtpCode\n❌ polling failed"),
+    );
+    expect(notifier.stopTelegramBot).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops a polling startup after OTP cancellation before launch completes", async () => {
+    const startup = Promise.withResolvers<void>();
+    const combined = jest.spyOn(AbortSignal, "any");
+    let requestError: unknown;
+    const { notifier } = await loadEntrypoint(
+      false,
+      false,
+      (scrape, notifier) => {
+        jest.mocked(notifier.startTelegramBot).mockReturnValue(startup.promise);
+        scrape.mockImplementationOnce(async (_settings, requestOtp) => {
+          const worker = new AbortController();
+          const request = requestOtp("oneZero", "+97200000000", worker.signal);
+          worker.abort(new Error("worker exited"));
+          requestError = await request.catch((error: unknown) => error);
+          startup.resolve();
+          return { results: [], domains: {} };
+        });
+      },
+    );
+
+    expect(requestError).toEqual(
+      expect.objectContaining({ message: "worker exited" }),
+    );
+    expect(
+      getEventListeners(
+        combined.mock.results.at(-1)!.value as AbortSignal,
+        "abort",
+      ),
+    ).toEqual([]);
+    expect(notifier.requestOtpCode).not.toHaveBeenCalled();
+    expect(notifier.stopTelegramBot).toHaveBeenCalledTimes(1);
   });
 
   it("disposes the per-run parent tracker after scraping", async () => {
@@ -327,7 +353,14 @@ describe("index", () => {
       false,
       (scrape) => {
         scrape.mockImplementationOnce(
-          async (_settings, _status, _error, _signal, onTiming) => {
+          async (
+            _settings,
+            _requestOtp,
+            _status,
+            _error,
+            _signal,
+            onTiming,
+          ) => {
             expect(onTiming).toEqual(expect.any(Function));
             await onTiming?.(timing);
             return { results: [], domains: {} };
@@ -365,6 +398,16 @@ describe("index", () => {
       expect(processHandlers.waitForNotifications).toEqual(
         expect.any(Function),
       );
+    });
+
+    it("passes the server-owned OTP handler without creating a one-shot session", async () => {
+      await runOnce("manual");
+
+      expect(mocks.scrapeAccountsMock.mock.calls[0][1]).toBe(
+        mocks.notifier.requestOtpCode,
+      );
+      expect(mocks.notifier.startTelegramBot).not.toHaveBeenCalled();
+      expect(mocks.notifier.stopTelegramBot).not.toHaveBeenCalled();
     });
 
     it.each(["manual", "scheduled"] as const)(
@@ -643,7 +686,7 @@ describe("index", () => {
       }>();
       const started = Promise.withResolvers<void>();
       mocks.scrapeAccountsMock.mockImplementationOnce(
-        (_settings, _status, _error, signal) => {
+        (_settings, _requestOtp, _status, _error, signal) => {
           expect(signal).toBeUndefined();
           started.resolve();
           return pending.promise;
@@ -728,7 +771,7 @@ describe("index", () => {
 
     it("preserves an error callback failure even when accounts succeed", async () => {
       mocks.scrapeAccountsMock.mockImplementation(
-        async (_config, _status, onError) => {
+        async (_config, _requestOtp, _status, onError) => {
           await onError?.(new Error("browser close failed"), "browser.close");
           return {
             results: [accountResult(CompanyTypes.hapoalim, true)],

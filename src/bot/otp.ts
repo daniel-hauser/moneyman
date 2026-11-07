@@ -2,20 +2,11 @@ import { Context, Telegraf } from "telegraf";
 import { message } from "telegraf/filters";
 import { config } from "../config.js";
 import { createLogger } from "../utils/logger.js";
-import { formatUnknownError } from "../utils/utils.js";
 import { aborted } from "node:util";
 
 const logger = createLogger("otp");
 
-export function createOtpHandler(
-  bot: Telegraf<Context> | null,
-  polling: {
-    acquireOtpPolling(): {
-      started: Promise<void>;
-      release(): void;
-    };
-  },
-) {
+export function createOtpHandler(bot: Telegraf<Context> | null) {
   const telegramConfig = config.options.notifications?.telegram;
   const pending = new Map<number, (text: string) => void>();
 
@@ -65,28 +56,10 @@ export function createOtpHandler(
         (signal) => signal !== undefined,
       ),
     );
-    let pollingLease: ReturnType<typeof polling.acquireOtpPolling> | undefined;
-    const responsePromise = new Promise<string>((resolve, reject) => {
+    const responsePromise = new Promise<string>((resolve) => {
       pending.set(requestMessage.message_id, (text) => {
         pending.delete(requestMessage.message_id);
         resolve(text);
-      });
-      pollingLease = polling.acquireOtpPolling();
-      pollingLease.started.catch((error) => {
-        logger("Failed to start Telegram bot for OTP", error);
-        void bot.telegram
-          .sendMessage(
-            telegramConfig.chatId,
-            `requestOtpCode\n❌ ${
-              error instanceof Error
-                ? `${error.message}\n${error.stack}`
-                : formatUnknownError(error)
-            }`,
-          )
-          .catch((notificationError) =>
-            logger("Failed to send OTP error notification", notificationError),
-          );
-        reject(new Error(`Failed to start Telegram bot for OTP: ${error}`));
       });
     });
 
@@ -103,8 +76,6 @@ export function createOtpHandler(
     } finally {
       completed.abort();
       pending.delete(requestMessage.message_id);
-
-      pollingLease?.release();
     }
   };
 }
