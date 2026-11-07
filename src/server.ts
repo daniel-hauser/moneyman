@@ -44,7 +44,6 @@ export async function startServer(
   /** The run in progress, mirrored so a shutdown can wait for it. */
   let activeRun: Promise<unknown> | undefined;
   let shuttingDown = false;
-  let task: ReturnType<typeof schedule> | undefined;
 
   async function startTrackedRun(trigger: RunTrigger) {
     const handle = await startRun(trigger);
@@ -58,6 +57,20 @@ export async function startServer(
 
     return handle;
   }
+
+  const task =
+    cron && !processHandlers.signal.aborted
+      ? schedule(cron, () => {
+          startTrackedRun("scheduled").catch((e) =>
+            logger("Scheduled run failed", e),
+          );
+        })
+      : undefined;
+  logToPublicLog(
+    cron
+      ? `Scheduled runs: ${cron} (${Intl.DateTimeFormat().resolvedOptions().timeZone})`
+      : "No scheduled runs, use /scrape in Telegram to run on demand",
+  );
 
   function handleShutdownFailure(error: unknown) {
     process.exitCode = 1;
@@ -113,19 +126,6 @@ export async function startServer(
       handleShutdownFailure,
     );
   });
-
-  task = cron
-    ? schedule(cron, () => {
-        startTrackedRun("scheduled").catch((e) =>
-          logger("Scheduled run failed", e),
-        );
-      })
-    : undefined;
-  logToPublicLog(
-    cron
-      ? `Scheduled runs: ${cron} (${Intl.DateTimeFormat().resolvedOptions().timeZone})`
-      : "No scheduled runs, use /scrape in Telegram to run on demand",
-  );
 
   if (!bot) {
     logToPublicLog(
