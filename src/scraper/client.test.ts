@@ -8,8 +8,8 @@ import type {
   ScraperConfig,
 } from "../types.js";
 import { CompanyTypes } from "israeli-bank-scrapers";
-import { scrapeAccounts } from "./client.js";
-import { requestOtpCode } from "../bot/notifier.js";
+import { scrapeAccounts as runScrapeAccounts } from "./client.js";
+import type { OtpRequest } from "./otp.js";
 import { formatUnknownError } from "../utils/utils.js";
 import type {
   ScraperWorkerApi,
@@ -26,7 +26,6 @@ jest.mock("comlink", () => ({
   ...jest.requireActual("comlink"),
   wrap: jest.fn(),
 }));
-jest.mock("../bot/notifier.js", () => ({ requestOtpCode: jest.fn() }));
 
 const scraping: ScraperRunConfig = {
   accounts: [
@@ -52,6 +51,24 @@ const results: AccountScrapeResult[] = [
   { companyId: CompanyTypes.oneZero, result: { success: true, accounts: [] } },
 ];
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
+const requestOtpCode: jest.MockedFunction<OtpRequest> = jest.fn();
+
+function scrapeAccounts(
+  scraping: ScraperRunConfig,
+  onStatus?: (status: string[], totalTime?: number) => Promise<void>,
+  onError?: (error: unknown, caller: string) => void | Promise<void>,
+  signal?: AbortSignal,
+  onTiming?: (timing: RunTiming) => void | Promise<void>,
+) {
+  return runScrapeAccounts(
+    scraping,
+    requestOtpCode,
+    onStatus,
+    onError,
+    signal,
+    onTiming,
+  );
+}
 
 describe("Comlink scraper client", () => {
   let worker: ReturnType<typeof mock<Worker>>;

@@ -163,6 +163,7 @@ describe("startServer", () => {
       releaseRun();
       await flush();
       expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
+      expect(shutdownTelegramBot).toHaveBeenCalledWith();
       expect(exit).toHaveBeenCalledWith(0);
       expect(exit).toHaveBeenCalledTimes(1);
       expect(getEventListeners(runDrainSignal, "abort")).toEqual([]);

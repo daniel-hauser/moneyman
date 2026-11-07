@@ -12,6 +12,7 @@ import {
   sendError,
   reportTransport,
   reportUpdateIntervalMs,
+  requestOtpCode,
 } from "./bot/notifier.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 import {
@@ -38,6 +39,8 @@ import { createRunReport } from "./bot/runReport.js";
 import { createReportPublisher } from "./bot/reportPublisher.js";
 import { formatUnknownError } from "./utils/utils.js";
 import { registerProcessHandlers } from "./utils/processErrors.js";
+import type { OtpRequest } from "./scraper/otp.js";
+import { createOneShotOtpSession } from "./bot/otpSession.js";
 
 const logger = createLogger("main");
 const SCRAPE_LOCK = "moneyman-scrape";
@@ -173,6 +176,7 @@ async function runScraper(
   hooks: RunnerHooks,
   snapshot: MoneymanConfig,
   domainTracker: DomainTracker,
+  requestOtp: OtpRequest,
   signal?: AbortSignal,
 ) {
   try {
@@ -182,6 +186,7 @@ async function runScraper(
     logger("Starting to scrape");
     const { results, domains } = await scrapeAccounts(
       getScraperConfig(snapshot),
+      requestOtp,
       async (status, totalTime) => {
         logger("Status changed", { status, totalTime });
         return hooks.onStatusChanged(status, totalTime);
@@ -225,6 +230,8 @@ async function prepareRun() {
 }
 
 async function run(signal?: AbortSignal) {
+  const otpSession = longRunning ? undefined : createOneShotOtpSession(signal);
+  const requestOtp = otpSession?.request ?? requestOtpCode;
   let publication: Awaited<ReturnType<typeof runWithStorage>> = {
     report: createRunReport(),
     reportSent: false,
@@ -246,7 +253,8 @@ async function run(signal?: AbortSignal) {
     try {
       logger("Running with storage");
       publication = await runWithStorage(
-        (hooks) => runScraper(hooks, snapshot, domainTracker, signal),
+        (hooks) =>
+          runScraper(hooks, snapshot, domainTracker, requestOtp, signal),
         storages,
         publication,
       );
@@ -268,26 +276,30 @@ async function run(signal?: AbortSignal) {
     return true;
   } finally {
     try {
-      if (!report.endedAt) {
-        report.endedAt = new Date();
-        const sendReportFile =
-          Boolean(reportTransport) &&
-          (config.options.notifications.telegram?.sendReportFileToTelegram ??
-            false);
-        const logs = sendReportFile ? readReportLogs() : undefined;
-        publication.reportSent = await createReportPublisher(report, {
-          transport: reportTransport,
-          sendReportFile,
-          intervalMs: reportUpdateIntervalMs,
-        }).finish(logs);
-        publication.logsSent = publication.reportSent && logs !== undefined;
-      }
+      await otpSession?.close();
     } finally {
-      await sendLogFile(
-        !longRunning,
-        prepared?.storages ?? [],
-        publication.logsSent,
-      );
+      try {
+        if (!report.endedAt) {
+          report.endedAt = new Date();
+          const sendReportFile =
+            Boolean(reportTransport) &&
+            (config.options.notifications.telegram?.sendReportFileToTelegram ??
+              false);
+          const logs = sendReportFile ? readReportLogs() : undefined;
+          publication.reportSent = await createReportPublisher(report, {
+            transport: reportTransport,
+            sendReportFile,
+            intervalMs: reportUpdateIntervalMs,
+          }).finish(logs);
+          publication.logsSent = publication.reportSent && logs !== undefined;
+        }
+      } finally {
+        await sendLogFile(
+          !longRunning,
+          prepared?.storages ?? [],
+          publication.logsSent,
+        );
+      }
     }
   }
 }
