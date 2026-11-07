@@ -1,7 +1,6 @@
 import { Context, Telegraf } from "telegraf";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
 import { aborted } from "node:util";
-import { setTimeout } from "node:timers/promises";
 import { formatUnknownError } from "../utils/utils.js";
 import { createOtpHandler } from "./otp.js";
 import { config } from "../config.js";
@@ -24,37 +23,15 @@ export function createBot(bot: Telegraf<Context> | null) {
 
   function createPolling(bot: Telegraf<Context>): TelegramPolling {
     const lifetime = bot.launch(() => logger("Telegram bot launched"));
-    const finished = lifetime.then(
-      () => true,
-      (error) => {
-        logger("Telegram bot polling failed", error);
-        if (polling?.lifetime === lifetime) polling = undefined;
-        return true;
-      },
-    );
+    lifetime.catch((error) => {
+      logger("Telegram bot polling failed", error);
+      if (polling?.lifetime === lifetime) polling = undefined;
+    });
     let stopping: Promise<void> | undefined;
 
     async function stopInternal(): Promise<void> {
-      if (await Promise.race([finished, Promise.resolve(false)])) return;
       try {
-        do {
-          try {
-            bot.stop();
-            break;
-          } catch (error) {
-            if (
-              !(error instanceof Error) ||
-              error.message !== "Bot is not running!"
-            ) {
-              throw error;
-            }
-          }
-        } while (
-          !(await Promise.race([
-            setTimeout(100, false, { ref: false }),
-            finished,
-          ]))
-        );
+        bot.stop();
         await lifetime;
       } catch (error) {
         logger(`Failed to stop the Telegram bot: ${formatUnknownError(error)}`);
