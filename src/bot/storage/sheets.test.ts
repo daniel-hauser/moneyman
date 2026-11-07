@@ -6,6 +6,9 @@ import {
 import { mock, mockClear } from "jest-mock-extended";
 import { config, transactionRow } from "../../utils/tests.js";
 import type { MoneymanConfig } from "../../config.js";
+import { getSkippedCount } from "../saveStats.js";
+
+jest.mock("../../config.js", () => ({ systemName: "moneyman" }));
 
 // Create mocks at top level
 const mockSheet = mock<GoogleSpreadsheetWorksheet>({
@@ -31,23 +34,16 @@ jest.mock("../notifier.js", () => ({
   sendError: jest.fn(),
 }));
 
-jest.mock("../saveStats.js", () => ({
-  createSaveStats: jest.fn().mockReturnValue({
-    existing: 0,
-    added: 0,
-    highlightedTransactions: { Added: [] },
-  }),
-}));
-
 jest.mock("../transactionTableRow.js", () => ({
   tableRow: jest.fn().mockReturnValue({}),
 }));
 
 describe("GoogleSheetsStorage", () => {
   let storage: GoogleSheetsStorage;
+  let mockConfig: MoneymanConfig;
 
   beforeEach(() => {
-    const mockConfig: MoneymanConfig = config();
+    mockConfig = config();
     mockConfig.storage.googleSheets = {
       serviceAccountPrivateKey: "test-key",
       serviceAccountEmail: "test@example.com",
@@ -63,6 +59,37 @@ describe("GoogleSheetsStorage", () => {
     mockSheet.loadHeaderRow.mockResolvedValue(undefined);
     mockDoc.loadInfo.mockResolvedValue(undefined);
   });
+
+  it.each(["moneyman", ""] as const)(
+    "keeps %s hash semantics without counting existing transactions twice",
+    async (hashType) => {
+      mockConfig.options.scraping.transactionHashType = hashType;
+      const txns = [
+        transactionRow({ hash: "old", uniqueId: "old-id" }),
+        transactionRow({ hash: "new-hash", uniqueId: "new-id" }),
+        transactionRow({ hash: "both-hash", uniqueId: "both-id" }),
+        transactionRow({ hash: "fresh", uniqueId: "fresh-id" }),
+      ];
+      mockSheet.getCellsInRange.mockResolvedValue([
+        ["old", "new-id", "both-hash", "both-id"],
+      ]);
+
+      const stats = await storage.saveTransactions(txns, async () => {});
+      const added = hashType === "moneyman" ? 1 : 2;
+      expect(stats).toMatchObject({
+        total: 4,
+        added,
+        existing: 4 - added,
+        pending: 0,
+        otherSkipped: 0,
+      });
+      expect(stats.added + getSkippedCount(stats)).toBe(stats.total);
+      expect(mockSheet.addRows.mock.calls[0][0]).toHaveLength(added);
+      expect(stats.highlightedTransactions?.Added).toEqual(
+        hashType === "moneyman" ? [txns[3]] : [txns[1], txns[3]],
+      );
+    },
+  );
 
   afterEach(() => {
     jest.clearAllMocks();

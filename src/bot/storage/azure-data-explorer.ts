@@ -15,6 +15,7 @@ import assert from "node:assert";
 const logger = createLogger("azure-data-explorer");
 
 export class AzureDataExplorerStorage implements TransactionStorage {
+  readonly supportsPendingTransactions = true;
   ingestClient: IngestClient;
 
   constructor(private config: MoneymanConfig) {}
@@ -63,6 +64,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
       "AzureDataExplorer",
       this.config.storage.azure?.tableName || "transactions",
       txns,
+      { pending: 0 },
     );
 
     if (!this.ingestClient) {
