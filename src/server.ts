@@ -26,8 +26,8 @@ export type ServerRunner = {
 };
 
 type ServerOptions = ServerRunner & {
-  processErrorSignal?: AbortSignal;
-  waitForProcessErrorNotifications?: () => Promise<void>;
+  processErrorSignal: AbortSignal;
+  waitForProcessErrorNotifications: () => Promise<void>;
 };
 
 export async function startServer({
@@ -105,7 +105,7 @@ export async function startServer({
       }
     }
 
-    await waitForProcessErrorNotifications?.();
+    await waitForProcessErrorNotifications();
     await shutdownTelegramBot();
 
     process.exit(process.exitCode ?? 0);
@@ -113,17 +113,12 @@ export async function startServer({
 
   process.once("SIGINT", () => shutdown("SIGINT"));
   process.once("SIGTERM", () => shutdown("SIGTERM"));
-  const hasProcessErrorSignal =
-    processErrorSignal &&
-    typeof processErrorSignal.addEventListener === "function";
-  if (hasProcessErrorSignal) {
-    processErrorSignal.addEventListener(
-      "abort",
-      () => void shutdown("process error"),
-      { once: true },
-    );
-  }
-  if (hasProcessErrorSignal && processErrorSignal.aborted) {
+  processErrorSignal.addEventListener(
+    "abort",
+    () => void shutdown("process error"),
+    { once: true },
+  );
+  if (processErrorSignal.aborted) {
     void shutdown("process error");
     return;
   }

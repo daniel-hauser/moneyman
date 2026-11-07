@@ -44,6 +44,16 @@ describe("startServer", () => {
   let bot: DeepMockProxy<Telegraf<Context>>;
   const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
   const handlers = () => jest.mocked(registerCommands).mock.calls[0][1];
+  const serverOptions = (): Parameters<typeof startServer>[0] => ({
+    startRun: runner.startRun,
+    refreshSecrets: runner.refreshSecrets,
+    isRunning: runner.isRunning,
+    getLastRun: runner.getLastRun,
+    processErrorSignal: new AbortController().signal,
+    waitForProcessErrorNotifications: jest
+      .fn<Promise<void>, []>()
+      .mockResolvedValue(undefined),
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -80,7 +90,7 @@ describe("startServer", () => {
       finished: Promise.resolve(undefined),
     });
 
-    await startServer(runner);
+    await startServer(serverOptions());
 
     await expect(handlers().scrape()).resolves.toContain(
       "A scrape is already in progress",
@@ -96,7 +106,7 @@ describe("startServer", () => {
     "replies truthfully to a %s refresh without starting a scrape",
     async (result, message) => {
       runner.refreshSecrets.mockResolvedValue(result);
-      await startServer(runner);
+      await startServer(serverOptions());
       await expect(handlers().refreshSecrets!()).resolves.toContain(message);
       expect(runner.refreshSecrets).toHaveBeenCalledTimes(1);
       expect(runner.startRun).not.toHaveBeenCalled();
@@ -104,7 +114,7 @@ describe("startServer", () => {
   );
 
   it("does not offer refresh when the runner has no provider capability", async () => {
-    await startServer({ ...runner, refreshSecrets: undefined });
+    await startServer({ ...serverOptions(), refreshSecrets: undefined });
     expect(handlers().refreshSecrets).toBeUndefined();
   });
 
@@ -116,7 +126,7 @@ describe("startServer", () => {
     });
     runner.startRun.mockResolvedValue({ started: true, finished });
 
-    await startServer(runner);
+    await startServer(serverOptions());
 
     await expect(handlers().scrape()).resolves.toContain("Scrape started");
 
@@ -135,7 +145,7 @@ describe("startServer", () => {
         releaseRun = () => resolve(undefined);
       });
       runner.startRun.mockResolvedValue({ started: true, finished });
-      await startServer(runner);
+      await startServer(serverOptions());
       await handlers().scrape();
 
       process.emit(signal);
@@ -167,7 +177,7 @@ describe("startServer", () => {
       releaseRun = () => resolve(undefined);
     });
     runner.startRun.mockResolvedValue({ started: true, finished });
-    await startServer(runner);
+    await startServer(serverOptions());
     await handlers().scrape();
 
     process.emit("SIGTERM");
@@ -197,7 +207,7 @@ describe("startServer", () => {
           started: true,
           finished: new Promise(() => {}),
         });
-        await startServer(runner);
+        await startServer(serverOptions());
         await handlers().scrape();
 
         process.emit("SIGTERM");
@@ -220,16 +230,47 @@ describe("startServer", () => {
   it("gracefully shuts down after a process error and preserves the failure exit code", async () => {
     const previousExitCode = process.exitCode;
     const processError = new AbortController();
-    const waitForNotifications = jest.fn().mockResolvedValue(undefined);
+    const waitForNotifications = jest
+      .fn<Promise<void>, []>()
+      .mockResolvedValue(undefined);
     process.exitCode = 1;
 
     try {
       await startServer({
-        ...runner,
+        ...serverOptions(),
         processErrorSignal: processError.signal,
         waitForProcessErrorNotifications: waitForNotifications,
       });
       processError.abort(new Error("fatal error"));
+      await flush();
+
+      expect(task.stop).toHaveBeenCalledTimes(1);
+      expect(waitForNotifications).toHaveBeenCalledTimes(1);
+      expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
+      expect(waitForNotifications.mock.invocationCallOrder[0]).toBeLessThan(
+        jest.mocked(shutdownTelegramBot).mock.invocationCallOrder[0],
+      );
+      expect(exit).toHaveBeenCalledWith(1);
+    } finally {
+      process.exitCode = previousExitCode;
+    }
+  });
+
+  it("shuts down when the process error signal is already aborted", async () => {
+    const previousExitCode = process.exitCode;
+    const processError = new AbortController();
+    const waitForNotifications = jest
+      .fn<Promise<void>, []>()
+      .mockResolvedValue(undefined);
+    processError.abort(new Error("fatal error"));
+    process.exitCode = 1;
+
+    try {
+      await startServer({
+        ...serverOptions(),
+        processErrorSignal: processError.signal,
+        waitForProcessErrorNotifications: waitForNotifications,
+      });
       await flush();
 
       expect(task.stop).toHaveBeenCalledTimes(1);
@@ -251,7 +292,7 @@ describe("startServer", () => {
         failed: false,
       }),
     });
-    await startServer(runner);
+    await startServer(serverOptions());
     const callback = jest.mocked(schedule).mock.calls[0][1];
     if (typeof callback !== "function")
       throw new Error("Expected cron callback");
@@ -265,7 +306,7 @@ describe("startServer", () => {
       rejectRun = reject;
     });
     runner.startRun.mockResolvedValue({ started: true, finished });
-    await startServer(runner);
+    await startServer(serverOptions());
     const callback = jest.mocked(schedule).mock.calls[0][1];
     if (typeof callback !== "function")
       throw new Error("Expected cron callback");

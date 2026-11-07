@@ -265,6 +265,11 @@ describe("index", () => {
     it("hands the runner to the server without running", () => {
       expect(mocks.runWithStorageMock).not.toHaveBeenCalled();
       expect(mocks.exit).not.toHaveBeenCalled();
+      const options = mocks.startServerMock.mock.calls[0][0];
+      expect(options.processErrorSignal).toBeInstanceOf(AbortSignal);
+      expect(options.waitForProcessErrorNotifications).toEqual(
+        expect.any(Function),
+      );
     });
 
     it.each(["manual", "scheduled"] as const)(
