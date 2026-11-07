@@ -339,6 +339,17 @@ describe("startServer", () => {
     expect(launchTelegramBot).not.toHaveBeenCalled();
   });
 
+  it("does not mistake a cron startup failure for a concurrent abort", async () => {
+    const error = new Error("Cron task failed while shutting down");
+    task.start.mockRejectedValueOnce(error);
+
+    const startup = startServer(serverRunner(), lifecycle.handlers);
+    lifecycle.source.emit("SIGTERM", "SIGTERM");
+
+    await expect(startup).rejects.toBe(error);
+    expect(launchTelegramBot).not.toHaveBeenCalled();
+  });
+
   it("logs shutdown failures and exits with a failure code", async () => {
     const previousExitCode = process.exitCode;
     const error = new Error("Telegram shutdown failed");

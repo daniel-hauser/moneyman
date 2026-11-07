@@ -65,6 +65,7 @@ export async function startServer(
         );
       })
     : undefined;
+  const signal = processHandlers.signal;
   function handleShutdownFailure(error: unknown) {
     process.exitCode = 1;
     try {
@@ -107,30 +108,20 @@ export async function startServer(
     process.exit(process.exitCode ?? 0);
   }
 
-  if (processHandlers.signal.aborted) {
-    void shutdown(processHandlers.reason ?? "process error").catch(
-      handleShutdownFailure,
-    );
-    return;
-  }
-
-  addAbortListener(processHandlers.signal, () => {
+  addAbortListener(signal, () => {
     void shutdown(processHandlers.reason ?? "process error").catch(
       handleShutdownFailure,
     );
   });
 
-  if (processHandlers.signal.aborted) return;
-
   try {
-    const starting = task?.start();
-    if (starting) await starting;
+    signal.throwIfAborted();
+    await task?.start();
+    signal.throwIfAborted();
   } catch (error) {
-    if (!processHandlers.signal.aborted) throw error;
-    logger("Failed to start scheduled task during shutdown", error);
-    return;
+    if (signal.aborted && error === signal.reason) return;
+    throw error;
   }
-  if (processHandlers.signal.aborted) return;
 
   logToPublicLog(
     cron
