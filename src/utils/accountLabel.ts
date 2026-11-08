@@ -31,15 +31,27 @@ type IdentityField = (typeof IDENTITY_FIELDS)[number];
  * keeps a padded copy from becoming a second button that scrapes the same
  * account again.
  */
+/**
+ * A login value that can name an account. Numbers count: the config schema
+ * accepts them for the identifier fields, and silently dropping one would let
+ * two accounts that differ only in a numeric `num` or `id` collapse into a
+ * single picker button that scrapes both.
+ */
+function identityValue(value: unknown): string | undefined {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? String(value) : undefined;
+  }
+  if (typeof value !== "string") return undefined;
+  return value.trim() || undefined;
+}
+
 function identityFields(
   account: AccountConfig,
 ): Array<{ field: IdentityField; value: string }> {
   const fields = account as Record<string, unknown>;
   return IDENTITY_FIELDS.flatMap((field) => {
-    const value = fields[field];
-    return typeof value === "string" && value.trim()
-      ? [{ field, value: value.trim() }]
-      : [];
+    const value = identityValue(fields[field]);
+    return value ? [{ field, value }] : [];
   });
 }
 

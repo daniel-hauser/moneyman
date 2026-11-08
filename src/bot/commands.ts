@@ -167,12 +167,15 @@ const claimedPickers = new Set<string>();
 const MAX_CLAIMED_PICKERS = 100;
 
 /**
- * Claims whose keyboard is still attached to the message, because the edit
- * that removes it failed. These are never evicted: the cap above only bounds
- * the claims that can no longer be tapped, and dropping one of these would let
- * a later tap start a second scrape from a picker that still looks live.
+ * Claims whose keyboard is still attached to the message, because the edit that
+ * removes it is still in flight or failed. The cap above only bounds pickers
+ * that can no longer be tapped, so these are held past it: a tap after the first
+ * run released the scrape lock would start a second one. They are released by
+ * age rather than by count, so a bot that keeps failing to edit a message does
+ * not hold every such message for the life of the process.
  */
-const protectedPickers = new Set<string>();
+const liveKeyboards = new Map<string, number>();
+const LIVE_KEYBOARD_TTL_MS = 24 * 60 * 60 * 1000;
 
 function pickerKey(ctx: Context): string {
   return `${ctx.chat?.id}:${ctx.callbackQuery?.message?.message_id}`;
@@ -180,28 +183,36 @@ function pickerKey(ctx: Context): string {
 
 function claimPicker(ctx: Context): boolean {
   const key = pickerKey(ctx);
-  if (claimedPickers.has(key) || protectedPickers.has(key)) return false;
+  const now = Date.now();
+  // Released before the claim is looked up, so an aged-out keyboard cannot keep
+  // refusing the tap that just arrived
+  for (const [claimed, at] of liveKeyboards) {
+    if (now - at > LIVE_KEYBOARD_TTL_MS) liveKeyboards.delete(claimed);
+  }
+  if (claimedPickers.has(key) || liveKeyboards.has(key)) return false;
+  // Claimed into the live set, not the capped one: until the outcome edit
+  // settles, the keyboard can still deliver a tap
+  liveKeyboards.set(key, now);
+  return true;
+}
+
+/** The keyboard is gone, so the claim only has to refuse a replayed callback */
+function retirePicker(ctx: Context): void {
+  const key = pickerKey(ctx);
+  liveKeyboards.delete(key);
   claimedPickers.add(key);
   if (claimedPickers.size > MAX_CLAIMED_PICKERS) {
     const oldest = claimedPickers.values().next().value;
     if (oldest !== undefined) claimedPickers.delete(oldest);
   }
-  return true;
 }
 
-/** Keep a claim whose keyboard could still accept a tap */
-function holdPickerClaim(ctx: Context): void {
-  protectedPickers.add(pickerKey(ctx));
-}
-
-/** Replace the picker with its outcome, keeping the claim if the edit fails */
+/** Replace the picker with its outcome; a failed edit keeps the claim live */
 async function showPickerOutcome(ctx: Context, text: string): Promise<void> {
   await ctx
     .editMessageText(text, { reply_markup: REMOVE_KEYBOARD })
-    .catch((e) => {
-      logger("Failed to update the account picker", e);
-      holdPickerClaim(ctx);
-    });
+    .then(() => retirePicker(ctx))
+    .catch((e) => logger("Failed to update the account picker", e));
 }
 
 export function registerCommands(

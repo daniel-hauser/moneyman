@@ -484,7 +484,7 @@ describe("messages", () => {
         accountLabel,
         result: {
           success: true,
-          accounts: [{ accountNumber: "1234", txns: [] }] as never,
+          accounts: [{ accountNumber: "1234", txns: [] }],
         },
       });
 

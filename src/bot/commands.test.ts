@@ -600,6 +600,36 @@ describe("commands", () => {
       expect(scrape).toHaveBeenCalledTimes(1);
     });
 
+    it("releases a failed keyboard's claim once the picker is old", async () => {
+      const scrape = jest.fn().mockResolvedValue("🔄 Starting a scrape now...");
+      const { tap, callApi } = registerBot(
+        createHandlers({
+          scrape,
+          listAccounts: jest.fn().mockResolvedValue([
+            {
+              id: "aaa11111",
+              label: "isracard · •••111",
+              failedLastRun: false,
+            },
+          ]),
+        }),
+      );
+      const now = jest.spyOn(Date, "now").mockReturnValue(1_000);
+      callApi.mockImplementation(async (method) => {
+        if (method === "editMessageText") throw new Error("edit failed");
+        return true;
+      });
+
+      await tap("scrape_provider:aaa11111", chatId, 71);
+      expect(scrape).toHaveBeenCalledTimes(1);
+
+      // Held while a tap on that keyboard is plausible, then released: keeping
+      // every failed edit for the life of the process grows without bound
+      now.mockReturnValue(1_000 + 24 * 60 * 60 * 1_000 + 1);
+      await tap("scrape_provider:aaa11111", chatId, 71);
+      expect(scrape).toHaveBeenCalledTimes(2);
+    });
+
     it("names the tapped account exactly as its button did", async () => {
       const { tap, edits } = registerBot(
         createHandlers({

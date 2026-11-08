@@ -1142,6 +1142,17 @@ describe("index", () => {
       ).finished;
 
       expect(getScraperConfig).toHaveBeenCalledWith(config, ["card-a"]);
+      // The selected account reaches the scraper itself, not just the factory
+      expect(mocks.scrapeAccountsMock.mock.calls[0][0]).toMatchObject({
+        accounts: [
+          {
+            companyId: CompanyTypes.isracard,
+            username: "noam",
+            password: "first-card",
+          },
+        ],
+        accountIds: ["card-a"],
+      });
       expect(status).toMatchObject({
         failed: true,
         failedAccountIds: ["card-a"],

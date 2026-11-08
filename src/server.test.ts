@@ -4,6 +4,7 @@ import { createTask } from "node-cron";
 import { startServer, type ServerRunner } from "./server.js";
 import { accountId } from "./utils/accountLabel.js";
 import type { AccountConfig, RunStatus } from "./types.js";
+import { CompanyTypes } from "israeli-bank-scrapers";
 import { EventEmitter, getEventListeners } from "node:events";
 import type { ProcessEventMap } from "node:process";
 import { logToPublicLog } from "./utils/logger.js";
@@ -16,21 +17,44 @@ import {
   sendError,
 } from "./bot/notifier.js";
 
-const mockAccounts = [
-  { companyId: "isracard", card6Digits: "111111", password: "first-card" },
-  { companyId: "isracard", card6Digits: "222222", password: "second-card" },
-  { companyId: "hapoalim", userCode: "bankuser", password: "bank" },
+// Complete credential shapes: `card6Digits` is only valid alongside `id`, and
+// the picker builds its id and label out of the login fields, so a fixture that
+// omits one would test a shape the config cannot produce.
+const mockAccounts: Array<AccountConfig> = [
+  {
+    companyId: CompanyTypes.isracard,
+    id: "123456789",
+    card6Digits: "111111",
+    password: "first-card",
+  },
+  {
+    companyId: CompanyTypes.isracard,
+    id: "987654321",
+    card6Digits: "222222",
+    password: "second-card",
+  },
+  {
+    companyId: CompanyTypes.hapoalim,
+    userCode: "bankuser",
+    password: "bank",
+  },
   // Same non-secret fields as the first card: selected together, never apart
-  { companyId: "isracard", card6Digits: "111111", password: "third-card" },
+  {
+    companyId: CompanyTypes.isracard,
+    id: "123456789",
+    card6Digits: "111111",
+    password: "third-card",
+  },
   // Shares the first login field with that card, but differs in another one:
   // must stay its own button instead of collapsing into it
   {
-    companyId: "isracard",
+    companyId: CompanyTypes.isracard,
+    id: "123456789",
     card6Digits: "111111",
     username: "noam",
     password: "fourth-card",
   },
-] as unknown as Array<AccountConfig>;
+];
 jest.mock("./config.js", () => ({
   config: { options: { scheduling: { cron: "0 9 * * *" } } },
 }));
@@ -408,10 +432,7 @@ describe("startServer", () => {
   });
 
   describe("account picker", () => {
-    const firstCard = accountId({
-      companyId: "isracard",
-      card6Digits: "111111",
-    } as never);
+    const firstCard = accountId(mockAccounts[0]);
 
     it("offers every configured account, masking the login field", async () => {
       await startServer(runner, lifecycle.handlers);
@@ -419,20 +440,18 @@ describe("startServer", () => {
       const choices = await handlers().listAccounts!();
 
       expect(choices).toEqual([
-        { id: firstCard, label: "isracard · •••111", failedLastRun: false },
         {
-          id: accountId({
-            companyId: "isracard",
-            card6Digits: "222222",
-          } as never),
-          label: "isracard · •••222",
+          id: firstCard,
+          label: "isracard · •••111 · •••••6789",
           failedLastRun: false,
         },
         {
-          id: accountId({
-            companyId: "hapoalim",
-            userCode: "bankuser",
-          } as never),
+          id: accountId(mockAccounts[1]),
+          label: "isracard · •••222 · •••••4321",
+          failedLastRun: false,
+        },
+        {
+          id: accountId(mockAccounts[2]),
           label: "hapoalim · ••••user",
           failedLastRun: false,
         },
@@ -440,12 +459,8 @@ describe("startServer", () => {
         // against the identical fourth-card entry. Its label shows both
         // fields, so the two buttons do not read alike.
         {
-          id: accountId({
-            companyId: "isracard",
-            card6Digits: "111111",
-            username: "noam",
-          } as never),
-          label: "isracard · •••111 · n•••",
+          id: accountId(mockAccounts[4]),
+          label: "isracard · •••111 · •••••6789 · n•••",
           failedLastRun: false,
         },
       ]);
@@ -484,7 +499,11 @@ describe("startServer", () => {
 
       const choices = await handlers().listAccounts!();
       expect(choices.filter(({ failedLastRun }) => failedLastRun)).toEqual([
-        { id: firstCard, label: "isracard · •••111", failedLastRun: true },
+        {
+          id: firstCard,
+          label: "isracard · •••111 · •••••6789",
+          failedLastRun: true,
+        },
       ]);
     });
 
@@ -515,20 +534,25 @@ describe("startServer", () => {
     });
 
     it("offers an account the provider has added since startup", async () => {
-      const added = accountId({
-        companyId: "isracard",
+      const addedAccount: AccountConfig = {
+        companyId: CompanyTypes.isracard,
+        id: "555555555",
         card6Digits: "999999",
-      } as never);
-      runner.getAccounts.mockResolvedValue([
-        { companyId: "isracard", card6Digits: "999999", password: "added" },
-      ] as unknown as Array<AccountConfig>);
+        password: "added",
+      };
+      const added = accountId(addedAccount);
+      runner.getAccounts.mockResolvedValue([addedAccount]);
 
       await startServer(runner, lifecycle.handlers);
 
       const choices = await handlers().listAccounts!();
 
       expect(choices).toEqual([
-        { id: added, label: "isracard · •••999", failedLastRun: false },
+        {
+          id: added,
+          label: "isracard · •••999 · •••••5555",
+          failedLastRun: false,
+        },
       ]);
     });
 
@@ -540,8 +564,8 @@ describe("startServer", () => {
       // its id, so they have to go with it)
       runner.getAccounts.mockResolvedValue(
         mockAccounts.filter(
-          ({ companyId }) => companyId !== "isracard",
-        ) as unknown as Array<AccountConfig>,
+          ({ companyId }) => companyId !== CompanyTypes.isracard,
+        ),
       );
 
       await expect(handlers().scrape([choice.id])).resolves.toContain(

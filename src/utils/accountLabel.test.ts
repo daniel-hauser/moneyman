@@ -127,6 +127,17 @@ describe("accountLabel", () => {
       expect(accountLabels([first, second]).size).toBe(2);
     });
 
+    it("keeps two accounts apart by a numeric identifier", () => {
+      // The config schema accepts numbers for the identifier fields, so an
+      // entry the schema allows must still name itself
+      const first = account({ num: 123456 });
+      const second = account({ num: 654321 });
+
+      expect(accountId(first)).not.toBe(accountId(second));
+      expect(accountLabels([first, second]).size).toBe(2);
+      expect(accountLabel(first)).toBe("isracard · •••456");
+    });
+
     it("labels a whole set uniquely whenever the ids are unique", () => {
       const accounts = [
         account({ card6Digits: "111111", id: "012345678" }),
