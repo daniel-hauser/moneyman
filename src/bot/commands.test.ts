@@ -557,6 +557,39 @@ describe("commands", () => {
       ]);
     });
 
+    it("splits a picker that cannot fit on one keyboard", async () => {
+      // Telegram drops the buttons past its undocumented limit without an
+      // error, so every account has to reach a keyboard
+      const many = Array.from({ length: 200 }, (_, index) => ({
+        id: `account-${index}`,
+        label: `isracard · •••${index}`,
+        failedLastRun: false,
+      }));
+      const { send, replies, replyMarkups } = registerBot(
+        createHandlers({
+          listAccounts: jest.fn().mockResolvedValue(many),
+        }),
+      );
+
+      await send("/scrape_provider");
+
+      expect(replies()).toHaveLength(3);
+      expect(replies()[0]).toContain("(1/3)");
+      expect(replies()[2]).toContain("(3/3)");
+      expect(
+        replyMarkups().map((markup) => markup?.inline_keyboard.length),
+      ).toEqual([80, 80, 40]);
+
+      // Nothing is left off: every account sits on one of the keyboards
+      const buttons = replyMarkups().flatMap(
+        (markup) => markup?.inline_keyboard.flat() ?? [],
+      );
+      expect(buttons).toHaveLength(200);
+      expect(
+        new Set(buttons.map(({ callback_data }) => callback_data)).size,
+      ).toBe(200);
+    });
+
     it("starts one scrape when the same picker is tapped twice", async () => {
       const scrape = jest.fn().mockResolvedValue("🔄 Starting a scrape now...");
       const { tap } = registerBot(

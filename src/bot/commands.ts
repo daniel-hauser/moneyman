@@ -145,6 +145,7 @@ function formatDate(date: Date): string {
 export function formatAccountPicker(
   choices: Array<AccountChoice>,
   now = Date.now(),
+  page?: { index: number; total: number },
 ): {
   text: string;
   reply_markup: {
@@ -153,7 +154,9 @@ export function formatAccountPicker(
 } {
   const failed = choices.filter(({ failedLastRun }) => failedLastRun).length;
   const lines = [
-    "Pick a provider/account to scrape:",
+    page
+      ? `Pick a provider/account to scrape (${page.index}/${page.total}):`
+      : "Pick a provider/account to scrape:",
     "",
     ...(failed
       ? [`❌ marked the ${failed} account(s) that failed in the last run.`]
@@ -174,6 +177,17 @@ export function formatAccountPicker(
     },
   };
 }
+
+/**
+ * How many accounts one picker carries.
+ *
+ * Telegram drops the buttons that do not fit a keyboard, silently: the call
+ * still answers `200 OK` and the message comes back with fewer of them, so an
+ * account that never reaches a keyboard cannot be tapped at all. The limit is
+ * undocumented and shrinks with longer callback data, so a picker stays well
+ * inside it and the accounts that do not fit follow as further pickers.
+ */
+const MAX_PICKER_CHOICES = 80;
 
 /** Telegram keeps an inline keyboard until it is replaced with an empty one */
 const REMOVE_KEYBOARD = { inline_keyboard: [] as Array<never> };
@@ -301,8 +315,21 @@ export function registerCommands(
         await ctx.reply("No accounts are configured to scrape.");
         return;
       }
-      const { text, reply_markup } = formatAccountPicker(choices);
-      await ctx.reply(text, { reply_markup });
+      // Several accounts' worth goes out as several pickers rather than one
+      // keyboard that would lose its tail without saying so
+      const total = Math.ceil(choices.length / MAX_PICKER_CHOICES);
+      for (let index = 0; index < total; index += 1) {
+        const batch = choices.slice(
+          index * MAX_PICKER_CHOICES,
+          (index + 1) * MAX_PICKER_CHOICES,
+        );
+        const { text, reply_markup } = formatAccountPicker(
+          batch,
+          Date.now(),
+          total > 1 ? { index: index + 1, total } : undefined,
+        );
+        await ctx.reply(text, { reply_markup });
+      }
     });
 
     bot.action(ACCOUNT_CALLBACK_PATTERN, async (ctx) => {
