@@ -504,8 +504,9 @@ describe("startServer", () => {
 
   it("does not register command listeners without Telegram", async () => {
     jest.mocked(getTelegramBot).mockReturnValue(null);
-    await startServer(runner);
-    expect(schedule).toHaveBeenCalledTimes(1);
+    await startServer(serverRunner(), lifecycle.handlers);
+    expect(createTask).toHaveBeenCalledTimes(1);
+    expect(task.start).toHaveBeenCalledTimes(1);
     expect(registerCommands).not.toHaveBeenCalled();
     expect(launchTelegramBot).not.toHaveBeenCalled();
   });

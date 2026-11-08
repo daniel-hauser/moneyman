@@ -758,6 +758,58 @@ describe("index", () => {
       expect(mocks.notifier.launchTelegramBot).not.toHaveBeenCalled();
     });
 
+    it("keeps server-owned OTP polling and fresh storage configuration for scoped runs and retries", async () => {
+      const { loadRunConfig } = await import("./configRefresh.js");
+      const { createStorages } = await import("./bot/storage/index.js");
+      const { MoneymanConfigSchema } = await import("./config.schema.js");
+      const snapshot = MoneymanConfigSchema.parse({
+        accounts: [
+          { companyId: "oneZero", password: "invented-a", scrapeId: "home" },
+          { companyId: "leumi", password: "invented-b", scrapeId: "other" },
+        ],
+      });
+      jest.mocked(loadRunConfig).mockResolvedValue(snapshot);
+      mocks.scrapeAccountsMock.mockImplementationOnce(
+        async (settings, requestOtp) => {
+          expect(settings.accounts).toEqual([snapshot.accounts[0]]);
+          await expect(requestOtp("oneZero", "+97200000001")).resolves.toBe(
+            "123456",
+          );
+          return {
+            results: [
+              {
+                ...accountResult(CompanyTypes.oneZero, false),
+                scrapeId: "home",
+              },
+            ],
+            domains: {},
+          };
+        },
+      );
+
+      const selected = await runner.startRun("manual", { choices: ["home"] });
+      await selected.finished;
+      expect((await runner.getCommandAvailability()).scrapeFailed).toBe(true);
+      const retry = await runner.startRun("manual", { retryFailed: true });
+      await retry.finished;
+
+      expect(mocks.scrapeAccountsMock).toHaveBeenCalledTimes(2);
+      for (const [settings, requestOtp] of mocks.scrapeAccountsMock.mock
+        .calls) {
+        expect(settings.accounts).toEqual([snapshot.accounts[0]]);
+        expect(requestOtp).toBe(mocks.notifier.requestOtpCode);
+      }
+      expect(createStorages).toHaveBeenCalledTimes(2);
+      expect(jest.mocked(createStorages).mock.calls).toEqual([
+        [snapshot],
+        [snapshot],
+      ]);
+      expect((await runner.getCommandAvailability()).scrapeFailed).toBe(false);
+      expect(mocks.notifier.launchTelegramBot).not.toHaveBeenCalled();
+      expect(mocks.notifier.stopTelegramBot).not.toHaveBeenCalled();
+      expect(mocks.notifier.shutdownTelegramBot).not.toHaveBeenCalled();
+    });
+
     it.each([
       { choices: [] },
       { choices: ["other"] },

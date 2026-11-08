@@ -102,7 +102,9 @@ async function main() {
         isRunning,
         getLastRun: () => lastRun,
         getCommandAvailability: async () => {
-          const scrapeIds = selectionChoices(getAccounts(await loadRunConfig()));
+          const scrapeIds = selectionChoices(
+            getAccounts(await loadRunConfig()),
+          );
           return {
             scrapeIds,
             scrapeFailed:
