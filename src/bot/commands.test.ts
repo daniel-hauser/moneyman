@@ -557,10 +557,10 @@ describe("commands", () => {
         }),
       );
       // The edit that removes the keyboard fails, so the button stays live
-      callApi.mockImplementation((async (method: string) => {
+      callApi.mockImplementation(async (method) => {
         if (method === "editMessageText") throw new Error("edit failed");
         return true;
-      }) as never);
+      });
 
       await tap("scrape_provider:aaa11111", chatId, 41);
       // More pickers than the claim cap allows: none of these will be tapped
@@ -572,6 +572,32 @@ describe("commands", () => {
       await tap("scrape_provider:aaa11111", chatId, 41);
 
       expect(scrape).toHaveBeenCalledTimes(102);
+    });
+
+    it("replaces the picker with guidance when the handler rejects", async () => {
+      const scrape = jest.fn().mockRejectedValue(new Error("boom"));
+      const { tap, edits } = registerBot(
+        createHandlers({
+          scrape,
+          listAccounts: jest.fn().mockResolvedValue([
+            {
+              id: "aaa11111",
+              label: "isracard · •••111",
+              failedLastRun: false,
+            },
+          ]),
+        }),
+      );
+
+      await tap("scrape_provider:aaa11111", chatId, 61);
+
+      expect(edits()[0].text).toBe(
+        "❌ Could not start that scrape. Run /scrape_provider again.",
+      );
+      expect(edits()[0].reply_markup).toEqual({ inline_keyboard: [] });
+      // The button is gone, and the claim still refuses a repeat tap
+      await tap("scrape_provider:aaa11111", chatId, 61);
+      expect(scrape).toHaveBeenCalledTimes(1);
     });
 
     it("names the tapped account exactly as its button did", async () => {

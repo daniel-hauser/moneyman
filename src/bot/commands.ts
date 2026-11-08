@@ -277,19 +277,31 @@ export function registerCommands(
       }
 
       const id = ctx.match[1];
-      // Same labels as the keyboard the tap came from, so the edited message
-      // names the account the button named.
-      const choice = (await listAccounts()).find((choice) => choice.id === id);
-      if (!choice) {
+      try {
+        // Same labels as the keyboard the tap came from, so the edited message
+        // names the account the button named.
+        const choice = (await listAccounts()).find(
+          (choice) => choice.id === id,
+        );
+        if (!choice) {
+          await showPickerOutcome(
+            ctx,
+            "❌ That account is no longer configured. Run /scrape_provider again.",
+          );
+          return;
+        }
+
+        const outcome = await handlers.scrape([id]);
+        await showPickerOutcome(ctx, `▶️ ${choice.label}\n${outcome}`);
+      } catch (e) {
+        // The keyboard is still attached and its claim refuses a second tap, so
+        // the message itself has to tell the user how to try again
+        logger("Failed to run the account picker", e);
         await showPickerOutcome(
           ctx,
-          "❌ That account is no longer configured. Run /scrape_provider again.",
+          "❌ Could not start that scrape. Run /scrape_provider again.",
         );
-        return;
       }
-
-      const outcome = await handlers.scrape([id]);
-      await showPickerOutcome(ctx, `▶️ ${choice.label}\n${outcome}`);
     });
   }
   bot.command("help", (ctx) => ctx.reply(help));

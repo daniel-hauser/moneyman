@@ -328,6 +328,23 @@ async function run(options: RunOptions = {}): Promise<RunOutcome> {
     }
     const { snapshot, storages } = prepared;
     const scraperConfig = getScraperConfig(snapshot, options.accountIds);
+    if (
+      !storages.length &&
+      options.accountIds?.length &&
+      !scraperConfig.accounts.length
+    ) {
+      // The storage wrapper returns before the run when nothing is configured,
+      // so the scraper's own guard never fires and the run would be recorded as
+      // a success. Report the selection here instead.
+      logger("No storages found, aborting");
+      report.notices.push("No storages found, aborting");
+      report.failed = true;
+      report.errors.push({
+        caller: "scrape selection",
+        message: "No configured account matches the requested scrape",
+      });
+      return { failed: true, failedAccountIds: [] };
+    }
     const domainTracker = createDomainTracker({
       domainTracking: snapshot.options.scraping.domainTracking,
       ...snapshot.options.security,

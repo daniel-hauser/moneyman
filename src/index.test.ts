@@ -10,6 +10,7 @@ import { CustomElementRegistry } from "@lit-labs/ssr-dom-shim";
 import type { ReportTransport } from "./bot/reportPublisher.js";
 import { locks } from "node:worker_threads";
 import type { DomainTracker } from "./security/domains.js";
+import type { ScraperRunConfig } from "./scraper/protocol.js";
 import { getEventListeners } from "node:events";
 
 jest.mock("./bot/runReport.js", () => {
@@ -168,6 +169,28 @@ async function loadEntrypoint(
     startServerMock,
     runContextStore,
     notifier,
+  };
+}
+
+/** A complete scraper config: a new required field must fail here, not silently */
+function scraperConfigFixture(
+  overrides: Partial<ScraperRunConfig> = {},
+): ScraperRunConfig {
+  return {
+    accounts: [
+      { companyId: CompanyTypes.hapoalim, userCode: "user", password: "card" },
+    ],
+    accountIds: ["card-a"],
+    startDate: new Date("2026-01-01T00:00:00Z"),
+    futureMonthsToScrape: 1,
+    parallelScrapers: 1,
+    additionalTransactionInformation: false,
+    includeRawTransaction: false,
+    domainTracking: false,
+    firewallSettings: [],
+    blockByDefault: false,
+    enableOtp: false,
+    ...overrides,
   };
 }
 
@@ -1085,11 +1108,17 @@ describe("index", () => {
 
     it("hands an account selection to the per-run scraper config, and remembers what failed", async () => {
       const { config, getScraperConfig } = await import("./config.js");
-      jest.mocked(getScraperConfig).mockReturnValueOnce({
-        accounts: [
-          { companyId: CompanyTypes.isracard, password: "first-card" },
-        ],
-      } as never);
+      jest.mocked(getScraperConfig).mockReturnValueOnce(
+        scraperConfigFixture({
+          accounts: [
+            {
+              companyId: CompanyTypes.isracard,
+              username: "noam",
+              password: "first-card",
+            },
+          ],
+        }),
+      );
       mocks.scrapeAccountsMock.mockResolvedValue({
         results: [
           {
@@ -1168,7 +1197,7 @@ describe("index", () => {
       const { getScraperConfig } = await import("./config.js");
       jest
         .mocked(getScraperConfig)
-        .mockReturnValueOnce({ accounts: [] } as never);
+        .mockReturnValueOnce(scraperConfigFixture({ accounts: [] }));
 
       const status = await (
         await runner.startRun("manual", { accountIds: ["gone"] })
@@ -1183,6 +1212,24 @@ describe("index", () => {
           message: expect.stringContaining("No configured account matches"),
         }),
       ]);
+    });
+
+    it("fails a selection that matches nothing even with no storage configured", async () => {
+      const { createStorages } = await import("./bot/storage/index.js");
+      const { getScraperConfig } = await import("./config.js");
+      // The storage wrapper returns before the run when nothing is configured
+      jest.mocked(createStorages).mockReturnValueOnce([]);
+      jest
+        .mocked(getScraperConfig)
+        .mockReturnValueOnce(scraperConfigFixture({ accounts: [] }));
+
+      const status = await (
+        await runner.startRun("manual", { accountIds: ["gone"] })
+      ).finished;
+
+      expect(mocks.runWithStorageMock).not.toHaveBeenCalled();
+      expect(mocks.scrapeAccountsMock).not.toHaveBeenCalled();
+      expect(status).toMatchObject({ failed: true, failedAccountIds: [] });
     });
 
     it("fails the run when a storage reports an error", async () => {

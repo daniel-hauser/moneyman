@@ -194,6 +194,65 @@ describe("config", () => {
     );
   });
 
+  it("narrows a run to the selected account ids on top of accountsToScrape", async () => {
+    process.env = { ...originalEnv };
+    const { getAccounts, getScraperConfig } = await import("./config.js");
+    const { accountId } = await import("./utils/accountLabel.js");
+    const snapshot = MoneymanConfigSchema.parse({
+      accounts: [
+        { companyId: "hapoalim", password: "first-bank" },
+        { companyId: "leumi", password: "second-bank" },
+      ],
+    });
+    const accounts = getAccounts(snapshot);
+    const [hapoalimId, leumiId] = accounts.map((account) => accountId(account));
+
+    // A matching id selects only that account, and names it the same way
+    const selected = getScraperConfig(snapshot, [leumiId]);
+    expect(selected.accounts).toEqual([accounts[1]]);
+    expect(selected.accountIds).toEqual([leumiId]);
+    // Labels stay complete: a narrowed run still names any account the same way
+    // the picker that selected it did
+    expect(Object.keys(selected.accountLabels ?? {})).toEqual([
+      hapoalimId,
+      leumiId,
+    ]);
+
+    // An id that matches nothing selects no account, not every account
+    expect(getScraperConfig(snapshot, ["not-configured"])).toMatchObject({
+      accounts: [],
+      accountIds: [],
+    });
+
+    // No selection, and an empty selection, keep every account
+    expect(getScraperConfig(snapshot, []).accountIds).toEqual([
+      hapoalimId,
+      leumiId,
+    ]);
+    expect(getScraperConfig(snapshot).accountIds).toEqual([
+      hapoalimId,
+      leumiId,
+    ]);
+
+    // accountsToScrape still narrows the configured set first
+    const filtered = MoneymanConfigSchema.parse({
+      accounts: [
+        { companyId: "hapoalim", password: "first-bank" },
+        { companyId: "leumi", password: "second-bank" },
+      ],
+      options: { scraping: { accountsToScrape: ["hapoalim"] } },
+    });
+    const onlyConfigured = getScraperConfig(filtered, [
+      accountId(getAccounts(filtered)[0]),
+    ]);
+    expect(onlyConfigured.accountIds).toHaveLength(1);
+    expect(getScraperConfig(filtered).accountIds).toEqual(
+      onlyConfigured.accountIds,
+    );
+    // A selection outside accountsToScrape selects nothing
+    expect(getScraperConfig(filtered, [leumiId]).accounts).toEqual([]);
+  });
+
   it("should validate config with zod schema", async () => {
     // This should pass validation
     const validConfig = {

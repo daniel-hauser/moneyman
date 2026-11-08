@@ -60,11 +60,18 @@ describe("scraper runtime browser lifecycle", () => {
       .mocked(getAccountTransactions)
       .mockImplementation(() => gates[next++].promise);
     const updates: RunTiming[] = [];
+    // Distinct accounts, so the ids on the timings cannot be satisfied by a
+    // stale default: the picker marks failures by the id a timing carries
+    const accounts = ["user-a", "user-b", "user-c"].map((userCode) => ({
+      ...hapoalim,
+      userCode,
+    }));
+    const ids = accounts.map((account) => accountId(account));
     const run = scrapeAccounts(
       {
         ...config,
-        accounts: Array(3).fill(config.accounts[0]),
-        accountIds: Array(3).fill(config.accountIds[0]),
+        accounts,
+        accountIds: ids,
         parallelScrapers: 2,
       },
       initDomainTracking,
@@ -80,6 +87,7 @@ describe("scraper runtime browser lifecycle", () => {
     await tick();
     expect(updates).toHaveLength(2);
     expect(updates.every((timing) => timing.startedAt === 1_000)).toBe(true);
+    expect(updates.map(({ accountId }) => accountId)).toEqual(ids.slice(0, 2));
 
     now = 1_100;
     gates[0].resolve({ success: true });
@@ -96,6 +104,13 @@ describe("scraper runtime browser lifecycle", () => {
 
     const completed = updates.filter((timing) => timing.endedAt !== undefined);
     expect(new Set(completed.map(({ id }) => id)).size).toBe(3);
+    expect(completed.map(({ accountId }) => accountId)).toEqual(ids);
+    expect(
+      updates
+        .filter(({ endedAt }) => endedAt === undefined)
+        .map(({ accountId }) => accountId)
+        .sort(),
+    ).toEqual([...ids].sort());
     expect(
       completed.map(({ startedAt, endedAt, failed }) => ({
         startedAt,
