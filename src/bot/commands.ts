@@ -4,6 +4,7 @@ import { createLogger } from "../utils/logger.js";
 import { sha256 } from "../utils/utils.js";
 import type { RunStatus } from "../types.js";
 import type { ScrapeSelection } from "../selection.js";
+import { scrapeLabel } from "../utils/scrapeLabel.js";
 
 const logger = createLogger("commands");
 
@@ -41,6 +42,25 @@ export async function formatStatus(
         (lastRun.endedAt.getTime() - lastRun.startedAt.getTime()) / 1000,
       )}s`,
     );
+    const failedLabels = [
+      ...new Set(lastRun.failedLogins?.map(scrapeLabel) ?? []),
+    ];
+    if (failedLabels.length) {
+      const failures = ["Failed logins:"];
+      let shown = 0;
+      for (const label of failedLabels) {
+        const line = `• ${label}`;
+        if (shown === 10 || failures.join("\n").length + line.length > 2000) {
+          break;
+        }
+        failures.push(line);
+        shown++;
+      }
+      if (shown < failedLabels.length) {
+        failures.push(`and ${failedLabels.length - shown} more`);
+      }
+      lines.push(failures.join("\n"));
+    }
   } else {
     lines.push("No run finished in this process yet");
   }

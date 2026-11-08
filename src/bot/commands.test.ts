@@ -4,6 +4,7 @@ import { createBot, isAuthorizedChat } from "./bot.js";
 import { selectionChoices } from "../selection.js";
 import { getEventListeners } from "node:events";
 import { mock } from "jest-mock-extended";
+import { labeledScrapeResults } from "../utils/tests.js";
 
 jest.mock("../config.js", () => ({
   config: {
@@ -278,6 +279,53 @@ describe("commands", () => {
   });
 
   describe("formatStatus", () => {
+    it("uses recorded failed labels, groups duplicates per provider and never fetches configuration", async () => {
+      const handlers = createHandlers({
+        getLastRun: jest.fn().mockReturnValue({
+          trigger: "manual",
+          startedAt: new Date("2026-03-01T09:00:00"),
+          endedAt: new Date("2026-03-01T09:02:00"),
+          failed: true,
+          failedLogins: labeledScrapeResults()
+            .filter(({ result }) => !result.success)
+            .map(({ companyId, scrapeId }) => ({ companyId, scrapeId })),
+        }),
+        getCommandAvailability: jest.fn(),
+      });
+
+      expect(await formatStatus(handlers)).toMatchSnapshot();
+      expect(handlers.getCommandAvailability).not.toHaveBeenCalled();
+      expect(handlers.refreshSecrets).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { count: 15, label: "home-bank" },
+      { count: 15, label: "🏡".repeat(300) },
+      { count: 1, label: "<&>".repeat(2000) },
+    ])(
+      "bounds failed labels (count=$count, label length varies)",
+      async ({ count, label }) => {
+        const failedLogins = Array.from({ length: count }, (_, index) => ({
+          companyId: labeledScrapeResults()[0].companyId,
+          scrapeId: `${label} ${index}`,
+        }));
+        const status = await formatStatus(
+          createHandlers({
+            getLastRun: jest.fn().mockReturnValue({
+              trigger: "manual",
+              startedAt: new Date("2026-03-01T09:00:00"),
+              endedAt: new Date("2026-03-01T09:02:00"),
+              failed: true,
+              failedLogins,
+            }),
+          }),
+        );
+
+        expect(status.length).toBeLessThan(4096);
+        expect(status).toMatchSnapshot();
+      },
+    );
+
     it("reports an idle process without history", async () => {
       const status = await formatStatus({
         isRunning: async () => false,

@@ -11,7 +11,7 @@ import {
   getSkippedCount,
   skippedString,
 } from "./saveStats.js";
-import { transaction } from "../utils/tests.js";
+import { labeledScrapeResults, transaction } from "../utils/tests.js";
 import { mock } from "jest-mock-extended";
 
 describe("messages", () => {
@@ -157,6 +157,16 @@ describe("messages", () => {
   });
 
   describe("getSummaryMessages", () => {
+    it("labels login results without dropping duplicate rows or empty successes", () => {
+      expect(getSummaryMessages(labeledScrapeResults())).toMatchSnapshot();
+    });
+
+    it("escapes untrusted provider names alongside explicit labels", () => {
+      const scrape = labeledScrapeResults()[0];
+      Object.assign(scrape, { companyId: '<provider & "name">' });
+      expect(getSummaryMessages([scrape])).toMatchSnapshot();
+    });
+
     it("should return a summary message", () => {
       const txns1 = [
         transaction({

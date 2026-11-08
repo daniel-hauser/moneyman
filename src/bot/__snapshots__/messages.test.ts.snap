@@ -1,5 +1,33 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
+exports[`messages getSummaryMessages escapes untrusted provider names alongside explicit labels 1`] = `
+"0 transactions scraped from 1 account.
+
+<blockquote expandable>Accounts updated
+	✔️ [&lt;provider &amp; "name"&gt; · home-bank] sample-account: 0</blockquote>"
+`;
+
+exports[`messages getSummaryMessages labels login results without dropping duplicate rows or empty successes 1`] = `
+"0 transactions scraped from 1 account.
+
+<blockquote expandable>Failed Account Updates
+	❌ [hapoalim ·   &lt;b&gt;חשבון בית 🏡&lt;/b&gt; "&amp;"  ] GENERIC
+		Invented &lt;failure&gt;
+	❌ [hapoalim ·   &lt;b&gt;חשבון בית 🏡&lt;/b&gt; "&amp;"  ] GENERIC
+		Invented &lt;failure&gt;
+	❌ [visaCal ·   &lt;b&gt;חשבון בית 🏡&lt;/b&gt; "&amp;"  ] GENERIC
+		Invented &lt;failure&gt;
+	❌ [max] GENERIC
+		Invented &lt;failure&gt;
+	❌ [max] GENERIC
+		Invented &lt;failure&gt;</blockquote>
+
+<blockquote expandable>Successful Account Updates
+	✔️ [hapoalim · home-bank] sample-account: 0
+	✔️ [visaCal · shared-card] No accounts returned
+	✔️ [max] No accounts returned</blockquote>"
+`;
+
 exports[`messages getSummaryMessages should detect duplicate uniqueId in batch 1`] = `
 "6 transactions scraped from 1 account.
 (0 pending, 6 completed)

@@ -9,6 +9,7 @@ import { html as litHtml } from "lit";
 import { renderLight } from "@lit-labs/ssr-client/directives/render-light.js";
 import "./interactive.js";
 import { ReportLightRenderer } from "./light-renderer.js";
+import { scrapeLabel } from "../../utils/scrapeLabel.js";
 
 const escaped = (value: string | number) =>
   escapers.HTML(String(value)).replaceAll('"', "&quot;");
@@ -219,11 +220,13 @@ export function renderReportAccounts(
           </thead>
           <tbody>
             ${results
-              .map(({ companyId, result }) => {
+              .map((scrape) => {
+                const { result } = scrape;
+                const label = escaped(scrapeLabel(scrape));
                 if (!result.success) {
                   const failure = `❌ Failed: ${result.errorType ?? "Unknown error"}`;
                   return html`<tr>
-                    <td>${escaped(companyId)}</td>
+                    <td>${label}</td>
                     <td>
                       ${
                         result.errorMessage
@@ -242,7 +245,7 @@ export function renderReportAccounts(
                       .map(
                         (account) =>
                           html`<tr>
-                            <td>${escaped(companyId)}</td>
+                            <td>${label}</td>
                             <td>✅ Succeeded</td>
                             <td>${escaped(account.accountNumber)}</td>
                             <td>${escaped(account.txns.length)}</td>
@@ -250,7 +253,7 @@ export function renderReportAccounts(
                       )
                       .join("")
                   : html`<tr>
-                      <td>${escaped(companyId)}</td>
+                      <td>${label}</td>
                       <td>✅ Succeeded</td>
                       <td>No accounts returned</td>
                       <td>0</td>
