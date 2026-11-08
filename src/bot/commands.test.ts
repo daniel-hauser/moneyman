@@ -293,7 +293,7 @@ describe("commands", () => {
         getCommandAvailability: jest.fn(),
       });
 
-      expect(await formatStatus(handlers)).toMatchSnapshot();
+      expect((await formatStatus(handlers)).split("\n")).toMatchSnapshot();
       expect(handlers.getCommandAvailability).not.toHaveBeenCalled();
       expect(handlers.refreshSecrets).not.toHaveBeenCalled();
     });
