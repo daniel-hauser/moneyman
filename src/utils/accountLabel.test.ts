@@ -127,6 +127,24 @@ describe("accountLabel", () => {
       expect(accountLabels([first, second]).size).toBe(2);
     });
 
+    it("names colliding accounts the same way whatever order they are listed in", () => {
+      // Every one of these masks to the same label, so each needs a suffix. With
+      // this many ids, two sharing the four-character prefix that decides the
+      // short suffix is near certain - the case where the order used to matter.
+      const cards = Array.from({ length: 800 }, (_, index) =>
+        account({ card6Digits: `${600000 + index}111` }),
+      );
+
+      const forward = accountLabels(cards);
+      const reversed = accountLabels([...cards].reverse());
+
+      for (const card of cards) {
+        expect(reversed.get(accountId(card))).toBe(
+          forward.get(accountId(card)),
+        );
+      }
+    });
+
     it("keeps two accounts apart by a numeric identifier", () => {
       // The config schema accepts numbers for the identifier fields, so an
       // entry the schema allows must still name itself

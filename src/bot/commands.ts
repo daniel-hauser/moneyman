@@ -104,9 +104,14 @@ export async function formatStatus(
         const gone = failedIds.filter(
           (id) => !choices.some((choice) => choice.id === id),
         ).length;
+        // Telegram refuses a message over 4096 characters, so the list is
+        // bounded: the running state and the schedule below must still arrive
+        const shown = labelled.slice(0, MAX_STATUS_FAILURE_LABELS);
+        const more = labelled.length - shown.length;
         lines.push(
           `\tFailed: ${[
-            ...labelled,
+            ...shown,
+            ...(more > 0 ? [`and ${more} more`] : []),
             ...(gone > 0 ? [`${gone} no longer configured`] : []),
           ].join(", ")}`,
         );
@@ -172,6 +177,9 @@ export function formatAccountPicker(
 
 /** Telegram keeps an inline keyboard until it is replaced with an empty one */
 const REMOVE_KEYBOARD = { inline_keyboard: [] as Array<never> };
+
+/** Telegram's own limit on a message, and on the labels one reply may name */
+const MAX_STATUS_FAILURE_LABELS = 20;
 
 /**
  * Pickers that were already tapped, by `chatId:messageId`.

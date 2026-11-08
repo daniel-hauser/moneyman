@@ -160,20 +160,33 @@ export function accountLabels(
   }
 
   const taken = new Set(base.values());
-  const labels = new Map<string, string>();
-  for (const [id, label] of base) {
-    let chosen = label;
+  const chosen = new Map<string, string>();
+  // Allocated in id order rather than config order: which of two labels that
+  // read alike takes which suffix must not change when the accounts are listed
+  // in another order, or a picker would name an account differently from the
+  // run report built from the same accounts.
+  for (const [id, label] of [...base].sort(([a], [b]) =>
+    a < b ? -1 : a > b ? 1 : 0,
+  )) {
+    let allocated = label;
     if ((counts.get(label) ?? 0) > 1) {
       for (const length of [4, 8, 12] as const) {
         const candidate = `${label} #${id.slice(0, length)}`;
         if (!taken.has(candidate)) {
-          chosen = candidate;
+          allocated = candidate;
           break;
         }
       }
     }
-    taken.add(chosen);
-    labels.set(id, chosen);
+    taken.add(allocated);
+    chosen.set(id, allocated);
+  }
+
+  // Handed back in the caller's order: a picker still lists the accounts the
+  // way the configuration does
+  const labels = new Map<string, string>();
+  for (const [id, label] of base) {
+    labels.set(id, chosen.get(id) ?? label);
   }
   return labels;
 }

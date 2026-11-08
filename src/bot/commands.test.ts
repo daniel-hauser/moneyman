@@ -240,6 +240,33 @@ describe("commands", () => {
       expect(status).not.toContain("hapoalim");
     });
 
+    it("bounds the failure list so the reply still fits in a message", async () => {
+      // Telegram refuses a message over 4096 characters, which a long list of
+      // labelled failures would otherwise reach
+      const many = Array.from({ length: 200 }, (_, index) => ({
+        id: `account-${index}`,
+        label: `isracard · •••${index} · n•••@example.com · •••••${index}`,
+        failedLastRun: true,
+      }));
+      const status = await formatStatus({
+        isRunning: async () => false,
+        getLastRun: () => ({
+          trigger: "manual",
+          startedAt: new Date("2026-03-01T09:00:00"),
+          endedAt: new Date("2026-03-01T09:02:00"),
+          failed: true,
+          failedAccountIds: many.map(({ id }) => id),
+        }),
+        getNextRunAt: () => new Date("2026-03-02T09:00:00"),
+        listAccounts: async () => many,
+      });
+
+      expect(status.length).toBeLessThanOrEqual(4096);
+      expect(status).toContain("and 180 more");
+      // The state and the schedule are what the cap must not cost
+      expect(status).toContain("⏰ Next scheduled run at");
+    });
+
     it("adds no failure line to a run that succeeded", async () => {
       const listAccounts = jest.fn().mockResolvedValue([]);
       const status = await formatStatus({
@@ -641,6 +668,46 @@ describe("commands", () => {
       // A picker sent before the buttons carried an expiry is stale too
       await tap("scrape_provider:aaa11111", chatId, 72);
       expect(scrape).not.toHaveBeenCalled();
+    });
+
+    it("keeps a pending edit's claim while newer pickers come and go", async () => {
+      const scrape = jest.fn().mockResolvedValue("🔄 Starting a scrape now...");
+      const { tap, callApi } = registerBot(
+        createHandlers({
+          scrape,
+          listAccounts: jest.fn().mockResolvedValue([
+            {
+              id: "aaa11111",
+              label: "isracard · •••111",
+              failedLastRun: false,
+            },
+          ]),
+        }),
+      );
+      let releaseEdit!: () => void;
+      const pendingEdit = new Promise<void>((resolve) => {
+        releaseEdit = resolve;
+      });
+      let removals = 0;
+      callApi.mockImplementation(async (method) => {
+        // Only the first keyboard removal hangs; the rest settle at once
+        if (method === "editMessageText" && removals++ === 0) {
+          await pendingEdit;
+        }
+        return true;
+      });
+
+      const held = tap(liveTap("aaa11111"), chatId, 81);
+      // More pickers than the claim cap holds, each completing its own edit
+      for (let i = 0; i < 101; i += 1) {
+        await tap(liveTap("aaa11111"), chatId, 3000 + i);
+      }
+      // Its keyboard is still attached, so its claim has to survive the others
+      await tap(liveTap("aaa11111"), chatId, 81);
+      expect(scrape).toHaveBeenCalledTimes(102);
+
+      releaseEdit();
+      await held;
     });
 
     it("names the tapped account exactly as its button did", async () => {
