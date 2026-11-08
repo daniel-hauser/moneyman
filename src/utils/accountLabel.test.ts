@@ -2,6 +2,7 @@ import { CompanyTypes } from "israeli-bank-scrapers";
 import { accountId, accountLabel, accountLabels } from "./accountLabel.js";
 import type { AccountConfig } from "../types.js";
 
+/** A configured account with a real password, plus whatever fields a test adds */
 const account = (fields: Record<string, unknown>) =>
   ({
     companyId: CompanyTypes.isracard,
@@ -102,6 +103,7 @@ describe("accountLabel", () => {
       // The collision is real, and only these two carry a suffix
       expect(accountLabel(colliding)).toBe(accountLabel(sameMask));
       expect(labels.get(accountId(other))).toBe("isracard · •••999");
+      /** The label the map assigned to this account */
       const labelOf = (one: AccountConfig) => labels.get(accountId(one));
       for (const one of [colliding, sameMask]) {
         // The suffix is the id's prefix, and it grows when the four-character

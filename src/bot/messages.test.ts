@@ -440,6 +440,7 @@ describe("messages", () => {
     });
 
     it("names the failed account, not only its provider", () => {
+      /** A failed scrape result, reported under the label it carries */
       const failed = (accountLabel?: string): AccountScrapeResult => ({
         companyId: CompanyTypes.isracard,
         accountLabel,
@@ -479,6 +480,7 @@ describe("messages", () => {
     });
 
     it("names a successful account with the same label", () => {
+      /** A successful scrape result, with or without a label */
       const success = (accountLabel?: string): AccountScrapeResult => ({
         companyId: CompanyTypes.isracard,
         accountLabel,

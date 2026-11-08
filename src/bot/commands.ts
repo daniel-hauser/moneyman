@@ -89,7 +89,10 @@ export async function formatStatus(
 
     const failedIds = lastRun.failedAccountIds ?? [];
     if (lastRun.failed && failedIds.length) {
-      const choices = await handlers.listAccounts?.();
+      const lookup = handlers.listAccounts;
+      const choices = lookup
+        ? await withinDeadline(LABELS_DEADLINE_MS, lookup)
+        : undefined;
       if (!choices) {
         lines.push(`\tFailed: ${failedIds.length} account(s)`);
       } else {
@@ -194,6 +197,31 @@ const REMOVE_KEYBOARD = { inline_keyboard: [] as Array<never> };
 
 /** Telegram's own limit on a message, and on the labels one reply may name */
 const MAX_STATUS_FAILURE_LABELS = 20;
+
+/**
+ * How long `/status` waits for account labels. The run state and the schedule
+ * are local, so a provider that stalls must not hold the reply: past this the
+ * failures are reported as a count instead of by name.
+ */
+export const LABELS_DEADLINE_MS = 2_000;
+
+/** The lookup's value, or undefined when it is slower than the deadline */
+async function withinDeadline<T>(
+  deadlineMs: number,
+  lookup: () => Promise<T>,
+): Promise<T | undefined> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      lookup(),
+      new Promise<undefined>((resolve) => {
+        timer = setTimeout(() => resolve(undefined), deadlineMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /**
  * Pickers that were already tapped, by `chatId:messageId`.

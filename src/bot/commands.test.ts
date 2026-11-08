@@ -2,6 +2,7 @@ import { Context, Telegram, Telegraf } from "telegraf";
 import {
   CommandHandlers,
   formatStatus,
+  LABELS_DEADLINE_MS,
   PICKER_TTL_MS,
   pickerCallbackData,
   registerCommands,
@@ -72,6 +73,7 @@ function registerBot(handlers: CommandHandlers) {
     });
   }
 
+  /** Sends the callback query a tapped button would send */
   async function tap(
     data: string,
     fromChat = chatId,
@@ -95,11 +97,13 @@ function registerBot(handlers: CommandHandlers) {
     });
   }
 
+  /** The text of every message the bot sent */
   const replies = () =>
     callApi.mock.calls
       .filter(([method]) => method === "sendMessage")
       .map(([, payload]) => (payload as { text: string }).text);
 
+  /** The keyboards those messages carried */
   const replyMarkups = () =>
     callApi.mock.calls
       .filter(([method]) => method === "sendMessage")
@@ -114,6 +118,7 @@ function registerBot(handlers: CommandHandlers) {
             | undefined,
       );
 
+  /** The text and keyboard of every edit the bot made */
   const edits = () =>
     callApi.mock.calls
       .filter(([method]) => method === "editMessageText")
@@ -265,6 +270,32 @@ describe("commands", () => {
       expect(status).toContain("and 180 more");
       // The state and the schedule are what the cap must not cost
       expect(status).toContain("⏰ Next scheduled run at");
+    });
+
+    it("answers without waiting for a provider that stalls", async () => {
+      // The run state and the schedule are local: a provider that never answers
+      // must not hold the reply, so the failures fall back to a count
+      jest.useFakeTimers();
+      try {
+        const status = formatStatus({
+          isRunning: async () => false,
+          getLastRun: () => ({
+            trigger: "manual",
+            startedAt: new Date("2026-03-01T09:00:00"),
+            endedAt: new Date("2026-03-01T09:02:00"),
+            failed: true,
+            failedAccountIds: ["aaa1", "bbb2"],
+          }),
+          getNextRunAt: () => undefined,
+          listAccounts: () => new Promise(() => {}),
+        });
+
+        await jest.advanceTimersByTimeAsync(LABELS_DEADLINE_MS);
+
+        expect(await status).toContain("\tFailed: 2 account(s)");
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it("adds no failure line to a run that succeeded", async () => {

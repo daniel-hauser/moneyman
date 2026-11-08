@@ -29,6 +29,8 @@ jest.mock("comlink", () => ({
 
 const scraping: ScraperRunConfig = {
   accountIds: ["one-zero"],
+  // Forwarded to the worker, so a result names the account the picker did
+  accountLabels: { "one-zero": "oneZero · b•••@bank.test" },
   accounts: [
     {
       companyId: CompanyTypes.oneZero,
@@ -255,6 +257,7 @@ describe("Comlink scraper client", () => {
       const settings = api.scrape.mock.calls[0][0];
       expect(settings).toMatchObject({
         accounts: scraping.accounts,
+        accountLabels: scraping.accountLabels,
         startDate: scraping.startDate,
         enableOtp: true,
       });
