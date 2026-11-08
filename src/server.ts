@@ -1,6 +1,6 @@
 import { createTask } from "node-cron";
 import { addAbortListener } from "node:events";
-import { config, getAccounts } from "./config.js";
+import { config } from "./config.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 import {
   getTelegramBot,
@@ -10,7 +10,13 @@ import {
 } from "./bot/notifier.js";
 import { registerCommands, type AccountChoice } from "./bot/commands.js";
 import { accountId, accountLabels } from "./utils/accountLabel.js";
-import type { RunHandle, RunOptions, RunStatus, RunTrigger } from "./types.js";
+import type {
+  AccountConfig,
+  RunHandle,
+  RunOptions,
+  RunStatus,
+  RunTrigger,
+} from "./types.js";
 import { aborted } from "node:util";
 import type { ProcessHandlers } from "./utils/processErrors.js";
 
@@ -26,10 +32,22 @@ export type ServerRunner = {
   refreshSecrets?: () => Promise<SecretRefreshResult>;
   isRunning(): Promise<boolean>;
   getLastRun(): RunStatus | undefined;
+  /**
+   * The accounts the provider currently offers. Read on every call, so a
+   * secret refresh that changes the account set is reflected in the picker and
+   * in the selection guard.
+   */
+  getAccounts(): Promise<Array<AccountConfig>>;
 };
 
 export async function startServer(
-  { startRun, refreshSecrets, isRunning, getLastRun }: ServerRunner,
+  {
+    startRun,
+    refreshSecrets,
+    isRunning,
+    getLastRun,
+    getAccounts,
+  }: ServerRunner,
   processHandlers: ProcessHandlers,
 ) {
   const cron = config.options.scheduling.cron;
@@ -72,18 +90,15 @@ export async function startServer(
    * account.
    */
   async function listAccounts(): Promise<Array<AccountChoice>> {
-    const failed = new Set(getLastRun()?.failedAccountIds ?? []);
     // The same map a run gets, so a button and the run it starts agree
-    return [...accountLabels(getAccounts(config))].map(([id, label]) => ({
+    const accounts = await getAccounts();
+    const failed = new Set(getLastRun()?.failedAccountIds ?? []);
+    return [...accountLabels(accounts)].map(([id, label]) => ({
       id,
       label,
       failedLastRun: failed.has(id),
     }));
   }
-
-  const configuredAccountIds = new Set(
-    getAccounts(config).map((account) => accountId(account)),
-  );
 
   const task = cron
     ? createTask(cron, () => {
@@ -185,11 +200,15 @@ export async function startServer(
       : undefined,
     async scrape(accountIds?: readonly string[]) {
       if (shuttingDown) return "🛑 Shutting down, no new scrapes";
-      if (
-        accountIds?.length &&
-        !accountIds.some((id) => configuredAccountIds.has(id))
-      ) {
-        return "❌ That account is no longer configured, run /scrape_provider again";
+      if (accountIds?.length) {
+        // Read the current accounts rather than the start-up set: a secret
+        // refresh can remove the account the button was rendered for.
+        const configured = new Set(
+          (await getAccounts()).map((account) => accountId(account)),
+        );
+        if (!accountIds.some((id) => configured.has(id))) {
+          return "❌ That account is no longer configured, run /scrape_provider again";
+        }
       }
 
       const { started, finished } = await startTrackedRun("manual", accountIds);

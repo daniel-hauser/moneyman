@@ -4,6 +4,7 @@ import { locks } from "node:worker_threads";
 import { scrapeAccounts } from "./scraper/client.js";
 import {
   config,
+  getAccounts,
   getScraperConfig,
   sendConfigToTelegramIfRequested,
 } from "./config.js";
@@ -27,7 +28,7 @@ import {
   RunStatus,
   RunTrigger,
 } from "./types.js";
-import type { AccountScrapeResult } from "./types.js";
+import type { AccountConfig, AccountScrapeResult, RunTiming } from "./types.js";
 import type { ScraperRunConfig } from "./scraper/protocol.js";
 import { runWithStorage } from "./bot/index.js";
 import { sendFailureScreenShots } from "./utils/failureScreenshot.js";
@@ -100,6 +101,7 @@ async function main() {
         refreshSecrets: hasConfigSecretProvider() ? refreshSecrets : undefined,
         isRunning,
         getLastRun: () => lastRun,
+        getAccounts: currentAccounts,
       },
       processHandlers,
     );
@@ -172,6 +174,24 @@ async function refreshSecrets(): Promise<SecretRefreshResult> {
   }
 }
 
+/**
+ * The accounts the provider currently offers, for the `/scrape_provider`
+ * picker and the guard behind it. A refresh failure falls back to the start-up
+ * accounts so the picker still opens; a run started from it fails loudly when
+ * the secrets cannot be refreshed.
+ */
+async function currentAccounts(): Promise<Array<AccountConfig>> {
+  try {
+    return getAccounts(await loadRunConfig());
+  } catch (error) {
+    logger(
+      "Could not read the current accounts, using the start-up set",
+      error,
+    );
+    return getAccounts(config);
+  }
+}
+
 async function runOnce(
   trigger: RunTrigger,
   options: RunOptions = {},
@@ -190,6 +210,7 @@ async function runScraper(
   scraperConfig: ScraperRunConfig,
   domainTracker: DomainTracker,
   requestOtp: OtpRequest,
+  onAccountFailed: (accountId: string) => void,
   options: RunOptions = {},
 ) {
   try {
@@ -219,7 +240,14 @@ async function runScraper(
         return hooks.onError(e, caller);
       },
       options.signal,
-      hooks.onTiming,
+      async (timing: RunTiming) => {
+        // The worker reports every account as it finishes, so a run that dies
+        // before its results land can still name the accounts that failed.
+        if (timing.endedAt !== undefined && timing.failed && timing.accountId) {
+          onAccountFailed(timing.accountId);
+        }
+        await hooks.onTiming?.(timing);
+      },
     );
     logger("Scraping ended");
     await Promise.all([
@@ -277,6 +305,19 @@ async function run(options: RunOptions = {}): Promise<RunOutcome> {
     reportSent: false,
   };
   let report = publication.report;
+  /**
+   * Accounts the worker has already reported as failed. Kept beside the report
+   * so a run that throws before its results land - a worker that dies, or a
+   * cleanup failure - can still tell the picker what to offer as a retry.
+   */
+  const reportedFailures = new Set<string>();
+  /** Failures from the finished report plus the ones reported as they happened */
+  const failedAccounts = () => [
+    ...new Set([
+      ...failedAccountIds(report.summary?.results),
+      ...reportedFailures,
+    ]),
+  ];
   let prepared: Awaited<ReturnType<typeof prepareRun>>;
   try {
     prepared = await prepareRun();
@@ -295,7 +336,14 @@ async function run(options: RunOptions = {}): Promise<RunOutcome> {
       logger("Running with storage");
       publication = await runWithStorage(
         (hooks) =>
-          runScraper(hooks, scraperConfig, domainTracker, requestOtp, options),
+          runScraper(
+            hooks,
+            scraperConfig,
+            domainTracker,
+            requestOtp,
+            (accountId) => reportedFailures.add(accountId),
+            options,
+          ),
         storages,
         publication,
       );
@@ -311,7 +359,7 @@ async function run(options: RunOptions = {}): Promise<RunOutcome> {
     }
     return {
       failed: report.failed || failedStorages.length > 0,
-      failedAccountIds: failedAccountIds(report.summary?.results),
+      failedAccountIds: failedAccounts(),
     };
   } catch (error) {
     logger(error);
@@ -323,7 +371,7 @@ async function run(options: RunOptions = {}): Promise<RunOutcome> {
     // `/status` naming nothing.
     return {
       failed: true,
-      failedAccountIds: failedAccountIds(report.summary?.results),
+      failedAccountIds: failedAccounts(),
     };
   } finally {
     try {

@@ -3,7 +3,7 @@ import { Context, Telegraf } from "telegraf";
 import { createTask } from "node-cron";
 import { startServer, type ServerRunner } from "./server.js";
 import { accountId } from "./utils/accountLabel.js";
-import type { RunStatus } from "./types.js";
+import type { AccountConfig, RunStatus } from "./types.js";
 import { EventEmitter, getEventListeners } from "node:events";
 import type { ProcessEventMap } from "node:process";
 import { logToPublicLog } from "./utils/logger.js";
@@ -16,27 +16,24 @@ import {
   sendError,
 } from "./bot/notifier.js";
 
-jest.mock("./config.js", () => {
-  const accounts = [
-    { companyId: "isracard", card6Digits: "111111", password: "first-card" },
-    { companyId: "isracard", card6Digits: "222222", password: "second-card" },
-    { companyId: "hapoalim", userCode: "bankuser", password: "bank" },
-    // Same non-secret fields as the first card: selected together, never apart
-    { companyId: "isracard", card6Digits: "111111", password: "third-card" },
-    // Shares the first login field with that card, but differs in another one:
-    // must stay its own button instead of collapsing into it
-    {
-      companyId: "isracard",
-      card6Digits: "111111",
-      username: "noam",
-      password: "fourth-card",
-    },
-  ];
-  return {
-    config: { accounts, options: { scheduling: { cron: "0 9 * * *" } } },
-    getAccounts: jest.fn(() => accounts),
-  };
-});
+const mockAccounts = [
+  { companyId: "isracard", card6Digits: "111111", password: "first-card" },
+  { companyId: "isracard", card6Digits: "222222", password: "second-card" },
+  { companyId: "hapoalim", userCode: "bankuser", password: "bank" },
+  // Same non-secret fields as the first card: selected together, never apart
+  { companyId: "isracard", card6Digits: "111111", password: "third-card" },
+  // Shares the first login field with that card, but differs in another one:
+  // must stay its own button instead of collapsing into it
+  {
+    companyId: "isracard",
+    card6Digits: "111111",
+    username: "noam",
+    password: "fourth-card",
+  },
+] as unknown as Array<AccountConfig>;
+jest.mock("./config.js", () => ({
+  config: { options: { scheduling: { cron: "0 9 * * *" } } },
+}));
 jest.mock("node-cron", () => ({ createTask: jest.fn() }));
 jest.mock("./bot/commands.js", () => ({ registerCommands: jest.fn() }));
 jest.mock("./bot/notifier.js", () => ({
@@ -83,6 +80,7 @@ describe("startServer", () => {
     refreshSecrets: runner.refreshSecrets,
     isRunning: runner.isRunning,
     getLastRun: runner.getLastRun,
+    getAccounts: runner.getAccounts,
   });
 
   beforeEach(() => {
@@ -92,6 +90,7 @@ describe("startServer", () => {
       .mockImplementation((() => undefined) as never);
     lifecycle = createProcessHandlers();
     runner = mock<Required<ServerRunner>>();
+    runner.getAccounts.mockResolvedValue(mockAccounts);
     jest.mocked(createTask).mockReturnValue(task);
     bot = mockDeep<Telegraf<Context>>();
     bot.telegram.deleteMyCommands.mockResolvedValue(true);
@@ -512,6 +511,42 @@ describe("startServer", () => {
         "no longer configured",
       );
 
+      expect(runner.startRun).not.toHaveBeenCalled();
+    });
+
+    it("offers an account the provider has added since startup", async () => {
+      const added = accountId({
+        companyId: "isracard",
+        card6Digits: "999999",
+      } as never);
+      runner.getAccounts.mockResolvedValue([
+        { companyId: "isracard", card6Digits: "999999", password: "added" },
+      ] as unknown as Array<AccountConfig>);
+
+      await startServer(runner, lifecycle.handlers);
+
+      const choices = await handlers().listAccounts!();
+
+      expect(choices).toEqual([
+        { id: added, label: "isracard · •••999", failedLastRun: false },
+      ]);
+    });
+
+    it("refuses a selection the provider has dropped since the picker was opened", async () => {
+      await startServer(runner, lifecycle.handlers);
+      const choice = (await handlers().listAccounts!())[0];
+
+      // The secret refresh removed that account (the other card accounts share
+      // its id, so they have to go with it)
+      runner.getAccounts.mockResolvedValue(
+        mockAccounts.filter(
+          ({ companyId }) => companyId !== "isracard",
+        ) as unknown as Array<AccountConfig>,
+      );
+
+      await expect(handlers().scrape([choice.id])).resolves.toContain(
+        "no longer configured",
+      );
       expect(runner.startRun).not.toHaveBeenCalled();
     });
   });

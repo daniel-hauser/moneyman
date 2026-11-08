@@ -80,6 +80,7 @@ export async function scrapeAccounts(
           id: `scraper-${randomUUID()}`,
           kind: "scraper",
           name: companyId,
+          accountId,
           startedAt: Date.now(),
         };
         try {

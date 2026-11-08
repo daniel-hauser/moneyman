@@ -90,6 +90,12 @@ export interface RunTiming {
   parentId?: string;
   kind: "scraper" | "storage" | "step";
   name: string;
+  /**
+   * Stable id of the account this timing belongs to (see `accountId()` in
+   * `utils/accountLabel.ts`), so a run can name the accounts that failed even
+   * when it ends before its results do. Absent on non-scraper timings.
+   */
+  accountId?: string;
   /** Epoch milliseconds, shared across the runner and scraper worker. */
   startedAt: number;
   endedAt?: number;

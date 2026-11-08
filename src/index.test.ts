@@ -1209,6 +1209,30 @@ describe("index", () => {
       expect(await runOnce("manual")).toMatchObject({ failed: true });
     });
 
+    it("remembers an account the worker reported before the run died", async () => {
+      mocks.scrapeAccountsMock.mockImplementation(
+        async (_config, _requestOtp, _status, _onError, _signal, onTiming) => {
+          // The account failed and the worker said so, then it exited before
+          // any results came back
+          await onTiming?.({
+            id: "scraper-1",
+            kind: "scraper",
+            name: String(CompanyTypes.isracard),
+            accountId: "card-a",
+            startedAt: Date.now(),
+            endedAt: Date.now(),
+            failed: true,
+          });
+          throw new Error("Scraper worker exited unexpectedly (code 1)");
+        },
+      );
+
+      expect(await runOnce("manual")).toMatchObject({
+        failed: true,
+        failedAccountIds: ["card-a"],
+      });
+    });
+
     it("preserves an error callback failure even when accounts succeed", async () => {
       mocks.scrapeAccountsMock.mockImplementation(
         async (_config, _requestOtp, _status, onError) => {
