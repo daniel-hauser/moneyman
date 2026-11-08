@@ -87,7 +87,7 @@ Summaries and the HTML report identify named logins as `companyId · scrapeId` (
 no accounts are identified too. `/status` shows failed login labels from the latest finished
 run, grouping repeated labels within the same provider and showing `and N more` for long lists.
 
-Without an ID, `/scrape` uses the full configured scope. Everything after the single space following the command is one literal `scrapeId`, including spaces and Unicode (for example, `/scrape חשבון בית`); do not add quotes. Unknown or no-longer-allowed IDs are rejected, never replaced with a full scrape.
+Without an ID, `/scrape` uses the full configured scope. Everything after the single space following the command is one literal `scrapeId`, including spaces and Unicode (for example, `/scrape home account`); do not add quotes. Unknown or no-longer-allowed IDs are rejected, never replaced with a full scrape.
 
 `/scrape_accounts` is available only with allowed named logins, `/scrape_failed` only with eligible failed logins, and `/refresh_secrets` only with a [secret provider](./secret-providers.md). Unavailable commands are hidden from the menu and cannot run even when typed manually.
 
