@@ -18,6 +18,7 @@ describe("accountLabel", () => {
     ["id", "012345678", "isracard · •••••5678"],
     ["username", "noamokman", "isracard · n••••••••"],
     ["email", "noam@gmail.com", "isracard · n•••@gmail.com"],
+    ["phoneNumber", "+972501234567", `isracard · ${"•".repeat(9)}4567`],
   ])("masks %s", (_field, value, expected) => {
     expect(accountLabel(account({ [_field as string]: value }))).toBe(expected);
   });
@@ -101,11 +102,29 @@ describe("accountLabel", () => {
       // The collision is real, and only these two carry a suffix
       expect(accountLabel(colliding)).toBe(accountLabel(sameMask));
       expect(labels.get(accountId(other))).toBe("isracard · •••999");
+      const labelOf = (one: AccountConfig) => labels.get(accountId(one));
       for (const one of [colliding, sameMask]) {
-        expect(labels.get(accountId(one))).toBe(
-          `isracard · •••111 #${accountId(one).slice(0, 4)}`,
-        );
+        // The suffix is the id's prefix, and it grows when the four-character
+        // one would collide, so assert the shape rather than the length
+        expect(labelOf(one)).toMatch(/^isracard · •••111 #[0-9a-f]{4,}$/);
       }
+      // Whatever prefix length it needed, the suffix tells the two apart
+      expect(labelOf(colliding)).not.toBe(labelOf(sameMask));
+    });
+
+    it("gives two accounts that differ only by phone their own identity", () => {
+      const first = account({
+        email: "noam@example.com",
+        phoneNumber: "+972501234567",
+      });
+      const second = account({
+        email: "noam@example.com",
+        phoneNumber: "+972509999999",
+      });
+
+      expect(accountId(first)).not.toBe(accountId(second));
+      // Distinct ids, so distinct buttons instead of one that scrapes both
+      expect(accountLabels([first, second]).size).toBe(2);
     });
 
     it("labels a whole set uniquely whenever the ids are unique", () => {

@@ -15,11 +15,22 @@ const IDENTITY_FIELDS = [
   "id",
   "username",
   "email",
+  // A oneZero account is named by its phone as well as its email: two entries
+  // that agree everywhere else still need their own picker button
+  "phoneNumber",
 ] as const;
 
 type IdentityField = (typeof IDENTITY_FIELDS)[number];
 
-/** Every populated non-secret login field, in a stable order */
+/**
+ * Every populated non-secret login field, in a stable order.
+ *
+ * Values are trimmed: two entries whose only difference is surrounding
+ * whitespace are the same login, so they share an id and a picker button the
+ * same way entries with identical fields do. Stripping whitespace here is what
+ * keeps a padded copy from becoming a second button that scrapes the same
+ * account again.
+ */
 function identityFields(
   account: AccountConfig,
 ): Array<{ field: IdentityField; value: string }> {

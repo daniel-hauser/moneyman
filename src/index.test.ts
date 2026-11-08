@@ -9,6 +9,7 @@ import { CompanyTypes } from "israeli-bank-scrapers";
 import { CustomElementRegistry } from "@lit-labs/ssr-dom-shim";
 import type { ReportTransport } from "./bot/reportPublisher.js";
 import { locks } from "node:worker_threads";
+import type { DomainTracker } from "./security/domains.js";
 import { getEventListeners } from "node:events";
 
 jest.mock("./bot/runReport.js", () => {
@@ -1120,13 +1121,13 @@ describe("index", () => {
 
     it("keeps the failed accounts when the run fails after the results", async () => {
       const { createDomainTracker } = await import("./security/domains.js");
-      jest.mocked(createDomainTracker).mockReturnValueOnce({
-        getUsedDomains: jest.fn(),
-        initDomainTracking: jest.fn(),
-        dispose: jest.fn(() => {
-          throw new Error("cleanup failed");
+      jest.mocked(createDomainTracker).mockReturnValueOnce(
+        mock<DomainTracker>({
+          dispose: jest.fn(() => {
+            throw new Error("cleanup failed");
+          }),
         }),
-      } as never);
+      );
       mocks.scrapeAccountsMock.mockResolvedValue({
         results: [
           {

@@ -462,6 +462,22 @@ describe("messages", () => {
       expect(summary).toContain("❌ [isracard]");
     });
 
+    it("escapes an account label before it reaches the HTML summary", () => {
+      const summary = getSummaryMessages([
+        {
+          companyId: CompanyTypes.isracard,
+          accountLabel: "isracard · n&m <x>",
+          result: {
+            success: false,
+            errorType: ScraperErrorTypes.Generic,
+            errorMessage: "Connection failed",
+          },
+        },
+      ]);
+
+      expect(summary).toContain("❌ [isracard · n&amp;m &lt;x&gt;]");
+    });
+
     it("names a successful account with the same label", () => {
       const success = (accountLabel?: string): AccountScrapeResult => ({
         companyId: CompanyTypes.isracard,

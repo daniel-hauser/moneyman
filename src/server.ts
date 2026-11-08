@@ -206,6 +206,9 @@ export async function startServer(
         const configured = new Set(
           (await getAccounts()).map((account) => accountId(account)),
         );
+        // Shutdown can start while that lookup runs, and it only waits for the
+        // run it already knows about
+        if (shuttingDown) return "🛑 Shutting down, no new scrapes";
         if (!accountIds.some((id) => configured.has(id))) {
           return "❌ That account is no longer configured, run /scrape_provider again";
         }

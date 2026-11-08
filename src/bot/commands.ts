@@ -76,15 +76,20 @@ export async function formatStatus(
       if (!choices) {
         lines.push(`\tFailed: ${failedIds.length} account(s)`);
       } else {
+        // Labels come from the ids this reply describes rather than from the
+        // choices' failure marks: rebuilding the choices spans a provider
+        // refresh, so a run finishing in between would relabel this reply with
+        // the newer run's failures.
+        const labelled = choices
+          .filter(({ id }) => failedIds.includes(id))
+          .map(({ label }) => label);
         // An account that failed but is no longer configured has no label left
         const gone = failedIds.filter(
           (id) => !choices.some((choice) => choice.id === id),
         ).length;
         lines.push(
           `\tFailed: ${[
-            ...choices
-              .filter(({ failedLastRun }) => failedLastRun)
-              .map(({ label }) => label),
+            ...labelled,
             ...(gone > 0 ? [`${gone} no longer configured`] : []),
           ].join(", ")}`,
         );
@@ -161,15 +166,42 @@ const REMOVE_KEYBOARD = { inline_keyboard: [] as Array<never> };
 const claimedPickers = new Set<string>();
 const MAX_CLAIMED_PICKERS = 100;
 
+/**
+ * Claims whose keyboard is still attached to the message, because the edit
+ * that removes it failed. These are never evicted: the cap above only bounds
+ * the claims that can no longer be tapped, and dropping one of these would let
+ * a later tap start a second scrape from a picker that still looks live.
+ */
+const protectedPickers = new Set<string>();
+
+function pickerKey(ctx: Context): string {
+  return `${ctx.chat?.id}:${ctx.callbackQuery?.message?.message_id}`;
+}
+
 function claimPicker(ctx: Context): boolean {
-  const key = `${ctx.chat?.id}:${ctx.callbackQuery?.message?.message_id}`;
-  if (claimedPickers.has(key)) return false;
+  const key = pickerKey(ctx);
+  if (claimedPickers.has(key) || protectedPickers.has(key)) return false;
   claimedPickers.add(key);
   if (claimedPickers.size > MAX_CLAIMED_PICKERS) {
     const oldest = claimedPickers.values().next().value;
     if (oldest !== undefined) claimedPickers.delete(oldest);
   }
   return true;
+}
+
+/** Keep a claim whose keyboard could still accept a tap */
+function holdPickerClaim(ctx: Context): void {
+  protectedPickers.add(pickerKey(ctx));
+}
+
+/** Replace the picker with its outcome, keeping the claim if the edit fails */
+async function showPickerOutcome(ctx: Context, text: string): Promise<void> {
+  await ctx
+    .editMessageText(text, { reply_markup: REMOVE_KEYBOARD })
+    .catch((e) => {
+      logger("Failed to update the account picker", e);
+      holdPickerClaim(ctx);
+    });
 }
 
 export function registerCommands(
@@ -249,21 +281,15 @@ export function registerCommands(
       // names the account the button named.
       const choice = (await listAccounts()).find((choice) => choice.id === id);
       if (!choice) {
-        await ctx
-          .editMessageText(
-            "❌ That account is no longer configured. Run /scrape_provider again.",
-            { reply_markup: REMOVE_KEYBOARD },
-          )
-          .catch((e) => logger("Failed to update the account picker", e));
+        await showPickerOutcome(
+          ctx,
+          "❌ That account is no longer configured. Run /scrape_provider again.",
+        );
         return;
       }
 
       const outcome = await handlers.scrape([id]);
-      await ctx
-        .editMessageText(`▶️ ${choice.label}\n${outcome}`, {
-          reply_markup: REMOVE_KEYBOARD,
-        })
-        .catch((e) => logger("Failed to update the account picker", e));
+      await showPickerOutcome(ctx, `▶️ ${choice.label}\n${outcome}`);
     });
   }
   bot.command("help", (ctx) => ctx.reply(help));

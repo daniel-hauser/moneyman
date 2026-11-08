@@ -88,10 +88,10 @@ last run are marked ❌. No field is shown in full. Accounts whose labels would 
 suffix so every button stays unambiguous, and accounts that are identical in every non-secret login
 field share one button.
 
-The picker lists the accounts of the loaded configuration. Accounts that appear only after a
-secret-provider refresh are listed after moneyman restarts. A tap replaces the keyboard with the run's
-outcome, so open the picker again to scrape another account. Selecting an account that is no longer
-configured starts no run.
+The picker lists the accounts the provider currently offers: opening it reads the configuration
+again, so an account a secret-provider refresh added or removed shows up without a restart. A tap
+replaces the keyboard with the run's outcome, so open the picker again to scrape another account.
+Selecting an account that is no longer configured starts no run.
 
 The run summary and the HTML report use the same account labels (`❌ [isracard · •••111 · n•••] …`),
 and `/status` names the accounts that failed the last run.

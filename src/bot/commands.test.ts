@@ -206,6 +206,30 @@ describe("commands", () => {
       expect(status).not.toContain("max");
     });
 
+    it("names the failures of the run the reply describes", async () => {
+      // Reading the accounts spans a provider refresh, so a newer run can
+      // finish in between and mark a different account. The reply describes the
+      // run it captured, so it must name that run's failures.
+      const status = await formatStatus({
+        isRunning: async () => false,
+        getLastRun: () => ({
+          trigger: "manual",
+          startedAt: new Date("2026-03-01T09:00:00"),
+          endedAt: new Date("2026-03-01T09:02:00"),
+          failed: true,
+          failedAccountIds: ["aaa1"],
+        }),
+        getNextRunAt: () => undefined,
+        listAccounts: async () => [
+          { id: "aaa1", label: "isracard · •••111", failedLastRun: false },
+          { id: "bbb2", label: "hapoalim · ••••user", failedLastRun: true },
+        ],
+      });
+
+      expect(status).toContain("\tFailed: isracard · •••111");
+      expect(status).not.toContain("hapoalim");
+    });
+
     it("adds no failure line to a run that succeeded", async () => {
       const listAccounts = jest.fn().mockResolvedValue([]);
       const status = await formatStatus({
@@ -516,6 +540,38 @@ describe("commands", () => {
       await tap("scrape_provider:aaa11111", chatId, 22);
 
       expect(scrape).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps a claim when the keyboard could not be removed", async () => {
+      const scrape = jest.fn().mockResolvedValue("🔄 Starting a scrape now...");
+      const { tap, callApi } = registerBot(
+        createHandlers({
+          scrape,
+          listAccounts: jest.fn().mockResolvedValue([
+            {
+              id: "aaa11111",
+              label: "isracard · •••111",
+              failedLastRun: false,
+            },
+          ]),
+        }),
+      );
+      // The edit that removes the keyboard fails, so the button stays live
+      callApi.mockImplementation((async (method: string) => {
+        if (method === "editMessageText") throw new Error("edit failed");
+        return true;
+      }) as never);
+
+      await tap("scrape_provider:aaa11111", chatId, 41);
+      // More pickers than the claim cap allows: none of these will be tapped
+      for (let i = 0; i < 101; i += 1) {
+        await tap("scrape_provider:aaa11111", chatId, 1000 + i);
+      }
+      // The first picker's keyboard is still attached, so its claim has to
+      // outlive the cap and refuse a second tap
+      await tap("scrape_provider:aaa11111", chatId, 41);
+
+      expect(scrape).toHaveBeenCalledTimes(102);
     });
 
     it("names the tapped account exactly as its button did", async () => {
