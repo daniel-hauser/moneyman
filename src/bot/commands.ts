@@ -5,6 +5,7 @@ import { sha256 } from "../utils/utils.js";
 import type { RunStatus } from "../types.js";
 import type { ScrapeSelection } from "../selection.js";
 import { scrapeLabel } from "../utils/scrapeLabel.js";
+import { COMMAND_MENU_LOCK } from "./bot.js";
 
 const logger = createLogger("commands");
 
@@ -179,7 +180,7 @@ export function registerCommands(
         description,
       }));
   // Serialized so an older configuration cannot replace a newer one.
-  const refreshMenu = () => locks.request("moneyman-command-menu", publishMenu);
+  const refreshMenu = () => locks.request(COMMAND_MENU_LOCK, publishMenu);
   async function publishMenu() {
     if (signal.aborted || !chatId) return;
     try {

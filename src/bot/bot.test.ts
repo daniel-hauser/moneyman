@@ -93,14 +93,18 @@ describe("createBot", () => {
     const first = controller.shutdownTelegramBot();
     const second = controller.shutdownTelegramBot();
 
-    expect(first).toBe(second);
-    expect(bot.launch).not.toHaveBeenCalled();
-    expect(bot.telegram.deleteMyCommands).toHaveBeenCalledTimes(1);
-    expect(bot.telegram.deleteMyCommands).toHaveBeenCalledWith({
-      scope: { type: "chat", chat_id: "555" },
-    });
-    deletion.resolve(true);
-    await Promise.all([first, second]);
+    try {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(first).toBe(second);
+      expect(bot.launch).not.toHaveBeenCalled();
+      expect(bot.telegram.deleteMyCommands).toHaveBeenCalledTimes(1);
+      expect(bot.telegram.deleteMyCommands).toHaveBeenCalledWith({
+        scope: { type: "chat", chat_id: "555" },
+      });
+    } finally {
+      deletion.resolve(true);
+      await Promise.all([first, second]);
+    }
   });
 
   it("bounds polling shutdown and menu cleanup under one deadline", async () => {
@@ -108,19 +112,28 @@ describe("createBot", () => {
     jest.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
     controller.launchTelegramBot();
     bot.stop.mockImplementation(() => {});
-    bot.telegram.deleteMyCommands.mockImplementation(
-      () => new Promise(() => {}),
-    );
+    const deletion = Promise.withResolvers<true>();
+    bot.telegram.deleteMyCommands.mockReturnValueOnce(deletion.promise);
 
     const shutdown = controller.shutdownTelegramBot();
-    deadline.abort(new Error("shutdown deadline"));
-    await expect(shutdown).resolves.toBeUndefined();
+    try {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(bot.telegram.deleteMyCommands).toHaveBeenCalledTimes(1);
+      deadline.abort(new Error("shutdown deadline"));
+      await expect(shutdown).resolves.toBeUndefined();
 
-    expect(bot.stop).toHaveBeenCalledTimes(1);
-    expect(logToPublicLog).toHaveBeenCalledWith(
-      "Failed to clear Telegram command menu",
-      expect.any(Function),
-    );
+      expect(bot.stop).toHaveBeenCalledTimes(1);
+      expect(logToPublicLog).toHaveBeenCalledWith(
+        "Failed to clear Telegram command menu",
+        expect.any(Function),
+      );
+    } finally {
+      deadline.abort();
+      deletion.resolve(true);
+      polling.resolve();
+      await shutdown;
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
   });
 
   it("logs menu cleanup failures without rejecting shutdown", async () => {

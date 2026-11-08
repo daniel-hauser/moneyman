@@ -1,10 +1,12 @@
 import { Context, Telegram, Telegraf } from "telegraf";
 import { CommandHandlers, formatStatus, registerCommands } from "./commands.js";
-import { createBot, isAuthorizedChat } from "./bot.js";
+import { COMMAND_MENU_LOCK, createBot, isAuthorizedChat } from "./bot.js";
 import { selectionChoices } from "../selection.js";
 import { getEventListeners } from "node:events";
+import { locks } from "node:worker_threads";
 import { mock } from "jest-mock-extended";
 import { labeledScrapeResults } from "../utils/tests.js";
+import { logToPublicLog } from "../utils/logger.js";
 
 jest.mock("../config.js", () => ({
   config: {
@@ -50,7 +52,7 @@ function registerBot(
     .spyOn(Telegram.prototype, "callApi")
     .mockResolvedValue(true as never);
 
-  createBot(bot);
+  const controller = createBot(bot);
   const stateChanges = new EventTarget();
   const lifetime = new AbortController();
   const registration = jest.spyOn(bot, "command");
@@ -122,6 +124,8 @@ function registerBot(
     });
   };
   return {
+    controller,
+    telegram: bot.telegram,
     send,
     click,
     replies,
@@ -706,6 +710,102 @@ describe("commands", () => {
         expect(bot.callApi).not.toHaveBeenCalled();
       },
     );
+
+    it("clears only after in-flight publication settles and skips disposed queued refreshes", async () => {
+      const getCommandAvailability = jest.fn().mockResolvedValue({
+        scrapeIds: ["home"],
+        scrapeFailed: false,
+      });
+      const bot = registerBot(createHandlers({ getCommandAvailability }));
+      const publication = Promise.withResolvers<void>();
+      const started = Promise.withResolvers<void>();
+      const events: string[] = [];
+      let remoteMenu: Parameters<Telegram["setMyCommands"]>[0] = [];
+      const publish = jest
+        .spyOn(bot.telegram, "setMyCommands")
+        .mockImplementation(async (commands) => {
+          events.push("publishing");
+          started.resolve();
+          await publication.promise;
+          remoteMenu = commands;
+          events.push("published");
+          return true;
+        });
+      const clear = jest
+        .spyOn(bot.telegram, "deleteMyCommands")
+        .mockImplementation(async () => {
+          remoteMenu = [];
+          events.push("cleared");
+          return true;
+        });
+
+      await started.promise;
+      await bot.stateChanged();
+      bot.lifetime.abort();
+      const shutdown = bot.controller.shutdownTelegramBot();
+      try {
+        await flush();
+        expect(clear).not.toHaveBeenCalled();
+        expect(events).toEqual(["publishing"]);
+        expect(getEventListeners(bot.stateChanges, "stateChanged")).toEqual([]);
+      } finally {
+        publication.resolve();
+        await shutdown;
+      }
+      await bot.stateChanged();
+      expect(events).toEqual(["publishing", "published", "cleared"]);
+      expect(remoteMenu).toEqual([]);
+      expect(publish).toHaveBeenCalledTimes(1);
+      expect(getCommandAvailability).toHaveBeenCalledTimes(1);
+      expect(clear).toHaveBeenCalledTimes(1);
+      expect(clear).toHaveBeenCalledWith({
+        scope: { type: "chat", chat_id: "555" },
+      });
+    });
+
+    it("bounds waiting for publication and cancels queued cleanup with a public failure", async () => {
+      const bot = registerBot(createHandlers());
+      const publication = Promise.withResolvers<void>();
+      const started = Promise.withResolvers<void>();
+      jest.spyOn(bot.telegram, "setMyCommands").mockImplementation(async () => {
+        started.resolve();
+        await publication.promise;
+        return true;
+      });
+      const clear = jest.spyOn(bot.telegram, "deleteMyCommands");
+      const deadline = new AbortController();
+      const timeout = jest
+        .spyOn(AbortSignal, "timeout")
+        .mockReturnValue(deadline.signal);
+      jest.mocked(logToPublicLog).mockClear();
+
+      await started.promise;
+      bot.lifetime.abort();
+      const shutdown = bot.controller.shutdownTelegramBot();
+      try {
+        await flush();
+        expect(clear).not.toHaveBeenCalled();
+        expect((await locks.query()).pending).toEqual([
+          expect.objectContaining({ name: COMMAND_MENU_LOCK }),
+        ]);
+
+        deadline.abort(new Error("shutdown deadline"));
+        await expect(shutdown).resolves.toBeUndefined();
+        expect(timeout).toHaveBeenCalledWith(3_000);
+        expect(logToPublicLog).toHaveBeenCalledWith(
+          "Failed to clear Telegram command menu",
+          expect.any(Function),
+        );
+      } finally {
+        deadline.abort();
+        publication.resolve();
+        await shutdown;
+        await flush();
+      }
+      expect(clear).not.toHaveBeenCalled();
+      expect((await locks.query()).pending).toEqual([]);
+      expect((await locks.query()).held).toEqual([]);
+    });
 
     it.each(["/scrape", "/fetch"])(
       "runs a scrape for %s and replies",
