@@ -319,6 +319,58 @@ describe("commands", () => {
   });
 
   describe("registerCommands", () => {
+    it.each([false, true])(
+      "builds /help from the current menu without fetching configuration (provider=%s)",
+      async (provider) => {
+        const getCommandAvailability = jest.fn().mockResolvedValue({
+          scrapeIds: [],
+          scrapeFailed: false,
+        });
+        const handlers = createHandlers({
+          refreshSecrets: provider
+            ? jest.fn().mockResolvedValue("refreshed")
+            : undefined,
+          getCommandAvailability,
+        });
+        const bot = registerBot(handlers);
+        const expectHelp = async () => {
+          const menu = bot.callApi.mock.calls
+            .filter(([method]) => method === "setMyCommands")
+            .at(-1)?.[1] as {
+            commands: { command: string; description: string }[];
+          };
+          const calls = getCommandAvailability.mock.calls.length;
+          await bot.send("/help");
+          expect(bot.replies().at(-1)).toBe(
+            [
+              "Moneyman is running and listening for commands:",
+              "",
+              ...menu.commands.map(
+                ({ command, description }) => `/${command} — ${description}`,
+              ),
+            ].join("\n"),
+          );
+          expect(getCommandAvailability).toHaveBeenCalledTimes(calls);
+          expect(bot.replies().at(-1)).toContain("/help");
+          if (provider)
+            expect(bot.replies().at(-1)).toContain("/refresh_secrets");
+          else expect(bot.replies().at(-1)).not.toContain("/refresh_secrets");
+        };
+        await flush();
+        await expectHelp();
+        expect(bot.replies().at(-1)).not.toContain("/scrape_failed");
+        getCommandAvailability.mockResolvedValue({
+          scrapeIds: ["home"],
+          scrapeFailed: true,
+        });
+        await bot.stateChanged();
+        await expectHelp();
+        expect(bot.replies().at(-1)).toContain("/scrape_accounts");
+        expect(bot.replies().at(-1)).toContain("/scrape_failed");
+        expect(handlers.scrape).not.toHaveBeenCalled();
+        if (provider) expect(handlers.refreshSecrets).not.toHaveBeenCalled();
+      },
+    );
     it("refreshes the menu after a secret refresh returns or throws", async () => {
       const available = { scrapeIds: ["home"], scrapeFailed: false };
       const getCommandAvailability = jest.fn().mockResolvedValue(available);
@@ -357,7 +409,7 @@ describe("commands", () => {
       expect(handlers.scrape).not.toHaveBeenCalled();
     });
 
-    it("does not refresh the menu for scrape replies, listings, status, OTPs or unauthorized updates", async () => {
+    it("does not refresh the menu for scrape replies, listings, status, help, OTPs or unauthorized updates", async () => {
       const getCommandAvailability = jest.fn().mockResolvedValue({
         scrapeIds: ["home"],
         scrapeFailed: true,
@@ -370,6 +422,7 @@ describe("commands", () => {
       await bot.send("/scrape_failed");
       await bot.send("/scrape_accounts");
       await bot.send("/status");
+      await bot.send("/help");
       await bot.send("123456");
       await bot.send("/scrape", 999);
       await bot.click("sa:removed", 999);
@@ -532,7 +585,7 @@ describe("commands", () => {
         "Selection is no longer available. Open /scrape_accounts again.",
       ]);
       expect(handlers.scrape).toHaveBeenCalledTimes(1);
-      expect(registration).toHaveBeenCalledTimes(5);
+      expect(registration).toHaveBeenCalledTimes(6);
       const menus = callApi.mock.calls.filter(
         ([method]) => method === "setMyCommands",
       );
@@ -552,6 +605,7 @@ describe("commands", () => {
             { command: "scrape_failed", description: "Retry failed accounts" },
             { command: "refresh_secrets", description: "Refresh secrets" },
             { command: "status", description: "Run status" },
+            { command: "help", description: "List the available commands" },
           ],
         }),
       );
@@ -707,6 +761,7 @@ describe("commands", () => {
 
       await send("/scrape", 999);
       await send("/status", 999);
+      await send("/help", 999);
       await send("/refresh_secrets", 999);
       await send("/scrape_failed", 999);
       await send("/scrape_accounts", 999);

@@ -1,5 +1,6 @@
 import { createTask } from "node-cron";
 import { addAbortListener } from "node:events";
+import { locks } from "node:worker_threads";
 import { config } from "./config.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 import {
@@ -25,6 +26,9 @@ export type ServerRunner = {
   startRun(
     trigger: RunTrigger,
     selection?: ScrapeSelection,
+    signal?: AbortSignal,
+    /** Cancel setup, without cancelling an already-started scrape. */
+    startSignal?: AbortSignal,
   ): Promise<RunHandle>;
   getCommandAvailability?: () => Promise<CommandAvailability>;
   refreshSecrets?: () => Promise<SecretRefreshResult>;
@@ -62,30 +66,48 @@ export async function startServer(
     trigger: RunTrigger,
     selection?: ScrapeSelection,
   ) {
-    const handle = await startRun(trigger, selection).catch((error) => {
-      stateChanges.dispatchEvent(new Event("stateChanged"));
-      throw error;
-    });
-    if (handle.started) {
-      activeRun = handle.finished
-        .catch((error) => logger(`${trigger} run failed`, error))
-        .finally(() => {
-          activeRun = undefined;
+    return locks.request(
+      "moneyman-server-start",
+      { mode: "shared" },
+      async () => {
+        if (commandLifetime.signal.aborted)
+          return {
+            started: false,
+            error: "🛑 Shutting down, no new scrapes",
+            finished: Promise.resolve(undefined),
+          };
+        // Only setup is cancelled: an already-started scrape must retain OTP polling.
+        const handle = await startRun(
+          trigger,
+          selection,
+          undefined,
+          commandLifetime.signal,
+        ).catch((error) => {
           stateChanges.dispatchEvent(new Event("stateChanged"));
+          throw error;
         });
-    } else if (handle.error) {
-      stateChanges.dispatchEvent(new Event("stateChanged"));
-    }
+        if (handle.started) {
+          activeRun = handle.finished
+            .catch((error) => logger(`${trigger} run failed`, error))
+            .finally(() => {
+              activeRun = undefined;
+              stateChanges.dispatchEvent(new Event("stateChanged"));
+            });
+        } else if (handle.error) {
+          stateChanges.dispatchEvent(new Event("stateChanged"));
+        }
 
-    return handle;
+        return handle;
+      },
+    );
   }
 
   const task = cron
-    ? createTask(cron, () => {
+    ? createTask(cron, () =>
         startTrackedRun("scheduled").catch((e) =>
           logger("Scheduled run failed", e),
-        );
-      })
+        ),
+      )
     : undefined;
   const signal = processHandlers.signal;
   function handleShutdownFailure(error: unknown) {
@@ -105,24 +127,29 @@ export async function startServer(
     logger(`Received ${signal}, shutting down`);
     task?.stop();
 
-    if (activeRun) {
-      logToPublicLog("A scrape is in progress, waiting for it to finish");
-      // The Telegram bot keeps polling while draining, so a scrape waiting for
-      // an OTP can still receive it.
-      const completed = new AbortController();
-      const drainSignal = AbortSignal.any([
-        AbortSignal.timeout(SHUTDOWN_DRAIN_TIMEOUT_MS),
-        completed.signal,
-      ]);
-      const drained = await Promise.race([
-        activeRun.then(() => true),
-        aborted(drainSignal, activeRun).then(() => false),
-      ]).finally(() => completed.abort());
-      if (!drained) {
-        logToPublicLog(
-          `The scrape did not finish within ${SHUTDOWN_DRAIN_TIMEOUT_MS / 1000} seconds, shutting down anyway`,
-        );
-      }
+    // Own pending setup before checking for a run; release the lock before the drain.
+    const drain = locks
+      .request("moneyman-server-start", () => undefined)
+      .then(() => {
+        if (activeRun)
+          logToPublicLog("A scrape is in progress, waiting for it to finish");
+        return activeRun;
+      });
+    // The Telegram bot keeps polling while draining, so a scrape waiting for
+    // an OTP can still receive it.
+    const completed = new AbortController();
+    const drainSignal = AbortSignal.any([
+      AbortSignal.timeout(SHUTDOWN_DRAIN_TIMEOUT_MS),
+      completed.signal,
+    ]);
+    const drained = await Promise.race([
+      drain.then(() => true),
+      aborted(drainSignal, drain).then(() => false),
+    ]).finally(() => completed.abort());
+    if (!drained) {
+      logToPublicLog(
+        `The scrape did not finish within ${SHUTDOWN_DRAIN_TIMEOUT_MS / 1000} seconds, shutting down anyway`,
+      );
     }
 
     try {
@@ -173,8 +200,7 @@ export async function startServer(
       refreshSecrets: refreshSecrets
         ? async () => {
             if (shuttingDown) return "🛑 Shutting down, no secret refresh";
-            const result = await refreshSecrets();
-            switch (result) {
+            switch (await refreshSecrets()) {
               case "refreshed":
                 return "✅ Secrets fetched and validated. No scrape started; the next scrape will refresh again. Telegram and scheduling changes require a restart.";
               case "failed":

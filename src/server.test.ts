@@ -197,7 +197,12 @@ describe("startServer", () => {
     await expect(handlers().scrape()).resolves.toContain(
       "A scrape is already in progress",
     );
-    expect(runner.startRun).toHaveBeenCalledWith("manual", undefined);
+    expect(runner.startRun).toHaveBeenCalledWith(
+      "manual",
+      undefined,
+      undefined,
+      expect.any(AbortSignal),
+    );
     expect(sendError).not.toHaveBeenCalled();
     expect(stateChanged).not.toHaveBeenCalled();
   });
@@ -300,6 +305,115 @@ describe("startServer", () => {
     expect(task.stop).toHaveBeenCalledTimes(1);
     expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
     expect(exit).toHaveBeenCalledWith(0);
+  });
+
+  it.each(["SIGINT", "SIGTERM", "fatal"] as const)(
+    "owns pending scoped setup and drains its late handle on %s",
+    async (reason) => {
+      const setup =
+        Promise.withResolvers<Awaited<ReturnType<ServerRunner["startRun"]>>>();
+      const completion = Promise.withResolvers<RunStatus | undefined>();
+      runner.startRun.mockReturnValue(setup.promise);
+      await startServer(serverRunner(), lifecycle.handlers);
+      const command = handlers().scrape({ choices: ["home"] });
+      await flush();
+      const startSignal = runner.startRun.mock.calls[0][3];
+      expect(runner.startRun.mock.calls[0][2]).toBeUndefined();
+      expect(startSignal?.aborted).toBe(false);
+
+      if (reason === "fatal")
+        lifecycle.source.emit(
+          "uncaughtException",
+          new Error("invented fatal"),
+          "uncaughtException",
+        );
+      else lifecycle.source.emit(reason, reason);
+      await flush();
+      expect(startSignal?.aborted).toBe(true);
+      expect(shutdownTelegramBot).not.toHaveBeenCalled();
+      expect(exit).not.toHaveBeenCalled();
+
+      // A run that crossed the start boundary before cancellation still belongs to the drain.
+      setup.resolve({ started: true, finished: completion.promise });
+      await command;
+      await flush();
+      expect(shutdownTelegramBot).not.toHaveBeenCalled();
+      expect(exit).not.toHaveBeenCalled();
+      completion.resolve(undefined);
+      await flush();
+      expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
+      expect(exit).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each(["manual", "scheduled"] as const)(
+    "cancels pending default %s setup, not the scraper lifetime",
+    async (trigger) => {
+      const setup = Promise.withResolvers<void>();
+      runner.startRun.mockImplementation(
+        async (_trigger, _selection, signal, startSignal) => {
+          expect(signal).toBeUndefined();
+          await setup.promise;
+          expect(startSignal?.aborted).toBe(true);
+          return {
+            started: false,
+            error: "🛑 Shutting down, no new scrapes",
+            finished: Promise.resolve(undefined),
+          };
+        },
+      );
+
+      await startServer(serverRunner(), lifecycle.handlers);
+      if (trigger === "manual") void handlers().scrape();
+      else {
+        const callback = jest.mocked(createTask).mock.calls[0][1];
+        if (typeof callback !== "function")
+          throw new Error("Expected cron callback");
+        void callback(mock<Parameters<typeof callback>[0]>());
+      }
+      await flush();
+      lifecycle.source.emit("SIGTERM", "SIGTERM");
+      await flush();
+      expect(shutdownTelegramBot).not.toHaveBeenCalled();
+      setup.resolve();
+      await flush();
+      expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
+      expect(exit).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("does not start a pending selection during polling teardown after the drain deadline", async () => {
+    const setup = Promise.withResolvers<void>();
+    const polling = Promise.withResolvers<void>();
+    const deadline = new AbortController();
+    jest.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
+    jest.mocked(shutdownTelegramBot).mockReturnValueOnce(polling.promise);
+    runner.startRun.mockImplementation(
+      async (_trigger, _selection, _signal, startSignal) => {
+        await setup.promise;
+        expect(startSignal?.aborted).toBe(true);
+        return {
+          started: false,
+          error: "🛑 Shutting down, no new scrapes",
+          finished: Promise.resolve(undefined),
+        };
+      },
+    );
+    await startServer(serverRunner(), lifecycle.handlers);
+    const command = handlers().scrape({ choices: ["home"] });
+    await flush();
+    lifecycle.source.emit("SIGTERM", "SIGTERM");
+    deadline.abort();
+    await flush();
+    expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
+    expect(exit).not.toHaveBeenCalled();
+    setup.resolve();
+    await expect(command).resolves.toContain("Shutting down");
+    expect(sendError).not.toHaveBeenCalled();
+    polling.resolve();
+    await flush();
+    expect(exit).toHaveBeenCalledWith(0);
+    expect(exit).toHaveBeenCalledTimes(1);
   });
 
   it("refuses new scrapes while shutting down", async () => {
@@ -499,7 +613,12 @@ describe("startServer", () => {
     if (typeof callback !== "function")
       throw new Error("Expected cron callback");
     await callback(mock<Parameters<typeof callback>[0]>());
-    expect(runner.startRun).toHaveBeenCalledWith("scheduled", undefined);
+    expect(runner.startRun).toHaveBeenCalledWith(
+      "scheduled",
+      undefined,
+      undefined,
+      expect.any(AbortSignal),
+    );
   });
 
   it("does not register command listeners without Telegram", async () => {

@@ -41,6 +41,15 @@ jest.mock("./bot/index.js", () => ({
       .runWithStorage,
   ),
 }));
+jest.mock("./bot/reportPublisher.js", () => {
+  const actual = jest.requireActual<typeof import("./bot/reportPublisher.js")>(
+    "./bot/reportPublisher.js",
+  );
+  return {
+    ...actual,
+    createReportPublisher: jest.fn(actual.createReportPublisher),
+  };
+});
 jest.mock("./bot/storage/index.js", () => ({
   createStorages: jest.fn(() => [{}]),
   saveResults: jest.fn().mockResolvedValue(undefined),
@@ -749,6 +758,79 @@ describe("index", () => {
       );
     });
 
+    it.each(["SIGINT", "SIGTERM", "fatal"] as const)(
+      "does not start a scoped scraper when selected config loading finishes after %s",
+      async (reason) => {
+        const { loadRunConfig } = await import("./configRefresh.js");
+        const { createStorages } = await import("./bot/storage/index.js");
+        const { MoneymanConfigSchema } = await import("./config.schema.js");
+        const snapshot = MoneymanConfigSchema.parse({
+          accounts: [
+            { companyId: "hapoalim", password: "invented", scrapeId: "home" },
+          ],
+        });
+        jest.mocked(loadRunConfig).mockResolvedValueOnce(snapshot);
+        mocks.scrapeAccountsMock.mockResolvedValueOnce({
+          results: [
+            {
+              ...accountResult(CompanyTypes.hapoalim, false),
+              scrapeId: "home",
+            },
+          ],
+          domains: {},
+        });
+        await runOnce("manual");
+        const previous = runner.getLastRun();
+        const setup = Promise.withResolvers<typeof snapshot>();
+        jest.mocked(loadRunConfig).mockReturnValueOnce(setup.promise);
+        const { signal, reportUnhandledRejection } =
+          mocks.startServerMock.mock.calls[0][1];
+        const command = runner.startRun(
+          "manual",
+          { choices: ["home"] },
+          undefined,
+          signal,
+        );
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        expect(await runner.isRunning()).toBe(true);
+        if (reason === "fatal")
+          reportUnhandledRejection(new Error("invented fatal"));
+        else process.emit(reason);
+        setup.resolve(snapshot);
+        const handle = await command;
+        expect(handle).toMatchObject({
+          started: false,
+          error: expect.stringContaining("Shutting down"),
+        });
+        await expect(handle.finished).resolves.toBeUndefined();
+        expect(mocks.scrapeAccountsMock).toHaveBeenCalledTimes(1);
+        expect(createStorages).toHaveBeenCalledTimes(1);
+        expect(runner.getLastRun()).toBe(previous);
+        expect(await runner.isRunning()).toBe(false);
+      },
+    );
+
+    it.each(["manual", "scheduled"] as const)(
+      "rejects default %s starts after setup cancellation",
+      async (trigger) => {
+        const setup = new AbortController();
+        setup.abort();
+        const handle = await runner.startRun(
+          trigger,
+          undefined,
+          undefined,
+          setup.signal,
+        );
+        expect(handle).toMatchObject({
+          started: false,
+          error: expect.stringContaining("Shutting down"),
+        });
+        await expect(handle.finished).resolves.toBeUndefined();
+        expect(mocks.scrapeAccountsMock).not.toHaveBeenCalled();
+        expect(runner.getLastRun()).toBeUndefined();
+      },
+    );
+
     it("passes the server-owned OTP handler without creating a one-shot session", async () => {
       await runOnce("manual");
 
@@ -1141,34 +1223,71 @@ describe("index", () => {
       });
     });
 
-    it("retains completed scraper failures if log/report delivery rejects", async () => {
-      const { loadRunConfig } = await import("./configRefresh.js");
-      const { MoneymanConfigSchema } = await import("./config.schema.js");
-      const fresh = MoneymanConfigSchema.parse({
-        accounts: [
-          { companyId: "hapoalim", password: "invented", scrapeId: "home" },
-        ],
-      });
-      jest.mocked(loadRunConfig).mockResolvedValue(fresh);
-      mocks.scrapeAccountsMock.mockResolvedValueOnce({
-        results: [
-          { ...accountResult(CompanyTypes.hapoalim, false), scrapeId: "home" },
-        ],
-        domains: {},
-      });
-      mocks.sendLogFileMock.mockRejectedValueOnce(
-        new Error("invented log delivery failure"),
-      );
-      await expect((await runner.startRun("manual")).finished).rejects.toThrow(
-        "log delivery failure",
-      );
-      await (
-        await runner.startRun("manual", { retryFailed: true })
-      ).finished;
-      expect(mocks.scrapeAccountsMock.mock.calls.at(-1)?.[0].accounts).toEqual(
-        fresh.accounts,
-      );
-    });
+    it.each(["storage", "report", "log", "report and log"] as const)(
+      "retains only failed-login IDs when %s delivery fails",
+      async (stage) => {
+        const { loadRunConfig } = await import("./configRefresh.js");
+        const { MoneymanConfigSchema } = await import("./config.schema.js");
+        const fresh = MoneymanConfigSchema.parse({
+          accounts: [
+            { companyId: "hapoalim", password: "invented", scrapeId: "home" },
+          ],
+        });
+        jest.mocked(loadRunConfig).mockResolvedValue(fresh);
+        mocks.scrapeAccountsMock.mockResolvedValueOnce({
+          results: [
+            {
+              ...accountResult(CompanyTypes.hapoalim, false),
+              scrapeId: "home",
+            },
+          ],
+          domains: {},
+        });
+        const failure = new Error(`invented ${stage} delivery failure`);
+        const { saveResults } = await import("./bot/storage/index.js");
+        const publisherModule = await import("./bot/reportPublisher.js");
+        const createPublisher = jest.requireActual<
+          typeof import("./bot/reportPublisher.js")
+        >("./bot/reportPublisher.js").createReportPublisher;
+        if (stage.includes("report")) {
+          jest
+            .mocked(publisherModule.createReportPublisher)
+            .mockImplementationOnce((...args) => {
+              const publisher = createPublisher(...args);
+              return {
+                ...publisher,
+                finish: async (...args) => {
+                  await publisher.finish(...args);
+                  throw failure;
+                },
+              };
+            });
+        }
+        if (stage === "storage")
+          jest.mocked(saveResults).mockRejectedValueOnce(failure);
+        if (stage.includes("log"))
+          mocks.sendLogFileMock.mockRejectedValueOnce(failure);
+        const { finished } = await runner.startRun("manual");
+        if (stage.includes("log")) await expect(finished).rejects.toBe(failure);
+        else await expect(finished).resolves.toMatchObject({ failed: true });
+        expect(runner.getLastRun()).toEqual({
+          trigger: "manual",
+          startedAt: expect.any(Date),
+          endedAt: expect.any(Date),
+          failed: true,
+          failedLogins: [
+            { companyId: CompanyTypes.hapoalim, scrapeId: "home" },
+          ],
+        });
+        expect(await runner.isRunning()).toBe(false);
+        await (
+          await runner.startRun("manual", { retryFailed: true })
+        ).finished;
+        expect(
+          mocks.scrapeAccountsMock.mock.calls.at(-1)?.[0].accounts,
+        ).toEqual(fresh.accounts);
+      },
+    );
 
     it.each(["manual", "scheduled"] as const)(
       "refreshes before every %s scrape and passes the same fresh snapshot to storage and scraping",

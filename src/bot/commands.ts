@@ -131,7 +131,28 @@ export function registerCommands(
         await ctx.reply(await formatStatus(handlers));
       },
     },
+    {
+      command: "help",
+      description: "List the available commands",
+      handler: (ctx) =>
+        ctx.reply(
+          [
+            "Moneyman is running and listening for commands:",
+            "",
+            ...availableCommands().map(
+              ({ command, description }) => `/${command} — ${description}`,
+            ),
+          ].join("\n"),
+        ),
+    },
   ];
+  const availableCommands = () =>
+    commands
+      .filter(({ disabled }) => !disabled?.())
+      .map(({ command, description }) => ({
+        command: Array.isArray(command) ? command[0] : command,
+        description,
+      }));
   // Serialized so an older configuration cannot replace a newer one.
   const refreshMenu = () => locks.request("moneyman-command-menu", publishMenu);
   async function publishMenu() {
@@ -145,13 +166,7 @@ export function registerCommands(
           available.scrapeIds.map((id) => [sha256(id, "base64url"), id]),
         );
       }
-      const menu = commands
-        .filter(({ disabled }) => !disabled?.())
-        .map(({ command, description }) => ({
-          command: Array.isArray(command) ? command[0] : command,
-          description,
-        }));
-      await bot.telegram.setMyCommands(menu, {
+      await bot.telegram.setMyCommands(availableCommands(), {
         scope: { type: "chat", chat_id: chatId },
       });
     } catch (error) {

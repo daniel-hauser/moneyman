@@ -40,7 +40,8 @@ function createConfig() {
     logger("Using MONEYMAN_CONFIG");
     try {
       const parsedConfig = parseJsoncConfig(MONEYMAN_CONFIG);
-      return MoneymanConfigSchema.parse(parsedConfig);
+      const validatedConfig = MoneymanConfigSchema.parse(parsedConfig);
+      return validatedConfig;
     } catch (error) {
       logger(
         "Failed to parse MONEYMAN_CONFIG. Unable to continue with invalid configuration",

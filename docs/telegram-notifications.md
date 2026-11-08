@@ -75,6 +75,7 @@ Only the configured `chatId` can use them — messages from any other chat are i
 | `/scrape_accounts`   | Show buttons that immediately scrape a named login ID                                              |
 | `/scrape_failed`     | Retry eligible failed login IDs from the latest finished run                                       |
 | `/refresh_secrets`   | Refresh the secret-provider configuration without starting a scrape                                |
+| `/help`              | List the currently available commands                                                              |
 | `/status`            | Report whether a scrape is running, how the last one ended and when the next scheduled run happens |
 
 `/scrape` replies immediately, then progress and the summary are sent to the same chat while the
