@@ -13,7 +13,24 @@ export const SCRAPE_COMMANDS = ["scrape", "fetch"];
 export const SCRAPE_ACCOUNT_COMMAND = "scrape_provider";
 
 const ACCOUNT_CALLBACK_PREFIX = `${SCRAPE_ACCOUNT_COMMAND}:`;
-const ACCOUNT_CALLBACK_PATTERN = new RegExp(`^${ACCOUNT_CALLBACK_PREFIX}(.+)$`);
+/**
+ * A picker's buttons carry the moment they stop being usable, so a keyboard
+ * that outlives this process's bookkeeping still refuses the tap. The expiry is
+ * optional in the pattern: a picker sent before the buttons carried one has
+ * none, and is treated as expired.
+ */
+const ACCOUNT_CALLBACK_PATTERN = new RegExp(
+  `^${ACCOUNT_CALLBACK_PREFIX}(?:(\\d+):)?(.+)$`,
+);
+/** How long a picker stays tappable - and so how long its claim has to hold */
+export const PICKER_TTL_MS = 24 * 60 * 60 * 1000;
+const EXPIRED_PICKER_MESSAGE =
+  "⌛️ This picker has expired. Run /scrape_provider again.";
+
+/** `scrape_provider:<expires at>:<account id>`, the expiry in epoch millis */
+export function pickerCallbackData(id: string, expiresAt: number): string {
+  return `${ACCOUNT_CALLBACK_PREFIX}${expiresAt}:${id}`;
+}
 
 /** A configured account the user can pick from */
 export interface AccountChoice {
@@ -120,7 +137,10 @@ function formatDate(date: Date): string {
  * The picker message. ❌ marks the accounts that failed in the last run, which
  * is usually the one the user wants to scrape again.
  */
-export function formatAccountPicker(choices: Array<AccountChoice>): {
+export function formatAccountPicker(
+  choices: Array<AccountChoice>,
+  now = Date.now(),
+): {
   text: string;
   reply_markup: {
     inline_keyboard: Array<Array<{ text: string; callback_data: string }>>;
@@ -143,7 +163,7 @@ export function formatAccountPicker(choices: Array<AccountChoice>): {
       inline_keyboard: choices.map(({ id, label, failedLastRun }) => [
         {
           text: `${failedLastRun ? "❌" : "▶️"} ${label}`,
-          callback_data: `${ACCOUNT_CALLBACK_PREFIX}${id}`,
+          callback_data: pickerCallbackData(id, now + PICKER_TTL_MS),
         },
       ]),
     },
@@ -170,29 +190,33 @@ const MAX_CLAIMED_PICKERS = 100;
  * Claims whose keyboard is still attached to the message, because the edit that
  * removes it is still in flight or failed. The cap above only bounds pickers
  * that can no longer be tapped, so these are held past it: a tap after the first
- * run released the scrape lock would start a second one. They are released by
- * age rather than by count, so a bot that keeps failing to edit a message does
- * not hold every such message for the life of the process.
+ * run released the scrape lock would start a second one. Each entry is dropped
+ * once its own picker expires, so this cannot grow without bound either.
  */
 const liveKeyboards = new Map<string, number>();
-const LIVE_KEYBOARD_TTL_MS = 24 * 60 * 60 * 1000;
 
+/** Identifies a picker by the message that carries its keyboard */
 function pickerKey(ctx: Context): string {
   return `${ctx.chat?.id}:${ctx.callbackQuery?.message?.message_id}`;
 }
 
-function claimPicker(ctx: Context): boolean {
+/**
+ * Claim a picker, so a second tap on it cannot start a second scrape.
+ *
+ * Live claims are held until the picker's own buttons expire, which is safe
+ * because an expired picker refuses its taps without any bookkeeping - and that
+ * is what stops the map growing for the life of a long-running bot.
+ */
+function claimPicker(ctx: Context, expiresAt: number): boolean {
   const key = pickerKey(ctx);
   const now = Date.now();
-  // Released before the claim is looked up, so an aged-out keyboard cannot keep
-  // refusing the tap that just arrived
-  for (const [claimed, at] of liveKeyboards) {
-    if (now - at > LIVE_KEYBOARD_TTL_MS) liveKeyboards.delete(claimed);
+  for (const [claimed, expires] of liveKeyboards) {
+    if (now > expires) liveKeyboards.delete(claimed);
   }
   if (claimedPickers.has(key) || liveKeyboards.has(key)) return false;
   // Claimed into the live set, not the capped one: until the outcome edit
   // settles, the keyboard can still deliver a tap
-  liveKeyboards.set(key, now);
+  liveKeyboards.set(key, expiresAt);
   return true;
 }
 
@@ -274,20 +298,29 @@ export function registerCommands(
     });
 
     bot.action(ACCOUNT_CALLBACK_PATTERN, async (ctx) => {
+      // A picker from before its buttons carried an expiry, or one whose
+      // buttons have outlived it: neither may start a run
+      const expiresAt = ctx.match[1] ? Number(ctx.match[1]) : 0;
+      const expired = Date.now() > expiresAt;
       // Claimed before the first await: a second tap on the same picker must
       // not start a second scrape, whether or not the edits below succeed.
-      const claimed = claimPicker(ctx);
+      const claimed = !expired && claimPicker(ctx, expiresAt);
       await ctx
         .answerCbQuery()
         .catch((e) =>
           logger("Failed to answer the account picker callback", e),
         );
+      if (expired) {
+        logger("Ignoring a tap on an account picker that has expired");
+        await showPickerOutcome(ctx, EXPIRED_PICKER_MESSAGE);
+        return;
+      }
       if (!claimed) {
         logger("Ignoring a second tap on the same account picker");
         return;
       }
 
-      const id = ctx.match[1];
+      const id = ctx.match[2];
       try {
         // Same labels as the keyboard the tap came from, so the edited message
         // names the account the button named.

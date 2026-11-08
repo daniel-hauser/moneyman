@@ -1,5 +1,11 @@
 import { Context, Telegram, Telegraf } from "telegraf";
-import { CommandHandlers, formatStatus, registerCommands } from "./commands.js";
+import {
+  CommandHandlers,
+  formatStatus,
+  PICKER_TTL_MS,
+  pickerCallbackData,
+  registerCommands,
+} from "./commands.js";
 import { createBot, isAuthorizedChat } from "./bot.js";
 
 jest.mock("../config.js", () => ({
@@ -9,6 +15,10 @@ jest.mock("../config.js", () => ({
 }));
 
 const chatId = 555;
+
+/** The callback data a picker that was just sent carries: its own expiry */
+const liveTap = (id: string, now = Date.now()) =>
+  pickerCallbackData(id, now + PICKER_TTL_MS);
 
 function createContext(id: number) {
   return { chat: { id } } as unknown as Context;
@@ -370,6 +380,9 @@ describe("commands", () => {
         listAccounts: jest.fn().mockResolvedValue(choices),
       });
       const { send, replies, replyMarkups, callApi } = registerBot(handlers);
+      // The buttons carry their own expiry, so pin the clock to assert it
+      const now = 1_700_000_000_000;
+      jest.spyOn(Date, "now").mockReturnValue(now);
 
       await send("/scrape_provider");
 
@@ -379,13 +392,13 @@ describe("commands", () => {
           [
             {
               text: "❌ isracard · ••3456",
-              callback_data: "scrape_provider:aaa111",
+              callback_data: pickerCallbackData("aaa111", now + PICKER_TTL_MS),
             },
           ],
           [
             {
               text: "▶️ max · ••7890",
-              callback_data: "scrape_provider:bbb222",
+              callback_data: pickerCallbackData("bbb222", now + PICKER_TTL_MS),
             },
           ],
         ],
@@ -417,7 +430,7 @@ describe("commands", () => {
       });
       const { tap, edits } = registerBot(handlers);
 
-      await tap("scrape_provider:aaa111");
+      await tap(liveTap("aaa111"));
 
       expect(handlers.scrape).toHaveBeenCalledWith(["aaa111"]);
       expect(edits()).toEqual([
@@ -434,7 +447,7 @@ describe("commands", () => {
       });
       const { tap, edits } = registerBot(handlers);
 
-      await tap("scrape_provider:aaa111");
+      await tap(liveTap("aaa111"));
 
       expect(handlers.scrape).not.toHaveBeenCalled();
       expect(edits()[0].text).toContain("no longer configured");
@@ -448,7 +461,7 @@ describe("commands", () => {
       const { send, tap, replies, edits } = registerBot(handlers);
 
       await send("/scrape_provider", 999);
-      await tap("scrape_provider:aaa111", 999);
+      await tap(liveTap("aaa111"), 999);
 
       expect(replies()).toEqual([]);
       expect(edits()).toEqual([]);
@@ -492,6 +505,8 @@ describe("commands", () => {
           listAccounts: jest.fn().mockResolvedValue(choices),
         }),
       );
+      const now = 1_700_000_000_000;
+      jest.spyOn(Date, "now").mockReturnValue(now);
 
       await send("/scrape_provider");
 
@@ -509,9 +524,9 @@ describe("commands", () => {
           ([button]) => button.callback_data,
         ),
       ).toEqual([
-        "scrape_provider:aaa11111",
-        "scrape_provider:bbb22222",
-        "scrape_provider:ccc33333",
+        pickerCallbackData("aaa11111", now + PICKER_TTL_MS),
+        pickerCallbackData("bbb22222", now + PICKER_TTL_MS),
+        pickerCallbackData("ccc33333", now + PICKER_TTL_MS),
       ]);
     });
 
@@ -531,13 +546,13 @@ describe("commands", () => {
       );
 
       // Same message, twice: the first tap claimed it
-      await tap("scrape_provider:aaa11111", chatId, 21);
-      await tap("scrape_provider:aaa11111", chatId, 21);
+      await tap(liveTap("aaa11111"), chatId, 21);
+      await tap(liveTap("aaa11111"), chatId, 21);
 
       expect(scrape).toHaveBeenCalledTimes(1);
 
       // A picker sent later is its own message, and still works
-      await tap("scrape_provider:aaa11111", chatId, 22);
+      await tap(liveTap("aaa11111"), chatId, 22);
 
       expect(scrape).toHaveBeenCalledTimes(2);
     });
@@ -562,14 +577,14 @@ describe("commands", () => {
         return true;
       });
 
-      await tap("scrape_provider:aaa11111", chatId, 41);
+      await tap(liveTap("aaa11111"), chatId, 41);
       // More pickers than the claim cap allows: none of these will be tapped
       for (let i = 0; i < 101; i += 1) {
-        await tap("scrape_provider:aaa11111", chatId, 1000 + i);
+        await tap(liveTap("aaa11111"), chatId, 1000 + i);
       }
       // The first picker's keyboard is still attached, so its claim has to
       // outlive the cap and refuse a second tap
-      await tap("scrape_provider:aaa11111", chatId, 41);
+      await tap(liveTap("aaa11111"), chatId, 41);
 
       expect(scrape).toHaveBeenCalledTimes(102);
     });
@@ -589,20 +604,20 @@ describe("commands", () => {
         }),
       );
 
-      await tap("scrape_provider:aaa11111", chatId, 61);
+      await tap(liveTap("aaa11111"), chatId, 61);
 
       expect(edits()[0].text).toBe(
         "❌ Could not start that scrape. Run /scrape_provider again.",
       );
       expect(edits()[0].reply_markup).toEqual({ inline_keyboard: [] });
       // The button is gone, and the claim still refuses a repeat tap
-      await tap("scrape_provider:aaa11111", chatId, 61);
+      await tap(liveTap("aaa11111"), chatId, 61);
       expect(scrape).toHaveBeenCalledTimes(1);
     });
 
-    it("releases a failed keyboard's claim once the picker is old", async () => {
+    it("refuses a tap an expired picker's buttons send", async () => {
       const scrape = jest.fn().mockResolvedValue("🔄 Starting a scrape now...");
-      const { tap, callApi } = registerBot(
+      const { tap, edits } = registerBot(
         createHandlers({
           scrape,
           listAccounts: jest.fn().mockResolvedValue([
@@ -614,20 +629,18 @@ describe("commands", () => {
           ]),
         }),
       );
-      const now = jest.spyOn(Date, "now").mockReturnValue(1_000);
-      callApi.mockImplementation(async (method) => {
-        if (method === "editMessageText") throw new Error("edit failed");
-        return true;
-      });
 
-      await tap("scrape_provider:aaa11111", chatId, 71);
-      expect(scrape).toHaveBeenCalledTimes(1);
+      // The keyboard outlived the buttons: it refuses its own tap, whether or
+      // not this process still holds a claim for it
+      await tap(pickerCallbackData("aaa11111", Date.now() - 1), chatId, 71);
 
-      // Held while a tap on that keyboard is plausible, then released: keeping
-      // every failed edit for the life of the process grows without bound
-      now.mockReturnValue(1_000 + 24 * 60 * 60 * 1_000 + 1);
-      await tap("scrape_provider:aaa11111", chatId, 71);
-      expect(scrape).toHaveBeenCalledTimes(2);
+      expect(scrape).not.toHaveBeenCalled();
+      expect(edits()[0].text).toContain("expired");
+      expect(edits()[0].reply_markup).toEqual({ inline_keyboard: [] });
+
+      // A picker sent before the buttons carried an expiry is stale too
+      await tap("scrape_provider:aaa11111", chatId, 72);
+      expect(scrape).not.toHaveBeenCalled();
     });
 
     it("names the tapped account exactly as its button did", async () => {
@@ -648,7 +661,7 @@ describe("commands", () => {
         }),
       );
 
-      await tap("scrape_provider:bbb22222");
+      await tap(liveTap("bbb22222"));
 
       expect(edits()[0].text).toBe(
         "▶️ isracard · •••111 · n••• #bbb2\n🔄 Starting a scrape now...",

@@ -91,7 +91,9 @@ field share one button.
 The picker lists the accounts the provider currently offers: opening it reads the configuration
 again, so an account a secret-provider refresh added or removed shows up without a restart. A tap
 replaces the keyboard with the run's outcome, so open the picker again to scrape another account.
-Selecting an account that is no longer configured starts no run.
+Selecting an account that is no longer configured starts no run. The buttons
+stop working a day after the picker was sent - a stale keyboard refuses its own
+taps, so open the picker again.
 
 The run summary and the HTML report use the same account labels (`❌ [isracard · •••111 · n•••] …`),
 and `/status` names the accounts that failed the last run.

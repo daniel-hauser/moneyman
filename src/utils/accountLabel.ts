@@ -45,6 +45,11 @@ function identityValue(value: unknown): string | undefined {
   return value.trim() || undefined;
 }
 
+/**
+ * The account's populated identity fields, in the order they are shown. Two
+ * accounts with the same fields here are the same login: they share one id, one
+ * label and one picker button.
+ */
 function identityFields(
   account: AccountConfig,
 ): Array<{ field: IdentityField; value: string }> {
