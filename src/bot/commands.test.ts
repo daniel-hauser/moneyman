@@ -298,6 +298,28 @@ describe("commands", () => {
       }
     });
 
+    it("names the failure count when the label lookup rejects", async () => {
+      // A provider that refuses the lookup must cost only the labels
+      const status = await formatStatus({
+        isRunning: async () => false,
+        getLastRun: () => ({
+          trigger: "manual",
+          startedAt: new Date("2026-03-01T09:00:00"),
+          endedAt: new Date("2026-03-01T09:02:00"),
+          failed: true,
+          failedAccountIds: ["aaa1", "bbb2"],
+        }),
+        getNextRunAt: () => undefined,
+        listAccounts: async () => {
+          throw new Error("provider is down");
+        },
+      });
+
+      expect(status).toContain("\tFailed: 2 account(s)");
+      expect(status).toContain("❌ Last run (manual)");
+      expect(status).toContain("⏰ No scheduled run configured");
+    });
+
     it("adds no failure line to a run that succeeded", async () => {
       const listAccounts = jest.fn().mockResolvedValue([]);
       const status = await formatStatus({

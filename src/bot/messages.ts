@@ -30,13 +30,18 @@ function getAccountsSummary(
 ): string {
   const successfulAccounts = results
     .filter(({ result }) => result.success)
-    .flatMap(({ result, companyId, accountLabel }) =>
-      result.accounts?.map(
+    .flatMap(({ result, companyId, accountLabel }) => {
+      const label = escapers.HTML(accountLabel ?? companyId);
+      if (!result.accounts?.length) {
+        // A login that returns nothing still belongs in the reply: with a single
+        // account selected, "None" does not say which one it was
+        return [`\t✔️ [${label}] no accounts returned`];
+      }
+      return result.accounts.map(
         (account) =>
-          `\t✔️ [${escapers.HTML(accountLabel ?? companyId)}] ${escapers.HTML(account.accountNumber)}: ${account.txns.length}`,
-      ),
-    )
-    .filter((account): account is string => account !== undefined);
+          `\t✔️ [${label}] ${escapers.HTML(account.accountNumber)}: ${account.txns.length}`,
+      );
+    });
 
   const failed = results.filter(({ result }) => !result.success);
   const shortenError = (message: string) => {

@@ -479,6 +479,20 @@ describe("messages", () => {
       expect(summary).toContain("❌ [isracard · n&amp;m &lt;x&gt;]");
     });
 
+    it("names a successful login that returned no accounts", () => {
+      const summary = getSummaryMessages([
+        {
+          companyId: CompanyTypes.isracard,
+          accountLabel: "isracard · •••111",
+          result: { success: true, accounts: [] },
+        },
+      ]);
+
+      // With one account selected, "None" would not say which account it was
+      expect(summary).toContain("✔️ [isracard · •••111] no accounts returned");
+      expect(summary).not.toContain("None");
+    });
+
     it("names a successful account with the same label", () => {
       /** A successful scrape result, with or without a label */
       const success = (accountLabel?: string): AccountScrapeResult => ({

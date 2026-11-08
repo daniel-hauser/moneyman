@@ -91,7 +91,12 @@ export async function formatStatus(
     if (lastRun.failed && failedIds.length) {
       const lookup = handlers.listAccounts;
       const choices = lookup
-        ? await withinDeadline(LABELS_DEADLINE_MS, lookup)
+        ? await withinDeadline(LABELS_DEADLINE_MS, lookup).catch((e) => {
+            // A lookup that rejects is no different from one that never
+            // answers: the reply still carries the run state and the schedule
+            logger("Failed to read the account labels for /status", e);
+            return undefined;
+          })
         : undefined;
       if (!choices) {
         lines.push(`\tFailed: ${failedIds.length} account(s)`);
