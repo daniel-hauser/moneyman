@@ -17,6 +17,7 @@ export default {
     ],
   },
   testEnvironment: "node",
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.cjs"],
   roots: ["<rootDir>/src", "<rootDir>/report"],
   moduleNameMapper: {
     "^(?:\\./(?:report/)?|\\.\\./src/bot/report/)assets\\.generated\\.js$":

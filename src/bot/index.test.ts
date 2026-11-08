@@ -9,6 +9,7 @@ import { NotificationOptionsSchema } from "../config.schema.js";
 import { readFile } from "node:fs/promises";
 import type { ReportTransport } from "./reportPublisher.js";
 import * as notifier from "./notifier.js";
+import sharp from "sharp";
 
 jest.mock("./storage/index.js", () => ({ saveResults: jest.fn() }));
 jest.mock("./notifier.js", () => ({
@@ -91,8 +92,18 @@ describe("runWithStorage report logs", () => {
   );
 
   it("embeds screenshots when the parsed default enables reports", async () => {
-    jest.mocked(readFile).mockResolvedValue(Buffer.from("invented image"));
-    await runWithStorage(
+    const png = await sharp({
+      create: {
+        width: 100,
+        height: 100,
+        channels: 3,
+        background: "#ffffff",
+      },
+    })
+      .png()
+      .toBuffer();
+    jest.mocked(readFile).mockResolvedValue(png);
+    const { report } = await runWithStorage(
       async ({ failureScreenshotsHandler }) => {
         await failureScreenshotsHandler([
           { photoPath: "invented-screenshot.png", caption: "Failure" },
@@ -102,10 +113,39 @@ describe("runWithStorage report logs", () => {
     );
 
     expect(readFile).toHaveBeenCalledWith("invented-screenshot.png");
+    expect(report.screenshots).toEqual([
+      {
+        caption: "Failure",
+        dataUrl: expect.stringMatching(/^data:image\/webp;base64,/),
+      },
+    ]);
+    expect(
+      await sharp(
+        Buffer.from(report.screenshots[0].dataUrl.split(",")[1], "base64"),
+      )
+        .raw()
+        .toBuffer(),
+    ).toEqual(await sharp(png).raw().toBuffer());
     expect(createReportPublisher).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ sendReportFile: true }),
     );
+  });
+
+  it("still finalizes the report when screenshot conversion fails", async () => {
+    jest.mocked(readFile).mockResolvedValue(Buffer.from("not an image"));
+
+    await expect(
+      runWithStorage(
+        async ({ failureScreenshotsHandler }) => {
+          await failureScreenshotsHandler([
+            { photoPath: "invented-screenshot.png", caption: "Failure" },
+          ]);
+        },
+        [mock<TransactionStorage>()],
+      ),
+    ).rejects.toThrow();
+    expect(finish).toHaveBeenCalledWith("captured logs");
   });
 
   it("reads logs after scraping and passes them to the final report", async () => {

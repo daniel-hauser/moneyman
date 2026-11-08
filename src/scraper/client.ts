@@ -6,7 +6,7 @@ import { aborted } from "node:util";
 import { finalizer, proxy, releaseProxy, wrap } from "comlink";
 import debug from "debug";
 import type { RunnerHooks, RunTiming } from "../types.js";
-import { requestOtpCode } from "../bot/notifier.js";
+import type { OtpRequest } from "./otp.js";
 import { workerEnvironment } from "./environment.js";
 import {
   WorkerConfigSchema,
@@ -17,6 +17,7 @@ import {
 
 export async function scrapeAccounts(
   scraping: ScraperRunConfig,
+  requestOtpCode: OtpRequest,
   onStatus?: (status: string[], totalTime?: number) => Promise<void>,
   onError?: (error: unknown, caller: string) => void | Promise<void>,
   signal?: AbortSignal,

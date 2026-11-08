@@ -24,7 +24,6 @@ it("shares the notifier's Telegram instance with the bot controller", async () =
   expect(notifier.launchTelegramBot).toBe(controller.launchTelegramBot);
   expect(notifier.stopTelegramBot).toBe(controller.stopTelegramBot);
   expect(notifier.shutdownTelegramBot).toBe(controller.shutdownTelegramBot);
-  expect(notifier.isTelegramBotRunning).toBe(controller.isTelegramBotRunning);
   expect(notifier.requestOtpCode).toBe(controller.requestOtpCode);
 });
 

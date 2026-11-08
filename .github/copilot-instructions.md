@@ -128,6 +128,16 @@ The application supports multiple storage backends:
 - Husky + pretty-quick for pre-commit formatting
 - Docker support available for containerized deployment
 
+## Commits and PR Titles
+
+- Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for commit messages and PR titles: `type(scope)!: description` (scope and `!` are optional).
+- Allowed types: `feat`, `fix`, `patch`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Prefer `fix` for bugs; `patch` is also supported.
+- Use `ci` for workflow changes, `build` for build tooling, and `chore(deps)` / `chore(deps-dev)` for dependency updates. Do not use legacy `infra` or mixed-case types.
+- Use optional scopes such as `scraper`, `telegram`, `report`, `config`, `ynab`, or `actual`. Keep descriptions lowercase and headers at most 200 characters.
+- Mark breaking changes with `!` or a `BREAKING CHANGE:` footer. Preserve required co-author trailers.
+- Run `npm run lint` (formatting and latest commit) locally; Husky validates each new commit message. PR CI validates the PR title, not individual branch commits.
+- Squash-merge PRs using the validated PR title as the commit title. Do not rewrite published history to rename old commits.
+
 ## Environment Variables
 
 Key environment variables include:

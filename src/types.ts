@@ -52,7 +52,13 @@ export interface SaveContext {
 }
 
 export interface TransactionStorage {
+  /**
+   * Receive pending transactions as well as completed ones. Defaults to false.
+   * Dual-output providers may still exclude pending from their structured output.
+   */
+  readonly supportsPendingTransactions?: boolean;
   canSave(): boolean;
+  /** Called with completed transactions unless supportsPendingTransactions is true. */
   saveTransactions(
     txns: Array<TransactionRow>,
     onProgress: (status: string) => Promise<void>,

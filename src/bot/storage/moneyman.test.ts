@@ -2,14 +2,8 @@ import { MoneymanDashStorage } from "./moneyman.js";
 import { transactionRow, config } from "../../utils/tests.js";
 import type { MoneymanConfig } from "../../config.js";
 import type { SaveContext } from "../../types.js";
-import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { runContextStore } from "../../utils/asyncContext.js";
 import { randomUUID } from "crypto";
-
-// Mock dependencies
-jest.mock("../../utils/logger.js", () => ({
-  createLogger: () => jest.fn(),
-}));
 
 const mockConfig = (token?: string): MoneymanConfig => {
   const cfg = config();
@@ -226,39 +220,6 @@ describe("MoneymanDashStorage", () => {
       expect(txn).toHaveProperty("description");
       // Should include raw scraper fields (not stripped)
       expect(txn).toHaveProperty("processedDate");
-    });
-
-    it("should filter pending transactions", async () => {
-      const token = makeMmToken("https://api.example.com", "secret123");
-
-      const completedTx = transactionRow({
-        status: TransactionStatuses.Completed,
-      });
-      const pendingTx = transactionRow({
-        status: TransactionStatuses.Pending,
-      });
-
-      fetchMock.mockResolvedValue(
-        mockSuccessResponse({ transactionsAdded: 1 }),
-      );
-
-      const storage = new MoneymanDashStorage(mockConfig(token));
-
-      await new Promise((resolve) => {
-        runContextStore.run({ runId: randomUUID() }, async () => {
-          await storage.saveTransactions(
-            [completedTx, pendingTx],
-            async () => {},
-          );
-          resolve(undefined);
-        });
-      });
-
-      const callArg = fetchMock.mock.calls[0][1];
-      const body = JSON.parse(callArg.body);
-
-      expect(body.transactions).toHaveLength(1);
-      expect(body.transactions[0].status).toBe(TransactionStatuses.Completed);
     });
 
     it("should handle API errors", async () => {

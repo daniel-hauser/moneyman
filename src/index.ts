@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { aborted } from "node:util";
 import { locks } from "node:worker_threads";
 import { scrapeAccounts } from "./scraper/client.js";
 import {
@@ -11,6 +12,7 @@ import {
   sendError,
   reportTransport,
   reportUpdateIntervalMs,
+  requestOtpCode,
 } from "./bot/notifier.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
 import {
@@ -43,6 +45,9 @@ import { getBuildMetadata } from "./buildMetadata.js";
 import { createRunReport } from "./bot/runReport.js";
 import { createReportPublisher } from "./bot/reportPublisher.js";
 import { formatUnknownError } from "./utils/utils.js";
+import { registerProcessHandlers } from "./utils/processErrors.js";
+import type { OtpRequest } from "./scraper/otp.js";
+import { createOneShotOtpSession } from "./bot/otpSession.js";
 
 const logger = createLogger("main");
 const SCRAPE_LOCK = "moneyman-scrape";
@@ -53,12 +58,12 @@ let lastRun: RunStatus | undefined;
 
 console.log("Starting...");
 
-process.on("uncaughtException", (err, origin) => {
-  console.error("uncaughtException, sending error");
-  sendError(`
-    Caught exception: ${err}
-    err.stack: ${err.stack}
-    Exception origin: ${origin}`).catch((e) => {});
+const processHandlers = registerProcessHandlers({
+  logger,
+  notify: (message) => sendError(message),
+  onFatal: () => {
+    process.exitCode = 1;
+  },
 });
 
 enableDebugLoggingIfNeeded();
@@ -67,29 +72,51 @@ getExternalIp().then((ipInfo) => logger("External IP info:", ipInfo));
 main();
 
 async function main() {
-  await sendConfigToTelegramIfRequested();
+  const configUpload = sendConfigToTelegramIfRequested();
+  const completed = new AbortController();
+  const uploadSignal = AbortSignal.any([
+    processHandlers.signal,
+    completed.signal,
+  ]);
+  try {
+    await Promise.race([configUpload, aborted(uploadSignal, configUpload)]);
+  } finally {
+    completed.abort();
+  }
+  if (processHandlers.signal.aborted) {
+    try {
+      await processHandlers.waitForNotifications();
+    } finally {
+      processHandlers.dispose();
+    }
+    process.exit(process.exitCode ?? 0);
+    return;
+  }
 
   if (longRunning) {
-    await startServer({
-      startRun,
-      refreshSecrets: hasConfigSecretProvider() ? refreshSecrets : undefined,
-      isRunning,
-      getLastRun: () => lastRun,
-    });
+    await startServer(
+      {
+        startRun,
+        refreshSecrets: hasConfigSecretProvider() ? refreshSecrets : undefined,
+        isRunning,
+        getLastRun: () => lastRun,
+      },
+      processHandlers,
+    );
   } else {
-    const abort = new AbortController();
-    const cancel = () => abort.abort(new Error("Scraper worker cancelled"));
-    process.once("SIGINT", cancel);
-    process.once("SIGTERM", cancel);
     try {
-      await runOnce("startup", { signal: abort.signal });
+      await runOnce("startup", { signal: processHandlers.signal });
+    } catch (error) {
+      processHandlers.reportUnhandledRejection(error);
     } finally {
-      process.removeListener("SIGINT", cancel);
-      process.removeListener("SIGTERM", cancel);
+      try {
+        await processHandlers.waitForNotifications();
+      } finally {
+        processHandlers.dispose();
+      }
+      // kill internal browsers if stuck
+      process.exit(process.exitCode ?? 0);
     }
-
-    // kill internal browsers if stuck
-    process.exit(0);
   }
 }
 
@@ -162,6 +189,7 @@ async function runScraper(
   hooks: RunnerHooks,
   scraperConfig: ScraperRunConfig,
   domainTracker: DomainTracker,
+  requestOtp: OtpRequest,
   options: RunOptions = {},
 ) {
   try {
@@ -181,6 +209,7 @@ async function runScraper(
     logger("Starting to scrape");
     const { results, domains } = await scrapeAccounts(
       scraperConfig,
+      requestOtp,
       async (status, totalTime) => {
         logger("Status changed", { status, totalTime });
         return hooks.onStatusChanged(status, totalTime);
@@ -239,6 +268,10 @@ function failedAccountIds(
 }
 
 async function run(options: RunOptions = {}): Promise<RunOutcome> {
+  const otpSession = longRunning
+    ? undefined
+    : createOneShotOtpSession(options.signal);
+  const requestOtp = otpSession?.request ?? requestOtpCode;
   let publication: Awaited<ReturnType<typeof runWithStorage>> = {
     report: createRunReport(),
     reportSent: false,
@@ -261,7 +294,8 @@ async function run(options: RunOptions = {}): Promise<RunOutcome> {
     try {
       logger("Running with storage");
       publication = await runWithStorage(
-        (hooks) => runScraper(hooks, scraperConfig, domainTracker, options),
+        (hooks) =>
+          runScraper(hooks, scraperConfig, domainTracker, requestOtp, options),
         storages,
         publication,
       );
@@ -293,26 +327,30 @@ async function run(options: RunOptions = {}): Promise<RunOutcome> {
     };
   } finally {
     try {
-      if (!report.endedAt) {
-        report.endedAt = new Date();
-        const sendReportFile =
-          Boolean(reportTransport) &&
-          (config.options.notifications.telegram?.sendReportFileToTelegram ??
-            false);
-        const logs = sendReportFile ? readReportLogs() : undefined;
-        publication.reportSent = await createReportPublisher(report, {
-          transport: reportTransport,
-          sendReportFile,
-          intervalMs: reportUpdateIntervalMs,
-        }).finish(logs);
-        publication.logsSent = publication.reportSent && logs !== undefined;
-      }
+      await otpSession?.close();
     } finally {
-      await sendLogFile(
-        !longRunning,
-        prepared?.storages ?? [],
-        publication.logsSent,
-      );
+      try {
+        if (!report.endedAt) {
+          report.endedAt = new Date();
+          const sendReportFile =
+            Boolean(reportTransport) &&
+            (config.options.notifications.telegram?.sendReportFileToTelegram ??
+              false);
+          const logs = sendReportFile ? readReportLogs() : undefined;
+          publication.reportSent = await createReportPublisher(report, {
+            transport: reportTransport,
+            sendReportFile,
+            intervalMs: reportUpdateIntervalMs,
+          }).finish(logs);
+          publication.logsSent = publication.reportSent && logs !== undefined;
+        }
+      } finally {
+        await sendLogFile(
+          !longRunning,
+          prepared?.storages ?? [],
+          publication.logsSent,
+        );
+      }
     }
   }
 }
