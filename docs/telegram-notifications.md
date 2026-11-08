@@ -86,6 +86,7 @@ Summaries and the HTML report identify named logins as `companyId · scrapeId` (
 `hapoalim · home-bank`); unnamed logins retain the provider name. Successful logins that return
 no accounts are identified too. `/status` shows failed login labels from the latest finished
 run, grouping repeated labels within the same provider and showing `and N more` for long lists.
+Long status labels are abbreviated with `…` for display only.
 
 Without an ID, `/scrape` uses the full configured scope. Everything after the single space following the command is one literal `scrapeId`, including spaces and Unicode (for example, `/scrape home account`); do not add quotes. Unknown or no-longer-allowed IDs are rejected, never replaced with a full scrape.
 

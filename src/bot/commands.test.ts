@@ -302,6 +302,7 @@ describe("commands", () => {
       { count: 15, label: "home-bank" },
       { count: 15, label: "🏡".repeat(300) },
       { count: 1, label: "<&>".repeat(2000) },
+      { count: 1, label: "x".repeat(137) + "🏡".repeat(20) },
     ])(
       "bounds failed labels (count=$count, label length varies)",
       async ({ count, label }) => {
@@ -322,6 +323,7 @@ describe("commands", () => {
         );
 
         expect(status.length).toBeLessThan(4096);
+        expect(status).not.toMatch(/\p{Surrogate}/u);
         expect(status).toMatchSnapshot();
       },
     );
