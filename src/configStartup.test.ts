@@ -195,9 +195,7 @@ describe("provider-backed configuration startup", () => {
     process.env.MONEYMAN_CONFIG_SECRET =
       '{"provider":"bitwarden","accessToken":"invented-sensitive-token"';
     await expect(import("./config.js")).rejects.toEqual(
-      new Error(
-        "MONEYMAN_CONFIG_SECRET must contain a JSON/JSONC descriptor or name a readable descriptor file.",
-      ),
+      new Error("Unable to load secret provider descriptor."),
     );
     const { execFileSync } = await import("node:child_process");
     expect(execFileSync).not.toHaveBeenCalled();
@@ -242,9 +240,7 @@ describe("provider-backed configuration startup", () => {
         "invalid-descriptor",
       ].includes(failure)
         ? safeError
-        : ["empty", "whitespace"].includes(failure)
-          ? "The descriptor file selected by MONEYMAN_CONFIG_SECRET must not be empty."
-          : "MONEYMAN_CONFIG_SECRET must contain a JSON/JSONC descriptor or name a readable descriptor file.";
+        : "Unable to load secret provider descriptor.";
       await expect(import("./config.js")).rejects.toEqual(
         new Error(expectedError),
       );

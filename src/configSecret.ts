@@ -29,14 +29,10 @@ export function readConfigSecret(environment: NodeJS.ProcessEnv) {
     try {
       descriptor = readFileSync(MONEYMAN_CONFIG_SECRET, "utf8");
     } catch {
-      throw new Error(
-        "MONEYMAN_CONFIG_SECRET must contain a JSON/JSONC descriptor or name a readable descriptor file.",
-      );
+      throw new Error("Unable to load secret provider descriptor.");
     }
     if (!descriptor.trim()) {
-      throw new Error(
-        "The descriptor file selected by MONEYMAN_CONFIG_SECRET must not be empty.",
-      );
+      throw new Error("Unable to load secret provider descriptor.");
     }
     return descriptor;
   }

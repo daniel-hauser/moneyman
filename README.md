@@ -127,11 +127,11 @@ To enable debug output, set the `DEBUG` environment variable to `moneyman:*`.
 
 Moneyman uses a JSON configuration for all settings. You can provide configuration in three ways:
 
-1. **`MONEYMAN_CONFIG_SECRET` environment variable**: A JSON/JSONC provider descriptor or a path to a mounted descriptor file, used to load the complete config at startup; see [Secret providers](./docs/secret-providers.md)
+1. **`MONEYMAN_CONFIG_SECRET` environment variable**: A provider descriptor used to load the complete config at startup; see [Secret providers](./docs/secret-providers.md)
 2. **`MONEYMAN_CONFIG` environment variable**: The JSON configuration as a string
 3. **`MONEYMAN_CONFIG_PATH` environment variable**: Path to a JSON or JSONC configuration file
 
-The sources are listed in precedence order. `MONEYMAN_CONFIG_SECRET` is parsed as JSON/JSONC first; otherwise, it is treated as a file path. Lower-priority sources are used only when no provider is configured, never as a fallback after provider or descriptor-file errors.
+The sources are listed in precedence order. Lower-priority sources remain available when `MONEYMAN_CONFIG_SECRET` is not set.
 
 The configuration file approach is recommended for Docker/Kubernetes environments and supports JSON with Comments (JSONC) for better readability.
 
@@ -159,7 +159,7 @@ accounts: Array<{
 | `TZ`                     | `'Asia/Jerusalem'`    | A timezone for the process - used for the formatting of the timestamp                                    |
 | `MONEYMAN_CONFIG`        |                       | The JSON configuration for the process                                                                   |
 | `MONEYMAN_CONFIG_PATH`   |                       | Path to a JSON/JSONC configuration file (used if `MONEYMAN_CONFIG` is not set)                           |
-| `MONEYMAN_CONFIG_SECRET` |                       | JSON/JSONC provider descriptor or descriptor-file path, e.g. `/run/secrets/moneyman_provider`            |
+| `MONEYMAN_CONFIG_SECRET` |                       | JSON/JSONC provider descriptor or a path to a descriptor file                                            |
 | `SEND_NEW_CONFIG_TO_TG`  | `"false"`             | Set to `"true"` to send the current configuration as `config.txt` via Telegram for debugging purposes    |
 | `MONEYMAN_LONG_RUNNING`  | `"false"`             | Set to `"true"` to keep running after the first scrape: runs on a schedule and accepts Telegram commands |
 | `MONEYMAN_UNSAFE_STDOUT` | `"false"`             | Set to `"true"` to allow sensitive data to be printed to stdout instead of a log file                    |
