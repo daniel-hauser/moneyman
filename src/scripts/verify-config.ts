@@ -3,14 +3,14 @@ import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { MoneymanConfigSchema } from "../config.schema.js";
 import { parseJsoncConfig } from "../utils/jsonc.js";
-import { loadConfigSecretSync } from "../configSecret.js";
+import { loadConfigSecretSync, readConfigSecret } from "../configSecret.js";
 
 try {
   console.log("🔍 Verifying config parsing...");
-  const { MONEYMAN_CONFIG_SECRET, MONEYMAN_CONFIG, MONEYMAN_CONFIG_PATH } =
-    process.env;
-  if (MONEYMAN_CONFIG_SECRET) {
-    loadConfigSecretSync(MONEYMAN_CONFIG_SECRET);
+  const { MONEYMAN_CONFIG, MONEYMAN_CONFIG_PATH } = process.env;
+  const configSecret = readConfigSecret(process.env);
+  if (configSecret) {
+    loadConfigSecretSync(configSecret);
     console.log("✅ Config parsing successful");
   } else if (MONEYMAN_CONFIG_PATH && !MONEYMAN_CONFIG) {
     MoneymanConfigSchema.parse(

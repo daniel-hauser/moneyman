@@ -11,7 +11,9 @@ jest.mock("node:child_process", () => ({
   execFile: mockExecFile,
 }));
 jest.mock("./config.js", () => ({
-  configSecret: process.env.MONEYMAN_CONFIG_SECRET,
+  configSecret: jest
+    .requireActual<typeof import("./configSecret.js")>("./configSecret.js")
+    .readConfigSecret(process.env),
   config: jest
     .requireActual<typeof import("./config.schema.js")>("./config.schema.js")
     .MoneymanConfigSchema.parse({
@@ -218,6 +220,54 @@ describe("provider configuration refresh through the Varlock CLI", () => {
     expect(process.env.MONEYMAN_CONFIG_SECRET).toContain(
       "changed-after-startup",
     );
+  });
+
+  it("refreshes file-backed configuration while keeping the descriptor startup-bound", async () => {
+    const directory = await mkdtemp(
+      path.join(process.cwd(), ".config-refresh-file-test-"),
+    );
+    try {
+      const file = path.join(directory, "provider.json");
+      await writeFile(file, JSON.stringify(bootstrap));
+      delete process.env.MONEYMAN_CONFIG_SECRET;
+      process.env.MONEYMAN_CONFIG_SECRET_FILE = file;
+      const environment = { ...process.env };
+      const { loadRunConfig, hasConfigSecretProvider } =
+        await import("./configRefresh.js");
+      const { config } = await import("./config.js");
+      expect(hasConfigSecretProvider()).toBe(true);
+
+      await writeFile(
+        file,
+        JSON.stringify({ ...bootstrap, accessToken: "rotated-file-token" }),
+      );
+      for (const password of ["first-file-password", "second-file-password"]) {
+        complete(
+          JSON.stringify({
+            MONEYMAN_CONFIG: JSON.stringify(remoteConfig(password)),
+          }),
+        );
+        const fresh = await loadRunConfig();
+        expect(fresh.accounts[0].password).toBe(password);
+        expect(fresh.options.notifications).toBe(config.options.notifications);
+        expect(fresh.options.scheduling).toBe(config.options.scheduling);
+        expect(fresh.options.logging).toBe(config.options.logging);
+      }
+      expect(mockExecFile).toHaveBeenCalledTimes(2);
+      expect(mockExecFile).toHaveBeenLastCalledWith(
+        process.execPath,
+        expect.any(Array),
+        expect.objectContaining({
+          env: expect.objectContaining({
+            BITWARDEN_ACCESS_TOKEN: "machine-token",
+          }),
+        }),
+        expect.any(Function),
+      );
+      expect(process.env).toEqual(environment);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   it.each([

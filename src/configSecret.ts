@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { execFile, execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { MoneymanConfigSchema } from "./config.schema.js";
 import { workerEnvironment } from "./scraper/environment.js";
@@ -15,6 +16,29 @@ const ConfigSecretSchema = z.discriminatedUnion("provider", [
     accessToken: z.string().min(1),
   }),
 ]);
+
+export function readConfigSecret(environment: NodeJS.ProcessEnv) {
+  const { MONEYMAN_CONFIG_SECRET, MONEYMAN_CONFIG_SECRET_FILE } = environment;
+  if (MONEYMAN_CONFIG_SECRET_FILE === undefined) return MONEYMAN_CONFIG_SECRET;
+  if (MONEYMAN_CONFIG_SECRET !== undefined) {
+    throw new Error(
+      "MONEYMAN_CONFIG_SECRET and MONEYMAN_CONFIG_SECRET_FILE cannot both be set. Configure only one.",
+    );
+  }
+
+  let descriptor: string;
+  try {
+    descriptor = readFileSync(MONEYMAN_CONFIG_SECRET_FILE, "utf8");
+  } catch {
+    throw new Error(
+      "Unable to read MONEYMAN_CONFIG_SECRET_FILE. Check the file path and permissions.",
+    );
+  }
+  if (!descriptor.trim()) {
+    throw new Error("MONEYMAN_CONFIG_SECRET_FILE must not be empty.");
+  }
+  return descriptor;
+}
 
 export function getConfigSecretEnvironment(
   configSecret: unknown,

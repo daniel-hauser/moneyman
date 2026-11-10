@@ -1,5 +1,8 @@
 jest.mock("dotenv/config", () => ({}));
-jest.mock("../configSecret.js", () => ({ loadConfigSecretSync: jest.fn() }));
+jest.mock("../configSecret.js", () => ({
+  ...jest.requireActual("../configSecret.js"),
+  loadConfigSecretSync: jest.fn(),
+}));
 jest.mock("node:fs", () => ({
   ...jest.requireActual("node:fs"),
   readFileSync: jest.fn(),
@@ -52,6 +55,59 @@ describe("configuration verification entrypoint", () => {
     expect(process.exit).toHaveBeenCalledWith(1);
     expect(readFileSync).not.toHaveBeenCalled();
   });
+
+  it("loads the provider descriptor directly from a file before legacy sources", async () => {
+    process.env = {
+      MONEYMAN_CONFIG_SECRET_FILE: "/run/secrets/moneyman_provider",
+      MONEYMAN_CONFIG: "invalid-legacy-json",
+      MONEYMAN_CONFIG_PATH: "must-not-read.json",
+    };
+    const { loadConfigSecretSync } = await import("../configSecret.js");
+    const { readFileSync } = await import("node:fs");
+    jest.mocked(readFileSync).mockReturnValueOnce("file-provider-descriptor");
+    await import("./verify-config.js");
+    expect(loadConfigSecretSync).toHaveBeenCalledWith(
+      "file-provider-descriptor",
+    );
+    expect(readFileSync).toHaveBeenCalledTimes(1);
+    expect(readFileSync).toHaveBeenCalledWith(
+      "/run/secrets/moneyman_provider",
+      "utf8",
+    );
+    expect(process.env.MONEYMAN_CONFIG_SECRET).toBeUndefined();
+    expect(process.exit).not.toHaveBeenCalled();
+  });
+
+  it.each(["conflict", "unreadable", "empty"])(
+    "fails verification on %s descriptor files without exposing input or falling back",
+    async (failure) => {
+      process.env = {
+        MONEYMAN_CONFIG_SECRET_FILE: "invented-sensitive-path",
+        MONEYMAN_CONFIG: "{}",
+        MONEYMAN_CONFIG_PATH: "must-not-read.json",
+      };
+      const { loadConfigSecretSync } = await import("../configSecret.js");
+      const { readFileSync } = await import("node:fs");
+      if (failure === "conflict") {
+        process.env.MONEYMAN_CONFIG_SECRET = "invented-sensitive-descriptor";
+      } else if (failure === "unreadable") {
+        jest.mocked(readFileSync).mockImplementationOnce(() => {
+          throw new Error("invented-sensitive-filesystem-error");
+        });
+      } else {
+        jest.mocked(readFileSync).mockReturnValueOnce(" \n");
+      }
+      await import("./verify-config.js");
+      expect(process.exit).toHaveBeenCalledWith(1);
+      expect(loadConfigSecretSync).not.toHaveBeenCalled();
+      expect(readFileSync).toHaveBeenCalledTimes(
+        failure === "conflict" ? 0 : 1,
+      );
+      expect(
+        JSON.stringify(jest.mocked(console.error).mock.calls),
+      ).not.toContain("invented-sensitive");
+    },
+  );
 
   it("validates a configuration file when no inline config is set", async () => {
     process.env.MONEYMAN_CONFIG_PATH = "config.jsonc";

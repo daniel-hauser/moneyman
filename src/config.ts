@@ -4,7 +4,7 @@ import { Telegraf } from "telegraf";
 import { readFileSync } from "fs";
 import { AccountConfig } from "./types.js";
 import { createLogger, logToPublicLog } from "./utils/logger.js";
-import { loadConfigSecretSync } from "./configSecret.js";
+import { loadConfigSecretSync, readConfigSecret } from "./configSecret.js";
 import { parseJsoncConfig } from "./utils/jsonc.js";
 import type { ScraperRunConfig } from "./scraper/protocol.js";
 import {
@@ -23,7 +23,7 @@ export const systemName = "moneyman";
 const logger = createLogger("config");
 
 logger("Parsing config");
-export const configSecret = process.env.MONEYMAN_CONFIG_SECRET;
+export const configSecret = readConfigSecret(process.env);
 const config: MoneymanConfig = createConfig();
 export { config };
 
