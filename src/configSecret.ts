@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { execFile, execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { MoneymanConfigSchema } from "./config.schema.js";
 import { workerEnvironment } from "./scraper/environment.js";
-import { parseJsoncConfig } from "./utils/jsonc.js";
+import { parseJsonc, parseJsoncConfig } from "./utils/jsonc.js";
 import { createLogger, logToPublicLog, unsafeStdout } from "./utils/logger.js";
 
 const logger = createLogger("secrets");
@@ -15,6 +16,27 @@ const ConfigSecretSchema = z.discriminatedUnion("provider", [
     accessToken: z.string().min(1),
   }),
 ]);
+
+export function readConfigSecret(environment: NodeJS.ProcessEnv) {
+  const { MONEYMAN_CONFIG_SECRET } = environment;
+  if (!MONEYMAN_CONFIG_SECRET) return MONEYMAN_CONFIG_SECRET;
+
+  try {
+    parseJsonc(MONEYMAN_CONFIG_SECRET);
+    return MONEYMAN_CONFIG_SECRET;
+  } catch {
+    let descriptor: string;
+    try {
+      descriptor = readFileSync(MONEYMAN_CONFIG_SECRET, "utf8");
+    } catch {
+      throw new Error("Unable to load secret provider descriptor.");
+    }
+    if (!descriptor.trim()) {
+      throw new Error("Unable to load secret provider descriptor.");
+    }
+    return descriptor;
+  }
+}
 
 export function getConfigSecretEnvironment(
   configSecret: unknown,
