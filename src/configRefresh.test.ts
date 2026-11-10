@@ -229,8 +229,7 @@ describe("provider configuration refresh through the Varlock CLI", () => {
     try {
       const file = path.join(directory, "provider.json");
       await writeFile(file, JSON.stringify(bootstrap));
-      delete process.env.MONEYMAN_CONFIG_SECRET;
-      process.env.MONEYMAN_CONFIG_SECRET_FILE = file;
+      process.env.MONEYMAN_CONFIG_SECRET = file;
       const environment = { ...process.env };
       const { loadRunConfig, hasConfigSecretProvider } =
         await import("./configRefresh.js");

@@ -118,62 +118,95 @@ describe("provider-backed configuration startup", () => {
     expect(mockPublicLog).not.toHaveBeenCalled();
   });
 
-  it("loads a mounted descriptor without copying it into the environment", async () => {
-    const file = path.join(directory, "provider.json");
-    writeFileSync(file, descriptor);
-    delete process.env.MONEYMAN_CONFIG_SECRET;
-    process.env.MONEYMAN_CONFIG_SECRET_FILE = file;
-    const environment = { ...process.env };
-    const { execFileSync } = await import("node:child_process");
-    jest.mocked(execFileSync).mockReturnValueOnce(
-      JSON.stringify({
-        MONEYMAN_CONFIG:
-          '{"accounts":[{"companyId":"hapoalim","password":"invented-file-bank"}]}',
-      }),
-    );
+  it.each(["JSON", "JSONC"])(
+    "loads a mounted %s descriptor without copying it into the environment",
+    async (format) => {
+      const file = path.join(directory, "provider.json");
+      const fileDescriptor =
+        format === "JSONC" ? `/* descriptor */\n${descriptor}` : descriptor;
+      writeFileSync(file, fileDescriptor);
+      process.env.MONEYMAN_CONFIG_SECRET = file;
+      const environment = { ...process.env };
+      const { execFileSync } = await import("node:child_process");
+      jest.mocked(execFileSync).mockReturnValueOnce(
+        JSON.stringify({
+          MONEYMAN_CONFIG:
+            '{"accounts":[{"companyId":"hapoalim","password":"invented-file-bank"}]}',
+        }),
+      );
 
-    const { config, configSecret } = await import("./config.js");
-    expect(configSecret).toBe(descriptor);
-    expect(config.accounts[0].password).toBe("invented-file-bank");
-    expect(execFileSync).toHaveBeenCalledWith(
-      process.execPath,
-      expect.any(Array),
-      expect.objectContaining({
-        env: {
-          ...workerEnvironment(process.env),
-          VARLOCK_TELEMETRY_DISABLED: "1",
-          BITWARDEN_ACCESS_TOKEN: "startup-machine-token",
-          MONEYMAN_CONFIG_SECRET_ID: "12345678-1234-4234-8234-123456789abc",
-        },
-      }),
-    );
-    expect(process.env).toEqual(environment);
-    expect(mockPublicLog).not.toHaveBeenCalled();
-    expect(JSON.stringify(mockPrivateLog.mock.calls)).not.toContain(descriptor);
-  });
+      const { config, configSecret } = await import("./config.js");
+      expect(configSecret).toBe(fileDescriptor);
+      expect(config.accounts[0].password).toBe("invented-file-bank");
+      expect(execFileSync).toHaveBeenCalledWith(
+        process.execPath,
+        expect.any(Array),
+        expect.objectContaining({
+          env: {
+            ...workerEnvironment(process.env),
+            VARLOCK_TELEMETRY_DISABLED: "1",
+            BITWARDEN_ACCESS_TOKEN: "startup-machine-token",
+            MONEYMAN_CONFIG_SECRET_ID: "12345678-1234-4234-8234-123456789abc",
+          },
+        }),
+      );
+      expect(process.env).toEqual(environment);
+      expect(mockPublicLog).not.toHaveBeenCalled();
+      expect(JSON.stringify(mockPrivateLog.mock.calls)).not.toContain(
+        descriptor,
+      );
+    },
+  );
 
-  it.each([descriptor, ""])(
-    "rejects simultaneous descriptor inputs even when the env descriptor is %j",
+  it.each([
+    descriptor,
+    `/* descriptor */\n${descriptor}`,
+    `// descriptor\n${descriptor}`,
+  ])(
+    "uses valid inline JSON/JSONC without trying to read a file: %s",
     async (inline) => {
       process.env.MONEYMAN_CONFIG_SECRET = inline;
-      process.env.MONEYMAN_CONFIG_SECRET_FILE = "invented-private-path";
       const { readFileSync } = await import("node:fs");
-      await expect(import("./config.js")).rejects.toEqual(
-        new Error(
-          "MONEYMAN_CONFIG_SECRET and MONEYMAN_CONFIG_SECRET_FILE cannot both be set. Configure only one.",
-        ),
-      );
       const { execFileSync } = await import("node:child_process");
-      expect(execFileSync).not.toHaveBeenCalled();
+      jest.mocked(execFileSync).mockReturnValueOnce('{"MONEYMAN_CONFIG":"{}"}');
+      const { configSecret } = await import("./config.js");
+      expect(configSecret).toBe(inline);
+      expect(execFileSync).toHaveBeenCalledTimes(1);
       expect(readFileSync).not.toHaveBeenCalled();
       expect(mockPublicLog).not.toHaveBeenCalled();
     },
   );
 
+  it.each([undefined, ""])(
+    "keeps legacy configuration when the provider input is %j",
+    async (value) => {
+      process.env.MONEYMAN_CONFIG_SECRET = value;
+      process.env.MONEYMAN_CONFIG = '{"options":{"scraping":{"daysBack":17}}}';
+      const { config } = await import("./config.js");
+      const { execFileSync } = await import("node:child_process");
+      const { readFileSync } = await import("node:fs");
+      expect(config.options.scraping.daysBack).toBe(17);
+      expect(execFileSync).not.toHaveBeenCalled();
+      expect(readFileSync).not.toHaveBeenCalled();
+    },
+  );
+
+  it("fails safely when malformed inline JSON is not a readable file path", async () => {
+    process.env.MONEYMAN_CONFIG_SECRET =
+      '{"provider":"bitwarden","accessToken":"invented-sensitive-token"';
+    await expect(import("./config.js")).rejects.toEqual(
+      new Error(
+        "MONEYMAN_CONFIG_SECRET must contain a JSON/JSONC descriptor or name a readable descriptor file.",
+      ),
+    );
+    const { execFileSync } = await import("node:child_process");
+    expect(execFileSync).not.toHaveBeenCalled();
+    expect(mockPublicLog).not.toHaveBeenCalled();
+  });
+
   it.each([
     "missing",
     "unreadable",
-    "empty-path",
     "empty",
     "whitespace",
     "malformed",
@@ -201,9 +234,7 @@ describe("provider-backed configuration startup", () => {
           throw new Error("invented-sensitive-filesystem-error");
         });
       }
-      delete process.env.MONEYMAN_CONFIG_SECRET;
-      process.env.MONEYMAN_CONFIG_SECRET_FILE =
-        failure === "empty-path" ? "" : file;
+      process.env.MONEYMAN_CONFIG_SECRET = file;
       const environment = { ...process.env };
       const expectedError = [
         "malformed",
@@ -212,8 +243,8 @@ describe("provider-backed configuration startup", () => {
       ].includes(failure)
         ? safeError
         : ["empty", "whitespace"].includes(failure)
-          ? "MONEYMAN_CONFIG_SECRET_FILE must not be empty."
-          : "Unable to read MONEYMAN_CONFIG_SECRET_FILE. Check the file path and permissions.";
+          ? "The descriptor file selected by MONEYMAN_CONFIG_SECRET must not be empty."
+          : "MONEYMAN_CONFIG_SECRET must contain a JSON/JSONC descriptor or name a readable descriptor file.";
       await expect(import("./config.js")).rejects.toEqual(
         new Error(expectedError),
       );

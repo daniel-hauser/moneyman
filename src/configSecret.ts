@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { MoneymanConfigSchema } from "./config.schema.js";
 import { workerEnvironment } from "./scraper/environment.js";
-import { parseJsoncConfig } from "./utils/jsonc.js";
+import { parseJsonc, parseJsoncConfig } from "./utils/jsonc.js";
 import { createLogger, logToPublicLog, unsafeStdout } from "./utils/logger.js";
 
 const logger = createLogger("secrets");
@@ -18,26 +18,28 @@ const ConfigSecretSchema = z.discriminatedUnion("provider", [
 ]);
 
 export function readConfigSecret(environment: NodeJS.ProcessEnv) {
-  const { MONEYMAN_CONFIG_SECRET, MONEYMAN_CONFIG_SECRET_FILE } = environment;
-  if (MONEYMAN_CONFIG_SECRET_FILE === undefined) return MONEYMAN_CONFIG_SECRET;
-  if (MONEYMAN_CONFIG_SECRET !== undefined) {
-    throw new Error(
-      "MONEYMAN_CONFIG_SECRET and MONEYMAN_CONFIG_SECRET_FILE cannot both be set. Configure only one.",
-    );
-  }
+  const { MONEYMAN_CONFIG_SECRET } = environment;
+  if (!MONEYMAN_CONFIG_SECRET) return MONEYMAN_CONFIG_SECRET;
 
-  let descriptor: string;
   try {
-    descriptor = readFileSync(MONEYMAN_CONFIG_SECRET_FILE, "utf8");
+    parseJsonc(MONEYMAN_CONFIG_SECRET);
+    return MONEYMAN_CONFIG_SECRET;
   } catch {
-    throw new Error(
-      "Unable to read MONEYMAN_CONFIG_SECRET_FILE. Check the file path and permissions.",
-    );
+    let descriptor: string;
+    try {
+      descriptor = readFileSync(MONEYMAN_CONFIG_SECRET, "utf8");
+    } catch {
+      throw new Error(
+        "MONEYMAN_CONFIG_SECRET must contain a JSON/JSONC descriptor or name a readable descriptor file.",
+      );
+    }
+    if (!descriptor.trim()) {
+      throw new Error(
+        "The descriptor file selected by MONEYMAN_CONFIG_SECRET must not be empty.",
+      );
+    }
+    return descriptor;
   }
-  if (!descriptor.trim()) {
-    throw new Error("MONEYMAN_CONFIG_SECRET_FILE must not be empty.");
-  }
-  return descriptor;
 }
 
 export function getConfigSecretEnvironment(

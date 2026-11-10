@@ -2,11 +2,11 @@
 
 Moneyman can load its complete JSON/JSONC configuration from an external secret provider at startup and refresh it before each scrape in long-running mode. This works in Docker, with `npm start`, and with configuration verification scripts. Provider support uses [Varlock](https://varlock.dev/) and currently includes Bitwarden Secrets Manager.
 
-Existing `MONEYMAN_CONFIG` and `MONEYMAN_CONFIG_PATH` configurations remain supported. Supply the provider descriptor using either `MONEYMAN_CONFIG_SECRET` or `MONEYMAN_CONFIG_SECRET_FILE`, not both.
+Existing `MONEYMAN_CONFIG` and `MONEYMAN_CONFIG_PATH` configurations remain supported. Set `MONEYMAN_CONFIG_SECRET` to either the provider's JSON/JSONC descriptor or the path to a file containing that descriptor.
 
 The configuration source precedence is:
 
-1. `MONEYMAN_CONFIG_SECRET` or `MONEYMAN_CONFIG_SECRET_FILE` (mutually exclusive)
+1. `MONEYMAN_CONFIG_SECRET` (inline descriptor or descriptor-file path)
 2. `MONEYMAN_CONFIG`
 3. `MONEYMAN_CONFIG_PATH`
 
@@ -50,7 +50,7 @@ services:
   moneyman:
     image: ghcr.io/daniel-hauser/moneyman:latest
     environment:
-      MONEYMAN_CONFIG_SECRET_FILE: /run/secrets/moneyman_provider
+      MONEYMAN_CONFIG_SECRET: /run/secrets/moneyman_provider
       MONEYMAN_LONG_RUNNING: "true"
     secrets:
       - moneyman_provider
@@ -60,7 +60,7 @@ secrets:
     file: ./secrets/moneyman_provider.json
 ```
 
-Remove `MONEYMAN_CONFIG_SECRET` from the service environment, including any `env_file`. Setting both descriptor variables is an error, even if one is empty. A configured file path must refer to a readable, non-empty file containing a valid provider descriptor; missing, unreadable, empty or malformed files stop startup without falling back to inline configuration or another configuration file.
+Moneyman first checks whether `MONEYMAN_CONFIG_SECRET` is valid JSON/JSONC. If it is, Moneyman validates it as a provider descriptor without trying a file, even if descriptor validation fails. Otherwise, the value is treated as a file path (relative paths are relative to the process's working directory). That file must be readable, non-empty and contain a valid provider descriptor. Missing, unreadable, empty or malformed files stop startup without falling back to another configuration source. An unset or empty `MONEYMAN_CONFIG_SECRET` keeps the existing direct-configuration behavior.
 
 Moneyman reads the descriptor directly from the mounted file without copying it into `process.env.MONEYMAN_CONFIG_SECRET`. Only the file path appears in the container's configuration environment. Standalone Compose secrets are protected file mounts, **not encrypted Swarm secret storage**. Protect the host file and its backups; root and Docker access remain privileged and can access mounted secrets. The existing provider loader still passes credentials through a transient child-process environment internally.
 
@@ -93,7 +93,7 @@ Keep the provider secret as one complete configuration document. This preserves 
 
 ## Rotation and Failure Behavior
 
-Rotate the machine account token in Bitwarden and update `MONEYMAN_CONFIG_SECRET` in the deployment platform or the descriptor file selected by `MONEYMAN_CONFIG_SECRET_FILE`. Updating the stored Moneyman configuration requires no image rebuild.
+Rotate the machine account token in Bitwarden and update the inline descriptor in `MONEYMAN_CONFIG_SECRET` or the descriptor file it points to. Updating the stored Moneyman configuration requires no image rebuild.
 
 In [long-running mode](../README.md#long-running-mode), Moneyman retrieves and validates the provider configuration before every scheduled or manually triggered scrape. Fresh bank credentials, storage credentials, and per-run scraping and security settings apply to that run. Logging, Telegram notification settings, and the schedule remain unchanged until the container restarts.
 
