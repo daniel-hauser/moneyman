@@ -1,13 +1,28 @@
-import { Context, Telegraf } from "telegraf";
+import { locks } from "node:worker_threads";
+import { Context, Markup, Telegraf } from "telegraf";
 import { createLogger } from "../utils/logger.js";
+import { sha256 } from "../utils/utils.js";
 import type { RunStatus } from "../types.js";
+import type { ScrapeSelection } from "../selection.js";
+import { scrapeLabel } from "../utils/scrapeLabel.js";
+import { COMMAND_MENU_LOCK } from "./bot.js";
 
 const logger = createLogger("commands");
 
 export const SCRAPE_COMMANDS = ["scrape", "fetch"];
 
+// Even supplementary Unicode characters leave room for run details within Telegram's limit.
+const MAX_STATUS_FAILED_LOGINS = 10;
+const MAX_STATUS_LABEL_CODE_POINTS = 150;
+
+export type CommandAvailability = {
+  scrapeIds: string[];
+  scrapeFailed: boolean;
+};
+
 export type CommandHandlers = {
-  scrape: () => Promise<string>;
+  scrape: (selection?: ScrapeSelection) => Promise<string>;
+  getCommandAvailability?: () => Promise<CommandAvailability>;
   refreshSecrets?: () => Promise<string>;
   isRunning: () => Promise<boolean>;
   getLastRun: () => RunStatus | undefined;
@@ -32,6 +47,26 @@ export async function formatStatus(
         (lastRun.endedAt.getTime() - lastRun.startedAt.getTime()) / 1000,
       )}s`,
     );
+    const failedLabels = [
+      ...new Set(lastRun.failedLogins?.map(scrapeLabel) ?? []),
+    ];
+    if (failedLabels.length) {
+      const displayed = failedLabels
+        .slice(0, MAX_STATUS_FAILED_LOGINS)
+        .map((label) => {
+          const characters = Array.from(label);
+          const text =
+            characters.length > MAX_STATUS_LABEL_CODE_POINTS
+              ? `${characters.slice(0, MAX_STATUS_LABEL_CODE_POINTS - 1).join("")}…`
+              : label;
+          return `• ${text}`;
+        });
+      lines.push("Failed logins:", ...displayed);
+      const omitted = failedLabels.length - displayed.length;
+      if (omitted) {
+        lines.push(`and ${omitted} more`);
+      }
+    }
   } else {
     lines.push("No run finished in this process yet");
   }
@@ -56,46 +91,153 @@ function formatDate(date: Date): string {
 export function registerCommands(
   bot: Telegraf<Context>,
   handlers: CommandHandlers,
+  {
+    stateChanges,
+    signal,
+    chatId,
+  }: { stateChanges: EventTarget; signal: AbortSignal; chatId?: string },
 ) {
   const refreshSecrets = handlers.refreshSecrets;
-  const commands = [
-    { command: SCRAPE_COMMANDS[0], description: "Run a scrape now" },
-    refreshSecrets
-      ? {
-          command: "refresh_secrets",
-          description: "Fetch and validate provider secrets without scraping",
-        }
-      : undefined,
-    { command: "status", description: "Show the last run and the next one" },
-    { command: "help", description: "List the available commands" },
-  ].filter((command) => command !== undefined);
-  const help = [
-    "Moneyman is running and listening for commands:",
-    "",
-    ...commands.map(
-      ({ command, description }) => `/${command} — ${description}`,
-    ),
-  ].join("\n");
+  let selections = new Map<string, string>();
+  let availability: CommandAvailability | undefined;
+  const scrapeCommand = {
+    command: SCRAPE_COMMANDS,
+    description: "Scrape now",
+    handler: async (ctx: Context, scrapeId?: string) => {
+      await ctx.reply(
+        await handlers.scrape(
+          scrapeId === undefined ? undefined : { choices: [scrapeId] },
+        ),
+      );
+    },
+  };
+  const commands: {
+    command: string | string[];
+    description: string;
+    disabled?: () => boolean;
+    handler: (ctx: Context, scrapeId?: string) => Promise<unknown>;
+    refresh?: true;
+  }[] = [
+    scrapeCommand,
+    {
+      command: "scrape_accounts",
+      description: "Choose an account",
+      disabled: () => !selections.size,
+      handler: (ctx) =>
+        ctx.reply(
+          "Choose a login to scrape now:",
+          Markup.inlineKeyboard(
+            [...selections].map(([hash, choice]) => [
+              Markup.button.callback(choice, `sa:${hash}`),
+            ]),
+          ),
+        ),
+    },
+    {
+      command: "scrape_failed",
+      description: "Retry failed accounts",
+      disabled: () => !availability?.scrapeFailed,
+      handler: async (ctx) => {
+        await ctx.reply(await handlers.scrape({ retryFailed: true }));
+      },
+    },
+    {
+      command: "refresh_secrets",
+      description: "Refresh secrets",
+      disabled: () => !refreshSecrets,
+      refresh: true,
+      handler: async (ctx) => {
+        if (refreshSecrets) await ctx.reply(await refreshSecrets());
+      },
+    },
+    {
+      command: "status",
+      description: "Run status",
+      handler: async (ctx) => {
+        await ctx.reply(await formatStatus(handlers));
+      },
+    },
+    {
+      command: "help",
+      description: "List the available commands",
+      handler: (ctx) =>
+        ctx.reply(
+          [
+            "Moneyman is running and listening for commands:",
+            "",
+            ...availableCommands().map(
+              ({ command, description }) => `/${command} — ${description}`,
+            ),
+          ].join("\n"),
+        ),
+    },
+  ];
+  const availableCommands = () =>
+    commands
+      .filter(({ disabled }) => !disabled?.())
+      .map(({ command, description }) => ({
+        command: Array.isArray(command) ? command[0] : command,
+        description,
+      }));
+  // Serialized so an older configuration cannot replace a newer one.
+  const refreshMenu = () => locks.request(COMMAND_MENU_LOCK, publishMenu);
+  async function publishMenu() {
+    if (signal.aborted || !chatId) return;
+    try {
+      const available = await handlers.getCommandAvailability?.();
+      if (signal.aborted) return;
+      availability = available;
+      if (available) {
+        selections = new Map(
+          available.scrapeIds.map((id) => [sha256(id, "base64url"), id]),
+        );
+      }
+      await bot.telegram.setMyCommands(availableCommands(), {
+        scope: { type: "chat", chat_id: chatId },
+      });
+    } catch (error) {
+      logger("Failed to refresh the Telegram command menu", error);
+    }
+  }
+  async function executeCommand(
+    command: (typeof commands)[number],
+    ctx: Context,
+    scrapeId?: string,
+  ) {
+    if (ctx.callbackQuery) await ctx.answerCbQuery();
+    if (command.disabled?.())
+      return ctx.reply("This command is currently unavailable.");
+    try {
+      return await command.handler(ctx, scrapeId);
+    } finally {
+      if (command.refresh) await refreshMenu();
+    }
+  }
 
   bot.catch(async (e, ctx) => {
     logger("Failed to handle an update", e);
     await ctx.reply("❌ Failed to handle the command").catch(() => {});
   });
 
-  bot.command(SCRAPE_COMMANDS, async (ctx) => {
-    await ctx.reply(await handlers.scrape());
-  });
-  bot.command("status", async (ctx) => {
-    await ctx.reply(await formatStatus(handlers));
-  });
-  if (refreshSecrets) {
-    bot.command("refresh_secrets", async (ctx) => {
-      await ctx.reply(await refreshSecrets());
-    });
+  for (const command of commands) {
+    bot.command(command.command, (ctx) =>
+      executeCommand(command, ctx, ctx.payload || undefined),
+    );
   }
-  bot.command("help", (ctx) => ctx.reply(help));
-
-  bot.telegram
-    .setMyCommands(commands)
-    .catch((e) => logger("Failed to set the Telegram command menu", e));
+  bot.action(/^sa:(.*)$/s, async (ctx) => {
+    const choice = selections.get(ctx.match[1]);
+    if (choice !== undefined) return executeCommand(scrapeCommand, ctx, choice);
+    try {
+      await ctx.answerCbQuery();
+      return await ctx.reply(
+        "Selection is no longer available. Open /scrape_accounts again.",
+      );
+    } finally {
+      await refreshMenu();
+    }
+  });
+  stateChanges.addEventListener("stateChanged", () => void refreshMenu(), {
+    signal,
+  });
+  void refreshMenu();
 }

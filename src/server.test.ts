@@ -16,7 +16,12 @@ import {
 } from "./bot/notifier.js";
 
 jest.mock("./config.js", () => ({
-  config: { options: { scheduling: { cron: "0 9 * * *" } } },
+  config: {
+    options: {
+      scheduling: { cron: "0 9 * * *" },
+      notifications: { telegram: { chatId: "555" } },
+    },
+  },
 }));
 jest.mock("node-cron", () => ({ createTask: jest.fn() }));
 jest.mock("./bot/commands.js", () => ({ registerCommands: jest.fn() }));
@@ -64,10 +69,12 @@ describe("startServer", () => {
     refreshSecrets: runner.refreshSecrets,
     isRunning: runner.isRunning,
     getLastRun: runner.getLastRun,
+    getCommandAvailability: runner.getCommandAvailability,
   });
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(registerCommands).mockReset();
     exit = jest
       .spyOn(process, "exit")
       .mockImplementation((() => undefined) as never);
@@ -78,6 +85,93 @@ describe("startServer", () => {
     bot.telegram.deleteMyCommands.mockResolvedValue(true);
     jest.mocked(getTelegramBot).mockReturnValue(bot);
     jest.mocked(launchTelegramBot).mockResolvedValue(undefined);
+  });
+
+  it("passes the configured chat ID to command registration", async () => {
+    await startServer(serverRunner(), lifecycle.handlers);
+    expect(jest.mocked(registerCommands).mock.calls[0][2]).toEqual(
+      expect.objectContaining({ chatId: "555" }),
+    );
+  });
+
+  it.each([
+    ["manual", false],
+    ["manual", true],
+    ["scheduled", false],
+    ["scheduled", true],
+  ] as const)(
+    "refreshes command visibility when a %s run settles (rejected=%s)",
+    async (trigger, rejected) => {
+      const stateChanged = jest.fn();
+      jest
+        .mocked(registerCommands)
+        .mockImplementation((_bot, _handlers, { stateChanges, signal }) => {
+          stateChanges.addEventListener("stateChanged", stateChanged, {
+            signal,
+          });
+        });
+      const completion = Promise.withResolvers<RunStatus | undefined>();
+      runner.startRun.mockResolvedValue({
+        started: true,
+        finished: completion.promise,
+      });
+      await startServer(serverRunner(), lifecycle.handlers);
+      if (trigger === "manual") await handlers().scrape();
+      else {
+        const callback = jest.mocked(createTask).mock.calls[0][1];
+        if (typeof callback !== "function")
+          throw new Error("Expected cron callback");
+        await callback(mock<Parameters<typeof callback>[0]>());
+      }
+      expect(stateChanged).not.toHaveBeenCalled();
+      if (rejected) completion.reject(new Error("invented failure"));
+      else completion.resolve(undefined);
+      await flush();
+      expect(stateChanged).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("passes account listing through and returns selection errors to command middleware", async () => {
+    const available = { scrapeIds: ["home"], scrapeFailed: false };
+    runner.getCommandAvailability.mockResolvedValue(available);
+    runner.startRun.mockResolvedValue({
+      started: false,
+      error: "No longer allowed",
+      finished: Promise.resolve(undefined),
+    });
+    await startServer(serverRunner(), lifecycle.handlers);
+    const stateChanged = jest.fn();
+    jest
+      .mocked(registerCommands)
+      .mock.calls[0][2].stateChanges.addEventListener(
+        "stateChanged",
+        stateChanged,
+      );
+    await expect(handlers().getCommandAvailability?.()).resolves.toBe(
+      available,
+    );
+    expect(runner.getCommandAvailability).toHaveBeenCalledTimes(1);
+    await expect(handlers().scrape({ choices: ["removed"] })).resolves.toBe(
+      "No longer allowed",
+    );
+    expect(stateChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it("propagates unexpected start failures instead of returning an error message", async () => {
+    const failure = new Error("invented provider failure");
+    runner.startRun.mockRejectedValue(failure);
+    await startServer(serverRunner(), lifecycle.handlers);
+    const stateChanged = jest.fn();
+    jest
+      .mocked(registerCommands)
+      .mock.calls[0][2].stateChanges.addEventListener(
+        "stateChanged",
+        stateChanged,
+      );
+    await expect(handlers().scrape({ choices: ["home"] })).rejects.toBe(
+      failure,
+    );
+    expect(stateChanged).toHaveBeenCalledTimes(1);
   });
 
   afterEach(() => {
@@ -92,12 +186,25 @@ describe("startServer", () => {
     });
 
     await startServer(serverRunner(), lifecycle.handlers);
+    const stateChanged = jest.fn();
+    jest
+      .mocked(registerCommands)
+      .mock.calls[0][2].stateChanges.addEventListener(
+        "stateChanged",
+        stateChanged,
+      );
 
     await expect(handlers().scrape()).resolves.toContain(
       "A scrape is already in progress",
     );
-    expect(runner.startRun).toHaveBeenCalledWith("manual");
+    expect(runner.startRun).toHaveBeenCalledWith(
+      "manual",
+      undefined,
+      undefined,
+      expect.any(AbortSignal),
+    );
     expect(sendError).not.toHaveBeenCalled();
+    expect(stateChanged).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -151,9 +258,18 @@ describe("startServer", () => {
       runner.startRun.mockResolvedValue({ started: true, finished });
       await startServer(serverRunner(), lifecycle.handlers);
       await handlers().scrape();
+      const { stateChanges, signal: commandSignal } =
+        jest.mocked(registerCommands).mock.calls[0][2];
+      const stateChanged = jest.fn();
+      stateChanges.addEventListener("stateChanged", stateChanged, {
+        signal: commandSignal,
+      });
 
       lifecycle.source.emit(signal, signal);
+      const repeatedSignal = signal === "SIGINT" ? "SIGTERM" : "SIGINT";
+      lifecycle.source.emit(repeatedSignal, repeatedSignal);
       await flush();
+      expect(commandSignal.aborted).toBe(true);
       expect(task.stop).toHaveBeenCalledTimes(1);
       expect(shutdownTelegramBot).not.toHaveBeenCalled();
       expect(exit).not.toHaveBeenCalled();
@@ -167,6 +283,8 @@ describe("startServer", () => {
       expect(exit).toHaveBeenCalledWith(0);
       expect(exit).toHaveBeenCalledTimes(1);
       expect(getEventListeners(runDrainSignal, "abort")).toEqual([]);
+      expect(stateChanged).not.toHaveBeenCalled();
+      expect(getEventListeners(stateChanges, "stateChanged")).toEqual([]);
       expect(logToPublicLog).not.toHaveBeenCalledWith(
         expect.stringContaining("did not finish"),
       );
@@ -187,6 +305,115 @@ describe("startServer", () => {
     expect(task.stop).toHaveBeenCalledTimes(1);
     expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
     expect(exit).toHaveBeenCalledWith(0);
+  });
+
+  it.each(["SIGINT", "SIGTERM", "fatal"] as const)(
+    "owns pending scoped setup and drains its late handle on %s",
+    async (reason) => {
+      const setup =
+        Promise.withResolvers<Awaited<ReturnType<ServerRunner["startRun"]>>>();
+      const completion = Promise.withResolvers<RunStatus | undefined>();
+      runner.startRun.mockReturnValue(setup.promise);
+      await startServer(serverRunner(), lifecycle.handlers);
+      const command = handlers().scrape({ choices: ["home"] });
+      await flush();
+      const startSignal = runner.startRun.mock.calls[0][3];
+      expect(runner.startRun.mock.calls[0][2]).toBeUndefined();
+      expect(startSignal?.aborted).toBe(false);
+
+      if (reason === "fatal")
+        lifecycle.source.emit(
+          "uncaughtException",
+          new Error("invented fatal"),
+          "uncaughtException",
+        );
+      else lifecycle.source.emit(reason, reason);
+      await flush();
+      expect(startSignal?.aborted).toBe(true);
+      expect(shutdownTelegramBot).not.toHaveBeenCalled();
+      expect(exit).not.toHaveBeenCalled();
+
+      // A run that crossed the start boundary before cancellation still belongs to the drain.
+      setup.resolve({ started: true, finished: completion.promise });
+      await command;
+      await flush();
+      expect(shutdownTelegramBot).not.toHaveBeenCalled();
+      expect(exit).not.toHaveBeenCalled();
+      completion.resolve(undefined);
+      await flush();
+      expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
+      expect(exit).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each(["manual", "scheduled"] as const)(
+    "cancels pending default %s setup, not the scraper lifetime",
+    async (trigger) => {
+      const setup = Promise.withResolvers<void>();
+      runner.startRun.mockImplementation(
+        async (_trigger, _selection, signal, startSignal) => {
+          expect(signal).toBeUndefined();
+          await setup.promise;
+          expect(startSignal?.aborted).toBe(true);
+          return {
+            started: false,
+            error: "🛑 Shutting down, no new scrapes",
+            finished: Promise.resolve(undefined),
+          };
+        },
+      );
+
+      await startServer(serverRunner(), lifecycle.handlers);
+      if (trigger === "manual") void handlers().scrape();
+      else {
+        const callback = jest.mocked(createTask).mock.calls[0][1];
+        if (typeof callback !== "function")
+          throw new Error("Expected cron callback");
+        void callback(mock<Parameters<typeof callback>[0]>());
+      }
+      await flush();
+      lifecycle.source.emit("SIGTERM", "SIGTERM");
+      await flush();
+      expect(shutdownTelegramBot).not.toHaveBeenCalled();
+      setup.resolve();
+      await flush();
+      expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
+      expect(exit).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("does not start a pending selection during polling teardown after the drain deadline", async () => {
+    const setup = Promise.withResolvers<void>();
+    const polling = Promise.withResolvers<void>();
+    const deadline = new AbortController();
+    jest.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
+    jest.mocked(shutdownTelegramBot).mockReturnValueOnce(polling.promise);
+    runner.startRun.mockImplementation(
+      async (_trigger, _selection, _signal, startSignal) => {
+        await setup.promise;
+        expect(startSignal?.aborted).toBe(true);
+        return {
+          started: false,
+          error: "🛑 Shutting down, no new scrapes",
+          finished: Promise.resolve(undefined),
+        };
+      },
+    );
+    await startServer(serverRunner(), lifecycle.handlers);
+    const command = handlers().scrape({ choices: ["home"] });
+    await flush();
+    lifecycle.source.emit("SIGTERM", "SIGTERM");
+    deadline.abort();
+    await flush();
+    expect(shutdownTelegramBot).toHaveBeenCalledTimes(1);
+    expect(exit).not.toHaveBeenCalled();
+    setup.resolve();
+    await expect(command).resolves.toContain("Shutting down");
+    expect(sendError).not.toHaveBeenCalled();
+    polling.resolve();
+    await flush();
+    expect(exit).toHaveBeenCalledWith(0);
+    expect(exit).toHaveBeenCalledTimes(1);
   });
 
   it("refuses new scrapes while shutting down", async () => {
@@ -386,7 +613,21 @@ describe("startServer", () => {
     if (typeof callback !== "function")
       throw new Error("Expected cron callback");
     await callback(mock<Parameters<typeof callback>[0]>());
-    expect(runner.startRun).toHaveBeenCalledWith("scheduled");
+    expect(runner.startRun).toHaveBeenCalledWith(
+      "scheduled",
+      undefined,
+      undefined,
+      expect.any(AbortSignal),
+    );
+  });
+
+  it("does not register command listeners without Telegram", async () => {
+    jest.mocked(getTelegramBot).mockReturnValue(null);
+    await startServer(serverRunner(), lifecycle.handlers);
+    expect(createTask).toHaveBeenCalledTimes(1);
+    expect(task.start).toHaveBeenCalledTimes(1);
+    expect(registerCommands).not.toHaveBeenCalled();
+    expect(launchTelegramBot).not.toHaveBeenCalled();
   });
 
   it("logs scheduled run failures and clears tracking before shutdown", async () => {

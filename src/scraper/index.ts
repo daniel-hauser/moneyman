@@ -195,6 +195,7 @@ async function scrapeAccount(
 
   return {
     companyId: account.companyId,
+    scrapeId: account.scrapeId,
     result,
   };
 }

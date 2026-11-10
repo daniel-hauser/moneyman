@@ -7,6 +7,7 @@ import { createLogger, logToPublicLog } from "./utils/logger.js";
 import { loadConfigSecretSync, readConfigSecret } from "./configSecret.js";
 import { parseJsoncConfig } from "./utils/jsonc.js";
 import type { ScraperRunConfig } from "./scraper/protocol.js";
+import { sendDeprecationMessage } from "./bot/deprecationManager.js";
 import {
   MoneymanConfigSchema,
   type MoneymanConfig,
@@ -91,15 +92,41 @@ logger("Env", {
 
 logger("config loaded", config.options.scraping);
 
-function getAccounts(config: MoneymanConfig): Array<AccountConfig> {
-  const allAccounts = config.accounts as Array<AccountConfig>;
-  const { accountsToScrape } = config.options.scraping;
-
-  return !accountsToScrape || accountsToScrape.length === 0
+export function getAccounts(
+  snapshot: MoneymanConfig,
+  choices?: string[],
+): Array<AccountConfig> {
+  const allAccounts = snapshot.accounts as Array<AccountConfig>;
+  const { accountsToScrape, hiddenDeprecations } = snapshot.options.scraping;
+  const scrapeIds = new Set(allAccounts.map((account) => account.scrapeId));
+  const legacyCompanies =
+    accountsToScrape?.filter(
+      (value) =>
+        !scrapeIds.has(value) &&
+        allAccounts.some((account) => account.companyId === value),
+    ) ?? [];
+  if (legacyCompanies.length)
+    sendDeprecationMessage("accountsToScrapeCompanyId", hiddenDeprecations);
+  const allowed = !accountsToScrape?.length
     ? allAccounts
-    : allAccounts.filter((account) =>
-        accountsToScrape.includes(account.companyId),
+    : allAccounts.filter(
+        (account) =>
+          (account.scrapeId !== undefined &&
+            accountsToScrape.includes(account.scrapeId)) ||
+          legacyCompanies.includes(account.companyId),
       );
+  if (!choices) return allowed;
+  if (
+    !choices.length ||
+    choices.some(
+      (choice) => !allowed.some((account) => account.scrapeId === choice),
+    )
+  )
+    return [];
+  return allowed.filter(
+    (account) =>
+      account.scrapeId !== undefined && choices.includes(account.scrapeId),
+  );
 }
 
 /**
@@ -111,9 +138,10 @@ function getAccounts(config: MoneymanConfig): Array<AccountConfig> {
  */
 export function getScraperConfig(
   snapshot: MoneymanConfig = config,
+  choices?: string[],
 ): ScraperRunConfig {
   return {
-    accounts: getAccounts(snapshot),
+    accounts: getAccounts(snapshot, choices),
     startDate: subDays(Date.now(), snapshot.options.scraping.daysBack),
     parallelScrapers: snapshot.options.scraping.maxParallelScrapers,
     futureMonthsToScrape: snapshot.options.scraping.futureMonths,

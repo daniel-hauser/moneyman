@@ -47,6 +47,32 @@ describe("scraper runtime browser lifecycle", () => {
     jest.restoreAllMocks();
   });
 
+  it("returns stable nonsecret login IDs with both successful and failed results", async () => {
+    jest
+      .mocked(getAccountTransactions)
+      .mockResolvedValueOnce({ success: false })
+      .mockResolvedValueOnce({ success: true, accounts: [] });
+    const results = await scrapeAccounts(
+      {
+        ...config,
+        accounts: [
+          { ...config.accounts[0], scrapeId: "shared" },
+          { ...config.accounts[0], scrapeId: "shared" },
+        ],
+      },
+      initDomainTracking,
+    );
+    expect(
+      results.map(({ scrapeId, result }) => ({
+        scrapeId,
+        success: result.success,
+      })),
+    ).toEqual([
+      { scrapeId: "shared", success: false },
+      { scrapeId: "shared", success: true },
+    ]);
+  });
+
   it("records overlapping duplicate-company accounts only when a parallel slot starts", async () => {
     let now = 1_000;
     jest.spyOn(Date, "now").mockImplementation(() => now);

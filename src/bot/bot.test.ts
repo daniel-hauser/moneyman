@@ -3,6 +3,7 @@ import { Context, Telegraf } from "telegraf";
 import type { Message, UserFromGetMe } from "telegraf/types";
 import { createBot } from "./bot.js";
 import { logToPublicLog } from "../utils/logger.js";
+import { config } from "../config.js";
 
 jest.mock("../config.js", () => ({
   config: {
@@ -25,6 +26,15 @@ describe("createBot", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    config.options.notifications = {
+      telegram: mock<NonNullable<typeof config.options.notifications.telegram>>(
+        {
+          chatId: "555",
+          enableOtp: true,
+          otpTimeoutSeconds: 3600,
+        },
+      ),
+    };
     polling = Promise.withResolvers<void>();
     bot.launch.mockImplementation((config, onLaunch) => {
       (typeof config === "function" ? config : onLaunch)?.();
@@ -83,11 +93,18 @@ describe("createBot", () => {
     const first = controller.shutdownTelegramBot();
     const second = controller.shutdownTelegramBot();
 
-    expect(first).toBe(second);
-    expect(bot.launch).not.toHaveBeenCalled();
-    expect(bot.telegram.deleteMyCommands).toHaveBeenCalledTimes(1);
-    deletion.resolve(true);
-    await Promise.all([first, second]);
+    try {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(first).toBe(second);
+      expect(bot.launch).not.toHaveBeenCalled();
+      expect(bot.telegram.deleteMyCommands).toHaveBeenCalledTimes(1);
+      expect(bot.telegram.deleteMyCommands).toHaveBeenCalledWith({
+        scope: { type: "chat", chat_id: "555" },
+      });
+    } finally {
+      deletion.resolve(true);
+      await Promise.all([first, second]);
+    }
   });
 
   it("bounds polling shutdown and menu cleanup under one deadline", async () => {
@@ -95,19 +112,28 @@ describe("createBot", () => {
     jest.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
     controller.launchTelegramBot();
     bot.stop.mockImplementation(() => {});
-    bot.telegram.deleteMyCommands.mockImplementation(
-      () => new Promise(() => {}),
-    );
+    const deletion = Promise.withResolvers<true>();
+    bot.telegram.deleteMyCommands.mockReturnValueOnce(deletion.promise);
 
     const shutdown = controller.shutdownTelegramBot();
-    deadline.abort(new Error("shutdown deadline"));
-    await expect(shutdown).resolves.toBeUndefined();
+    try {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(bot.telegram.deleteMyCommands).toHaveBeenCalledTimes(1);
+      deadline.abort(new Error("shutdown deadline"));
+      await expect(shutdown).resolves.toBeUndefined();
 
-    expect(bot.stop).toHaveBeenCalledTimes(1);
-    expect(logToPublicLog).toHaveBeenCalledWith(
-      "Failed to clear Telegram command menu",
-      expect.any(Function),
-    );
+      expect(bot.stop).toHaveBeenCalledTimes(1);
+      expect(logToPublicLog).toHaveBeenCalledWith(
+        "Failed to clear Telegram command menu",
+        expect.any(Function),
+      );
+    } finally {
+      deadline.abort();
+      deletion.resolve(true);
+      polling.resolve();
+      await shutdown;
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
   });
 
   it("logs menu cleanup failures without rejecting shutdown", async () => {
@@ -234,6 +260,36 @@ describe("createBot", () => {
         deleteWebhook.reject(new Error("deleteWebhook failed"));
         await expect(lifetime).rejects.toThrow("deleteWebhook failed");
       }
+    },
+  );
+
+  it("rejects startup when Telegram is not configured", async () => {
+    const unconfigured = createBot(null);
+
+    await expect(unconfigured.launchTelegramBot()).rejects.toThrow(
+      "Telegram is not configured",
+    );
+    expect(() => unconfigured.stopTelegramBot()).not.toThrow();
+    await expect(unconfigured.shutdownTelegramBot()).resolves.toBeUndefined();
+    expect(bot.telegram.deleteMyCommands).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, ""])(
+    "stops polling without clearing global commands when chat ID is %p",
+    async (chatId) => {
+      config.options.notifications.telegram =
+        chatId === undefined
+          ? undefined
+          : mock<NonNullable<typeof config.options.notifications.telegram>>({
+              chatId,
+            });
+      const unconfigured = createBot(bot);
+      const lifetime = unconfigured.launchTelegramBot();
+      await unconfigured.shutdownTelegramBot();
+      await expect(lifetime).resolves.toBeUndefined();
+
+      expect(bot.stop).toHaveBeenCalledTimes(1);
+      expect(bot.telegram.deleteMyCommands).not.toHaveBeenCalled();
     },
   );
 });

@@ -6,7 +6,7 @@ import { CompanyTypes } from "israeli-bank-scrapers";
 import { TransactionStatuses } from "israeli-bank-scrapers/lib/transactions.js";
 import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
 import { AccountScrapeResult, type RunTiming } from "../types.js";
-import { transaction } from "../utils/tests.js";
+import { labeledScrapeResults, transaction } from "../utils/tests.js";
 import { createSaveStats } from "./saveStats.js";
 import { hashInlineContent } from "./report/html.js";
 import {
@@ -927,6 +927,16 @@ describe("renderHTMLReport", () => {
       accounts: renderReportAccounts(report.summary.results),
       storages: renderReportStorages(report.storages),
     }).toMatchSnapshot();
+  });
+
+  it("labels login results without dropping duplicate rows or empty successes", () => {
+    expect(renderReportAccounts(labeledScrapeResults())).toMatchSnapshot();
+  });
+
+  it("escapes untrusted provider names alongside explicit labels", () => {
+    const scrape = labeledScrapeResults()[0];
+    Object.assign(scrape, { companyId: '<provider & "name">' });
+    expect(renderReportAccounts([scrape])).toMatchSnapshot();
   });
 
   it("renders logs with whitespace and escaped markup", () => {

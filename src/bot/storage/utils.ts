@@ -5,7 +5,7 @@ import {
   type Transaction,
 } from "israeli-bank-scrapers/lib/transactions.js";
 import type { TransactionRow } from "../../types.js";
-import { createHash } from "node:crypto";
+import { sha256 } from "../../utils/utils.js";
 
 export function nonPendingTransactions(txns: TransactionRow[]) {
   return txns.filter((tx) => tx.status !== TransactionStatuses.Pending);
@@ -69,5 +69,5 @@ export function transactionUniqueId(
  * The result is truncated to 32 characters to fit YNAB's 36 character limit.
  */
 export function stableHash(value: string): string {
-  return createHash("sha256").update(value, "utf8").digest("hex").slice(0, 32);
+  return sha256(value, "hex").slice(0, 32);
 }

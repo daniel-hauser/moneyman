@@ -5,6 +5,7 @@ import { scrapeAccounts } from "./scraper/client.js";
 import {
   config,
   getScraperConfig,
+  getAccounts,
   sendConfigToTelegramIfRequested,
 } from "./config.js";
 import { BooleanEnvVarSchema } from "./config.schema.js";
@@ -41,6 +42,13 @@ import { formatUnknownError } from "./utils/utils.js";
 import { registerProcessHandlers } from "./utils/processErrors.js";
 import type { OtpRequest } from "./scraper/otp.js";
 import { createOneShotOtpSession } from "./bot/otpSession.js";
+import type { ScraperRunConfig } from "./scraper/protocol.js";
+import {
+  retryChoices,
+  selectionChoices,
+  type ScrapeSelection,
+  type FailedLogin,
+} from "./selection.js";
 
 const logger = createLogger("main");
 const SCRAPE_LOCK = "moneyman-scrape";
@@ -93,6 +101,16 @@ async function main() {
         refreshSecrets: hasConfigSecretProvider() ? refreshSecrets : undefined,
         isRunning,
         getLastRun: () => lastRun,
+        getCommandAvailability: async () => {
+          const scrapeIds = selectionChoices(
+            getAccounts(await loadRunConfig()),
+          );
+          return {
+            scrapeIds,
+            scrapeFailed:
+              retryChoices(lastRun?.failedLogins, scrapeIds).length > 0,
+          };
+        },
       },
       processHandlers,
     );
@@ -124,29 +142,101 @@ async function isRunning() {
  */
 async function startRun(
   trigger: RunTrigger,
+  selection?: ScrapeSelection,
   signal?: AbortSignal,
+  startSignal = signal,
 ): Promise<RunHandle> {
-  const { promise: started, resolve: reportStarted } =
-    Promise.withResolvers<boolean>();
+  const {
+    promise: started,
+    resolve: reportStarted,
+    reject: rejectStart,
+  } = Promise.withResolvers<Omit<RunHandle, "finished">>();
 
-  const finished = locks.request(SCRAPE_LOCK, { ifAvailable: true }, (lock) => {
-    if (!lock) {
-      reportStarted(false);
-      return undefined;
-    }
+  const finished = locks.request(
+    SCRAPE_LOCK,
+    { ifAvailable: true },
+    async (lock) => {
+      if (!lock) {
+        reportStarted({ started: false });
+        return undefined;
+      }
 
-    reportStarted(true);
-    return runContextStore.run({ runId: randomUUID() }, async () => {
-      const startedAt = new Date();
-      const failed = await run(signal);
+      const start = (selected?: {
+        snapshot: MoneymanConfig;
+        scraperConfig: ScraperRunConfig;
+      }) => {
+        if (startSignal?.aborted) {
+          reportStarted({
+            started: false,
+            error: "🛑 Shutting down, no new scrapes",
+          });
+          return undefined;
+        }
+        reportStarted({ started: true });
+        return runContextStore.run({ runId: randomUUID() }, async () => {
+          const startedAt = new Date();
+          let outcome: Awaited<ReturnType<typeof run>> | undefined;
+          let failed = true;
+          try {
+            {
+              await using cleanup = new AsyncDisposableStack();
+              outcome = await run(cleanup, signal, selected);
+            }
+            failed = outcome.failed;
+          } finally {
+            lastRun = {
+              trigger,
+              startedAt,
+              endedAt: new Date(),
+              failed,
+              failedLogins: outcome?.failedLogins ?? [],
+            };
+            logger("Run finished", lastRun);
+          }
+          return lastRun;
+        });
+      };
 
-      lastRun = { trigger, startedAt, endedAt: new Date(), failed };
-      logger("Run finished", lastRun);
-      return lastRun;
-    });
-  });
+      if (!selection || startSignal?.aborted) return start();
+      try {
+        const snapshot = await loadRunConfig();
+        if (startSignal?.aborted) return start();
+        const retrying = "retryFailed" in selection;
+        const choices = retrying
+          ? retryChoices(
+              lastRun?.failedLogins,
+              selectionChoices(getAccounts(snapshot)),
+            )
+          : selection.choices;
+        if (retrying && !choices.length) {
+          reportStarted({
+            started: false,
+            error: lastRun
+              ? "No eligible failed logins to retry."
+              : "No completed scrape to retry.",
+          });
+          return undefined;
+        }
+        const scraperConfig = getScraperConfig(snapshot, choices);
+        if (!scraperConfig.accounts.length) {
+          reportStarted({
+            started: false,
+            error: "No selected accounts available.",
+          });
+          return undefined;
+        }
+        return start({
+          snapshot,
+          scraperConfig,
+        });
+      } catch (error) {
+        rejectStart(error);
+        return undefined;
+      }
+    },
+  );
 
-  return { started: await started, finished };
+  return { ...(await started), finished };
 }
 
 async function refreshSecrets(): Promise<SecretRefreshResult> {
@@ -163,7 +253,7 @@ async function runOnce(
   trigger: RunTrigger,
   signal?: AbortSignal,
 ): Promise<RunStatus> {
-  const status = await (await startRun(trigger, signal)).finished;
+  const status = await (await startRun(trigger, undefined, signal)).finished;
 
   if (!status) {
     throw new Error("A scrape is already in progress");
@@ -174,7 +264,7 @@ async function runOnce(
 
 async function runScraper(
   hooks: RunnerHooks,
-  snapshot: MoneymanConfig,
+  scraperSettings: ScraperRunConfig,
   domainTracker: DomainTracker,
   requestOtp: OtpRequest,
   signal?: AbortSignal,
@@ -185,7 +275,7 @@ async function runScraper(
 
     logger("Starting to scrape");
     const { results, domains } = await scrapeAccounts(
-      getScraperConfig(snapshot),
+      scraperSettings,
       requestOtp,
       async (status, totalTime) => {
         logger("Status changed", { status, totalTime });
@@ -211,10 +301,13 @@ async function runScraper(
   }
 }
 
-async function prepareRun() {
+async function prepareRun(selected?: {
+  snapshot: MoneymanConfig;
+  scraperConfig: ScraperRunConfig;
+}) {
   try {
-    let snapshot = config;
-    if (longRunning) {
+    let snapshot = selected?.snapshot ?? config;
+    if (longRunning && !selected) {
       try {
         snapshot = await loadRunConfig();
       } catch {
@@ -223,13 +316,18 @@ async function prepareRun() {
         return;
       }
     }
-    return { snapshot, storages: createStorages(snapshot) };
+    const scraperConfig = selected?.scraperConfig ?? getScraperConfig(snapshot);
+    return { snapshot, scraperConfig, storages: createStorages(snapshot) };
   } catch (error) {
     logger(error);
   }
 }
 
-async function run(signal?: AbortSignal) {
+async function run(
+  cleanup: AsyncDisposableStack,
+  signal?: AbortSignal,
+  selected?: { snapshot: MoneymanConfig; scraperConfig: ScraperRunConfig },
+) {
   const otpSession = longRunning ? undefined : createOneShotOtpSession(signal);
   const requestOtp = otpSession?.request ?? requestOtpCode;
   let publication: Awaited<ReturnType<typeof runWithStorage>> = {
@@ -238,43 +336,7 @@ async function run(signal?: AbortSignal) {
   };
   let report = publication.report;
   let prepared: Awaited<ReturnType<typeof prepareRun>>;
-  try {
-    prepared = await prepareRun();
-    if (!prepared) {
-      report.failed = true;
-      report.errors.push({ caller: "Setup", message: "Run setup failed" });
-      return true;
-    }
-    const { snapshot, storages } = prepared;
-    const domainTracker = createDomainTracker({
-      domainTracking: snapshot.options.scraping.domainTracking,
-      ...snapshot.options.security,
-    });
-    try {
-      logger("Running with storage");
-      publication = await runWithStorage(
-        (hooks) =>
-          runScraper(hooks, snapshot, domainTracker, requestOtp, signal),
-        storages,
-        publication,
-      );
-      report = publication.report;
-    } finally {
-      domainTracker.dispose();
-    }
-    const failedStorages = Object.entries(report.storages)
-      .filter(([, row]) => row.state === "error")
-      .map(([name]) => name);
-    if (failedStorages.length) {
-      logger(`Storages that failed: ${failedStorages.join(", ")}`);
-    }
-    return report.failed || failedStorages.length > 0;
-  } catch (error) {
-    logger(error);
-    report.failed = true;
-    report.errors.push({ caller: "Run", message: formatUnknownError(error) });
-    return true;
-  } finally {
+  cleanup.defer(async () => {
     try {
       await otpSession?.close();
     } finally {
@@ -301,5 +363,47 @@ async function run(signal?: AbortSignal) {
         );
       }
     }
+  });
+  try {
+    prepared = await prepareRun(selected);
+    if (!prepared) {
+      report.failed = true;
+      report.errors.push({ caller: "Setup", message: "Run setup failed" });
+    } else {
+      const { snapshot, scraperConfig, storages } = prepared;
+      const domainTracker = createDomainTracker({
+        domainTracking: snapshot.options.scraping.domainTracking,
+        ...snapshot.options.security,
+      });
+      try {
+        logger("Running with storage");
+        publication = await runWithStorage(
+          (hooks) =>
+            runScraper(hooks, scraperConfig, domainTracker, requestOtp, signal),
+          storages,
+          publication,
+        );
+        report = publication.report;
+      } finally {
+        domainTracker.dispose();
+      }
+      const failedStorages = Object.entries(report.storages)
+        .filter(([, row]) => row.state === "error")
+        .map(([name]) => name);
+      if (failedStorages.length) {
+        logger(`Storages that failed: ${failedStorages.join(", ")}`);
+      }
+      report.failed ||= failedStorages.length > 0;
+    }
+  } catch (error) {
+    logger(error);
+    report.failed = true;
+    report.errors.push({ caller: "Run", message: formatUnknownError(error) });
   }
+  return {
+    failed: report.failed,
+    failedLogins: (publication.report.summary?.results ?? [])
+      .filter(({ result }) => !result.success)
+      .map(({ companyId, scrapeId }): FailedLogin => ({ companyId, scrapeId })),
+  };
 }

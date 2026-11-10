@@ -69,18 +69,30 @@ When moneyman runs in [long running mode](../README.md#long-running-mode)
 (`MONEYMAN_LONG_RUNNING=true`) it stays connected to Telegram and listens for commands.
 Only the configured `chatId` can use them — messages from any other chat are ignored.
 
-| Command            | Description                                                                                        |
-| ------------------ | -------------------------------------------------------------------------------------------------- |
-| `/scrape`          | Run a scrape right now (`/fetch` works as an alias)                                                |
-| `/refresh_secrets` | Refresh the secret-provider configuration without starting a scrape                                |
-| `/status`          | Report whether a scrape is running, how the last one ended and when the next scheduled run happens |
-| `/help`            | List the available commands                                                                        |
+| Command              | Description                                                                                        |
+| -------------------- | -------------------------------------------------------------------------------------------------- |
+| `/scrape [scrapeId]` | Run a scrape now, optionally for one named login ID (`/fetch` is an alias)                         |
+| `/scrape_accounts`   | Show buttons that immediately scrape a named login ID                                              |
+| `/scrape_failed`     | Retry eligible failed login IDs from the latest finished run                                       |
+| `/refresh_secrets`   | Refresh the secret-provider configuration without starting a scrape                                |
+| `/help`              | List the currently available commands                                                              |
+| `/status`            | Report whether a scrape is running, how the last one ended and when the next scheduled run happens |
 
 `/scrape` replies immediately, then progress and the summary are sent to the same chat while the
 scrape runs. Errors and screenshots are included in the final HTML report. Automatic runs are configured with
 [`options.scheduling.cron`](../README.md#other-configurations).
 
-`/refresh_secrets` is registered and listed only when a [secret provider](./secret-providers.md) is configured. It fetches and validates bank/storage credentials and per-run settings without changing the running Telegram bot or schedule. Manual refreshes can run alongside scraping or other refreshes without changing an active scrape's configuration. Duplicate scrape requests still receive an already-running response.
+Summaries and the HTML report identify named logins as `companyId · scrapeId` (for example,
+`hapoalim · home-bank`); unnamed logins retain the provider name. Successful logins that return
+no accounts are identified too. `/status` shows failed login labels from the latest finished
+run, grouping repeated labels within the same provider and showing `and N more` for long lists.
+Long status labels are abbreviated with `…` for display only.
+
+Without an ID, `/scrape` uses the full configured scope. Everything after the single space following the command is one literal `scrapeId`, including spaces and Unicode (for example, `/scrape home account`); do not add quotes. Unknown or no-longer-allowed IDs are rejected, never replaced with a full scrape.
+
+`/scrape_accounts` is available only with allowed named logins, `/scrape_failed` only with eligible failed logins, and `/refresh_secrets` only with a [secret provider](./secret-providers.md). Unavailable commands are hidden from the menu and cannot run even when typed manually.
+
+`/refresh_secrets` fetches and validates bank/storage credentials and per-run settings without changing the running Telegram bot or schedule. Manual refreshes can run alongside scraping or other refreshes without changing an active scrape's configuration. Duplicate scrape requests still receive an already-running response.
 
 ## Using OTP 2FA with OneZero Accounts
 

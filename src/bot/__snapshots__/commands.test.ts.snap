@@ -1,0 +1,65 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`commands formatStatus bounds failed labels (count=1, label length varies) 1`] = `
+"😴 Idle
+❌ Last run (manual) started at 01/03/2026, 09:00, took 120s
+Failed logins:
+• hapoalim · <&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&><&>…
+⏰ No scheduled run configured, only manual runs"
+`;
+
+exports[`commands formatStatus bounds failed labels (count=1, label length varies) 2`] = `
+"😴 Idle
+❌ Last run (manual) started at 01/03/2026, 09:00, took 120s
+Failed logins:
+• hapoalim · xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx🏡…
+⏰ No scheduled run configured, only manual runs"
+`;
+
+exports[`commands formatStatus bounds failed labels (count=15, label length varies) 1`] = `
+"😴 Idle
+❌ Last run (manual) started at 01/03/2026, 09:00, took 120s
+Failed logins:
+• hapoalim · home-bank 0
+• hapoalim · home-bank 1
+• hapoalim · home-bank 2
+• hapoalim · home-bank 3
+• hapoalim · home-bank 4
+• hapoalim · home-bank 5
+• hapoalim · home-bank 6
+• hapoalim · home-bank 7
+• hapoalim · home-bank 8
+• hapoalim · home-bank 9
+and 5 more
+⏰ No scheduled run configured, only manual runs"
+`;
+
+exports[`commands formatStatus bounds failed labels (count=15, label length varies) 2`] = `
+"😴 Idle
+❌ Last run (manual) started at 01/03/2026, 09:00, took 120s
+Failed logins:
+• hapoalim · 🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡…
+• hapoalim · 🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡…
+• hapoalim · 🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡…
+• hapoalim · 🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡…
+• hapoalim · 🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡…
+• hapoalim · 🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡…
+• hapoalim · 🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡…
+• hapoalim · 🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡…
+• hapoalim · 🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡…
+• hapoalim · 🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡🏡…
+and 5 more
+⏰ No scheduled run configured, only manual runs"
+`;
+
+exports[`commands formatStatus uses recorded failed labels, groups duplicates per provider and never fetches configuration 1`] = `
+[
+  "😴 Idle",
+  "❌ Last run (manual) started at 01/03/2026, 09:00, took 120s",
+  "Failed logins:",
+  "• hapoalim ·   <b>חשבון בית 🏡</b> "&"  ",
+  "• visaCal ·   <b>חשבון בית 🏡</b> "&"  ",
+  "• max",
+  "⏰ No scheduled run configured, only manual runs",
+]
+`;

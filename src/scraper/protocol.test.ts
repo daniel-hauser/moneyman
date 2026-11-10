@@ -11,7 +11,9 @@ describe("scraper boundary validation", () => {
 
   it("keeps Dates cloneable and rejects credential functions instead of proxying them", () => {
     const settings = {
-      accounts: [{ companyId: "oneZero", password: "fixture" }],
+      accounts: [
+        { companyId: "oneZero", password: "fixture", scrapeId: "home" },
+      ],
       startDate: new Date("2026-01-01T00:00:00Z"),
       futureMonthsToScrape: 1,
       parallelScrapers: 1,
@@ -26,6 +28,25 @@ describe("scraper boundary validation", () => {
     expect(WorkerConfigSchema.parse(settings).startDate).toEqual(
       settings.startDate,
     );
+    expect(
+      structuredClone(WorkerConfigSchema.parse(settings)).accounts[0].scrapeId,
+    ).toBe("home");
+    for (const scrapeId of ["שם פרטי : /", "a".repeat(1000)]) {
+      expect(
+        structuredClone(
+          WorkerConfigSchema.parse({
+            ...settings,
+            accounts: [{ ...settings.accounts[0], scrapeId }],
+          }),
+        ).accounts[0].scrapeId,
+      ).toBe(scrapeId);
+    }
+    expect(
+      WorkerConfigSchema.safeParse({
+        ...settings,
+        accounts: [{ ...settings.accounts[0], scrapeId: "" }],
+      }).success,
+    ).toBe(false);
     expect(
       WorkerConfigSchema.safeParse({
         ...settings,
