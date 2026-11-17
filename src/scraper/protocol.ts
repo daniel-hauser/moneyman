@@ -22,6 +22,7 @@ export const WorkerConfigSchema = z.strictObject({
   additionalTransactionInformation: z.boolean(),
   includeRawTransaction: z.boolean(),
   executablePath: z.string().optional(),
+  headless: z.boolean().optional(),
   domainTracking: z.boolean(),
   firewallSettings: z.array(z.string()),
   blockByDefault: z.boolean(),

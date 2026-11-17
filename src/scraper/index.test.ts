@@ -155,13 +155,14 @@ describe("scraper runtime browser lifecycle", () => {
       undefined,
       {
         executablePath: "browser",
+        headless: false,
         requestOtpCode,
       },
     );
     expect(results).toEqual([
       { companyId: "hapoalim", result: { success: true, accounts: [] } },
     ]);
-    expect(createBrowser).toHaveBeenCalledWith("browser", undefined);
+    expect(createBrowser).toHaveBeenCalledWith("browser", undefined, false);
     expect(getAccountTransactions).toHaveBeenCalledWith(
       config.accounts[0],
       expect.objectContaining({
@@ -226,7 +227,11 @@ describe("scraper runtime browser lifecycle", () => {
         signal: abort.signal,
       }),
     ).rejects.toThrow("worker cancelled");
-    expect(createBrowser).toHaveBeenCalledWith(undefined, abort.signal);
+    expect(createBrowser).toHaveBeenCalledWith(
+      undefined,
+      abort.signal,
+      undefined,
+    );
     expect(browser[Symbol.asyncDispose]).toHaveBeenCalledTimes(1);
   });
 

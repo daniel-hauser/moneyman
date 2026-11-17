@@ -97,14 +97,17 @@ describe("worker session locks", () => {
   });
 
   it("snapshots and disposes its own tracker before releasing callbacks", async () => {
-    const result = await session.scrape(settings, callbacks);
+    const result = await session.scrape(
+      { ...settings, headless: false },
+      callbacks,
+    );
     const tracker = createDomainTracker.mock.results[0].value;
     expect(scrapeAccounts).toHaveBeenCalledWith(
       expect.any(Object),
       tracker.initDomainTracking,
       expect.any(Function),
       expect.any(Function),
-      expect.any(Object),
+      expect.objectContaining({ headless: false }),
     );
     expect(result.domains).toEqual({});
     expect(tracker.dispose).toHaveBeenCalledTimes(1);

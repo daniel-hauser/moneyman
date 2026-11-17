@@ -44,6 +44,7 @@ export async function scrapeAccounts(
   onError?: (e: unknown, caller: string) => void | Promise<void>,
   runtime: {
     executablePath?: string;
+    headless?: boolean;
     requestOtpCode?: OtpRequest;
     signal?: AbortSignal;
     onTiming?: RunnerHooks["onTiming"];
@@ -64,7 +65,11 @@ export async function scrapeAccounts(
 
   logger("Creating a browser");
   runtime.signal?.throwIfAborted();
-  const browser = await createBrowser(runtime.executablePath, runtime.signal);
+  const browser = await createBrowser(
+    runtime.executablePath,
+    runtime.signal,
+    runtime.headless,
+  );
   try {
     runtime.signal?.throwIfAborted();
     logger(`Browser created, starting to scrape ${accounts.length} accounts`);

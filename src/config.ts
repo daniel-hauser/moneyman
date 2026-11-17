@@ -121,6 +121,7 @@ export function getScraperConfig(
       snapshot.options.scraping.additionalTransactionInfo,
     includeRawTransaction: snapshot.options.scraping.includeRawTransaction,
     executablePath: snapshot.options.scraping.puppeteerExecutablePath,
+    headless: snapshot.options.scraping.headless,
     domainTracking: snapshot.options.scraping.domainTracking,
     firewallSettings: snapshot.options.security.firewallSettings ?? [],
     blockByDefault: snapshot.options.security.blockByDefault,
