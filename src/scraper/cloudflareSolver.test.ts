@@ -17,11 +17,11 @@ function setup() {
   const page = mockDeep<Page>();
   const events = new EventEmitter();
   page.once.mockImplementation((event, listener) => {
-    events.once(String(event), listener);
+    events.once(String(event), listener as never);
     return page;
   });
   page.off.mockImplementation((event, listener) => {
-    if (listener) events.off(String(event), listener);
+    if (listener) events.off(String(event), listener as never);
     return page;
   });
   page.isClosed.mockReturnValue(false);
