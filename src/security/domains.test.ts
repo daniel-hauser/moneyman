@@ -317,7 +317,9 @@ describe("domains", () => {
       });
       await initDomainTracking(browserContext, CompanyTypes.max);
 
-      const targetCreatedCallback = browserContext.on.mock.calls[0][1];
+      const targetCreatedCallback = browserContext.on.mock.calls[0][1] as (
+        target: Target,
+      ) => void;
       targetCreatedCallback(target);
       expect(target.page).not.toHaveBeenCalled();
     });
