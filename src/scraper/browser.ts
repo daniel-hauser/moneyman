@@ -24,8 +24,10 @@ const logger = createLogger("browser");
 export async function createBrowser(
   executablePath?: string,
   signal?: AbortSignal,
+  headless = true,
 ): Promise<Browser> {
   const options = {
+    headless,
     args: browserArgs,
     executablePath: executablePath || undefined,
     signal,

@@ -160,7 +160,7 @@ accounts: Array<{
 | `TZ`                     | `'Asia/Jerusalem'`    | A timezone for the process - used for the formatting of the timestamp                                    |
 | `MONEYMAN_CONFIG`        |                       | The JSON configuration for the process                                                                   |
 | `MONEYMAN_CONFIG_PATH`   |                       | Path to a JSON/JSONC configuration file (used if `MONEYMAN_CONFIG` is not set)                           |
-| `MONEYMAN_CONFIG_SECRET` |                       | JSON descriptor for resolving the configuration from a supported secret provider                         |
+| `MONEYMAN_CONFIG_SECRET` |                       | JSON/JSONC provider descriptor or a path to a descriptor file                                            |
 | `SEND_NEW_CONFIG_TO_TG`  | `"false"`             | Set to `"true"` to send the current configuration as `config.txt` via Telegram for debugging purposes    |
 | `MONEYMAN_LONG_RUNNING`  | `"false"`             | Set to `"true"` to keep running after the first scrape: runs on a schedule and accepts Telegram commands |
 | `MONEYMAN_UNSAFE_STDOUT` | `"false"`             | Set to `"true"` to allow sensitive data to be printed to stdout instead of a log file                    |
@@ -205,6 +205,11 @@ options: {
      * An ExecutablePath for the scraper. if undefined defaults to system.
      */
     puppeteerExecutablePath?: string;
+    /**
+     * Run without a browser window. Set false to enter bank SMS codes manually.
+     * @default true
+     */
+    headless?: boolean;
     /**
      * The maximum number of parallel scrapers to run
      * @default 1
