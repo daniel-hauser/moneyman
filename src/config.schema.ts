@@ -121,6 +121,7 @@ export const ScrapingOptionsSchema = z.object({
   includeRawTransaction: z.boolean().default(false),
   hiddenDeprecations: z.array(z.string()).default([]),
   puppeteerExecutablePath: z.string().optional(),
+  headless: z.boolean().default(true),
   maxParallelScrapers: z.number().min(1).max(10).default(1),
   domainTracking: z.boolean().default(false),
 });

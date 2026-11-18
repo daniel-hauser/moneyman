@@ -47,6 +47,7 @@ describe("config", () => {
     expect(parsed.accounts).toEqual([]);
     expect(parsed.storage.localJson?.enabled).toBe(true);
     expect(parsed.options.scraping.daysBack).toBe(10);
+    expect(parsed.options.scraping.headless).toBe(true);
     expect(parsed.options.scraping.includeRawTransaction).toBe(false);
     expect(parsed.options.logging.getIpInfoUrl).toBe("https://ipinfo.io/json");
   });
@@ -155,6 +156,7 @@ describe("config", () => {
           additionalTransactionInfo: true,
           includeRawTransaction: true,
           puppeteerExecutablePath: "fresh-browser",
+          headless: false,
           domainTracking: true,
         },
         security: {
@@ -172,6 +174,7 @@ describe("config", () => {
       additionalTransactionInformation: true,
       includeRawTransaction: true,
       executablePath: "fresh-browser",
+      headless: false,
       domainTracking: true,
       firewallSettings: ["hapoalim ALLOW bank.test"],
       blockByDefault: true,

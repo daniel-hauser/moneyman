@@ -17,6 +17,7 @@ const runtimeVariables = new Set([
   "DISPLAY",
   "WAYLAND_DISPLAY",
   "XDG_RUNTIME_DIR",
+  "XAUTHORITY",
   "XDG_CACHE_HOME",
   "LANG",
   "LC_ALL",

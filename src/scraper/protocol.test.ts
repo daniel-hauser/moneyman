@@ -38,11 +38,12 @@ describe("scraper boundary validation", () => {
       }).success,
     ).toBe(false);
   });
-  it("allows Windows runtime paths case-insensitively without unrelated settings", () => {
+  it("preserves runtime paths and X11 authentication without unrelated settings", () => {
     expect(
       workerEnvironment({
         Path: "runtime-path",
         SystemRoot: "windows-path",
+        XAUTHORITY: "/run/user/1000/xauthority",
         PUPPETEER_EXECUTABLE_PATH: "browser-path",
         moneyMan_CONFIG: "private",
         Node_Options: "private",
@@ -51,6 +52,7 @@ describe("scraper boundary validation", () => {
     ).toEqual({
       Path: "runtime-path",
       SystemRoot: "windows-path",
+      XAUTHORITY: "/run/user/1000/xauthority",
       PUPPETEER_EXECUTABLE_PATH: "browser-path",
     });
   });

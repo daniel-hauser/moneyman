@@ -59,6 +59,7 @@ function createScraperSession(): ScraperWorkerApi {
             (error, caller) => callbacks.warning(error, caller),
             {
               executablePath: scraping.executablePath,
+              headless: scraping.headless,
               signal: abort.signal,
               onTiming: (timing) =>
                 locks

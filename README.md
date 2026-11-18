@@ -203,6 +203,11 @@ options: {
      */
     puppeteerExecutablePath?: string;
     /**
+     * Run without a browser window. Set false to enter bank SMS codes manually.
+     * @default true
+     */
+    headless?: boolean;
+    /**
      * The maximum number of parallel scrapers to run
      * @default 1
      */
