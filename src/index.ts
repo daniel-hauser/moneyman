@@ -400,10 +400,32 @@ async function run(
     report.failed = true;
     report.errors.push({ caller: "Run", message: formatUnknownError(error) });
   }
-  return {
-    failed: report.failed,
-    failedLogins: (publication.report.summary?.results ?? [])
-      .filter(({ result }) => !result.success)
-      .map(({ companyId, scrapeId }): FailedLogin => ({ companyId, scrapeId })),
+  const failedLogins: FailedLogin[] = (
+    publication.report.summary?.results ?? []
+  )
+    .filter(({ result }) => !result.success)
+    .map(({ companyId, scrapeId }): FailedLogin => ({ companyId, scrapeId }));
+  const addFailedLogin = (failure: FailedLogin) => {
+    if (
+      !failedLogins.some(
+        ({ companyId, scrapeId }) =>
+          companyId === failure.companyId && scrapeId === failure.scrapeId,
+      )
+    ) {
+      failedLogins.push(failure);
+    }
   };
+  for (const timing of publication.report.timings ?? []) {
+    if (
+      timing.kind === "scraper" &&
+      timing.failed &&
+      timing.companyId !== undefined
+    ) {
+      addFailedLogin({
+        companyId: timing.companyId,
+        scrapeId: timing.scrapeId,
+      });
+    }
+  }
+  return { failed: report.failed, failedLogins };
 }

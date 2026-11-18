@@ -52,6 +52,7 @@ describe("scraper runtime browser lifecycle", () => {
       .mocked(getAccountTransactions)
       .mockResolvedValueOnce({ success: false })
       .mockResolvedValueOnce({ success: true, accounts: [] });
+    const timings: RunTiming[] = [];
     const results = await scrapeAccounts(
       {
         ...config,
@@ -61,6 +62,13 @@ describe("scraper runtime browser lifecycle", () => {
         ],
       },
       initDomainTracking,
+      undefined,
+      undefined,
+      {
+        onTiming: (timing) => {
+          timings.push(timing);
+        },
+      },
     );
     expect(
       results.map(({ scrapeId, result }) => ({
@@ -70,6 +78,14 @@ describe("scraper runtime browser lifecycle", () => {
     ).toEqual([
       { scrapeId: "shared", success: false },
       { scrapeId: "shared", success: true },
+    ]);
+    expect(
+      timings
+        .filter(({ endedAt }) => endedAt !== undefined)
+        .map(({ companyId, scrapeId }) => ({ companyId, scrapeId })),
+    ).toEqual([
+      { companyId: CompanyTypes.hapoalim, scrapeId: "shared" },
+      { companyId: CompanyTypes.hapoalim, scrapeId: "shared" },
     ]);
   });
 

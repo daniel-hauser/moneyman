@@ -80,6 +80,8 @@ export interface RunTiming {
   parentId?: string;
   kind: "scraper" | "storage" | "step";
   name: string;
+  companyId?: AccountScrapeResult["companyId"];
+  scrapeId?: string;
   /** Epoch milliseconds, shared across the runner and scraper worker. */
   startedAt: number;
   endedAt?: number;

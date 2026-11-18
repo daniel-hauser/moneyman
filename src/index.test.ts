@@ -1138,6 +1138,47 @@ describe("index", () => {
       },
     );
 
+    it("keeps timed failed logins retryable when results are not published", async () => {
+      const { loadRunConfig } = await import("./configRefresh.js");
+      const { MoneymanConfigSchema } = await import("./config.schema.js");
+      const fresh = MoneymanConfigSchema.parse({
+        accounts: [
+          { companyId: "hapoalim", password: "invented", scrapeId: "home" },
+        ],
+      });
+      jest.mocked(loadRunConfig).mockResolvedValue(fresh);
+      mocks.scrapeAccountsMock.mockImplementationOnce(
+        async (_settings, _otp, _status, _error, _signal, onTiming) => {
+          await onTiming?.({
+            id: "scraper-1",
+            kind: "scraper",
+            name: "hapoalim",
+            companyId: CompanyTypes.hapoalim,
+            scrapeId: "home",
+            startedAt: 1_000,
+            endedAt: 1_100,
+            failed: true,
+          });
+          throw new Error("invented worker failure");
+        },
+      );
+
+      const failedRun = await runner.startRun("manual");
+      await failedRun.finished;
+
+      expect(runner.getLastRun()).toMatchObject({
+        failed: true,
+        failedLogins: [{ companyId: "hapoalim", scrapeId: "home" }],
+      });
+      expect((await runner.getCommandAvailability()).scrapeFailed).toBe(true);
+
+      const retry = await runner.startRun("manual", { retryFailed: true });
+      await retry.finished;
+      expect(mocks.scrapeAccountsMock.mock.calls.at(-1)?.[0].accounts).toEqual(
+        fresh.accounts,
+      );
+    });
+
     it("keeps latest retry targets when a request is rejected before starting", async () => {
       const { loadRunConfig } = await import("./configRefresh.js");
       const { MoneymanConfigSchema } = await import("./config.schema.js");
