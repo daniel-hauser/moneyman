@@ -14,7 +14,6 @@ export const SCRAPE_COMMANDS = ["scrape", "fetch"];
 // Even supplementary Unicode characters leave room for run details within Telegram's limit.
 const MAX_STATUS_FAILED_LOGINS = 10;
 const MAX_STATUS_LABEL_CODE_POINTS = 150;
-const MAX_SCRAPE_ACCOUNT_BUTTONS = 100;
 
 export type CommandAvailability = {
   scrapeIds: string[];
@@ -124,20 +123,15 @@ export function registerCommands(
       command: "scrape_accounts",
       description: "Choose an account",
       disabled: () => !selections.size,
-      handler: (ctx) => {
-        const choices = [...selections].slice(0, MAX_SCRAPE_ACCOUNT_BUTTONS);
-        const omitted = selections.size - choices.length;
-        return ctx.reply(
-          omitted
-            ? `Choose a login to scrape now (showing the first ${MAX_SCRAPE_ACCOUNT_BUTTONS}; use /scrape <scrapeId> for others):`
-            : "Choose a login to scrape now:",
+      handler: (ctx) =>
+        ctx.reply(
+          "Choose a login to scrape now:",
           Markup.inlineKeyboard(
-            choices.map(([hash, choice]) => [
+            [...selections].map(([hash, choice]) => [
               Markup.button.callback(choice, `sa:${hash}`),
             ]),
           ),
-        );
-      },
+        ),
     },
     {
       command: "scrape_failed",

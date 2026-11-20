@@ -56,6 +56,7 @@ const longRunning = BooleanEnvVarSchema.parse(
   process.env.MONEYMAN_LONG_RUNNING,
 );
 let lastRun: RunStatus | undefined;
+let latestRunConfig: MoneymanConfig = config;
 
 console.log("Starting...");
 
@@ -102,9 +103,7 @@ async function main() {
         isRunning,
         getLastRun: () => lastRun,
         getCommandAvailability: async () => {
-          const scrapeIds = selectionChoices(
-            getAccounts(await loadRunConfig()),
-          );
+          const scrapeIds = selectionChoices(getAccounts(latestRunConfig));
           return {
             scrapeIds,
             scrapeFailed:
@@ -198,8 +197,19 @@ async function startRun(
       };
 
       if (!selection || startSignal?.aborted) return start();
+      let snapshot: MoneymanConfig;
       try {
-        const snapshot = await loadRunConfig();
+        snapshot = await loadRunConfig();
+        latestRunConfig = snapshot;
+      } catch {
+        logToPublicLog(SECRET_REFRESH_FAILURE);
+        reportStarted({
+          started: false,
+          error: SECRET_REFRESH_FAILURE,
+        });
+        return undefined;
+      }
+      try {
         if (startSignal?.aborted) return start();
         const retrying = "retryFailed" in selection;
         const choices = retrying
@@ -241,7 +251,7 @@ async function startRun(
 
 async function refreshSecrets(): Promise<SecretRefreshResult> {
   try {
-    await loadRunConfig();
+    latestRunConfig = await loadRunConfig();
     return "refreshed";
   } catch (error) {
     logger("Manual secret refresh failed", error);
@@ -310,6 +320,7 @@ async function prepareRun(selected?: {
     if (longRunning && !selected) {
       try {
         snapshot = await loadRunConfig();
+        latestRunConfig = snapshot;
       } catch {
         logToPublicLog(SECRET_REFRESH_FAILURE);
         await sendError(new Error(SECRET_REFRESH_FAILURE), "Secrets refresh");

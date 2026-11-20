@@ -173,7 +173,7 @@ describe("commands", () => {
       });
     });
 
-    it("bounds the account picker and explains how to select other IDs", async () => {
+    it("includes all allowed IDs in the account picker", async () => {
       const choices = Array.from(
         { length: 101 },
         (_, index) => `login-${index}`,
@@ -181,13 +181,9 @@ describe("commands", () => {
       const buttons = await setup(choices);
       await buttons.send("/scrape_accounts");
 
-      expect(buttons.keyboard()).toHaveLength(100);
-      expect(buttons.keyboard().map(({ text }) => text)).toEqual(
-        choices.slice(0, 100),
-      );
-      expect(buttons.replies()).toEqual([
-        "Choose a login to scrape now (showing the first 100; use /scrape <scrapeId> for others):",
-      ]);
+      expect(buttons.keyboard()).toHaveLength(101);
+      expect(buttons.keyboard().map(({ text }) => text)).toEqual(choices);
+      expect(buttons.replies()).toEqual(["Choose a login to scrape now:"]);
     });
 
     it("resolves buttons from the last configuration refresh", async () => {

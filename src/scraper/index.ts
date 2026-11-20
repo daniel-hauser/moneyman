@@ -13,6 +13,7 @@ import type { DomainTracker } from "../security/domains.js";
 import { aborted } from "node:util";
 import { randomUUID } from "node:crypto";
 import type { RunTiming, RunnerHooks } from "../types.js";
+import { scrapeLabel } from "../utils/scrapeLabel.js";
 
 const logger = createLogger("scraper");
 
@@ -80,7 +81,7 @@ export async function scrapeAccounts(
         const timing: RunTiming = {
           id: `scraper-${randomUUID()}`,
           kind: "scraper",
-          name: companyId,
+          name: scrapeLabel(account),
           companyId,
           scrapeId: account.scrapeId,
           startedAt: Date.now(),

@@ -872,6 +872,7 @@ describe("index", () => {
       const selected = await runner.startRun("manual", { choices: ["home"] });
       await selected.finished;
       expect((await runner.getCommandAvailability()).scrapeFailed).toBe(true);
+      expect(loadRunConfig).toHaveBeenCalledTimes(1);
       const retry = await runner.startRun("manual", { retryFailed: true });
       await retry.finished;
 
@@ -887,6 +888,7 @@ describe("index", () => {
         [snapshot],
       ]);
       expect((await runner.getCommandAvailability()).scrapeFailed).toBe(false);
+      expect(loadRunConfig).toHaveBeenCalledTimes(2);
       expect(mocks.notifier.launchTelegramBot).not.toHaveBeenCalled();
       expect(mocks.notifier.stopTelegramBot).not.toHaveBeenCalled();
       expect(mocks.notifier.shutdownTelegramBot).not.toHaveBeenCalled();
@@ -939,6 +941,7 @@ describe("index", () => {
         options: { scraping: { accountsToScrape: ["home"] } },
       });
       jest.mocked(loadRunConfig).mockResolvedValue(fresh);
+      await runner.refreshSecrets();
       expect((await runner.getCommandAvailability()).scrapeIds).toEqual([
         "home",
       ]);
@@ -968,6 +971,7 @@ describe("index", () => {
         options: { scraping: { accountsToScrape: ["home", "other"] } },
       });
       jest.mocked(loadRunConfig).mockResolvedValue(fresh);
+      await runner.refreshSecrets();
       expect((await runner.getCommandAvailability()).scrapeIds).toEqual([
         "home",
         "other",
@@ -985,9 +989,13 @@ describe("index", () => {
 
     it("rejects unexpected selection setup failures without starting or changing history", async () => {
       const { loadRunConfig } = await import("./configRefresh.js");
+      const { config, getScraperConfig } = await import("./config.js");
       const { createStorages } = await import("./bot/storage/index.js");
-      const failure = new Error("invented provider failure");
-      jest.mocked(loadRunConfig).mockRejectedValueOnce(failure);
+      const failure = new Error("invented selection setup failure");
+      jest.mocked(loadRunConfig).mockResolvedValue(config);
+      jest.mocked(getScraperConfig).mockImplementationOnce(() => {
+        throw failure;
+      });
       const previous = runner.getLastRun();
       await expect(
         runner.startRun("manual", {
@@ -998,6 +1006,27 @@ describe("index", () => {
       expect(createStorages).not.toHaveBeenCalled();
       expect(mocks.scrapeAccountsMock).not.toHaveBeenCalled();
       expect(await runner.isRunning()).toBe(false);
+    });
+
+    it("returns secret refresh failures to targeted command callers", async () => {
+      const { loadRunConfig, SECRET_REFRESH_FAILURE } =
+        await import("./configRefresh.js");
+      const { logToPublicLog } = await import("./utils/logger.js");
+      jest
+        .mocked(loadRunConfig)
+        .mockRejectedValueOnce(new Error("provider-sensitive failure"));
+
+      const handle = await runner.startRun("manual", {
+        choices: ["home"],
+      });
+
+      expect(handle).toMatchObject({
+        started: false,
+        error: SECRET_REFRESH_FAILURE,
+      });
+      await expect(handle.finished).resolves.toBeUndefined();
+      expect(logToPublicLog).toHaveBeenCalledWith(SECRET_REFRESH_FAILURE);
+      expect(mocks.scrapeAccountsMock).not.toHaveBeenCalled();
     });
 
     it("retries only the latest run's scraper failures and clears history after success", async () => {
@@ -1012,6 +1041,7 @@ describe("index", () => {
         ],
       });
       jest.mocked(loadRunConfig).mockResolvedValue(fresh);
+      await runner.refreshSecrets();
       expect(await runner.getCommandAvailability()).toEqual({
         scrapeIds: ["shared", "ok"],
         scrapeFailed: false,
@@ -1258,6 +1288,7 @@ describe("index", () => {
           options: { scraping: { accountsToScrape: ["leumi"] } },
         }),
       );
+      await runner.refreshSecrets();
       expect(await runner.getCommandAvailability()).toEqual({
         scrapeIds: [],
         scrapeFailed: false,
@@ -1502,6 +1533,8 @@ describe("index", () => {
       expect(mocks.scrapeAccountsMock).not.toHaveBeenCalled();
       expect(mocks.runWithStorageMock).not.toHaveBeenCalled();
       expect(runner.getLastRun()).toBeUndefined();
+      await runner.getCommandAvailability();
+      expect(loadRunConfig).toHaveBeenCalledTimes(1);
       await runOnce("manual");
       expect(loadRunConfig).toHaveBeenCalledTimes(2);
     });

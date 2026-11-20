@@ -2,6 +2,8 @@ import { mock } from "jest-mock-extended";
 import { Telegraf } from "telegraf";
 import { createBot } from "./bot.js";
 
+const mockLogger = jest.fn();
+
 jest.mock("../config.js", () => ({
   config: {
     options: {
@@ -11,6 +13,10 @@ jest.mock("../config.js", () => ({
   },
 }));
 jest.mock("./bot.js", () => ({ createBot: jest.fn() }));
+jest.mock("../utils/logger.js", () => ({
+  createLogger: () => mockLogger,
+  logToPublicLog: jest.fn(),
+}));
 
 it("shares the notifier's Telegram instance with the bot controller", async () => {
   const controller = mock<ReturnType<typeof createBot>>();
@@ -47,6 +53,29 @@ it("includes both operation and disposal failures in Telegram errors", async () 
         "scraper failed; cleanup failed: worker cleanup failed",
       ),
       { parse_mode: undefined },
+    );
+  } finally {
+    send.mockRestore();
+  }
+});
+
+it("logs deprecation warning delivery failures without rejecting", async () => {
+  const notifier = await import("./notifier.js");
+  const { sendDeprecationMessage } = await import("./deprecationManager.js");
+  const bot = notifier.getTelegramBot()!;
+  const failure = new Error("Telegram is unavailable");
+  const send = jest
+    .spyOn(bot.telegram, "sendMessage")
+    .mockRejectedValue(failure);
+  mockLogger.mockClear();
+
+  try {
+    expect(() => sendDeprecationMessage("hashFiledChange")).not.toThrow();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    expect(mockLogger).toHaveBeenCalledWith(
+      "Failed to send deprecation message: hashFiledChange",
+      failure,
     );
   } finally {
     send.mockRestore();

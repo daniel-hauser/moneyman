@@ -82,10 +82,22 @@ describe("scraper runtime browser lifecycle", () => {
     expect(
       timings
         .filter(({ endedAt }) => endedAt !== undefined)
-        .map(({ companyId, scrapeId }) => ({ companyId, scrapeId })),
+        .map(({ companyId, scrapeId, name }) => ({
+          companyId,
+          scrapeId,
+          name,
+        })),
     ).toEqual([
-      { companyId: CompanyTypes.hapoalim, scrapeId: "shared" },
-      { companyId: CompanyTypes.hapoalim, scrapeId: "shared" },
+      {
+        companyId: CompanyTypes.hapoalim,
+        scrapeId: "shared",
+        name: "hapoalim · shared",
+      },
+      {
+        companyId: CompanyTypes.hapoalim,
+        scrapeId: "shared",
+        name: "hapoalim · shared",
+      },
     ]);
   });
 
