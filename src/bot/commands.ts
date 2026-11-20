@@ -11,10 +11,6 @@ const logger = createLogger("commands");
 
 export const SCRAPE_COMMANDS = ["scrape", "fetch"];
 
-// Even supplementary Unicode characters leave room for run details within Telegram's limit.
-const MAX_STATUS_FAILED_LOGINS = 10;
-const MAX_STATUS_LABEL_CODE_POINTS = 150;
-
 export type CommandAvailability = {
   scrapeIds: string[];
   scrapeFailed: boolean;
@@ -51,21 +47,10 @@ export async function formatStatus(
       ...new Set(lastRun.failedLogins?.map(scrapeLabel) ?? []),
     ];
     if (failedLabels.length) {
-      const displayed = failedLabels
-        .slice(0, MAX_STATUS_FAILED_LOGINS)
-        .map((label) => {
-          const characters = Array.from(label);
-          const text =
-            characters.length > MAX_STATUS_LABEL_CODE_POINTS
-              ? `${characters.slice(0, MAX_STATUS_LABEL_CODE_POINTS - 1).join("")}…`
-              : label;
-          return `• ${text}`;
-        });
-      lines.push("Failed logins:", ...displayed);
-      const omitted = failedLabels.length - displayed.length;
-      if (omitted) {
-        lines.push(`and ${omitted} more`);
-      }
+      lines.push(
+        "Failed logins:",
+        ...failedLabels.map((label) => `• ${label}`),
+      );
     }
   } else {
     lines.push("No run finished in this process yet");

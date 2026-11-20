@@ -5,6 +5,7 @@ import { selectionChoices } from "../selection.js";
 import { getEventListeners } from "node:events";
 import { locks } from "node:worker_threads";
 import { mock } from "jest-mock-extended";
+import { CompanyTypes } from "israeli-bank-scrapers";
 import { labeledScrapeResults } from "../utils/tests.js";
 import { logToPublicLog } from "../utils/logger.js";
 
@@ -315,35 +316,34 @@ describe("commands", () => {
       expect(handlers.refreshSecrets).not.toHaveBeenCalled();
     });
 
-    it.each([
-      { count: 15, label: "home-bank" },
-      { count: 15, label: "🏡".repeat(300) },
-      { count: 1, label: "<&>".repeat(2000) },
-      { count: 1, label: "x".repeat(137) + "🏡".repeat(20) },
-    ])(
-      "bounds failed labels (count=$count, label length varies)",
-      async ({ count, label }) => {
-        const failedLogins = Array.from({ length: count }, (_, index) => ({
-          companyId: labeledScrapeResults()[0].companyId,
-          scrapeId: `${label} ${index}`,
-        }));
-        const status = await formatStatus(
-          createHandlers({
-            getLastRun: jest.fn().mockReturnValue({
-              trigger: "manual",
-              startedAt: new Date("2026-03-01T09:00:00"),
-              endedAt: new Date("2026-03-01T09:02:00"),
-              failed: true,
-              failedLogins,
-            }),
-          }),
-        );
+    it("lists all failed login IDs with their full labels", async () => {
+      const scrapeIds = Array.from(
+        { length: 11 },
+        (_, index) => `${"home-bank-".repeat(16)}${index}`,
+      );
+      const status = await formatStatus({
+        isRunning: async () => false,
+        getLastRun: () => ({
+          trigger: "manual",
+          startedAt: new Date("2026-03-01T09:00:00"),
+          endedAt: new Date("2026-03-01T09:02:00"),
+          failed: true,
+          failedLogins: scrapeIds.map((scrapeId) => ({
+            companyId: CompanyTypes.hapoalim,
+            scrapeId,
+          })),
+        }),
+        getNextRunAt: () => undefined,
+      });
 
-        expect(status.length).toBeLessThan(4096);
-        expect(status).not.toMatch(/\p{Surrogate}/u);
-        expect(status).toMatchSnapshot();
-      },
-    );
+      expect(status).toContain(
+        [
+          "Failed logins:",
+          ...scrapeIds.map((scrapeId) => `• hapoalim · ${scrapeId}`),
+          "⏰ No scheduled run configured, only manual runs",
+        ].join("\n"),
+      );
+    });
 
     it("reports an idle process without history", async () => {
       const status = await formatStatus({
