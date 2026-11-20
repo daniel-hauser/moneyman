@@ -1,12 +1,15 @@
 import { Context, Telegraf } from "telegraf";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
 import { aborted } from "node:util";
+import { locks } from "node:worker_threads";
 import { formatUnknownError } from "../utils/utils.js";
 import { createOtpHandler } from "./otp.js";
 import { config } from "../config.js";
 import type { OtpRequest } from "../scraper/otp.js";
 
 const logger = createLogger("bot");
+
+export const COMMAND_MENU_LOCK = "moneyman-command-menu";
 
 export function isAuthorizedChat(ctx: Context): boolean {
   const chatId = config.options.notifications?.telegram?.chatId;
@@ -90,6 +93,7 @@ export function createBot(bot: Telegraf<Context> | null) {
   }
 
   async function shutdownWithDeadline(): Promise<void> {
+    const chatId = config.options.notifications?.telegram?.chatId;
     const completed = new AbortController();
     const signal = AbortSignal.any([
       AbortSignal.timeout(3_000),
@@ -98,9 +102,14 @@ export function createBot(bot: Telegraf<Context> | null) {
     try {
       const [stopResult, clearResult] = await Promise.allSettled([
         stopTelegramBot(signal),
-        bot
+        bot && chatId
           ? Promise.race([
-              bot.telegram.deleteMyCommands(),
+              locks.request(COMMAND_MENU_LOCK, { signal }, () => {
+                signal.throwIfAborted();
+                return bot.telegram.deleteMyCommands({
+                  scope: { type: "chat", chat_id: chatId },
+                });
+              }),
               aborted(signal, bot).then(() => signal.throwIfAborted()),
             ])
           : Promise.resolve(),

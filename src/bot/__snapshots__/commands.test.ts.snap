@@ -1,0 +1,13 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`commands formatStatus uses recorded failed labels, groups duplicates per provider and never fetches configuration 1`] = `
+[
+  "😴 Idle",
+  "❌ Last run (manual) started at 01/03/2026, 09:00, took 120s",
+  "Failed logins:",
+  "• hapoalim ·   <b>חשבון בית 🏡</b> "&"  ",
+  "• visaCal ·   <b>חשבון בית 🏡</b> "&"  ",
+  "• max",
+  "⏰ No scheduled run configured, only manual runs",
+]
+`;

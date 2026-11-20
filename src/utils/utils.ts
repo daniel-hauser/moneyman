@@ -1,5 +1,13 @@
 /// <reference lib="esnext.disposable" />
+import { createHash } from "node:crypto";
 import { inspect } from "node:util";
+
+export function sha256(
+  value: string,
+  encoding: "base64" | "base64url" | "hex",
+): string {
+  return createHash("sha256").update(value, "utf8").digest(encoding);
+}
 
 function inspectUnknownObject(value: object): string {
   return inspect(value, {

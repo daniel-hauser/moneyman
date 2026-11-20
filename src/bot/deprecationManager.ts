@@ -3,6 +3,7 @@ import { createLogger } from "../utils/logger.js";
 const logger = createLogger("deprecationManager");
 
 const deprecationMessages = {
+  ["accountsToScrapeCompanyId"]: `options.scraping.accountsToScrape is using legacy company IDs. Set scrapeId on your accounts and use those labels instead. Company IDs still select all accounts for that company only when no configured scrapeId matches the value.`,
   ["hashFiledChange"]: `This run is using the old transaction hash field, please update to the new one (it might require manual de-duping of some transactions). See https://github.com/daniel-hauser/moneyman/issues/268 for more details.`,
 } as const;
 

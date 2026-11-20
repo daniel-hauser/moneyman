@@ -7,6 +7,7 @@ import { normalizeCurrency } from "../utils/currency.js";
 import { truncateError } from "./truncateError.js";
 import { escapers } from "@telegraf/entity";
 import { transactionUniqueId } from "./storage/utils.js";
+import { scrapeLabel } from "../utils/scrapeLabel.js";
 
 export function blockquote(
   title: string | undefined,
@@ -30,13 +31,16 @@ function getAccountsSummary(
 ): string {
   const successfulAccounts = results
     .filter(({ result }) => result.success)
-    .flatMap(({ result, companyId }) =>
-      result.accounts?.map(
-        (account) =>
-          `\t✔️ [${companyId}] ${escapers.HTML(account.accountNumber)}: ${account.txns.length}`,
-      ),
-    )
-    .filter((account): account is string => account !== undefined);
+    .flatMap((scrape) => {
+      const label = escapers.HTML(scrapeLabel(scrape));
+      const accounts = scrape.result.accounts ?? [];
+      return accounts.length
+        ? accounts.map(
+            (account) =>
+              `\t✔️ [${label}] ${escapers.HTML(account.accountNumber)}: ${account.txns.length}`,
+          )
+        : [`\t✔️ [${label}] No accounts returned`];
+    });
 
   const failed = results.filter(({ result }) => !result.success);
   const shortenError = (message: string) => {
@@ -44,10 +48,10 @@ function getAccountsSummary(
     return truncateError(message);
   };
   const errorAccounts = failed.map(
-    ({ result, companyId }) =>
-      `\t❌ [${companyId}] ${result.errorType}${
-        result.errorMessage
-          ? `\n\t\t${escapers.HTML(shortenError(result.errorMessage).replaceAll("\n", "\n\t\t"))}`
+    (scrape) =>
+      `\t❌ [${escapers.HTML(scrapeLabel(scrape))}] ${scrape.result.errorType}${
+        scrape.result.errorMessage
+          ? `\n\t\t${escapers.HTML(shortenError(scrape.result.errorMessage).replaceAll("\n", "\n\t\t"))}`
           : ""
       }`,
   );

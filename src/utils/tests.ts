@@ -2,7 +2,7 @@ import {
   TransactionStatuses,
   TransactionTypes,
 } from "israeli-bank-scrapers/lib/transactions.js";
-import { Transaction, TransactionRow } from "../types.js";
+import { AccountScrapeResult, Transaction, TransactionRow } from "../types.js";
 import {
   LoggingOptionsSchema,
   MoneymanConfig,
@@ -12,6 +12,52 @@ import {
   SecurityOptionsSchema,
 } from "../config.schema.js";
 import { CompanyTypes } from "israeli-bank-scrapers";
+import { ScraperErrorTypes } from "israeli-bank-scrapers/lib/scrapers/errors.js";
+
+export function labeledScrapeResults(): AccountScrapeResult[] {
+  return [
+    {
+      companyId: CompanyTypes.hapoalim,
+      scrapeId: "home-bank",
+      result: {
+        success: true,
+        accounts: [{ accountNumber: "sample-account", txns: [] }],
+      },
+    },
+    {
+      companyId: CompanyTypes.visaCal,
+      scrapeId: "shared-card",
+      result: { success: true, accounts: [] },
+    },
+    {
+      companyId: CompanyTypes.max,
+      result: { success: true },
+    },
+    ...[
+      {
+        companyId: CompanyTypes.hapoalim,
+        scrapeId: '  <b>חשבון בית 🏡</b> "&"  ',
+      },
+      {
+        companyId: CompanyTypes.hapoalim,
+        scrapeId: '  <b>חשבון בית 🏡</b> "&"  ',
+      },
+      {
+        companyId: CompanyTypes.visaCal,
+        scrapeId: '  <b>חשבון בית 🏡</b> "&"  ',
+      },
+      { companyId: CompanyTypes.max },
+      { companyId: CompanyTypes.max },
+    ].map((login) => ({
+      ...login,
+      result: {
+        success: false,
+        errorType: ScraperErrorTypes.Generic,
+        errorMessage: "Invented <failure>",
+      },
+    })),
+  ];
+}
 
 export function transaction(t: Partial<Transaction>): Transaction {
   return {

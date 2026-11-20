@@ -25,7 +25,9 @@ if (bot && telegramConfig) {
 
   assignDeprecationHandler((messageId, message) => {
     logger(`Sending deprecation message: ${messageId}`);
-    void send(message);
+    void send(message).catch((error) =>
+      logger(`Failed to send deprecation message: ${messageId}`, error),
+    );
   });
 }
 

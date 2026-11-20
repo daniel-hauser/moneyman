@@ -9,6 +9,7 @@ export type { Transaction };
 
 export type AccountConfig = ScraperCredentials & {
   companyId: CompanyTypes;
+  scrapeId?: string;
 };
 
 export interface TransactionRow extends Transaction {
@@ -20,6 +21,7 @@ export interface TransactionRow extends Transaction {
 
 export interface AccountScrapeResult {
   companyId: CompanyTypes;
+  scrapeId?: string;
   result: ScraperScrapingResult;
 }
 
@@ -78,6 +80,8 @@ export interface RunTiming {
   parentId?: string;
   kind: "scraper" | "storage" | "step";
   name: string;
+  companyId?: AccountScrapeResult["companyId"];
+  scrapeId?: string;
   /** Epoch milliseconds, shared across the runner and scraper worker. */
   startedAt: number;
   endedAt?: number;
@@ -101,11 +105,13 @@ export type RunStatus = {
   startedAt: Date;
   endedAt: Date;
   failed: boolean;
+  failedLogins?: Pick<AccountScrapeResult, "companyId" | "scrapeId">[];
 };
 
 export type RunHandle = {
-  /** Whether this call took the run lock. When false, `finished` resolves to undefined. */
+  /** Whether this call started a run. When false, `finished` resolves to undefined. */
   started: boolean;
+  error?: string;
   /** Settles when the run this handle started has finished. */
   finished: Promise<RunStatus | undefined>;
 };

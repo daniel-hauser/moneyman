@@ -6,6 +6,7 @@ import { validate } from "node-cron";
 const AccountSchema = z.looseObject({
   companyId: z.string().min(1, { error: "Company ID is required" }),
   password: z.string().min(1, { error: "Password is required" }),
+  scrapeId: z.string().min(1).optional(),
 });
 
 // Storage provider schemas
@@ -113,6 +114,7 @@ export const StorageSchema = z
 
 // Options schemas
 export const ScrapingOptionsSchema = z.object({
+  /** Select scrapeId labels; legacy company IDs are used only when no label matches. Empty means all. */
   accountsToScrape: z.array(z.string()).optional(),
   daysBack: z.number().min(1).max(365).default(10),
   futureMonths: z.number().min(0).max(12).default(1),

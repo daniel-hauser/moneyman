@@ -494,6 +494,41 @@ exports[`renderHTMLReport embeds screenshots and errors in an offline report wit
     </html>"
 `;
 
+exports[`renderHTMLReport escapes untrusted provider names alongside explicit labels 1`] = `
+"<section class="accounts-section">
+    <h2>Accounts</h2>
+    <div class="table-wrapper">
+        <table class="accounts-table results-table">
+          <caption class="visually-hidden">
+            Account scrape results
+          </caption>
+          <colgroup>
+            <col />
+            <col />
+            <col />
+            <col />
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col">Company</th>
+              <th scope="col">Status</th>
+              <th scope="col">Account</th>
+              <th scope="col">Transactions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+                            <td>&lt;provider &amp; &quot;name&quot;&gt; · home-bank</td>
+                            <td>✅ Succeeded</td>
+                            <td>sample-account</td>
+                            <td>0</td>
+                          </tr>
+          </tbody>
+        </table>
+      </div>
+  </section>"
+`;
+
 exports[`renderHTMLReport filters literal log matches case-insensitively and highlights every occurrence: case-insensitive matches 1`] = `
 "  Alpha .+ ALPHA .+
 "
@@ -698,6 +733,101 @@ exports[`renderHTMLReport keeps screenshots inside Accounts even when no summary
       </figure>
     </dialog>
   </div>
+  </section>"
+`;
+
+exports[`renderHTMLReport labels login results without dropping duplicate rows or empty successes 1`] = `
+"<section class="accounts-section">
+    <h2>Accounts</h2>
+    <div class="table-wrapper">
+        <table class="accounts-table results-table">
+          <caption class="visually-hidden">
+            Account scrape results
+          </caption>
+          <colgroup>
+            <col />
+            <col />
+            <col />
+            <col />
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col">Company</th>
+              <th scope="col">Status</th>
+              <th scope="col">Account</th>
+              <th scope="col">Transactions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+                            <td>hapoalim · home-bank</td>
+                            <td>✅ Succeeded</td>
+                            <td>sample-account</td>
+                            <td>0</td>
+                          </tr><tr>
+                      <td>visaCal · shared-card</td>
+                      <td>✅ Succeeded</td>
+                      <td>No accounts returned</td>
+                      <td>0</td>
+                    </tr><tr>
+                      <td>max</td>
+                      <td>✅ Succeeded</td>
+                      <td>No accounts returned</td>
+                      <td>0</td>
+                    </tr><tr>
+                    <td>hapoalim ·   &lt;b&gt;חשבון בית 🏡&lt;/b&gt; &quot;&amp;&quot;  </td>
+                    <td>
+                      <details>
+    <summary>❌ Failed: GENERIC</summary>
+    <pre class="error-message">Invented &lt;failure&gt;</pre>
+  </details>
+                    </td>
+                    <td>—</td>
+                    <td>—</td>
+                  </tr><tr>
+                    <td>hapoalim ·   &lt;b&gt;חשבון בית 🏡&lt;/b&gt; &quot;&amp;&quot;  </td>
+                    <td>
+                      <details>
+    <summary>❌ Failed: GENERIC</summary>
+    <pre class="error-message">Invented &lt;failure&gt;</pre>
+  </details>
+                    </td>
+                    <td>—</td>
+                    <td>—</td>
+                  </tr><tr>
+                    <td>visaCal ·   &lt;b&gt;חשבון בית 🏡&lt;/b&gt; &quot;&amp;&quot;  </td>
+                    <td>
+                      <details>
+    <summary>❌ Failed: GENERIC</summary>
+    <pre class="error-message">Invented &lt;failure&gt;</pre>
+  </details>
+                    </td>
+                    <td>—</td>
+                    <td>—</td>
+                  </tr><tr>
+                    <td>max</td>
+                    <td>
+                      <details>
+    <summary>❌ Failed: GENERIC</summary>
+    <pre class="error-message">Invented &lt;failure&gt;</pre>
+  </details>
+                    </td>
+                    <td>—</td>
+                    <td>—</td>
+                  </tr><tr>
+                    <td>max</td>
+                    <td>
+                      <details>
+    <summary>❌ Failed: GENERIC</summary>
+    <pre class="error-message">Invented &lt;failure&gt;</pre>
+  </details>
+                    </td>
+                    <td>—</td>
+                    <td>—</td>
+                  </tr>
+          </tbody>
+        </table>
+      </div>
   </section>"
 `;
 

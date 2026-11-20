@@ -166,6 +166,7 @@ describe("runWithStorage report logs", () => {
         id: "account-1",
         kind: "scraper",
         name: "same-bank",
+        scrapeId: "home",
         startedAt,
       });
       await onTiming?.({
@@ -178,6 +179,7 @@ describe("runWithStorage report logs", () => {
         id: "account-1",
         kind: "scraper",
         name: "same-bank",
+        scrapeId: "home",
         startedAt,
         endedAt: 1_100,
         failed: true,
@@ -197,6 +199,7 @@ describe("runWithStorage report logs", () => {
         id: "account-1",
         kind: "scraper",
         name: "same-bank",
+        scrapeId: "home",
         startedAt,
         endedAt: 1_100,
         failed: true,

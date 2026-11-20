@@ -22,6 +22,34 @@ describe("deprecationManager", () => {
       expect(handler).toHaveBeenCalledTimes(1);
     });
 
+    it("queues the company-selector warning once and supports hiding it", () => {
+      const handler = jest.fn();
+      sendDeprecationMessage("accountsToScrapeCompanyId", [
+        "accountsToScrapeCompanyId",
+      ]);
+      assignDeprecationHandler(handler);
+      expect(handler).not.toHaveBeenCalled();
+      sendDeprecationMessage("accountsToScrapeCompanyId");
+      sendDeprecationMessage("accountsToScrapeCompanyId");
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith(
+        "accountsToScrapeCompanyId",
+        expect.stringContaining("⚠️ Deprecation warning:"),
+      );
+    });
+
+    it("delivers a pending company-selector warning through the assigned handler", () => {
+      sendDeprecationMessage("accountsToScrapeCompanyId");
+      const handler = jest.fn();
+      assignDeprecationHandler(handler);
+      expect(handler).toHaveBeenCalledWith(
+        "accountsToScrapeCompanyId",
+        expect.stringContaining("options.scraping.accountsToScrape"),
+      );
+      sendDeprecationMessage("accountsToScrapeCompanyId");
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+
     it("should call handler immediately when handler is assigned", () => {
       const mockHandler = jest.fn();
       assignDeprecationHandler(mockHandler);
@@ -69,6 +97,14 @@ describe("deprecationManager", () => {
     });
 
     describe.each([
+      {
+        messageId: "accountsToScrapeCompanyId",
+        expectedContent: [
+          "⚠️ Deprecation warning:",
+          "options.scraping.accountsToScrape",
+          "no configured scrapeId matches",
+        ],
+      },
       {
         messageId: "hashFiledChange",
         expectedContent: [
