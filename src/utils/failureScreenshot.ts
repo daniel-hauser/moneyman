@@ -15,6 +15,8 @@ const FILE_SUFFIX_BYTES = 18;
 const MAX_FOLDER_BYTES = 255 - FILE_SUFFIX_BYTES;
 /** Base64url characters of the digest that keeps two similar labels apart. */
 const DIGEST_CHARS = 8;
+/** The suffix those characters are appended with, so a generated name is recognisable. */
+const DIGEST_SUFFIX = new RegExp(`-[A-Za-z0-9_-]{${DIGEST_CHARS}}$`);
 /** Folder for a label that holds nothing usable as a name. */
 const UNNAMED_FOLDER = "unknown-login";
 
@@ -32,24 +34,39 @@ function truncateToBytes(value: string, maxBytes: number): string {
 }
 
 /**
+ * Whether a folder name has to carry a digest to stay unique to its label.
+ *
+ * True when the sanitizer changed the label, when the name already ends in a
+ * generated-looking suffix (a hand-written label must not be able to occupy the
+ * folder a generated name uses), and when the name is too long for a component.
+ */
+function needsDigest(label: string, named: string): boolean {
+  return (
+    named !== label ||
+    DIGEST_SUFFIX.test(named) ||
+    Buffer.byteLength(named, "utf8") > MAX_FOLDER_BYTES
+  );
+}
+
+/**
  * Turn a login's label into the folder holding its failure screenshots.
  *
  * The label is configuration data, so it is not trusted as a path: separators and
  * control characters are dropped, because a scrapeId holding a `/` would otherwise
- * nest folders or climb out of the temp folder. A label the sanitizer changed, and one
- * too long for a path component, carries a digest of the original label, so two labels
- * that clean up or truncate to the same text cannot share a folder. Length is measured
- * in UTF-8 bytes, because a scrapeId may hold multi-byte characters, and the file's own
- * suffix is reserved so the folder and the file name both fit in one component. A label
- * that is empty or only dots falls back to a fixed name plus that digest.
+ * nest folders or climb out of the temp folder. A label the sanitizer changed, one
+ * already shaped like a generated name, and one too long for a path component each
+ * carry a digest of the original label, so no two labels can share a folder. Length is
+ * measured in UTF-8 bytes, because a scrapeId may hold multi-byte characters, and the
+ * file's own suffix is reserved so the folder and the file name both fit in one
+ * component. A label that is empty or only dots falls back to a fixed name plus that
+ * digest.
  */
 export function failureScreenShotFolder(label: string): string {
   const safe = label.replace(/[\\/\u0000-\u001f\u007f]/g, "").trim();
   const named = safe === "" || /^\.+$/.test(safe) ? UNNAMED_FOLDER : safe;
-  const digest =
-    named === label && Buffer.byteLength(named, "utf8") <= MAX_FOLDER_BYTES
-      ? ""
-      : `-${sha256(label, "base64url").slice(0, DIGEST_CHARS)}`;
+  const digest = needsDigest(label, named)
+    ? `-${sha256(label, "base64url").slice(0, DIGEST_CHARS)}`
+    : "";
   const budget = MAX_FOLDER_BYTES - Buffer.byteLength(digest, "utf8");
   return `${truncateToBytes(named, budget)}${digest}`;
 }

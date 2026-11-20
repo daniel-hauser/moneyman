@@ -80,6 +80,16 @@ describe("failure screenshots", () => {
     expect(collapsed).toMatch(/^hapoalim · homebank-[A-Za-z0-9_-]{8}$/);
   });
 
+  it("keeps a generated-looking label out of the folder it names", () => {
+    const generated = failureScreenShotFolder("hapoalim · home/bank");
+    const literal = failureScreenShotFolder(generated);
+    expect(literal).not.toEqual(generated);
+    expect(literal.startsWith(`${generated}-`)).toBe(true);
+    expect(path.dirname(getFailureScreenShotPath(literal))).not.toEqual(
+      path.dirname(getFailureScreenShotPath(generated)),
+    );
+  });
+
   it("bounds folder names in UTF-8 bytes and keeps multi-byte labels apart", () => {
     const long = "😀".repeat(80);
     const first = failureScreenShotFolder(`hapoalim · ${long}a`);
