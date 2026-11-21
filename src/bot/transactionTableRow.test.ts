@@ -63,6 +63,7 @@ describe("transactionTableRow", () => {
 
     it("should include all other required fields", () => {
       const mockTransaction = createMockTransactionRow({
+        date: new Date(2026, 0, 30).toISOString(),
         chargedAmount: 100,
         description: "Test transaction",
         memo: "Test memo",

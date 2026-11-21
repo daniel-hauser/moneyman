@@ -48,6 +48,7 @@ function createConfig() {
         error,
       );
       void sendConfigError(error);
+      throw error;
     }
   }
 
