@@ -11,7 +11,12 @@ it.each([0, 1700000000000, null])(
   (value) => {
     const date = JSON.parse(JSON.stringify(value));
     const view = transactionView(
-      { ...transaction({ date }), companyId: "max", accountNumber: "123" },
+      {
+        ...transaction({ date }),
+        scrapedAt: "2026-01-30T12:00:00.000Z",
+        companyId: "max",
+        accountNumber: "123",
+      },
       0,
       new Intl.DateTimeFormat("en-GB", { timeZone: "UTC" }),
     );
@@ -68,7 +73,12 @@ it("renders original dates and canonical amounts/currencies for normal and insta
     transactions.map(
       (transaction, index) =>
         transactionView(
-          { ...transaction, companyId: "max", accountNumber: "1234" },
+          {
+            ...transaction,
+            scrapedAt: "2026-01-30T12:00:00.000Z",
+            companyId: "max",
+            accountNumber: "1234",
+          },
           index,
           formatter,
         ).cells,
@@ -82,6 +92,7 @@ it("coerces untrusted display data to strings without modifying the transaction"
   );
   const original = {
     ...transaction({ description: value, date: value, status: value }),
+    scrapedAt: "2026-01-30T12:00:00.000Z",
     companyId: value,
     accountNumber: value,
   };
@@ -96,6 +107,7 @@ it("coerces untrusted display data to strings without modifying the transaction"
   const output = renderReportTransactions([
     {
       companyId: value,
+      scrapedAt: "2026-01-30T12:00:00.000Z",
       result: {
         success: true,
         accounts: [{ accountNumber: value, txns: [original] }],

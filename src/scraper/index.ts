@@ -51,6 +51,7 @@ export async function scrapeAccounts(
     onTiming?: RunnerHooks["onTiming"];
   } = {},
 ) {
+  const scrapedAt = new Date().toISOString();
   const start = performance.now();
 
   logger(`scraping %d accounts`, accounts.length);
@@ -110,6 +111,7 @@ export async function scrapeAccounts(
                   includeRawTransaction,
                   ...scraperOptions,
                 },
+                scrapedAt,
                 async (message, append = false) => {
                   status[i] = append ? `${status[i]} ${message}` : message;
                   return scrapeStatusChanged?.(status);
@@ -185,6 +187,7 @@ function getStats(results: Array<AccountScrapeResult>) {
 async function scrapeAccount(
   account: AccountConfig,
   scraperOptions: ScraperOptions,
+  scrapedAt: string,
   setStatusMessage: (message: string, append?: boolean) => Promise<void>,
   requestOtpCode?: OtpRequest,
 ) {
@@ -203,6 +206,7 @@ async function scrapeAccount(
   await setStatusMessage(`, took ${duration.toFixed(1)}s`, true);
 
   return {
+    scrapedAt,
     companyId: account.companyId,
     scrapeId: account.scrapeId,
     result,

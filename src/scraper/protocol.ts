@@ -1,4 +1,5 @@
 import z from "zod/v4";
+import { ScraperConcurrencySchema } from "../config.schema.js";
 import type { ProxyMarked, Remote } from "comlink";
 import type {
   AccountConfig,
@@ -19,7 +20,7 @@ export const WorkerConfigSchema = z.strictObject({
   ),
   startDate: z.date(),
   futureMonthsToScrape: z.number(),
-  parallelScrapers: z.number().int().min(1),
+  parallelScrapers: ScraperConcurrencySchema,
   additionalTransactionInformation: z.boolean(),
   includeRawTransaction: z.boolean(),
   executablePath: z.string().optional(),

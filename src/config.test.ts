@@ -6,6 +6,7 @@ import {
   BooleanEnvVarSchema,
   MoneymanConfigSchema,
   NotificationOptionsSchema,
+  ScrapingOptionsSchema,
   SchedulingOptionsSchema,
 } from "./config.schema.js";
 
@@ -50,6 +51,12 @@ describe("config", () => {
     expect(parsed.options.scraping.headless).toBe(true);
     expect(parsed.options.scraping.includeRawTransaction).toBe(false);
     expect(parsed.options.logging.getIpInfoUrl).toBe("https://ipinfo.io/json");
+  });
+
+  it("rejects fractional scraper concurrency at the configuration boundary", () => {
+    expect(
+      ScrapingOptionsSchema.safeParse({ maxParallelScrapers: 1.5 }).success,
+    ).toBe(false);
   });
 
   it.each([
@@ -509,12 +516,7 @@ describe("config", () => {
         MONEYMAN_CONFIG: invalidJson,
       };
 
-      // The config module should fall back to default config when parsing fails
-      const { config } = await import("./config.js");
-
-      // Should return default config with empty accounts
-      expect(config.accounts).toEqual([]);
-      expect(config.storage.localJson?.enabled).toBe(true);
+      await expect(import("./config.js")).rejects.toThrow();
     });
 
     it("should handle invalid JSON in config file", async () => {
@@ -570,12 +572,7 @@ describe("config", () => {
         MONEYMAN_CONFIG: JSON.stringify(configWithMissingFields),
       };
 
-      // The config module should fall back to default config when validation fails
-      const { config } = await import("./config.js");
-
-      // Should return default config with empty accounts
-      expect(config.accounts).toEqual([]);
-      expect(config.storage.localJson?.enabled).toBe(true);
+      await expect(import("./config.js")).rejects.toThrow();
     });
 
     it("should handle invalid email format in Google Sheets config", async () => {
@@ -603,12 +600,7 @@ describe("config", () => {
         MONEYMAN_CONFIG: JSON.stringify(configWithInvalidEmail),
       };
 
-      // The config module should fall back to default config when validation fails
-      const { config } = await import("./config.js");
-
-      // Should return default config
-      expect(config.accounts).toEqual([]);
-      expect(config.storage.localJson?.enabled).toBe(true);
+      await expect(import("./config.js")).rejects.toThrow();
     });
 
     it("should handle invalid URL format in storage providers", async () => {
@@ -636,12 +628,7 @@ describe("config", () => {
         MONEYMAN_CONFIG: JSON.stringify(configWithInvalidUrl),
       };
 
-      // The config module should fall back to default config when validation fails
-      const { config } = await import("./config.js");
-
-      // Should return default config
-      expect(config.accounts).toEqual([]);
-      expect(config.storage.localJson?.enabled).toBe(true);
+      await expect(import("./config.js")).rejects.toThrow();
     });
 
     it("should handle out-of-range values in scraping options", async () => {
@@ -661,17 +648,11 @@ describe("config", () => {
 
       process.env = {
         ...originalEnv,
-        MONEYMAN_CONFIG_PATH: undefined,
+        MONEYMAN_CONFIG_PATH: "must-not-read.json",
         MONEYMAN_CONFIG: JSON.stringify(configWithInvalidRange),
       };
 
-      // The config module should fall back to default config when validation fails
-      const { config } = await import("./config.js");
-
-      // Should return default config with schema default values
-      expect(config.accounts).toEqual([]);
-      expect(config.options.scraping.daysBack).toBe(10);
-      expect(config.options.scraping.maxParallelScrapers).toBe(1);
+      await expect(import("./config.js")).rejects.toThrow();
     });
 
     it("should handle missing telegram required fields", async () => {
@@ -697,12 +678,7 @@ describe("config", () => {
         MONEYMAN_CONFIG: JSON.stringify(configWithMissingTelegramFields),
       };
 
-      // The config module should fall back to default config when validation fails
-      const { config } = await import("./config.js");
-
-      // Should return default config
-      expect(config.accounts).toEqual([]);
-      expect(config.options.notifications.telegram).toBeUndefined();
+      await expect(import("./config.js")).rejects.toThrow();
     });
 
     it("should handle empty string values in required fields", async () => {
@@ -728,12 +704,7 @@ describe("config", () => {
         MONEYMAN_CONFIG: JSON.stringify(configWithEmptyStrings),
       };
 
-      // The config module should fall back to default config when validation fails
-      const { config } = await import("./config.js");
-
-      // Should return default config with empty accounts
-      expect(config.accounts).toEqual([]);
-      expect(config.storage.localJson?.enabled).toBe(true);
+      await expect(import("./config.js")).rejects.toThrow();
     });
   });
 

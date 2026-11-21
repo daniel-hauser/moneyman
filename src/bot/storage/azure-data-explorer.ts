@@ -95,7 +95,7 @@ export class AzureDataExplorerStorage implements TransactionStorage {
       transaction,
       metadata: {
         scrapedBy: systemName,
-        scrapedAt: new Date().toISOString(),
+        scrapedAt: transaction.scrapedAt,
       },
     };
   }

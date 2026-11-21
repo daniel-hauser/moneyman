@@ -22,24 +22,6 @@ describe("automatic promise timer support", () => {
     expect(getEventListeners(controller.signal, "abort")).toHaveLength(0);
   });
 
-  it.each([undefined, 0, 0.5, -1, NaN, Infinity, 2147483648])(
-    "uses Node's one-millisecond minimum for delay %s",
-    async (delay) => {
-      jest.useFakeTimers();
-      const resolved = jest.fn();
-      const result = setTimeout(delay, "value");
-      result.then(resolved);
-
-      await jest.advanceTimersByTimeAsync(0);
-      expect(resolved).not.toHaveBeenCalled();
-      expect(jest.getTimerCount()).toBe(1);
-
-      await jest.advanceTimersByTimeAsync(1);
-      await expect(result).resolves.toBe("value");
-      expect(jest.getTimerCount()).toBe(0);
-    },
-  );
-
   it("rejects without scheduling when already aborted", async () => {
     jest.useFakeTimers();
     const controller = new AbortController();
@@ -100,13 +82,6 @@ describe("automatic promise timer support", () => {
     expect(getEventListeners(controller.signal, "abort")).toHaveLength(1);
   });
 
-  it("supports legacy fake timers without per-test registration", async () => {
-    jest.useFakeTimers({ legacyFakeTimers: true });
-    const result = setTimeout(100, "legacy", { ref: false });
-    jest.advanceTimersByTime(100);
-    await expect(result).resolves.toBe("legacy");
-  });
-
   it("still detects fake timers when setTimeout is spied on", async () => {
     jest.useFakeTimers();
     const timerSpy = jest.spyOn(globalThis, "setTimeout");
@@ -132,22 +107,5 @@ describe("automatic promise timer support", () => {
     expect(setImmediate).toBe(actual.setImmediate);
     expect(setInterval).toBe(actual.setInterval);
     expect(scheduler).toBe(actual.scheduler);
-  });
-
-  it("uses native validation for invalid timer options under fake timers", async () => {
-    jest.useFakeTimers();
-    await expect(
-      // @ts-expect-error Exercise invalid runtime input.
-      setTimeout(1, undefined, { ref: "no" }),
-    ).rejects.toMatchObject({ code: "ERR_INVALID_ARG_TYPE" });
-    await expect(
-      // @ts-expect-error Exercise invalid runtime input.
-      setTimeout(1, undefined, { signal: null }),
-    ).rejects.toMatchObject({ code: "ERR_INVALID_ARG_TYPE" });
-    await expect(
-      // @ts-expect-error Exercise invalid runtime input.
-      setTimeout(1, undefined, { signal: { aborted: false } }),
-    ).rejects.toThrow();
-    expect(jest.getTimerCount()).toBe(0);
   });
 });

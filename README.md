@@ -214,7 +214,7 @@ options: {
      * The maximum number of parallel scrapers to run
      * @default 1
      */
-    maxParallelScrapers?: number;
+    maxParallelScrapers?: number; // Integer from 1 to 10; default: 1
     /**
      * Enable tracking of all domains accessed during scraping
      * @default false

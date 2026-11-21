@@ -505,7 +505,7 @@ describe("MoneymanDashStorage", () => {
       expect(body.metadata.accounts).toBe(3); // unique accounts
     });
 
-    it("should include proper ISO timestamp", async () => {
+    it("includes the originating scrape timestamp in metadata", async () => {
       const token = makeMmToken("https://api.example.com", "secret123");
 
       fetchMock.mockResolvedValue(mockSuccessResponse());
@@ -522,9 +522,8 @@ describe("MoneymanDashStorage", () => {
       const callArg = fetchMock.mock.calls[0][1];
       const body = JSON.parse(callArg.body);
 
-      expect(body.metadata.scrapedAt).toMatch(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
-      );
+      expect(body.metadata.scrapedAt).toBe("2026-01-30T12:00:00.000Z");
+      expect(body.transactions[0].scrapedAt).toBe(body.metadata.scrapedAt);
     });
   });
 

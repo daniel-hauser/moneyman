@@ -24,9 +24,12 @@ describe("createScreenshotDataUrl", () => {
     const png = await sharp(Buffer.from(svg)).png().toBuffer();
 
     jest.mocked(readFile).mockResolvedValue(png);
-    const dataUrl = await createScreenshotDataUrl("invented-screenshot.png");
+    const { dataUrl, sizeBytes } = await createScreenshotDataUrl(
+      "invented-screenshot.png",
+    );
     expect(readFile).toHaveBeenCalledWith("invented-screenshot.png");
     const webp = Buffer.from(dataUrl.split(",")[1], "base64");
+    expect(sizeBytes).toBe(webp.length);
 
     expect(dataUrl).toMatch(/^data:image\/webp;base64,/);
     expect(await sharp(webp).metadata()).toMatchObject({
@@ -58,8 +61,11 @@ describe("createScreenshotDataUrl", () => {
       .toBuffer();
 
     jest.mocked(readFile).mockResolvedValue(png);
-    const dataUrl = await createScreenshotDataUrl("invented-screenshot.png");
+    const { dataUrl, sizeBytes } = await createScreenshotDataUrl(
+      "invented-screenshot.png",
+    );
     const webp = Buffer.from(dataUrl.split(",")[1], "base64");
+    expect(sizeBytes).toBe(webp.length);
 
     expect(dataUrl).toMatch(/^data:image\/webp;base64,/);
     expect(await sharp(webp).metadata()).toMatchObject({
@@ -88,9 +94,10 @@ describe("createScreenshotDataUrl", () => {
     expect(webp.length).toBeGreaterThan(png.length);
 
     jest.mocked(readFile).mockResolvedValue(png);
-    expect(await createScreenshotDataUrl("invented-screenshot.png")).toBe(
-      `data:image/png;base64,${png.toString("base64")}`,
-    );
+    expect(await createScreenshotDataUrl("invented-screenshot.png")).toEqual({
+      dataUrl: `data:image/png;base64,${png.toString("base64")}`,
+      sizeBytes: png.length,
+    });
   });
 
   it("propagates encoding errors rather than silently embedding the original", async () => {

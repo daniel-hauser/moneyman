@@ -113,6 +113,8 @@ export const StorageSchema = z
   .default({ localJson: { enabled: true } });
 
 // Options schemas
+export const ScraperConcurrencySchema = z.number().int().min(1).max(10);
+
 export const ScrapingOptionsSchema = z.object({
   /** Select scrapeId labels; legacy company IDs are used only when no label matches. Empty means all. */
   accountsToScrape: z.array(z.string()).optional(),
@@ -124,7 +126,7 @@ export const ScrapingOptionsSchema = z.object({
   hiddenDeprecations: z.array(z.string()).default([]),
   puppeteerExecutablePath: z.string().optional(),
   headless: z.boolean().default(true),
-  maxParallelScrapers: z.number().min(1).max(10).default(1),
+  maxParallelScrapers: ScraperConcurrencySchema.default(1),
   domainTracking: z.boolean().default(false),
 });
 
