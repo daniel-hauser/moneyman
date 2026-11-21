@@ -29,7 +29,6 @@ export class GoogleSheetsStorage implements TransactionStorage {
     txns: Array<TransactionRow>,
     onProgress: (status: string) => Promise<void>,
   ) {
-    const scrapedAt = new Date();
     const [doc] = await Promise.all([this.getDoc(), onProgress("Getting doc")]);
 
     await onProgress(`Getting sheet ${this.worksheetName}`);
@@ -84,7 +83,6 @@ export class GoogleSheetsStorage implements TransactionStorage {
         tx,
         hasRawColumn,
         this.config.options.scraping.transactionHashType,
-        scrapedAt,
       ),
     );
     if (rows.length) {

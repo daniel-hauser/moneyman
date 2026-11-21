@@ -19,7 +19,6 @@ export class WebPostStorage implements TransactionStorage {
     txns: Array<TransactionRow>,
     onProgress: (status: string) => Promise<void>,
   ) {
-    const scrapedAt = new Date();
     logger("saveTransactions");
 
     const webPostConfig = this.config.storage.webPost;
@@ -41,7 +40,6 @@ export class WebPostStorage implements TransactionStorage {
               tx,
               false,
               this.config.options.scraping.transactionHashType,
-              scrapedAt,
             ),
           ),
         ),

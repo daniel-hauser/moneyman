@@ -53,6 +53,7 @@ function step(name: string, duration: number) {
 function successResult(): AccountScrapeResult {
   return {
     companyId: CompanyTypes.max,
+    scrapedAt: "2026-01-30T12:00:00.000Z",
     result: {
       success: true,
       accounts: [
@@ -99,6 +100,7 @@ describe("renderRunReport", () => {
       ...transaction({}),
       hash: "h",
       uniqueId: "u",
+      scrapedAt: "2026-01-30T12:00:00.000Z",
       account: "a",
       companyId: CompanyTypes.max,
     };
@@ -138,6 +140,7 @@ describe("renderRunReport", () => {
       results: [
         {
           companyId: CompanyTypes.max,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: false,
             errorType: ScraperErrorTypes.Generic,
@@ -159,6 +162,7 @@ describe("renderRunReport", () => {
     report.summary = {
       results: Array.from({ length: 8 }, () => ({
         companyId: CompanyTypes.max,
+        scrapedAt: "2026-01-30T12:00:00.000Z",
         result: { success: false, errorType: ScraperErrorTypes.Generic },
       })),
     };
@@ -721,6 +725,7 @@ describe("renderHTMLReport", () => {
         first,
         {
           companyId: CompanyTypes.visaCal,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: true,
             accounts: [{ accountNumber: 'other<&"', txns: [second] }],
@@ -728,6 +733,7 @@ describe("renderHTMLReport", () => {
         },
         {
           companyId: CompanyTypes.leumi,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: false,
             accounts: [{ accountNumber: "ignored", txns: [transaction({})] }],
@@ -751,10 +757,21 @@ describe("renderHTMLReport", () => {
       (_, entity) => entities[entity],
     );
     const expected = [
-      { ...original, companyId: CompanyTypes.max, accountNumber: "1234" },
-      { ...second, companyId: CompanyTypes.visaCal, accountNumber: 'other<&"' },
+      {
+        ...original,
+        scrapedAt: first.scrapedAt,
+        companyId: CompanyTypes.max,
+        accountNumber: "1234",
+      },
+      {
+        ...second,
+        scrapedAt: first.scrapedAt,
+        companyId: CompanyTypes.visaCal,
+        accountNumber: 'other<&"',
+      },
     ];
     expect(JSON.parse(serialized)).toEqual(expected);
+    expect(original).not.toHaveProperty("scrapedAt");
     const realm = createReportWindow();
     const document = realm.document;
     document.body.innerHTML = output;
@@ -801,10 +818,12 @@ describe("renderHTMLReport", () => {
   it("omits empty transaction downloads and screenshot sections without usable images", () => {
     const emptyResult: AccountScrapeResult = {
       companyId: CompanyTypes.max,
+      scrapedAt: "2026-01-30T12:00:00.000Z",
       result: { success: true, accounts: [] },
     };
     const failedResult: AccountScrapeResult = {
       companyId: CompanyTypes.max,
+      scrapedAt: "2026-01-30T12:00:00.000Z",
       result: { success: false },
     };
     const screenshots = [
@@ -842,10 +861,12 @@ describe("renderHTMLReport", () => {
         successResult(),
         {
           companyId: CompanyTypes.visaCal,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: { success: true, accounts: [] },
         },
         {
           companyId: CompanyTypes.leumi,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: false,
             errorType: ScraperErrorTypes.InvalidPassword,
@@ -854,6 +875,7 @@ describe("renderHTMLReport", () => {
         },
         {
           companyId: CompanyTypes.max,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: { success: false },
         },
       ],
@@ -907,6 +929,7 @@ describe("renderHTMLReport", () => {
         successResult(),
         {
           companyId: CompanyTypes.max,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: false,
             errorType: ScraperErrorTypes.Generic,
@@ -919,6 +942,7 @@ describe("renderHTMLReport", () => {
       ...transaction({ description: "Shop" }),
       hash: "h",
       uniqueId: "u",
+      scrapedAt: "2026-01-30T12:00:00.000Z",
       account: "1234",
       companyId: CompanyTypes.max,
     };

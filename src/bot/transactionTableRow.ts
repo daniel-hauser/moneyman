@@ -31,7 +31,6 @@ export function tableRow(
   tx: TransactionRow,
   includeRaw: boolean = false,
   transactionHashType: MoneymanConfig["options"]["scraping"]["transactionHashType"] = "",
-  scrapedAt: Date = new Date(),
 ): TableRow {
   const baseRow = {
     date: format(parseISO(tx.date), "dd/MM/yyyy", {}),
@@ -42,7 +41,7 @@ export function tableRow(
     account: tx.account,
     hash: transactionHashType === "moneyman" ? tx.uniqueId : tx.hash,
     comment: "",
-    "scraped at": format(scrapedAt, "yyyy-MM-dd"),
+    "scraped at": format(parseISO(tx.scrapedAt), "yyyy-MM-dd"),
     "scraped by": systemName,
     identifier: `${tx.identifier ?? ""}`,
     // Assuming the transaction is not pending, so we can use the original currency as the charged currency

@@ -34,6 +34,7 @@ async function browser(bundled = false, locale = "en-GB", restored = "") {
         description: "Alpha first",
       }),
       companyId: "max",
+      scrapedAt: "2026-01-30T12:00:00.000Z",
       accountNumber: "acct10",
     },
     {
@@ -46,6 +47,7 @@ async function browser(bundled = false, locale = "en-GB", restored = "") {
         description: "Beta 😀 <script> &",
       }),
       companyId: "max",
+      scrapedAt: "2026-01-30T12:00:00.000Z",
       accountNumber: "acct2",
     },
     {
@@ -55,6 +57,7 @@ async function browser(bundled = false, locale = "en-GB", restored = "") {
         description: "Alpha second",
       }),
       companyId: "max",
+      scrapedAt: "2026-01-30T12:00:00.000Z",
       accountNumber: "acct2",
     },
     {
@@ -64,6 +67,7 @@ async function browser(bundled = false, locale = "en-GB", restored = "") {
         description: "Alpha tie",
       }),
       companyId: "visaCal",
+      scrapedAt: "2026-01-30T12:00:00.000Z",
       accountNumber: "acct02",
     },
     {
@@ -73,6 +77,7 @@ async function browser(bundled = false, locale = "en-GB", restored = "") {
         description: "Invalid",
       }),
       companyId: "max",
+      scrapedAt: "2026-01-30T12:00:00.000Z",
       accountNumber: "acct1",
     },
   ];
@@ -81,6 +86,7 @@ async function browser(bundled = false, locale = "en-GB", restored = "") {
   document.body.innerHTML = renderReportTransactions(
     originals.map((row) => ({
       companyId: row.companyId,
+      scrapedAt: "2026-01-30T12:00:00.000Z",
       result: {
         success: true,
         accounts: [
@@ -243,6 +249,7 @@ it.each(
       renderReportTransactions([
         {
           companyId: "max",
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: true,
             accounts: [
@@ -319,6 +326,7 @@ it.each([false, true])(
       renderReportTransactions([
         {
           companyId: "max",
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: true,
             accounts: [
@@ -453,10 +461,18 @@ it.each([false, true])(
       date: value,
       status: value,
     });
-    const originals = [{ ...original, companyId: value, accountNumber: value }];
+    const originals = [
+      {
+        ...original,
+        scrapedAt: "2026-01-30T12:00:00.000Z",
+        companyId: value,
+        accountNumber: value,
+      },
+    ];
     const output = renderReportTransactions([
       {
         companyId: value,
+        scrapedAt: "2026-01-30T12:00:00.000Z",
         result: {
           success: true,
           accounts: [{ accountNumber: value, txns: [original] }],
@@ -616,6 +632,7 @@ it("hydrates escaped marker-like input and exact CRLF logs without changing serv
     renderReportTransactions([
       {
         companyId: "max",
+        scrapedAt: "2026-01-30T12:00:00.000Z",
         result: {
           success: true,
           accounts: [

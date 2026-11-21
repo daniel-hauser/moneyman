@@ -6,6 +6,7 @@ import {
 import { normalizeCurrency } from "../../utils/currency.js";
 
 export type ReportTransaction = Transaction & {
+  scrapedAt: string;
   companyId: string;
   accountNumber: string;
 };

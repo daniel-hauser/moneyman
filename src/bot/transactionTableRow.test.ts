@@ -24,6 +24,7 @@ const createMockTransactionRow = (
     status: TransactionStatuses.Completed,
   }),
   account: "test-account",
+  scrapedAt: "2026-01-30T12:00:00.000Z",
   companyId: CompanyTypes.hapoalim,
   hash: "test-hash",
   uniqueId: "test-unique-id",
@@ -86,19 +87,22 @@ describe("transactionTableRow", () => {
       expect(result.chargedCurrency).toBe("ILS");
     });
 
-    it("refreshes the local scraped date after midnight and accepts an export-wide date", () => {
+    it("preserves the local scrape date when exporting after midnight", () => {
       jest.useFakeTimers();
       try {
         const beforeMidnight = new Date(2026, 0, 30, 23, 59);
         jest.setSystemTime(beforeMidnight);
-        const tx = createMockTransactionRow();
+        const tx = createMockTransactionRow({
+          scrapedAt: beforeMidnight.toISOString(),
+        });
         expect(tableRow(tx)["scraped at"]).toBe("2026-01-30");
 
         jest.setSystemTime(new Date(2026, 0, 31, 0, 1));
-        expect(tableRow(tx)["scraped at"]).toBe("2026-01-31");
-        expect(tableRow(tx, false, "", beforeMidnight)["scraped at"]).toBe(
-          "2026-01-30",
-        );
+        expect(tableRow(tx)["scraped at"]).toBe("2026-01-30");
+        const nextRun = createMockTransactionRow({
+          scrapedAt: new Date().toISOString(),
+        });
+        expect(tableRow(nextRun)["scraped at"]).toBe("2026-01-31");
       } finally {
         jest.useRealTimers();
       }

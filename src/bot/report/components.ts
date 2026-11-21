@@ -332,11 +332,12 @@ export function renderReportStorages(storages: Record<string, StorageRow>) {
 }
 
 export function renderReportTransactions(results: Array<AccountScrapeResult>) {
-  const transactions = results.flatMap(({ companyId, result }) =>
+  const transactions = results.flatMap(({ companyId, result, scrapedAt }) =>
     result.success
       ? (result.accounts ?? []).flatMap((account) =>
           account.txns.map((transaction) => ({
             ...transaction,
+            scrapedAt,
             companyId,
             accountNumber: account.accountNumber,
           })),

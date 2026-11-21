@@ -90,16 +90,17 @@ describe("GoogleSheetsStorage", () => {
     },
   );
 
-  it("uses one local date per export even when fetching the sheet crosses midnight", async () => {
+  it("preserves the scrape date across delayed and repeated exports", async () => {
     jest.useFakeTimers();
     try {
-      jest.setSystemTime(new Date(2026, 0, 30, 23, 59));
+      const scrapedAt = new Date(2026, 0, 30, 23, 59).toISOString();
+      jest.setSystemTime(new Date(2026, 0, 31, 0, 1));
       mockDoc.loadInfo.mockImplementationOnce(async () => {
-        jest.setSystemTime(new Date(2026, 0, 31, 0, 1));
+        jest.setSystemTime(new Date(2026, 1, 1, 0, 1));
       });
       const txns = [
-        transactionRow({}),
-        transactionRow({ hash: "hash-2", uniqueId: "unique-2" }),
+        transactionRow({ scrapedAt }),
+        transactionRow({ hash: "hash-2", uniqueId: "unique-2", scrapedAt }),
       ];
 
       await storage.saveTransactions(txns, async () => {});
@@ -109,7 +110,7 @@ describe("GoogleSheetsStorage", () => {
 
       await storage.saveTransactions(txns, async () => {});
       expect(mockSheet.addRows.mock.calls[1][0]).toEqual(
-        txns.map(() => expect.objectContaining({ "scraped at": "2026-01-31" })),
+        txns.map(() => expect.objectContaining({ "scraped at": "2026-01-30" })),
       );
     } finally {
       jest.useRealTimers();

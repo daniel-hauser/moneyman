@@ -158,13 +158,14 @@ function resultsToTransactions(
 ): Array<TransactionRow> {
   const txns: Array<TransactionRow> = [];
 
-  for (let { result, companyId } of results) {
+  for (let { result, companyId, scrapedAt } of results) {
     if (result.success) {
       for (let account of result.accounts ?? []) {
         for (let tx of account.txns) {
           try {
             txns.push({
               ...tx,
+              scrapedAt,
               account: account.accountNumber,
               companyId,
               hash: transactionHash(tx, companyId, account.accountNumber),

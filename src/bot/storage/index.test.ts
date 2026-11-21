@@ -93,6 +93,7 @@ describe("storage pending policy", () => {
         [
           {
             companyId: CompanyTypes.hapoalim,
+            scrapedAt: "2026-01-30T12:00:00.000Z",
             result: {
               success: true,
               accounts: [{ accountNumber: "123", txns }],
@@ -153,6 +154,7 @@ describe("pending transaction archives", () => {
         [
           {
             companyId: CompanyTypes.hapoalim,
+            scrapedAt: "2026-01-30T12:00:00.000Z",
             result: {
               success: true,
               accounts: [
@@ -178,8 +180,14 @@ describe("pending transaction archives", () => {
       expect(getSkippedCount(result.stats)).toBe(0);
 
       const expectedTransactions = [
-        expect.objectContaining({ status: TransactionStatuses.Pending }),
-        expect.objectContaining({ status: TransactionStatuses.Completed }),
+        expect.objectContaining({
+          status: TransactionStatuses.Pending,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
+        }),
+        expect.objectContaining({
+          status: TransactionStatuses.Completed,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
+        }),
       ];
       if (provider === "json") {
         const serialized = jest.mocked(fs.appendFile).mock.calls[0][1];
@@ -187,7 +195,11 @@ describe("pending transaction archives", () => {
       } else if (provider === "telegram") {
         expect(sendJSON).toHaveBeenCalledWith(
           {
-            metadata: expect.objectContaining({ added: 2, pending: 0 }),
+            metadata: expect.objectContaining({
+              added: 2,
+              pending: 0,
+              scrapedAt: "2026-01-30T12:00:00.000Z",
+            }),
             transactions: expectedTransactions,
           },
           "transactions.txt",
@@ -198,6 +210,14 @@ describe("pending transaction archives", () => {
         if (!(stream instanceof Readable)) throw new Error("Expected stream");
         let serialized = "";
         for await (const chunk of stream) serialized += chunk;
+        expect(
+          JSON.parse(serialized).map(
+            (row: { metadata: unknown }) => row.metadata,
+          ),
+        ).toEqual([
+          expect.objectContaining({ scrapedAt: "2026-01-30T12:00:00.000Z" }),
+          expect.objectContaining({ scrapedAt: "2026-01-30T12:00:00.000Z" }),
+        ]);
         expect(
           JSON.parse(serialized).map(
             (row: { transaction: unknown }) => row.transaction,
@@ -250,6 +270,7 @@ describe("storage waterfall timings", () => {
       [
         {
           companyId: CompanyTypes.hapoalim,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: true,
             accounts: [{ accountNumber: "123", txns: [transaction({})] }],
@@ -324,6 +345,7 @@ describe("storage waterfall timings", () => {
       [
         {
           companyId: CompanyTypes.hapoalim,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: true,
             accounts: [{ accountNumber: "123", txns: [transaction({})] }],
@@ -370,6 +392,52 @@ describe("per-run storage ownership", () => {
     global.fetch = originalFetch;
   });
 
+  it("passes the originating scrape timestamp to HTTP storages after midnight without changing transaction identity", async () => {
+    jest.useFakeTimers();
+    try {
+      const scrapedAt = new Date(2026, 0, 30, 23, 59).toISOString();
+      const original = transaction({});
+      const results = [
+        {
+          companyId: CompanyTypes.hapoalim,
+          scrapedAt,
+          result: {
+            success: true,
+            accounts: [{ accountNumber: "123", txns: [original] }],
+          },
+        },
+      ];
+      const storages = createStorages(snapshot("delayed"));
+      jest.setSystemTime(new Date(2026, 0, 31, 0, 1));
+      await saveResults(results, createRunReport(), storages);
+      jest.setSystemTime(new Date(2026, 1, 1, 12));
+      await saveResults(results, createRunReport(), storages);
+
+      const posts = fetchMock.mock.calls.filter(
+        ([url]) => url === "https://delayed.test/post",
+      );
+      const ingestions = fetchMock.mock.calls.filter(
+        ([url]) => url === "https://delayed.test/ingest",
+      );
+      for (const [, request] of posts) {
+        const [row] = JSON.parse(String(request?.body));
+        expect(row["scraped at"]).toBe("2026-01-30");
+        expect(row).not.toHaveProperty("raw");
+      }
+      const payloads = ingestions.map(([, request]) =>
+        JSON.parse(String(request?.body)),
+      );
+      for (const payload of payloads) {
+        expect(payload.metadata.scrapedAt).toBe(scrapedAt);
+        expect(payload.transactions[0].scrapedAt).toBe(scrapedAt);
+      }
+      expect(payloads[0].transactions).toEqual(payloads[1].transactions);
+      expect(original).not.toHaveProperty("scrapedAt");
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it("constructs independent clients and uses fresh HTTP credentials for transaction saves and log uploads", async () => {
     const first = createStorages(snapshot("first"));
     const second = createStorages(snapshot("second"));
@@ -382,6 +450,7 @@ describe("per-run storage ownership", () => {
     const results = [
       {
         companyId: CompanyTypes.hapoalim,
+        scrapedAt: "2026-01-30T12:00:00.000Z",
         result: {
           success: true,
           accounts: [{ accountNumber: "123", txns: [transaction({})] }],
@@ -456,6 +525,7 @@ describe("per-run storage ownership", () => {
         [
           {
             companyId: CompanyTypes.hapoalim,
+            scrapedAt: "2026-01-30T12:00:00.000Z",
             result: {
               success: true,
               accounts: [
@@ -493,6 +563,7 @@ describe("per-run storage ownership", () => {
     const results = [
       {
         companyId: CompanyTypes.hapoalim,
+        scrapedAt: "2026-01-30T12:00:00.000Z",
         result: {
           success: true,
           accounts: [

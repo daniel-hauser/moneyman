@@ -2,6 +2,10 @@
 
 Export transactions to json file.
 
+Each transaction's `scrapedAt` is the ISO timestamp captured at the start of
+its scrape run. It stays unchanged if saving is delayed; the filename timestamp
+records when the export was written.
+
 Use the following configuration to setup:
 
 ```typescript
