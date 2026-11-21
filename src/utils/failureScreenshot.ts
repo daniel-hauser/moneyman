@@ -2,19 +2,20 @@ import os from "node:os";
 import fs from "node:fs";
 import path from "node:path";
 import { glob } from "glob";
+import sanitize from "sanitize-filename";
 import { createLogger } from "./logger.js";
 import type { ImageWithCaption } from "../types.js";
 
 const logger = createLogger("failureScreenshot");
 const tempFolder = path.join(fs.realpathSync(os.tmpdir()), "moneyman");
 
-export function getFailureScreenShotPath(companyId: string) {
-  const companyDir = path.join(tempFolder, companyId);
-  if (!fs.existsSync(companyDir)) {
-    fs.mkdirSync(companyDir, { recursive: true });
-  }
+export function getFailureScreenShotPath(label: string) {
+  const folder = sanitize(label, { replacement: "_" }) || "unknown-login";
+  const accountDir = path.join(tempFolder, folder);
+  fs.mkdirSync(accountDir, { recursive: true });
 
-  const filePath = path.join(companyDir, `${companyId}-${Date.now()}.png`);
+  const screenshotDir = fs.mkdtempSync(path.join(accountDir, "screenshot-"));
+  const filePath = path.join(screenshotDir, `${Date.now()}.png`);
   logger("getFailureScreenShotPath %o", filePath);
 
   return filePath;
@@ -28,7 +29,7 @@ export async function sendFailureScreenShots(
     await sendPhotos(
       photos.map((photoPath) => ({
         photoPath,
-        caption: `[${path.basename(path.dirname(photoPath))}] Failure screenshot`,
+        caption: `[${path.basename(path.dirname(path.dirname(photoPath)))}] Failure screenshot`,
       })),
     );
     fs.rmSync(tempFolder, { recursive: true, force: true });
