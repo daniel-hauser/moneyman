@@ -117,6 +117,10 @@ describe("runWithStorage report logs", () => {
       {
         caption: "Failure",
         dataUrl: expect.stringMatching(/^data:image\/webp;base64,/),
+        sizeBytes: Buffer.from(
+          report.screenshots[0].dataUrl.split(",")[1],
+          "base64",
+        ).length,
       },
     ]);
     expect(

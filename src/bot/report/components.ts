@@ -1,9 +1,8 @@
 import { escapers } from "@telegraf/entity";
-import { Buffer } from "node:buffer";
 import { render } from "@lit-labs/ssr";
 import { collectResultSync } from "@lit-labs/ssr/lib/render-result.js";
 import type { AccountScrapeResult, RunTiming } from "../../types.js";
-import type { StorageRow } from "../runReport.js";
+import type { RunReport, StorageRow } from "../runReport.js";
 import { html } from "./html.js";
 import { html as litHtml } from "lit";
 import { renderLight } from "@lit-labs/ssr-client/directives/render-light.js";
@@ -372,39 +371,13 @@ export function renderReportErrors(
   </section>`;
 }
 
-function screenshotSize(dataUrl: string) {
-  const comma = dataUrl.indexOf(",");
-  if (comma < 0 || !/^data:image\//i.test(dataUrl)) return undefined;
-  const payload = dataUrl.slice(comma + 1);
-  if (/%(?![a-f\d]{2})/i.test(payload)) return undefined;
-  let bytes: number;
-  if (/;base64$/i.test(dataUrl.slice(0, comma))) {
-    const base64 = payload
-      .replace(/%[a-f\d]{2}/gi, (escape) =>
-        String.fromCharCode(Number.parseInt(escape.slice(1), 16)),
-      )
-      .replace(/[\t\n\f\r ]/g, "");
-    if (!/^[A-Za-z0-9+/]*={0,2}$/.test(base64)) return undefined;
-    const padding = base64.length - base64.replace(/=+$/, "").length;
-    const length = base64.length - padding;
-    if (
-      length % 4 === 1 ||
-      (padding > 0 && (base64.length % 4 !== 0 || length % 4 !== 4 - padding))
-    )
-      return undefined;
-    bytes = Math.floor((length * 3) / 4);
-  } else {
-    // Each percent escape is one original byte; literal Unicode is UTF-8.
-    bytes = Buffer.byteLength(payload.replace(/%[a-f\d]{2}/gi, "x"), "utf8");
-  }
+function screenshotSize(bytes: number) {
   return bytes > 0 && bytes < 10_000
     ? "<0.01 MB"
     : `${(bytes / 1_000_000).toFixed(2)} MB`;
 }
 
-export function renderReportScreenshots(
-  screenshots: Array<{ caption: string; dataUrl: string }>,
-) {
+export function renderReportScreenshots(screenshots: RunReport["screenshots"]) {
   const usableScreenshots = screenshots.filter(({ dataUrl }) => dataUrl.trim());
   if (!usableScreenshots.length) return "";
 
@@ -413,8 +386,8 @@ export function renderReportScreenshots(
       <summary>Screenshots (${escaped(usableScreenshots.length)})</summary>
       <div class="screenshots">
         ${usableScreenshots
-          .map(({ caption, dataUrl }) => {
-            const size = screenshotSize(dataUrl) ?? "Size unavailable";
+          .map(({ caption, dataUrl, sizeBytes }) => {
+            const size = screenshotSize(sizeBytes);
             return html`<figure class="screenshot">
               <button
                 type="button"

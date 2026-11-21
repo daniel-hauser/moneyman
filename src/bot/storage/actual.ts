@@ -30,7 +30,7 @@ export class ActualBudgetStorage implements TransactionStorage {
     txns: Array<TransactionRow>,
     onProgress: (status: string) => Promise<void>,
   ): Promise<SaveStats> {
-    await Promise.all([onProgress("Initializing"), this.init()]);
+    await onProgress("Initializing");
 
     const stats = createSaveStats(
       "ActualBudgetStorage",
@@ -38,7 +38,9 @@ export class ActualBudgetStorage implements TransactionStorage {
       txns,
     );
 
+    let saveFailed = false;
     try {
+      await this.init();
       const transactionsByActualAccountId = new Map<
         string,
         ImportTransactionEntity[]
@@ -69,8 +71,14 @@ export class ActualBudgetStorage implements TransactionStorage {
           onProgress,
         );
       }
+    } catch (error) {
+      saveFailed = true;
+      throw error;
     } finally {
-      await actualApi.shutdown();
+      await actualApi.shutdown().catch((error) => {
+        if (!saveFailed) throw error;
+        logger("Failed to shut down Actual Budget", error);
+      });
     }
     return stats;
   }

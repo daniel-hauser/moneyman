@@ -6,6 +6,7 @@ import {
   BooleanEnvVarSchema,
   MoneymanConfigSchema,
   NotificationOptionsSchema,
+  ScrapingOptionsSchema,
   SchedulingOptionsSchema,
 } from "./config.schema.js";
 
@@ -50,6 +51,12 @@ describe("config", () => {
     expect(parsed.options.scraping.headless).toBe(true);
     expect(parsed.options.scraping.includeRawTransaction).toBe(false);
     expect(parsed.options.logging.getIpInfoUrl).toBe("https://ipinfo.io/json");
+  });
+
+  it("rejects fractional scraper concurrency at the configuration boundary", () => {
+    expect(
+      ScrapingOptionsSchema.safeParse({ maxParallelScrapers: 1.5 }).success,
+    ).toBe(false);
   });
 
   it.each([

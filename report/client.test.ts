@@ -720,9 +720,14 @@ it("updates the native screenshot dialog with each selected image, hostile capti
     {
       caption: 'Failure </span><script>alert(1)</script> "caption"',
       dataUrl: `data:image/png;base64,${Buffer.alloc(1_250_000).toString("base64")}`,
+      sizeBytes: 1_250_000,
     },
-    { caption: "Empty image", dataUrl: "data:image/png;base64," },
-    { caption: "Unknown size", dataUrl: "data:image/png;base64,invalid!" },
+    { caption: "Empty image", dataUrl: "data:image/png;base64,", sizeBytes: 0 },
+    {
+      caption: "Small image",
+      dataUrl: "data:image/png;base64,AA==",
+      sizeBytes: 1,
+    },
   ];
   document.body.innerHTML = renderReportScreenshots(screenshots);
   const dialog =
@@ -741,9 +746,7 @@ it("updates the native screenshot dialog with each selected image, hostile capti
     expect(image.getAttribute("src")).toBe(screenshots[index].dataUrl);
     expect(image.alt).toBe(screenshots[index].caption);
     expect(caption.textContent).toBe(screenshots[index].caption);
-    expect(size.textContent).toBe(
-      ["1.25 MB", "0.00 MB", "Size unavailable"][index],
-    );
+    expect(size.textContent).toBe(["1.25 MB", "0.00 MB", "<0.01 MB"][index]);
     expect(caption.querySelector("script")).toBeNull();
   });
   expect(dialog.showModal).toHaveBeenCalledTimes(3);
