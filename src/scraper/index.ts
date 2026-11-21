@@ -104,8 +104,9 @@ export async function scrapeAccounts(
                   startDate,
                   companyId,
                   futureMonthsToScrape: futureMonths,
-                  storeFailureScreenShotPath:
-                    getFailureScreenShotPath(companyId),
+                  storeFailureScreenShotPath: getFailureScreenShotPath(
+                    timing.name,
+                  ),
                   additionalTransactionInformation,
                   includeRawTransaction,
                   ...scraperOptions,

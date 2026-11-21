@@ -4,6 +4,7 @@ import { CompanyTypes } from "israeli-bank-scrapers";
 import { scrapeAccounts } from "./index.js";
 import { createBrowser, createSecureBrowserContext } from "./browser.js";
 import { getAccountTransactions } from "./scrape.js";
+import { getFailureScreenShotPath } from "../utils/failureScreenshot.js";
 import type { RunTiming, ScraperConfig } from "../types.js";
 
 jest.mock("./browser.js", () => ({
@@ -72,6 +73,25 @@ describe("scraper runtime browser lifecycle", () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  it("requests screenshot paths using each login timing name", async () => {
+    await scrapeAccounts(
+      {
+        ...config,
+        accounts: [
+          { ...config.accounts[0], scrapeId: "home" },
+          { ...config.accounts[0], scrapeId: "cards" },
+          config.accounts[0],
+        ],
+      },
+      initDomainTracking,
+    );
+    expect(jest.mocked(getFailureScreenShotPath).mock.calls).toEqual([
+      ["hapoalim · home"],
+      ["hapoalim · cards"],
+      ["hapoalim"],
+    ]);
   });
 
   it("returns stable nonsecret login IDs with both successful and failed results", async () => {
