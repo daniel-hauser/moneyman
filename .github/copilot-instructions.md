@@ -1,20 +1,22 @@
-# Moneyman - GitHub Copilot Context
+# Moneyman - GitHub Copilot Instructions
 
-## Project Overview
+## Project Scope and Priorities
 
-Moneyman is a TypeScript/Node.js application that scrapes financial transaction data from Israeli banks and credit card companies, then exports the data to various storage providers like Google Sheets, YNAB, Azure Data Explorer, and others.
+Moneyman is a hobby, self-hosted TypeScript/Node.js app that scrapes financial transactions from Israeli banks and credit card companies and exports them to storage providers. Deployments are independently operated for small personal or household sets of logins, not a multi-tenant enterprise service with hostile operators.
 
-## Key Architecture Components
+- Protect secrets, privacy, transaction integrity, and normal operation. Match defensive logic to a concrete, plausible failure and proportionate impact and maintenance cost.
+- Operator configuration is not a hostile tenant boundary, but guard against accidental unsafe filesystem operations. Preserve scraper domain filtering and configurable security policies.
+- Prefer removing a problem through simpler design rather than layering defenses; for example, keep display labels separate from temporary-file identity.
+- Do not add hypothetical-scale pagination or caps, exhaustive filename/digest collision namespaces, or retry/lifecycle scaffolding for theoretical problems.
+- A valid review finding does not automatically justify a fix. Verify its relevance to this app; decline disproportionate proposals with a concrete rationale.
 
-### Core Structure
+## Architecture and Configuration
 
-- **Language**: TypeScript (compiled to JavaScript)
-- **Runtime**: Node.js (see `engines.node` in [package.json](../package.json))
-- **Package Manager**: npm
-- **Build Output**: `dst/` directory
-- **Source Code**: `src/` directory
+- TypeScript strict mode and ES modules; source in `src/`, compiled JavaScript in `dst/`.
+- Node.js version: see `engines.node` in [package.json](../package.json). Use npm.
+- `patch-package` maintains dependency patches; Docker supports containerized deployments.
 
-### Main Modules
+### Modules
 
 - `src/index.ts` - Main entry point: scrape once and exit, or start the server with `MONEYMAN_LONG_RUNNING=true`
 - `src/server.ts` - Long running mode: runs on the `options.scheduling.cron` schedule and handles Telegram commands
@@ -23,110 +25,76 @@ Moneyman is a TypeScript/Node.js application that scrapes financial transaction 
 - `src/bot/commands.ts` - Telegram command handlers for the long running mode
 - `src/bot/bot.ts` - Shared Telegram polling lifecycle
 - `src/bot/otp.ts` - OTP requests and reply matching
-- `src/bot/storage/` - Storage provider implementations (Google Sheets, YNAB, etc.)
+- `src/bot/storage/` - Storage providers; implement `StorageBase` when adding one
 - `src/config.ts` - Configuration management with Zod validation
+- `src/config.schema.ts` - Shared Zod configuration schemas and types
 - `src/security/` - Security and domain filtering logic
 
-### Testing
+### Configuration and Environment
 
-- **Framework**: Jest with ts-jest
-- **Config**: `jest.config.js` for regular tests
-- **Location**: Test files are co-located with source files (`.test.ts` suffix)
+- Configuration uses the `MONEYMAN_CONFIG` JSON format, loaded through `MONEYMAN_CONFIG`, `MONEYMAN_CONFIG_PATH`, or the existing secret-provider integration. Keep loading and validation in `src/config.ts` and shared schemas in `src/config.schema.ts`.
+- `MONEYMAN_LONG_RUNNING=true` keeps running after the first scrape, with scheduling and Telegram commands.
+- `DEBUG=moneyman:*` enables debug logging. Preserve namespace filters and company/account context; use Node's thread identity for `[main]` or `[worker n]`, not a mutable worker counter.
+- Manage secrets through environment variables. See README for storage-provider-specific variables.
+- Use the `debug` package for logging, Telegram for important events/errors, and structured error handling in storage providers.
 
-## Development Workflow
+### Dependencies and Integrations
 
-### Setup
-
-```bash
-npm ci                    # Install dependencies
-npm run build            # Compile TypeScript
-npm run test             # Run all tests
-npm run lint             # Check code formatting
-npm run lint:fix         # Auto-fix formatting issues
-```
-
-### Key Scripts
-
-- `npm start` - Run the application
-- `npm run build` - TypeScript compilation
-- `npm run test` - Run Jest tests
-- `npm run test:config` - Test configuration validation
-- `npm run test:scraper-access` - Test scraper connectivity
-
-### Configuration
-
-All configuration must use the `MONEYMAN_CONFIG` JSON format via `MONEYMAN_CONFIG` environment variable or `MONEYMAN_CONFIG_PATH` environment variable pointing to a JSON file.
-
-## Key Dependencies
-
-- **israeli-bank-scrapers**: Core bank scraping functionality
-- **puppeteer**: Web scraping (headless Chrome) — top-level dependency, version may differ from the one bundled in israeli-bank-scrapers. When passing `BrowserContext` to israeli-bank-scrapers, a type assertion via `as unknown as ScraperOptionsWithBrowserContext["browserContext"]` is required.
+- **israeli-bank-scrapers**: Core bank scraping; extend this integration when adding scrapers
+- **puppeteer**: Headless Chrome scraping. The npm override aligns israeli-bank-scrapers' Puppeteer dependency with the top-level version. `src/scraper/index.ts` currently casts `browserContext` at the integration boundary for upstream type compatibility; reassess that workaround when upgrading rather than adding blanket casts.
 - **zod**: Runtime type validation for configuration
 - **telegraf**: Telegram bot integration for notifications
 - **google-spreadsheet**: Google Sheets integration
 - **ynab**: YNAB (You Need A Budget) integration
 
-## Code Patterns & Standards
+Storage providers include Google Sheets (service account authentication), YNAB, Azure Data Explorer, Buxfer, Actual Budget, Web Post (HTTP endpoint), and Local JSON (files).
 
-### Focused Changes and Lifecycle Ownership
+## Implementation and Resource Ownership
 
-- Minimize diffs: every changed file and edit must be necessary for the task or correctness. Defer unrelated fixes and avoid incidental renames, formatting churn, and refactors.
-- Keep user-facing Markdown focused on necessary behavior and configuration documentation. README is not a changelog or work journal: do not add task histories, validation results, or internal implementation details.
-- Keep prerequisite refactors in separate commits from feature behavior. When adding orchestration around existing logic, preserve the original implementation's file and put the new orchestration in a new file rather than replacing and relocating the old body.
+- Make focused, complete changes: every edit must serve the task or closely related correctness. Avoid unrelated fixes, incidental renames, formatting churn, and refactors; a small diff is not a reason to leave the task incomplete.
+- Keep README and other user-facing documentation focused on behavior and configuration, not task histories, validation results, or internal implementation journals.
+- Keep necessary prerequisite refactors in separate commits from feature behavior. If new orchestration is needed around existing logic, preserve the original implementation's file and put the orchestration in a new file rather than relocating the old body.
 - Prefer explicit parameters and per-run return values over global configuration access, singleton setters, and shared caches. Return worker metadata to its caller so concurrent workers cannot overwrite each other's state.
-- Minimize captured mutable lifecycle state, not just module globals. Prefer scoped resource ownership and native locks or signals over manually maintained active promises, progress chains, and lifecycle flags when they simplify the code.
-- Prefer native Web and Node primitives such as `AbortController`, `AbortSignal.any()`/`timeout()`, abortable `events.once()`, `util.aborted()`, worker threads, `MessageChannel`, locks, and scoped disposal with `AsyncDisposableStack` over custom equivalents. Use focused libraries such as Comlink when they materially reduce communication boilerplate.
-- Use signals for cancellation and lifetime failure, not ordinary completion. Use `Promise.withResolvers()` when a completion promise is needed instead of capturing a resolver in an outer variable. Let native `util.aborted()` resolve normally and handle timeout/cancellation at the operation boundary instead of mechanically recreating a rejecting helper.
-- Tie listeners to an owning cleanup signal where supported; ordinary EventEmitter `.on()` does not accept a signal. Inline one-use callbacks when they are not needed for removal. Use `try/finally` for cleanup and await in-flight resource shutdown before terminating a worker; retain a shared close promise when repeated close calls would not await the original shutdown.
 - Prefer type-narrowing `.filter()` for optional array entries over conditional spreads. Avoid redundant validation of fully controlled, typed internal results unless a concrete failure or trust boundary justifies it.
-- Preserve existing debug namespace filters and company/account context. Include `[main]` or `[worker n]` using Node's thread identity rather than a mutable worker counter.
+- Add coordination only when the behavior genuinely requires it. Then prefer scoped ownership and native primitives over custom active promises, progress chains, and lifecycle flags; minimize captured mutable state as well as module globals.
+- When they simplify required coordination and are supported by the runtime, prefer native Web/Node APIs: `AbortController`, `AbortSignal.any()`/`timeout()`, abortable `events.once()`, `util.aborted()`, worker threads, `MessageChannel`, locks, and `AsyncDisposableStack`. Use a library such as Comlink only if it materially reduces needed communication boilerplate.
+- Use signals for cancellation and lifetime failure, not ordinary completion. When a completion promise is needed, prefer `Promise.withResolvers()` to an outer captured resolver. Let `util.aborted()` resolve normally and handle timeout/cancellation at the operation boundary.
+- Tie listeners to an owning cleanup signal where supported; ordinary EventEmitter `.on()` does not accept a signal. Inline one-use callbacks unless needed for removal. Use `try/finally` for cleanup and await in-flight shutdown before terminating a worker. Retain a shared close promise only when repeated closes need to await the same shutdown.
 
-### Configuration
+## Development and Validation
 
-- Uses Zod schemas for runtime validation
-- Configuration is centralized in `src/config.ts`
+### Commands and Dependencies
 
-### Error Handling
+```bash
+npm ci                     # Install dependencies
+npm start                  # Run the application
+npm run build              # Build report assets and compile app/report TypeScript
+npm run test               # Run Jest tests (pretest builds report assets)
+npm run test:config        # Build and validate configuration
+npm run test:scraper-access # Validate scraper connectivity
+npm run lint               # Run lint:format and lint:commit
+npm run lint:fix            # Auto-fix formatting
+```
 
-- Uses debug package for logging (`moneyman:*` namespace)
-- Telegram notifications for important events/errors
-- Structured error handling in storage providers
+- Install/restore dependencies when needed for setup, after manifest changes, or when validation fails because dependencies are missing; do not reinstall routinely.
+- Use `PUPPETEER_SKIP_DOWNLOAD=true` with development installs to skip Chrome download; CI uses Docker with system Chromium.
+- For dependency updates, check breaking API changes (for example, Puppeteer major-version removals/renames). When combining Dependabot PRs, reference superseded PRs in the combined description.
+- Husky and `pretty-quick` handle pre-commit formatting.
 
-### Testing
+### Proportionate Tests
 
-- Unit tests for core business logic
-- Always prefer `jest-mock-extended` for typed test doubles: use `mock<T>()` or `mockDeep<T>()` instead of handwritten fake classes or unsafe type assertions. Use plain typed objects for data fixtures that do not need mocked behavior.
-- Test worker behavior with normal Jest mocks; keep real-worker tests to thin boundary smoke checks rather than maintaining custom module-loader hooks and fake browser/bank implementations.
-- Snapshot testing for message formatting
-- Separate test suites for scraper access validation
-- For PR scrape testing, wait for `PR Pipeline` to successfully publish the current PR head as `pr-<number>`, then dispatch `scrape.yml` with that `containerTag`, not `latest`. Keep `sendNewConfigToTg=false` unless explicitly requested.
+- Use Jest with `@swc/jest`, `jest.config.js`, and co-located `.test.ts` files in `src/` and `report/`. Preserve snapshots for message formatting and separate scraper-access suites.
+- Base coverage on changed behavior and realistic risk, not line count. Add focused tests for meaningful new behavior or plausible regressions, ideally failing without the fix. A small diff does not excuse skipping important coverage; existing tests may already suffice.
+- Reuse existing tests and helpers. Avoid elaborate scaffolding, coverage padding, constants/trivial accessors, framework behavior, internal implementation details, and exhaustive unsupported edge-case matrices.
+- Prefer `jest-mock-extended` typed doubles (`mock<T>()`/`mockDeep<T>()`) over handwritten fake classes or unsafe assertions. Use plain typed objects for data fixtures without mocked behavior.
+- Test worker behavior with normal Jest mocks; keep real-worker tests to thin boundary smoke checks, not custom module-loader hooks or fake browser/bank implementations.
+- Run the smallest existing test/build/lint checks that cover the change; expand validation when results or realistic risk require it. Use `test:config` for configuration changes and scraper-access checks when connectivity validation is relevant.
+- Documentation-only edits need no builds or tests unless documentation checks exist; verify formatting for the edited files.
+- Never copy real reports, logs, credentials, or transaction data into source, fixtures, commits, or external services. Use entirely invented sample data.
 
-### Security
+### PR Scrape Testing
 
-- Domain-based request filtering for scrapers
-- Configurable security policies
-- Environment variable based secrets management
-- Never copy real reports, logs, credentials, or transaction data into source, test fixtures, commits, or external services. Use entirely invented sample data.
-
-## Storage Providers
-
-The application supports multiple storage backends:
-
-- **Google Sheets**: Spreadsheet export with service account authentication
-- **YNAB**: Budget application integration
-- **Azure Data Explorer**: Enterprise data warehouse
-- **Buxfer**: Personal finance management
-- **Actual Budget**: Open-source budgeting tool
-- **Web Post**: Generic HTTP endpoint
-- **Local JSON**: File-based storage
-
-## Development Notes
-
-- TypeScript strict mode enabled
-- ES modules used throughout
-- Patch-package used for dependency patches
-- Husky + pretty-quick for pre-commit formatting
-- Docker support available for containerized deployment
+Wait for `PR Pipeline` to successfully publish the current PR head as `pr-<number>`, then dispatch `scrape.yml` with that `containerTag`, not `latest`. Keep `sendNewConfigToTg=false` unless explicitly requested.
 
 ## Commits and PR Titles
 
@@ -135,23 +103,5 @@ The application supports multiple storage backends:
 - Use `ci` for workflow changes, `build` for build tooling, and `chore(deps)` / `chore(deps-dev)` for dependency updates. Do not use legacy `infra` or mixed-case types.
 - Use optional scopes such as `scraper`, `telegram`, `report`, `config`, `ynab`, or `actual`. Keep descriptions lowercase and headers at most 200 characters.
 - Mark breaking changes with `!` or a `BREAKING CHANGE:` footer. Preserve required co-author trailers.
-- Run `npm run lint` (formatting and latest commit) locally; Husky validates each new commit message. PR CI validates the PR title, not individual branch commits.
+- For code changes and before committing, run `npm run lint` locally; for documentation-only edits without a commit, checking the edited files' formatting suffices. Husky validates each new commit message; PR CI validates the PR title, not individual branch commits.
 - Squash-merge PRs using the validated PR title as the commit title. Do not rewrite published history to rename old commits.
-
-## Environment Variables
-
-Key environment variables include:
-
-- `DEBUG=moneyman:*` - Enable debug logging
-- `MONEYMAN_CONFIG` - JSON configuration (preferred)
-- `MONEYMAN_LONG_RUNNING` - Set to `"true"` to keep running after the first scrape (schedule + Telegram commands)
-- `PUPPETEER_SKIP_DOWNLOAD=true` - Skip Chrome download in development
-- Various storage provider specific variables (see README.md)
-
-## Common Development Tasks
-
-1. **Adding a new storage provider**: Implement the `StorageBase` interface in `src/bot/storage/`
-2. **Modifying configuration**: Update Zod schemas in `src/config.ts`
-3. **Adding new scrapers**: Extend the israeli-bank-scrapers integration
-4. **Testing changes**: Run `npm test` and validate with `npm run test:config`
-5. **Updating dependencies**: Use `PUPPETEER_SKIP_DOWNLOAD=true` when running `npm install` on dev machines (CI uses Docker with system Chromium). When combining multiple dependabot PRs, check for breaking changes requiring code modifications (e.g., puppeteer major bumps remove/rename APIs). Reference superseded PRs in the combined PR description.
