@@ -24,6 +24,7 @@ const createMockTransactionRow = (
     status: TransactionStatuses.Completed,
   }),
   account: "test-account",
+  scrapedAt: "2026-01-30T12:00:00.000Z",
   companyId: CompanyTypes.hapoalim,
   hash: "test-hash",
   uniqueId: "test-unique-id",
@@ -54,45 +55,16 @@ describe("transactionTableRow", () => {
       expect(result.hash).toBe("test-unique-id");
     });
 
-    it("should include raw field when includeRaw is true", () => {
-      const mockTransaction = createMockTransactionRow({
-        chargedAmount: 100,
-        description: "Test transaction",
-        memo: "Test memo",
-      });
-
-      const result = tableRow(mockTransaction, true);
-
-      expect(result.raw).toBeDefined();
-      expect(result.raw).toBe(JSON.stringify(mockTransaction));
-    });
-
-    it("should not include raw field when includeRaw is false", () => {
-      const mockTransaction = createMockTransactionRow({
-        chargedAmount: 100,
-        description: "Test transaction",
-        memo: "Test memo",
-      });
-
-      const result = tableRow(mockTransaction, false);
-
-      expect(result.raw).toBeUndefined();
-    });
-
-    it("should not include raw field by default (when includeRaw is not specified)", () => {
-      const mockTransaction = createMockTransactionRow({
-        chargedAmount: 100,
-        description: "Test transaction",
-        memo: "Test memo",
-      });
-
-      const result = tableRow(mockTransaction);
-
-      expect(result.raw).toBeUndefined();
+    it("includes raw transaction data only when requested", () => {
+      const tx = createMockTransactionRow({ memo: "Test memo" });
+      expect(tableRow(tx, true).raw).toBe(JSON.stringify(tx));
+      expect(tableRow(tx, false)).not.toHaveProperty("raw");
+      expect(tableRow(tx)).not.toHaveProperty("raw");
     });
 
     it("should include all other required fields", () => {
       const mockTransaction = createMockTransactionRow({
+        date: new Date(2026, 0, 30).toISOString(),
         chargedAmount: 100,
         description: "Test transaction",
         memo: "Test memo",
@@ -101,48 +73,39 @@ describe("transactionTableRow", () => {
 
       const result = tableRow(mockTransaction);
 
-      expect(result.date).toBeDefined();
+      expect(result.date).toBe("30/01/2026");
       expect(result.amount).toBe(100);
       expect(result.description).toBe("Test transaction");
       expect(result.memo).toBe("Test memo");
       expect(result.category).toBe("");
       expect(result.account).toBe("test-account");
-      expect(result.hash).toBeDefined();
+      expect(result.hash).toBe("test-hash");
       expect(result.comment).toBe("");
       expect(result["scraped at"]).toBeDefined();
-      expect(result["scraped by"]).toBeDefined();
+      expect(result["scraped by"]).toBe("test-system");
       expect(result.identifier).toBe("test-id");
-      expect(result.chargedCurrency).toBeDefined();
+      expect(result.chargedCurrency).toBe("ILS");
     });
 
-    it("should serialize complete transaction data in raw field when includeRaw is true", () => {
-      const mockTransaction = createMockTransactionRow({
-        chargedAmount: 100,
-        description: "Test transaction",
-        memo: "Test memo",
-      });
+    it("preserves the local scrape date when exporting after midnight", () => {
+      jest.useFakeTimers();
+      try {
+        const beforeMidnight = new Date(2026, 0, 30, 23, 59);
+        jest.setSystemTime(beforeMidnight);
+        const tx = createMockTransactionRow({
+          scrapedAt: beforeMidnight.toISOString(),
+        });
+        expect(tableRow(tx)["scraped at"]).toBe("2026-01-30");
 
-      const result = tableRow(mockTransaction, true);
-
-      expect(result.raw).toBeDefined();
-      const parsed = JSON.parse(result.raw!);
-      expect(parsed).toEqual(mockTransaction);
-    });
-
-    it("should handle transactions with undefined/null values in raw field when includeRaw is true", () => {
-      const mockTransaction = createMockTransactionRow({
-        chargedAmount: 100,
-        description: "Test transaction",
-        memo: undefined as any,
-        category: null as any,
-      });
-
-      const result = tableRow(mockTransaction, true);
-
-      expect(result.raw).toBeDefined();
-      const parsed = JSON.parse(result.raw!);
-      expect(parsed.memo).toBeUndefined();
-      expect(parsed.category).toBeNull();
+        jest.setSystemTime(new Date(2026, 0, 31, 0, 1));
+        expect(tableRow(tx)["scraped at"]).toBe("2026-01-30");
+        const nextRun = createMockTransactionRow({
+          scrapedAt: new Date().toISOString(),
+        });
+        expect(tableRow(nextRun)["scraped at"]).toBe("2026-01-31");
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 });

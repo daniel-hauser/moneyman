@@ -48,7 +48,11 @@ const scraping: ScraperRunConfig = {
   enableOtp: true,
 };
 const results: AccountScrapeResult[] = [
-  { companyId: CompanyTypes.oneZero, result: { success: true, accounts: [] } },
+  {
+    companyId: CompanyTypes.oneZero,
+    scrapedAt: "2026-01-30T12:00:00.000Z",
+    result: { success: true, accounts: [] },
+  },
 ];
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
 const requestOtpCode: jest.MockedFunction<OtpRequest> = jest.fn();

@@ -214,6 +214,7 @@ describe("messages", () => {
       const results: Array<AccountScrapeResult> = [
         {
           companyId: CompanyTypes.max,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: true,
             accounts: [
@@ -245,6 +246,7 @@ describe("messages", () => {
       const results: Array<AccountScrapeResult> = [
         {
           companyId: CompanyTypes.max,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: false,
             errorType: ScraperErrorTypes.Generic,
@@ -253,6 +255,7 @@ describe("messages", () => {
         },
         {
           companyId: CompanyTypes.hapoalim,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: false,
             errorType: ScraperErrorTypes.ChangePassword,
@@ -260,6 +263,7 @@ describe("messages", () => {
         },
         {
           companyId: CompanyTypes.hapoalim,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: true,
             accounts: [
@@ -295,6 +299,7 @@ describe("messages", () => {
       const results: Array<AccountScrapeResult> = [
         {
           companyId: CompanyTypes.max,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: true,
             accounts: [
@@ -367,6 +372,7 @@ describe("messages", () => {
       const results: Array<AccountScrapeResult> = [
         {
           companyId: CompanyTypes.mizrahi,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: true,
             accounts: [
@@ -391,6 +397,7 @@ describe("messages", () => {
       const results: Array<AccountScrapeResult> = [
         {
           companyId: CompanyTypes.max,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: true,
             accounts: [
@@ -415,6 +422,7 @@ describe("messages", () => {
       const results: Array<AccountScrapeResult> = [
         {
           companyId: CompanyTypes.max,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: false,
             errorType: ScraperErrorTypes.Generic,
@@ -423,6 +431,7 @@ describe("messages", () => {
         },
         {
           companyId: CompanyTypes.hapoalim,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: true,
             accounts: [

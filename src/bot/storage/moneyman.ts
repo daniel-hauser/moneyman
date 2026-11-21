@@ -14,7 +14,7 @@ const logger = createLogger("MoneymanDashStorage");
 const MM_PREFIX = "mm_";
 
 interface IngestionMetadata {
-  scrapedAt: string;
+  scrapedAt?: string;
   scrapedBy: string;
   accounts: number;
   added: number;
@@ -218,7 +218,7 @@ export class MoneymanDashStorage implements TransactionStorage {
 
     return {
       metadata: {
-        scrapedAt: new Date().toISOString(),
+        scrapedAt: txns[0]?.scrapedAt,
         scrapedBy: "moneyman",
         accounts: uniqueAccounts.size,
         added: txns.length,

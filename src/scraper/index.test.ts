@@ -47,6 +47,33 @@ describe("scraper runtime browser lifecycle", () => {
     jest.restoreAllMocks();
   });
 
+  it("captures one timestamp at scrape start, even when accounts finish after midnight", async () => {
+    jest.useFakeTimers();
+    try {
+      const startedAt = new Date(2026, 0, 30, 23, 59);
+      jest.setSystemTime(startedAt);
+      jest.mocked(getAccountTransactions).mockImplementation(async () => {
+        jest.setSystemTime(new Date(2026, 0, 31, 0, 1));
+        return { success: true, accounts: [] };
+      });
+      const results = await scrapeAccounts(
+        { ...config, accounts: [config.accounts[0], config.accounts[0]] },
+        initDomainTracking,
+      );
+      expect(results.map(({ scrapedAt }) => scrapedAt)).toEqual([
+        startedAt.toISOString(),
+        startedAt.toISOString(),
+      ]);
+
+      const nextResults = await scrapeAccounts(config, initDomainTracking);
+      expect(nextResults[0].scrapedAt).toBe(
+        new Date(2026, 0, 31, 0, 1).toISOString(),
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it("returns stable nonsecret login IDs with both successful and failed results", async () => {
     jest
       .mocked(getAccountTransactions)
@@ -214,7 +241,11 @@ describe("scraper runtime browser lifecycle", () => {
       },
     );
     expect(results).toEqual([
-      { companyId: "hapoalim", result: { success: true, accounts: [] } },
+      {
+        companyId: "hapoalim",
+        scrapedAt: expect.any(String),
+        result: { success: true, accounts: [] },
+      },
     ]);
     expect(createBrowser).toHaveBeenCalledWith("browser", undefined, false);
     expect(getAccountTransactions).toHaveBeenCalledWith(

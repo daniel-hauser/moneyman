@@ -18,6 +18,7 @@ export function labeledScrapeResults(): AccountScrapeResult[] {
   return [
     {
       companyId: CompanyTypes.hapoalim,
+      scrapedAt: "2026-01-30T12:00:00.000Z",
       scrapeId: "home-bank",
       result: {
         success: true,
@@ -26,11 +27,13 @@ export function labeledScrapeResults(): AccountScrapeResult[] {
     },
     {
       companyId: CompanyTypes.visaCal,
+      scrapedAt: "2026-01-30T12:00:00.000Z",
       scrapeId: "shared-card",
       result: { success: true, accounts: [] },
     },
     {
       companyId: CompanyTypes.max,
+      scrapedAt: "2026-01-30T12:00:00.000Z",
       result: { success: true },
     },
     ...[
@@ -50,6 +53,7 @@ export function labeledScrapeResults(): AccountScrapeResult[] {
       { companyId: CompanyTypes.max },
     ].map((login) => ({
       ...login,
+      scrapedAt: "2026-01-30T12:00:00.000Z",
       result: {
         success: false,
         errorType: ScraperErrorTypes.Generic,
@@ -77,6 +81,7 @@ export function transaction(t: Partial<Transaction>): Transaction {
 export function transactionRow(tx: Partial<TransactionRow>): TransactionRow {
   return {
     account: "1234",
+    scrapedAt: "2026-01-30T12:00:00.000Z",
     hash: "hash-1",
     uniqueId: "unique-1",
     companyId: CompanyTypes.hapoalim,

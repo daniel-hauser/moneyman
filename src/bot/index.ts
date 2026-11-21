@@ -77,7 +77,7 @@ export async function runWithStorage(
           ...(await Promise.all(
             photos.map(async ({ photoPath, caption }) => ({
               caption,
-              dataUrl: await createScreenshotDataUrl(photoPath),
+              ...(await createScreenshotDataUrl(photoPath)),
             })),
           )),
         );

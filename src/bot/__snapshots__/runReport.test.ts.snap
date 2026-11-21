@@ -65,6 +65,7 @@ exports[`renderHTMLReport does not approve hostile report data as executable con
     &quot;chargedCurrency&quot;: &quot;ILS&quot;,
     &quot;chargedAmount&quot;: 10,
     &quot;status&quot;: &quot;completed&quot;,
+    &quot;scrapedAt&quot;: &quot;2026-01-30T12:00:00.000Z&quot;,
     &quot;companyId&quot;: &quot;max&quot;,
     &quot;accountNumber&quot;: &quot;&lt;/ScRiPt&gt;&lt;ScRiPt&gt;fetch(\\&quot;https://example.invalid\\&quot;)&lt;/ScRiPt&gt;&lt;StYlE&gt;body{display:none}&lt;/StYlE&gt;&lt;img src=\\&quot;https://example.invalid\\&quot; onerror=\\&quot;alert(1)\\&quot;&gt;&quot;
   }
@@ -93,6 +94,7 @@ exports[`renderHTMLReport downloads full original transactions and account ident
         42
       ]
     },
+    &quot;scrapedAt&quot;: &quot;2026-01-30T12:00:00.000Z&quot;,
     &quot;companyId&quot;: &quot;max&quot;,
     &quot;accountNumber&quot;: &quot;1234&quot;
   },
@@ -106,6 +108,7 @@ exports[`renderHTMLReport downloads full original transactions and account ident
     &quot;chargedCurrency&quot;: &quot;ILS&quot;,
     &quot;chargedAmount&quot;: 10,
     &quot;status&quot;: &quot;completed&quot;,
+    &quot;scrapedAt&quot;: &quot;2026-01-30T12:00:00.000Z&quot;,
     &quot;companyId&quot;: &quot;visaCal&quot;,
     &quot;accountNumber&quot;: &quot;other&lt;&amp;\\&quot;&quot;
   }
@@ -265,6 +268,7 @@ exports[`renderHTMLReport embeds screenshots and errors in an offline report wit
     &quot;chargedCurrency&quot;: &quot;ILS&quot;,
     &quot;chargedAmount&quot;: 10,
     &quot;status&quot;: &quot;completed&quot;,
+    &quot;scrapedAt&quot;: &quot;2026-01-30T12:00:00.000Z&quot;,
     &quot;companyId&quot;: &quot;max&quot;,
     &quot;accountNumber&quot;: &quot;1234&quot;
   }

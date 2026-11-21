@@ -161,6 +161,7 @@ describe("SqlStorage", () => {
         [
           {
             companyId: CompanyTypes.hapoalim,
+            scrapedAt: "2026-01-30T12:00:00.000Z",
             result: {
               success: true,
               accounts: [{ accountNumber: "123", txns }],

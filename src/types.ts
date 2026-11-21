@@ -13,6 +13,7 @@ export type AccountConfig = ScraperCredentials & {
 };
 
 export interface TransactionRow extends Transaction {
+  scrapedAt: string;
   account: string;
   companyId: CompanyTypes;
   hash: string;
@@ -20,6 +21,8 @@ export interface TransactionRow extends Transaction {
 }
 
 export interface AccountScrapeResult {
+  /** ISO timestamp captured when the originating scrape run starts. */
+  scrapedAt: string;
   companyId: CompanyTypes;
   scrapeId?: string;
   result: ScraperScrapingResult;

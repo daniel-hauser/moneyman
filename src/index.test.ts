@@ -100,7 +100,11 @@ jest.mock("./utils/logger.js", () => ({
 const accountResult = (
   companyId: CompanyTypes,
   success: boolean,
-): AccountScrapeResult => ({ companyId, result: { success, accounts: [] } });
+): AccountScrapeResult => ({
+  companyId,
+  scrapedAt: "2026-01-30T12:00:00.000Z",
+  result: { success, accounts: [] },
+});
 
 function hooks(): RunnerHooks {
   const mockedHooks = mock<RunnerHooks>();

@@ -43,7 +43,7 @@ export class TelegramStorage implements TransactionStorage {
         metadata: {
           ...stats,
           scrapedBy: systemName,
-          scrapedAt: new Date().toISOString(),
+          scrapedAt: transactions[0]?.scrapedAt,
         },
         transactions,
       },

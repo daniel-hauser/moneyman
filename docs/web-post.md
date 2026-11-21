@@ -2,6 +2,9 @@
 
 Export transactions as a POST request to a web address.
 
+The `scraped at` date is captured at the start of the scrape run, in the
+process's local timezone. Delayed exports retain that date.
+
 The transactions will be sent as a JSON array in the body of the request with the following structure:
 
 ```

@@ -30,7 +30,11 @@ jest.mock("../notifier.js", () => ({
 }));
 
 jest.mock("../transactionTableRow.js", () => ({
-  tableRow: jest.fn().mockReturnValue({}),
+  tableRow: jest.fn(
+    jest.requireActual<typeof import("../transactionTableRow.js")>(
+      "../transactionTableRow.js",
+    ).tableRow,
+  ),
 }));
 
 describe("GoogleSheetsStorage", () => {
@@ -86,6 +90,33 @@ describe("GoogleSheetsStorage", () => {
     },
   );
 
+  it("preserves the scrape date across delayed and repeated exports", async () => {
+    jest.useFakeTimers();
+    try {
+      const scrapedAt = new Date(2026, 0, 30, 23, 59).toISOString();
+      jest.setSystemTime(new Date(2026, 0, 31, 0, 1));
+      mockDoc.loadInfo.mockImplementationOnce(async () => {
+        jest.setSystemTime(new Date(2026, 1, 1, 0, 1));
+      });
+      const txns = [
+        transactionRow({ scrapedAt }),
+        transactionRow({ hash: "hash-2", uniqueId: "unique-2", scrapedAt }),
+      ];
+
+      await storage.saveTransactions(txns, async () => {});
+      expect(mockSheet.addRows.mock.calls[0][0]).toEqual(
+        txns.map(() => expect.objectContaining({ "scraped at": "2026-01-30" })),
+      );
+
+      await storage.saveTransactions(txns, async () => {});
+      expect(mockSheet.addRows.mock.calls[1][0]).toEqual(
+        txns.map(() => expect.objectContaining({ "scraped at": "2026-01-30" })),
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   afterEach(() => {
     jest.clearAllMocks();
     mockClear(mockDoc);
@@ -98,8 +129,11 @@ describe("GoogleSheetsStorage", () => {
         "Google API error - [503] The service is currently unavailable";
       mockDoc.loadInfo.mockRejectedValue(new Error(errorMessage));
 
-      await expect((storage as any).getDoc()).rejects.toThrow(errorMessage);
+      await expect(
+        storage.saveTransactions([transactionRow({})], async () => {}),
+      ).rejects.toThrow(errorMessage);
       expect(mockDoc.loadInfo).toHaveBeenCalledTimes(1);
+      expect(mockSheet.addRows).not.toHaveBeenCalled();
     });
 
     it("should throw error when sheet.addRows fails", async () => {
@@ -165,24 +199,6 @@ describe("GoogleSheetsStorage", () => {
       ).rejects.toThrow(errorMessage);
 
       expect(mockSheet.getCellsInRange).toHaveBeenCalledTimes(1);
-    });
-
-    it("should handle any error type without retrying", async () => {
-      const errorTypes = [
-        "Network error",
-        "Authentication failed",
-        "Invalid request",
-        "503 Service Unavailable",
-      ];
-
-      for (const errorMessage of errorTypes) {
-        mockDoc.loadInfo.mockRejectedValue(new Error(errorMessage));
-
-        await expect((storage as any).getDoc()).rejects.toThrow(errorMessage);
-        expect(mockDoc.loadInfo).toHaveBeenCalledTimes(1);
-
-        mockDoc.loadInfo.mockClear();
-      }
     });
   });
 

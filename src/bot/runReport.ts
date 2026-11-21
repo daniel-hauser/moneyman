@@ -15,6 +15,7 @@ import {
 import { reportClientScript, reportStyles } from "./report/assets.generated.js";
 import { statsDetailsLines, type SaveStats } from "./saveStats.js";
 import { truncateError } from "./truncateError.js";
+import type { ScreenshotData } from "./screenshotDataUrl.js";
 
 export const TELEGRAM_MESSAGE_LIMIT = 4096;
 
@@ -50,7 +51,7 @@ export interface RunReport {
   scrape: { status: Array<string>; totalTimeSec?: number };
   summary?: { results: Array<AccountScrapeResult> };
   errors: Array<{ caller: string; message: string }>;
-  screenshots: Array<{ caption: string; dataUrl: string }>;
+  screenshots: Array<ScreenshotData & { caption: string }>;
   /** Keyed by storage name, ordered by insertion */
   storages: Record<string, StorageRow>;
   /** Free-form notes, e.g. "No transactions found, skipping save" */

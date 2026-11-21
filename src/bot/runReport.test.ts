@@ -53,6 +53,7 @@ function step(name: string, duration: number) {
 function successResult(): AccountScrapeResult {
   return {
     companyId: CompanyTypes.max,
+    scrapedAt: "2026-01-30T12:00:00.000Z",
     result: {
       success: true,
       accounts: [
@@ -99,6 +100,7 @@ describe("renderRunReport", () => {
       ...transaction({}),
       hash: "h",
       uniqueId: "u",
+      scrapedAt: "2026-01-30T12:00:00.000Z",
       account: "a",
       companyId: CompanyTypes.max,
     };
@@ -138,6 +140,7 @@ describe("renderRunReport", () => {
       results: [
         {
           companyId: CompanyTypes.max,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: false,
             errorType: ScraperErrorTypes.Generic,
@@ -159,6 +162,7 @@ describe("renderRunReport", () => {
     report.summary = {
       results: Array.from({ length: 8 }, () => ({
         companyId: CompanyTypes.max,
+        scrapedAt: "2026-01-30T12:00:00.000Z",
         result: { success: false, errorType: ScraperErrorTypes.Generic },
       })),
     };
@@ -224,10 +228,12 @@ describe("screenshot file sizes", () => {
         caption: "Synthetic white pixel",
         dataUrl:
           "data:image/webp;base64,UklGRh4AAABXRUJQVlA4TBEAAAAvAAAAAAfQ//73v/+BiOh/AAA=",
+        sizeBytes: 38,
       },
       {
         caption: "Original PNG",
         dataUrl: "data:image/png;base64,AA==",
+        sizeBytes: 1,
       },
     ];
     const report = baseReport();
@@ -242,25 +248,19 @@ describe("screenshot file sizes", () => {
   });
 
   it.each([
-    ["exact decimal MB", Buffer.alloc(1_250_000).toString("base64"), "1.25 MB"],
-    ["two padding bytes", "AA==", "<0.01 MB"],
-    ["one padding byte", "AAA=", "<0.01 MB"],
-    ["no padding", "AAAA", "<0.01 MB"],
-    ["unpadded single byte", "AA", "<0.01 MB"],
-    ["unpadded two bytes", "AAA", "<0.01 MB"],
-    ["ASCII whitespace", " \tA\nA\f=\r= ", "<0.01 MB"],
-    ["percent-encoded alphabet and padding", "%2B%2F8%3D", "<0.01 MB"],
-    ["percent-encoded ASCII whitespace", "%20%09A%0AA%0C%3D%0D%3D", "<0.01 MB"],
-    ["whitespace only", " \t\n\f\r", "0.00 MB"],
-    ["percent-encoded empty", "%20%09%0A%0C%0D", "0.00 MB"],
-    ["empty", "", "0.00 MB"],
-  ])("renders decoded base64 size: %s", (_name, payload, expected) => {
-    const dataUrl = `data:image/png;base64,${payload}`;
+    [1_250_000, "1.25 MB"],
+    [1, "<0.01 MB"],
+    [10_000, "0.01 MB"],
+    [0, "0.00 MB"],
+  ])("renders the producer's byte size %s as %s", (sizeBytes, expected) => {
+    const dataUrl = "data:image/png;base64,AA==";
     const caption = 'Failure </figcaption><script>alert("hostile")</script> &';
-    document.body.innerHTML = renderReportScreenshots([{ caption, dataUrl }]);
+    document.body.innerHTML = renderReportScreenshots([
+      { caption, dataUrl, sizeBytes },
+    ]);
     const preview =
       document.querySelector<HTMLImageElement>(".screenshot img")!;
-    expect(preview.getAttribute("src")).toBe(dataUrl.replace(/\r\n?/g, "\n"));
+    expect(preview.getAttribute("src")).toBe(dataUrl);
     expect(preview.alt).toBe(caption);
     expect(document.querySelector(".screenshot-size")!.textContent).toBe(
       expected,
@@ -273,56 +273,7 @@ describe("screenshot file sizes", () => {
       document.querySelector(".screenshot figcaption")!.textContent,
     ).toContain(caption);
     expect(document.querySelector("script")).toBeNull();
-    if (expected === "1.25 MB")
-      expect((Buffer.byteLength(payload) / 1_000_000).toFixed(2)).toBe("1.67");
   });
-
-  it.each([
-    ["<svg>😀</svg>", "<0.01 MB"],
-    [`<svg>${"😀".repeat(2500)}</svg>`, "0.01 MB"],
-    [`<svg>${"€".repeat(125_000)}</svg>`, "0.38 MB"],
-    ["", "0.00 MB"],
-  ])("counts percent-encoded SVG UTF-8 bytes (%#)", (svg, expected) => {
-    const dataUrl = `data:image/svg+xml,${encodeURIComponent(svg)}`;
-    document.body.innerHTML = renderReportScreenshots([
-      { caption: "SVG", dataUrl },
-    ]);
-    expect(document.querySelector(".screenshot-size")!.textContent).toBe(
-      expected,
-    );
-    expect(document.querySelector("img")!.getAttribute("src")).toBe(dataUrl);
-  });
-
-  it.each([
-    "data:image/png;base64,A",
-    "data:image/png;base64,AAAA=",
-    "data:image/png;base64,===",
-    "data:image/png;base64,invalid!",
-    "data:image/png;base64,%ZZ",
-    "data:image/png;base64,%FF",
-    "data:image/png;base64,AA==\u00a0",
-    "data:image/png;base64,AA==\u000b",
-    "data:image/svg+xml,%ZZ",
-    "https://example.com/image.png",
-  ])(
-    "shows size unavailable for an invalid or non-data source (%s)",
-    (dataUrl) => {
-      document.body.innerHTML = renderReportScreenshots([
-        { caption: "Unknown", dataUrl },
-      ]);
-      expect(
-        document.querySelector(".screenshot .screenshot-size")!.textContent,
-      ).toBe("Size unavailable");
-      expect(
-        document.querySelector<HTMLButtonElement>(".screenshot-open")!.dataset
-          .size,
-      ).toBe("Size unavailable");
-      expect(
-        document.querySelector(".screenshot figcaption")!.textContent,
-      ).toContain("Unknown");
-      expect(document.querySelector("img")!.getAttribute("src")).toBe(dataUrl);
-    },
-  );
 });
 
 describe("renderReportTimings", () => {
@@ -481,6 +432,7 @@ describe("renderHTMLReport", () => {
         report.screenshots.push({
           caption: "Image",
           dataUrl: "data:image/png;base64,aGVsbG8=",
+          sizeBytes: 5,
         });
       const output = renderHTMLReport(report, logs);
       const policy = contentSecurityPolicy(output);
@@ -558,6 +510,7 @@ describe("renderHTMLReport", () => {
     report.screenshots.push({
       caption: "Failure",
       dataUrl: "data:image/png;base64,aGVsbG8=",
+      sizeBytes: 5,
     });
     const output = renderHTMLReport(report);
     expect(
@@ -573,6 +526,7 @@ describe("renderHTMLReport", () => {
     report.screenshots.push({
       caption: "Safe image",
       dataUrl: "data:image/png;base64,aGVsbG8=",
+      sizeBytes: 5,
     });
     const original = renderHTMLReport(report, "safe logs");
     report.scrape.status.push(hostile);
@@ -585,6 +539,7 @@ describe("renderHTMLReport", () => {
     report.screenshots[0] = {
       caption: hostile,
       dataUrl: "data:image/png;base64,aGVsbG8=",
+      sizeBytes: 5,
     };
     const output = renderHTMLReport(report, `${hostile}\r\nraw\rlogs`);
     const policy = contentSecurityPolicy(output);
@@ -770,6 +725,7 @@ describe("renderHTMLReport", () => {
         first,
         {
           companyId: CompanyTypes.visaCal,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: true,
             accounts: [{ accountNumber: 'other<&"', txns: [second] }],
@@ -777,6 +733,7 @@ describe("renderHTMLReport", () => {
         },
         {
           companyId: CompanyTypes.leumi,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: false,
             accounts: [{ accountNumber: "ignored", txns: [transaction({})] }],
@@ -800,10 +757,21 @@ describe("renderHTMLReport", () => {
       (_, entity) => entities[entity],
     );
     const expected = [
-      { ...original, companyId: CompanyTypes.max, accountNumber: "1234" },
-      { ...second, companyId: CompanyTypes.visaCal, accountNumber: 'other<&"' },
+      {
+        ...original,
+        scrapedAt: first.scrapedAt,
+        companyId: CompanyTypes.max,
+        accountNumber: "1234",
+      },
+      {
+        ...second,
+        scrapedAt: first.scrapedAt,
+        companyId: CompanyTypes.visaCal,
+        accountNumber: 'other<&"',
+      },
     ];
     expect(JSON.parse(serialized)).toEqual(expected);
+    expect(original).not.toHaveProperty("scrapedAt");
     const realm = createReportWindow();
     const document = realm.document;
     document.body.innerHTML = output;
@@ -850,15 +818,17 @@ describe("renderHTMLReport", () => {
   it("omits empty transaction downloads and screenshot sections without usable images", () => {
     const emptyResult: AccountScrapeResult = {
       companyId: CompanyTypes.max,
+      scrapedAt: "2026-01-30T12:00:00.000Z",
       result: { success: true, accounts: [] },
     };
     const failedResult: AccountScrapeResult = {
       companyId: CompanyTypes.max,
+      scrapedAt: "2026-01-30T12:00:00.000Z",
       result: { success: false },
     };
     const screenshots = [
-      { caption: "Empty", dataUrl: "" },
-      { caption: "Whitespace", dataUrl: " \n " },
+      { caption: "Empty", dataUrl: "", sizeBytes: 0 },
+      { caption: "Whitespace", dataUrl: " \n ", sizeBytes: 0 },
     ];
     expect({
       emptyTransactions: renderReportTransactions([emptyResult]),
@@ -873,10 +843,12 @@ describe("renderHTMLReport", () => {
         {
           caption: 'Real <image> "one"',
           dataUrl: "data:image/png;base64,aGVsbG8=",
+          sizeBytes: 5,
         },
         {
           caption: "Second",
           dataUrl: "data:image/png;base64,dHdv",
+          sizeBytes: 3,
         },
       ]),
     ).toMatchSnapshot("two usable screenshot previews");
@@ -889,10 +861,12 @@ describe("renderHTMLReport", () => {
         successResult(),
         {
           companyId: CompanyTypes.visaCal,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: { success: true, accounts: [] },
         },
         {
           companyId: CompanyTypes.leumi,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: false,
             errorType: ScraperErrorTypes.InvalidPassword,
@@ -901,6 +875,7 @@ describe("renderHTMLReport", () => {
         },
         {
           companyId: CompanyTypes.max,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: { success: false },
         },
       ],
@@ -954,6 +929,7 @@ describe("renderHTMLReport", () => {
         successResult(),
         {
           companyId: CompanyTypes.max,
+          scrapedAt: "2026-01-30T12:00:00.000Z",
           result: {
             success: false,
             errorType: ScraperErrorTypes.Generic,
@@ -966,6 +942,7 @@ describe("renderHTMLReport", () => {
       ...transaction({ description: "Shop" }),
       hash: "h",
       uniqueId: "u",
+      scrapedAt: "2026-01-30T12:00:00.000Z",
       account: "1234",
       companyId: CompanyTypes.max,
     };
@@ -986,6 +963,7 @@ describe("renderHTMLReport", () => {
     report.screenshots.push({
       caption: "Failure <image>",
       dataUrl: "data:image/png;base64,aGVsbG8=",
+      sizeBytes: 5,
     });
 
     const html = renderHTMLReport(report);
