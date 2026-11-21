@@ -2,9 +2,6 @@
 
 Export transactions to a Google Sheets spreadsheet.
 
-The `scraped at` column records the scrape run's start date (`yyyy-MM-dd`) in
-the process's local timezone, even when the export happens later.
-
 Setup instructions:
 
 1. Follow the instructions [here](https://theoephraim.github.io/node-google-spreadsheet/#/guides/authentication?id=setting-up-your-quotapplicationquot) to create a google service account.
