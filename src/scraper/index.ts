@@ -194,10 +194,11 @@ async function scrapeAccount(
   logger(`scraping started`);
 
   const scraperStart = performance.now();
+  const label = scrapeLabel(account);
   const result = await getAccountTransactions(
     account,
     scraperOptions,
-    (cid, step) => setStatusMessage(`[${cid}] ${step}`),
+    (_companyId, step) => setStatusMessage(`[${label}] ${step}`),
     requestOtpCode,
   );
 

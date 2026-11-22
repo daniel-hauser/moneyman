@@ -174,6 +174,23 @@ describe("commands", () => {
       });
     });
 
+    it("retires the picker and names the login it started", async () => {
+      const buttons = await setup(["home"]);
+      await buttons.send("/scrape_accounts");
+      buttons.callApi.mockClear();
+      await buttons.click(homeCallback);
+      expect(buttons.callApi).toHaveBeenCalledWith(
+        "editMessageText",
+        expect.objectContaining({
+          chat_id: chatId,
+          message_id: 1,
+          text: "Scraping home…",
+          reply_markup: { inline_keyboard: [] },
+        }),
+      );
+      expect(buttons.scrape).toHaveBeenCalledWith({ choices: ["home"] });
+    });
+
     it("includes all allowed IDs in the account picker", async () => {
       const choices = Array.from(
         { length: 101 },
@@ -888,6 +905,7 @@ describe("commands", () => {
           jest.mocked(handlers.scrape).mockImplementation(async () => {
             expect(callApi.mock.calls.map(([method]) => method)).toEqual([
               "answerCallbackQuery",
+              "editMessageText",
             ]);
             if (outcome === "reply failure")
               callApi.mockRejectedValueOnce(new Error("reply failed"));
@@ -905,6 +923,7 @@ describe("commands", () => {
         }
         expect(callApi.mock.calls.map(([method]) => method)).toEqual([
           "answerCallbackQuery",
+          ...(outcome === "acknowledgement failure" ? [] : ["editMessageText"]),
           ...(["throw", "acknowledgement failure"].includes(outcome)
             ? []
             : ["sendMessage"]),
