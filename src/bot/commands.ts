@@ -189,7 +189,6 @@ export function registerCommands(
     ctx: Context,
     scrapeId?: string,
   ) {
-    if (ctx.callbackQuery) await ctx.answerCbQuery();
     if (command.disabled?.())
       return ctx.reply("This command is currently unavailable.");
     try {
@@ -211,7 +210,17 @@ export function registerCommands(
   }
   bot.action(/^sa:(.*)$/s, async (ctx) => {
     const choice = selections.get(ctx.match[1]);
-    if (choice !== undefined) return executeCommand(scrapeCommand, ctx, choice);
+    if (choice !== undefined) {
+      await ctx.answerCbQuery();
+      // Retire the picker before starting: a keyboard left standing can be
+      // tapped again, and the edited message names the login that is running.
+      await ctx
+        .editMessageText(`Scraping ${choice}…`, {
+          reply_markup: { inline_keyboard: [] },
+        })
+        .catch((e) => logger("Failed to retire the account picker", e));
+      return executeCommand(scrapeCommand, ctx, choice);
+    }
     try {
       await ctx.answerCbQuery();
       return await ctx.reply(
