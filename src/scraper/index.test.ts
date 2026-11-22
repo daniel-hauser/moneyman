@@ -94,6 +94,36 @@ describe("scraper runtime browser lifecycle", () => {
     ]);
   });
 
+  it("labels each running account by its scrape id", async () => {
+    jest
+      .mocked(getAccountTransactions)
+      .mockImplementation(async (_account, _options, onProgress) => {
+        onProgress("hapoalim", "LOGGING_IN");
+        return { success: true, accounts: [] };
+      });
+    const statuses: Array<string[]> = [];
+    await scrapeAccounts(
+      {
+        ...config,
+        accounts: [
+          { ...config.accounts[0], scrapeId: "home" },
+          { ...config.accounts[0], scrapeId: "cards" },
+          config.accounts[0],
+        ],
+      },
+      initDomainTracking,
+      async (status) => {
+        statuses.push([...status]);
+      },
+    );
+    expect(statuses[0]).toEqual(["[hapoalim · home] LOGGING_IN"]);
+    expect(statuses.at(-1)).toEqual([
+      "[hapoalim · home] LOGGING_IN , took 0.0s",
+      "[hapoalim · cards] LOGGING_IN , took 0.0s",
+      "[hapoalim] LOGGING_IN , took 0.0s",
+    ]);
+  });
+
   it("returns stable nonsecret login IDs with both successful and failed results", async () => {
     jest
       .mocked(getAccountTransactions)
