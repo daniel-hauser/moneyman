@@ -1,5 +1,6 @@
 import { mock } from "jest-mock-extended";
 import { Telegraf } from "telegraf";
+import type { Message } from "telegraf/types";
 import { createBot } from "./bot.js";
 
 const mockLogger = jest.fn();
@@ -58,6 +59,55 @@ it("includes both operation and disposal failures in Telegram errors", async () 
     send.mockRestore();
   }
 });
+
+it.each([
+  { count: 1, single: 1, grouped: 0 },
+  { count: 10, single: 0, grouped: 1 },
+  { count: 11, single: 1, grouped: 1 },
+])(
+  "delivers $count failure screenshots within Telegram's limits",
+  async ({ count, single, grouped }) => {
+    const notifier = await import("./notifier.js");
+    const bot = notifier.getTelegramBot()!;
+    const sendPhoto = jest
+      .spyOn(bot.telegram, "sendPhoto")
+      .mockResolvedValue(mock<Message.PhotoMessage>());
+    const sendMediaGroup = jest
+      .spyOn(bot.telegram, "sendMediaGroup")
+      .mockResolvedValue([]);
+    const photos = Array.from({ length: count }, (_, index) => ({
+      photoPath: `screenshot-${index}.png`,
+      caption: `Failure ${index}`,
+    }));
+
+    try {
+      await notifier.sendPhotos(photos);
+
+      expect(sendPhoto).toHaveBeenCalledTimes(single);
+      expect(sendMediaGroup).toHaveBeenCalledTimes(grouped);
+      const groupSizes = sendMediaGroup.mock.calls.map(
+        ([, media]) => media.length,
+      );
+      expect(groupSizes.every((size) => size >= 2 && size <= 10)).toBe(true);
+      expect(photosDelivered(sendPhoto, sendMediaGroup)).toBe(count);
+    } finally {
+      sendPhoto.mockRestore();
+      sendMediaGroup.mockRestore();
+    }
+  },
+);
+
+function photosDelivered(
+  sendPhoto: jest.SpiedFunction<Telegraf["telegram"]["sendPhoto"]>,
+  sendMediaGroup: jest.SpiedFunction<Telegraf["telegram"]["sendMediaGroup"]>,
+): number {
+  const singles = sendPhoto.mock.calls.length;
+  const grouped = sendMediaGroup.mock.calls.reduce(
+    (total, [, media]) => total + media.length,
+    0,
+  );
+  return singles + grouped;
+}
 
 it("logs deprecation warning delivery failures without rejecting", async () => {
   const notifier = await import("./notifier.js");

@@ -86,19 +86,40 @@ export async function sendPhoto(photoPath: string, caption: string) {
   );
 }
 
+/**
+ * Telegram rejects media groups with more than 10 items, so larger sets are
+ * split into consecutive groups.
+ */
+export const maxPhotosPerMediaGroup = 10;
+
 export async function sendPhotos(photos: Array<ImageWithCaption>) {
   logger(`Sending photos`, { photos });
   if (photos.length === 0 || !bot || !telegramConfig?.chatId) {
     return;
   }
-  return await bot.telegram.sendMediaGroup(
-    telegramConfig.chatId,
-    photos.map(({ photoPath, caption }) => ({
-      type: "photo",
-      caption,
-      media: { source: photoPath },
-    })),
-  );
+  for (let i = 0; i < photos.length; i += maxPhotosPerMediaGroup) {
+    const chunk = photos.slice(i, i + maxPhotosPerMediaGroup);
+    // Telegram requires 2-10 items in a media group, so a lone screenshot —
+    // the only one, or the remainder of a set one past a multiple of ten — is
+    // sent on its own.
+    if (chunk.length === 1) {
+      const [{ photoPath, caption }] = chunk;
+      await bot.telegram.sendPhoto(
+        telegramConfig.chatId,
+        { source: photoPath },
+        { caption },
+      );
+      continue;
+    }
+    await bot.telegram.sendMediaGroup(
+      telegramConfig.chatId,
+      chunk.map(({ photoPath, caption }) => ({
+        type: "photo",
+        caption,
+        media: { source: photoPath },
+      })),
+    );
+  }
 }
 
 export async function sendJSON(json: {}, filename: string) {

@@ -6,6 +6,8 @@ Each run is reported in a single message that is edited as the run progresses: s
 
 Set `options.notifications.telegram.sendReportFileToTelegram` to `false` to skip the HTML attachment, including HTML rendering, screenshot embedding, and reading logs for the report. Status notifications and report stats remain enabled. Captured logs can still be sent as a standalone file when `sendLogFileToTelegram` is enabled; set both options to `false` to receive neither attachment. Without an available initialized Telegram bot and chat ID, no report attachment is generated or sent.
 
+Set `options.notifications.telegram.sendFailureScreenshotsToTelegram` to `true` to also receive failure screenshots as native Telegram photos. They are sent as media groups for failed logins only, independently of the report attachment — so screenshots still arrive when `sendReportFileToTelegram` is `false`, and enabling both keeps them embedded in the report as well. Groups are capped at Telegram's limit of 10 photos, with larger sets split across consecutive messages.
+
 The HTML report shows compact run details, including a localized short start date and time (hover for the full timestamp), and account/storage tables without repeating account results as scraper status. Expand a failed account or storage's status to see its full error; errors wrap within stable table columns. Storage tables show **Name**, with the destination beneath it when available, **Status**, and one wrapping **Summary** with every transaction count (including zeroes) and save time; step progression appears underneath as a compact flow, and wide tables scroll horizontally. **Transactions (N)** displays immediately as a scrollable table with sticky headers, using your browser's short date format (hover for the full timestamp). **Search transactions** filters all displayed columns using the same wildcards as log search and updates the visible count. Date, Amount, and Account header buttons toggle ascending/descending order; invalid dates stay last and tied values retain original order. Filtering preserves your chosen sort. The **Download transactions as JSON** icon always saves every original transaction from successful accounts in original order, augmented with `companyId` and `accountNumber`, as `transactions.json`, regardless of filtering or sorting. Screenshots appear below the account results in **Accounts** only when image data is available, collapsed by default under **Screenshots (N)**, including on runs without account results. Expand them for small uncropped thumbnails, then click a thumbnail for a full-size dialog; close it with **Close screenshot**, Escape, or a click outside.
 
 In a current browser, **Search logs** filters lines case-insensitively and highlights matching spans. Search text is literal except for Excel-style wildcards: `*` matches any sequence and `?` matches one character; use `~*`, `~?`, and `~~` for a literal star, question mark, and tilde. Matches do not cross line endings. Clear the search to restore all lines; **Download logs**, to the right of the search box, always saves the complete, original text as `logs.txt`, including whitespace and line endings.
@@ -52,6 +54,12 @@ options: {
        * @default true
        */
       sendLogFileToTelegram?: boolean;
+      /**
+       * Send failure screenshots as native Telegram photos, grouped by login.
+       * Only sent for logins whose scrape failed, independently of `sendReportFileToTelegram`.
+       * @default false
+       */
+      sendFailureScreenshotsToTelegram?: boolean;
       /**
        * Minimum time in milliseconds between edits of the status message.
        * Values below 250 are raised to 250 to stay within Telegram's rate limits.

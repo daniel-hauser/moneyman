@@ -71,6 +71,17 @@ describe("config", () => {
     expect(parsed.telegram?.sendLogFileToTelegram).toBe(true);
   });
 
+  it.each([
+    [{}, false],
+    [{ sendFailureScreenshotsToTelegram: true }, true],
+    [{ sendFailureScreenshotsToTelegram: false }, false],
+  ])("preserves the failure screenshot setting %j", (extra, expected) => {
+    const parsed = NotificationOptionsSchema.parse({
+      telegram: { apiKey: "test-token", chatId: "1", ...extra },
+    });
+    expect(parsed.telegram?.sendFailureScreenshotsToTelegram).toBe(expected);
+  });
+
   it("does not configure Telegram when omitted", () => {
     expect(NotificationOptionsSchema.parse({}).telegram).toBeUndefined();
   });

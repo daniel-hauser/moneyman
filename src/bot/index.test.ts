@@ -14,6 +14,7 @@ import sharp from "sharp";
 jest.mock("./storage/index.js", () => ({ saveResults: jest.fn() }));
 jest.mock("./notifier.js", () => ({
   __esModule: true,
+  sendPhotos: jest.fn(),
   reportTransport: jest
     .requireActual<typeof import("jest-mock-extended")>("jest-mock-extended")
     .mock<ReportTransport>(),
@@ -134,6 +135,69 @@ describe("runWithStorage report logs", () => {
       expect.anything(),
       expect.objectContaining({ sendReportFile: true }),
     );
+  });
+
+  it("sends failure screenshots as Telegram photos when enabled, even with the report attachment off", async () => {
+    config.options.notifications.telegram!.sendFailureScreenshotsToTelegram = true;
+    config.options.notifications.telegram!.sendReportFileToTelegram = false;
+    const photos = [
+      { photoPath: "invented-screenshot.png", caption: "Failure" },
+    ];
+
+    const { report } = await runWithStorage(
+      async ({ failureScreenshotsHandler }) => {
+        await failureScreenshotsHandler(photos);
+      },
+      [mock<TransactionStorage>()],
+    );
+
+    expect(notifier.sendPhotos).toHaveBeenCalledWith(photos);
+    expect(readFile).not.toHaveBeenCalled();
+    expect(report.screenshots).toEqual([]);
+  });
+
+  it("does not send failure screenshots when the option is off", async () => {
+    await runWithStorage(
+      async ({ failureScreenshotsHandler }) => {
+        await failureScreenshotsHandler([
+          { photoPath: "invented-screenshot.png", caption: "Failure" },
+        ]);
+      },
+      [mock<TransactionStorage>()],
+    );
+
+    expect(notifier.sendPhotos).not.toHaveBeenCalled();
+  });
+
+  it("still embeds screenshots in the report when photo delivery fails", async () => {
+    const png = await sharp({
+      create: {
+        width: 100,
+        height: 100,
+        channels: 3,
+        background: "#ffffff",
+      },
+    })
+      .png()
+      .toBuffer();
+    jest.mocked(readFile).mockResolvedValue(png);
+    config.options.notifications.telegram!.sendFailureScreenshotsToTelegram = true;
+    jest
+      .mocked(notifier.sendPhotos)
+      .mockRejectedValueOnce(new Error("Telegram is unavailable"));
+
+    const { report } = await runWithStorage(
+      async ({ failureScreenshotsHandler }) => {
+        await failureScreenshotsHandler([
+          { photoPath: "invented-screenshot.png", caption: "Failure" },
+        ]);
+      },
+      [mock<TransactionStorage>()],
+    );
+
+    expect(notifier.sendPhotos).toHaveBeenCalledTimes(1);
+    expect(report.screenshots).toHaveLength(1);
+    expect(report.screenshots[0].caption).toBe("Failure");
   });
 
   it("still finalizes the report when screenshot conversion fails", async () => {

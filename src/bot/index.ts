@@ -1,7 +1,11 @@
 import { saveResults } from "./storage/index.js";
 import { AccountScrapeResult, Runner, TransactionStorage } from "../types.js";
 import { createLogger, logToPublicLog } from "../utils/logger.js";
-import { reportTransport, reportUpdateIntervalMs } from "./notifier.js";
+import {
+  reportTransport,
+  reportUpdateIntervalMs,
+  sendPhotos,
+} from "./notifier.js";
 import { formatUnknownError } from "../utils/utils.js";
 import { createReportPublisher } from "./reportPublisher.js";
 import { createRunReport, type RunReport } from "./runReport.js";
@@ -23,6 +27,10 @@ export async function runWithStorage(
   const sendReportFile =
     Boolean(reportTransport) &&
     (config.options.notifications.telegram?.sendReportFileToTelegram ?? false);
+  const sendFailureScreenshots =
+    Boolean(reportTransport) &&
+    (config.options.notifications.telegram?.sendFailureScreenshotsToTelegram ??
+      false);
   const { report, finish } = createReportPublisher(publication.report, {
     transport: reportTransport,
     sendReportFile,
@@ -72,6 +80,15 @@ export async function runWithStorage(
       },
       async onBeforeStart() {},
       async failureScreenshotsHandler(photos) {
+        if (sendFailureScreenshots && photos.length) {
+          try {
+            await sendPhotos(photos);
+          } catch (e) {
+            // Photo delivery is best-effort: a rejected upload must not stop
+            // the report from embedding the same screenshots.
+            logger(`Failed to send failure screenshots`, e);
+          }
+        }
         if (!reportTransport || !sendReportFile) return;
         report.screenshots.push(
           ...(await Promise.all(
