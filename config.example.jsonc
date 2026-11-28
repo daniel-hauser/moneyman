@@ -66,6 +66,8 @@
       //   "sendReportFileToTelegram": true,
       //   // Send captured logs, preferring the report with a standalone fallback (default: true)
       //   "sendLogFileToTelegram": true,
+      //   // Send failure screenshots as Telegram photos, independently of the report (default: false)
+      //   "sendFailureScreenshotsToTelegram": false,
       //   // Enable OTP (One-Time Password) support for 2FA authentication (default: false)
       //   "enableOtp": false,
       //   // Maximum time in seconds to wait for OTP response (default: 300)

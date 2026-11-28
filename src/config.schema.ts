@@ -162,6 +162,14 @@ export const NotificationOptionsSchema = z.object({
        */
       sendLogFileToTelegram: z.boolean().optional().default(true),
       /**
+       * Whether to send failure screenshots as native Telegram photos.
+       * Sent as media groups only for logins whose scrape failed, independently
+       * of `sendReportFileToTelegram` (screenshots are still embedded in the
+       * HTML report when that is enabled).
+       * @default false
+       */
+      sendFailureScreenshotsToTelegram: z.boolean().optional().default(false),
+      /**
        * Minimum time in milliseconds between edits of the status message.
        * Values below 250 are raised to 250 to stay within Telegram's rate limits.
        * @default 500
