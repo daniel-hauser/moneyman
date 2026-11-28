@@ -81,7 +81,13 @@ export async function runWithStorage(
       async onBeforeStart() {},
       async failureScreenshotsHandler(photos) {
         if (sendFailureScreenshots && photos.length) {
-          await sendPhotos(photos);
+          try {
+            await sendPhotos(photos);
+          } catch (e) {
+            // Photo delivery is best-effort: a rejected upload must not stop
+            // the report from embedding the same screenshots.
+            logger(`Failed to send failure screenshots`, e);
+          }
         }
         if (!reportTransport || !sendReportFile) return;
         report.screenshots.push(

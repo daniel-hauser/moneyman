@@ -169,6 +169,37 @@ describe("runWithStorage report logs", () => {
     expect(notifier.sendPhotos).not.toHaveBeenCalled();
   });
 
+  it("still embeds screenshots in the report when photo delivery fails", async () => {
+    const png = await sharp({
+      create: {
+        width: 100,
+        height: 100,
+        channels: 3,
+        background: "#ffffff",
+      },
+    })
+      .png()
+      .toBuffer();
+    jest.mocked(readFile).mockResolvedValue(png);
+    config.options.notifications.telegram!.sendFailureScreenshotsToTelegram = true;
+    jest
+      .mocked(notifier.sendPhotos)
+      .mockRejectedValueOnce(new Error("Telegram is unavailable"));
+
+    const { report } = await runWithStorage(
+      async ({ failureScreenshotsHandler }) => {
+        await failureScreenshotsHandler([
+          { photoPath: "invented-screenshot.png", caption: "Failure" },
+        ]);
+      },
+      [mock<TransactionStorage>()],
+    );
+
+    expect(notifier.sendPhotos).toHaveBeenCalledTimes(1);
+    expect(report.screenshots).toHaveLength(1);
+    expect(report.screenshots[0].caption).toBe("Failure");
+  });
+
   it("still finalizes the report when screenshot conversion fails", async () => {
     jest.mocked(readFile).mockResolvedValue(Buffer.from("not an image"));
 

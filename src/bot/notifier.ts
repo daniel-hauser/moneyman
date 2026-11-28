@@ -98,15 +98,26 @@ export async function sendPhotos(photos: Array<ImageWithCaption>) {
     return;
   }
   for (let i = 0; i < photos.length; i += maxPhotosPerMediaGroup) {
+    const chunk = photos.slice(i, i + maxPhotosPerMediaGroup);
+    // Telegram requires 2-10 items in a media group, so a lone screenshot —
+    // the only one, or the remainder of a set one past a multiple of ten — is
+    // sent on its own.
+    if (chunk.length === 1) {
+      const [{ photoPath, caption }] = chunk;
+      await bot.telegram.sendPhoto(
+        telegramConfig.chatId,
+        { source: photoPath },
+        { caption },
+      );
+      continue;
+    }
     await bot.telegram.sendMediaGroup(
       telegramConfig.chatId,
-      photos
-        .slice(i, i + maxPhotosPerMediaGroup)
-        .map(({ photoPath, caption }) => ({
-          type: "photo",
-          caption,
-          media: { source: photoPath },
-        })),
+      chunk.map(({ photoPath, caption }) => ({
+        type: "photo",
+        caption,
+        media: { source: photoPath },
+      })),
     );
   }
 }
